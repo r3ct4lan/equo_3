@@ -65,3 +65,7 @@ docker/php/    PHP 8.4 FPM image
 docs/          Project documentation
 compose.yaml   Local development stack
 ```
+
+## Documentation
+
+The project artifacts and documentation index are available in [docs/README.md](docs/README.md).

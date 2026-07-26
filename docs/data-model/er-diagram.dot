@@ -1,0 +1,151 @@
+digraph EquoER {
+  graph [rankdir=LR, bgcolor="white", pad="0.3", nodesep="0.65", ranksep="1.0", splines=ortho];
+  node [shape=plain, fontname="Arial"];
+  edge [fontname="Arial", fontsize=9, color="#555555", arrowsize=0.7];
+
+  USER [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5">
+      <TR><TD BGCOLOR="#E8EEF7"><B>USER</B></TD></TR>
+      <TR><TD ALIGN="LEFT">id : uuid PK</TD></TR>
+      <TR><TD ALIGN="LEFT">name : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">email : varchar UK, normalized</TD></TR>
+      <TR><TD ALIGN="LEFT">passwordHash : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">isActive : boolean</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt : timestamptz</TD></TR>
+    </TABLE>
+  >];
+
+  CONNECT [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5">
+      <TR><TD BGCOLOR="#E8EEF7"><B>CONNECT</B></TD></TR>
+      <TR><TD ALIGN="LEFT">id : uuid PK</TD></TR>
+      <TR><TD ALIGN="LEFT">firstUserId : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">secondUserId : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT"><I>UK(firstUserId, secondUserId)</I></TD></TR>
+    </TABLE>
+  >];
+
+  CONNECT_INVITATION [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5">
+      <TR><TD BGCOLOR="#E8EEF7"><B>CONNECT_INVITATION</B></TD></TR>
+      <TR><TD ALIGN="LEFT">id : uuid PK</TD></TR>
+      <TR><TD ALIGN="LEFT">createdById : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">acceptedById : uuid FK?</TD></TR>
+      <TR><TD ALIGN="LEFT">tokenHash : varchar UK</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">expiresAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">usedAt : timestamptz?</TD></TR>
+    </TABLE>
+  >];
+
+  DEBT [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5">
+      <TR><TD BGCOLOR="#E8EEF7"><B>DEBT</B></TD></TR>
+      <TR><TD ALIGN="LEFT">id : uuid PK</TD></TR>
+      <TR><TD ALIGN="LEFT">title : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">description : text?</TD></TR>
+      <TR><TD ALIGN="LEFT">totalAmount : bigint</TD></TR>
+      <TR><TD ALIGN="LEFT">payerId : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">createdById : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">isDeleted : boolean</TD></TR>
+      <TR><TD ALIGN="LEFT">version : integer</TD></TR>
+    </TABLE>
+  >];
+
+  DEBT_PARTICIPANT [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5">
+      <TR><TD BGCOLOR="#E8EEF7"><B>DEBT_PARTICIPANT</B></TD></TR>
+      <TR><TD ALIGN="LEFT">id : uuid PK</TD></TR>
+      <TR><TD ALIGN="LEFT">debtId : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">userId : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">isDeleted : boolean</TD></TR>
+      <TR><TD ALIGN="LEFT"><I>UK(debtId, userId)</I></TD></TR>
+    </TABLE>
+  >];
+
+  TRANSFER [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5">
+      <TR><TD BGCOLOR="#E8EEF7"><B>TRANSFER</B></TD></TR>
+      <TR><TD ALIGN="LEFT">id : uuid PK</TD></TR>
+      <TR><TD ALIGN="LEFT">connectId : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">senderId : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">receiverId : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">amount : bigint</TD></TR>
+      <TR><TD ALIGN="LEFT">type : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">createdById : uuid FK?</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">isDeleted : boolean</TD></TR>
+      <TR><TD ALIGN="LEFT">version : integer</TD></TR>
+      <TR><TD ALIGN="LEFT">debtId : uuid FK?</TD></TR>
+      <TR><TD ALIGN="LEFT">debtParticipantId : uuid FK?</TD></TR>
+      <TR><TD ALIGN="LEFT">relatedTransferId : uuid FK?</TD></TR>
+      <TR><TD ALIGN="LEFT"><I>partial UK(debtParticipantId)</I></TD></TR>
+    </TABLE>
+  >];
+
+  USER_SESSION [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5">
+      <TR><TD BGCOLOR="#F0F3F7"><B>USER_SESSION</B></TD></TR>
+      <TR><TD ALIGN="LEFT">id : uuid PK</TD></TR>
+      <TR><TD ALIGN="LEFT">userId : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">refreshTokenHash : varchar UK</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">expiresAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">revokedAt : timestamptz?</TD></TR>
+    </TABLE>
+  >];
+
+  USER_ACTION_TOKEN [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5">
+      <TR><TD BGCOLOR="#F0F3F7"><B>USER_ACTION_TOKEN</B></TD></TR>
+      <TR><TD ALIGN="LEFT">id : uuid PK</TD></TR>
+      <TR><TD ALIGN="LEFT">userId : uuid FK</TD></TR>
+      <TR><TD ALIGN="LEFT">tokenHash : varchar UK</TD></TR>
+      <TR><TD ALIGN="LEFT">purpose : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">payload : jsonb?</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">expiresAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">usedAt : timestamptz?</TD></TR>
+      <TR><TD ALIGN="LEFT">invalidatedAt : timestamptz?</TD></TR>
+    </TABLE>
+  >];
+
+  IDEMPOTENCY_RECORD [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5">
+      <TR><TD BGCOLOR="#F0F3F7"><B>IDEMPOTENCY_RECORD</B></TD></TR>
+      <TR><TD ALIGN="LEFT">id : uuid PK</TD></TR>
+      <TR><TD ALIGN="LEFT">scope : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">userId : uuid FK?</TD></TR>
+      <TR><TD ALIGN="LEFT">operation : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">idempotencyKey : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">requestHash : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">responseStatus : integer?</TD></TR>
+      <TR><TD ALIGN="LEFT">responseBody : jsonb?</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">expiresAt : timestamptz?</TD></TR>
+      <TR><TD ALIGN="LEFT"><I>UK(scope, operation, idempotencyKey)</I></TD></TR>
+    </TABLE>
+  >];
+
+  USER -> CONNECT [label="firstUserId", taillabel="0..*", headlabel="1"];
+  USER -> CONNECT [label="secondUserId", taillabel="0..*", headlabel="1"];
+  USER -> CONNECT_INVITATION [label="createdById", taillabel="0..*", headlabel="1"];
+  USER -> CONNECT_INVITATION [label="acceptedById", style=dashed, taillabel="0..*", headlabel="0..1"];
+  USER -> DEBT [label="createdById", taillabel="0..*", headlabel="1"];
+  USER -> DEBT [label="payerId", taillabel="0..*", headlabel="1"];
+  DEBT -> DEBT_PARTICIPANT [label="debtId", taillabel="1..*", headlabel="1"];
+  USER -> DEBT_PARTICIPANT [label="userId", taillabel="0..*", headlabel="1"];
+  CONNECT -> TRANSFER [label="connectId", taillabel="0..*", headlabel="1"];
+  USER -> TRANSFER [label="senderId", taillabel="0..*", headlabel="1"];
+  USER -> TRANSFER [label="receiverId", taillabel="0..*", headlabel="1"];
+  USER -> TRANSFER [label="createdById", style=dashed, taillabel="0..*", headlabel="0..1"];
+  DEBT -> TRANSFER [label="debtId", style=dashed, taillabel="1..*", headlabel="0..1"];
+  DEBT_PARTICIPANT -> TRANSFER [label="debtParticipantId", style=dashed, taillabel="0..1", headlabel="0..1"];
+  TRANSFER -> TRANSFER [label="relatedTransferId", style=dashed, taillabel="0..*", headlabel="0..1"];
+  USER -> USER_SESSION [label="userId", taillabel="0..*", headlabel="1"];
+  USER -> USER_ACTION_TOKEN [label="userId", taillabel="0..*", headlabel="1"];
+  USER -> IDEMPOTENCY_RECORD [label="userId", style=dashed, taillabel="0..*", headlabel="0..1"];
+}
