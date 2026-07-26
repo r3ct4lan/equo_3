@@ -1,0 +1,29 @@
+{
+  "name": "equo-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --host 0.0.0.0 --port 3000",
+    "build": "nuxt build",
+    "typecheck": "nuxt typecheck",
+    "postinstall": "node scripts/patch-nitropack.mjs"
+  },
+  "dependencies": {
+    "nuxt": "4.5.0",
+    "vue": "3.5.40",
+    "vue-router": "^4.6.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.2.4"
+  },
+  "overrides": {
+    "nitropack": {
+      "archiver": "8.0.0"
+    }
+  },
+  "engines": {
+    "node": ">=22 <23"
+  }
+}
