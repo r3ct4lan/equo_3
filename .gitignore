@@ -8,3 +8,11 @@
 Thumbs.db
 
 docker-compose.override.yml
+
+backend/.env.local
+backend/.env.*.local
+backend/var/
+backend/vendor/
+frontend/.nuxt/
+frontend/.output/
+frontend/node_modules/
