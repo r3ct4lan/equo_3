@@ -1,0 +1,11 @@
+.git
+.env
+.idea
+.vscode
+backend/.env.local
+backend/var
+backend/vendor
+frontend/.nuxt
+frontend/.output
+frontend/node_modules
+*.log
