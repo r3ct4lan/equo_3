@@ -110,6 +110,26 @@ digraph EquoER {
       <TR><TD ALIGN="LEFT">expiresAt : timestamptz</TD></TR>
       <TR><TD ALIGN="LEFT">usedAt : timestamptz?</TD></TR>
       <TR><TD ALIGN="LEFT">invalidatedAt : timestamptz?</TD></TR>
+      <TR><TD ALIGN="LEFT"><I>partial UK(userId, purpose) when unfinished</I></TD></TR>
+    </TABLE>
+  >];
+
+  EMAIL_DELIVERY_OUTBOX [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5">
+      <TR><TD BGCOLOR="#F0F3F7"><B>EMAIL_DELIVERY_OUTBOX</B></TD></TR>
+      <TR><TD ALIGN="LEFT">id : uuid PK / deliveryId</TD></TR>
+      <TR><TD ALIGN="LEFT">userActionTokenId : uuid FK, UK</TD></TR>
+      <TR><TD ALIGN="LEFT">recipientEmail : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">templateKey : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">encryptedPayload : bytea?</TD></TR>
+      <TR><TD ALIGN="LEFT">status : varchar</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">availableAt : timestamptz</TD></TR>
+      <TR><TD ALIGN="LEFT">publishedAt : timestamptz?</TD></TR>
+      <TR><TD ALIGN="LEFT">sentAt : timestamptz?</TD></TR>
+      <TR><TD ALIGN="LEFT">failedAt : timestamptz?</TD></TR>
+      <TR><TD ALIGN="LEFT">publishAttempts : integer</TD></TR>
+      <TR><TD ALIGN="LEFT">lastError : text?</TD></TR>
     </TABLE>
   >];
 
@@ -147,5 +167,6 @@ digraph EquoER {
   TRANSFER -> TRANSFER [label="relatedTransferId", style=dashed, taillabel="0..*", headlabel="0..1"];
   USER -> USER_SESSION [label="userId", taillabel="0..*", headlabel="1"];
   USER -> USER_ACTION_TOKEN [label="userId", taillabel="0..*", headlabel="1"];
+  USER_ACTION_TOKEN -> EMAIL_DELIVERY_OUTBOX [label="userActionTokenId", taillabel="0..1", headlabel="1"];
   USER -> IDEMPOTENCY_RECORD [label="userId", style=dashed, taillabel="0..*", headlabel="0..1"];
 }

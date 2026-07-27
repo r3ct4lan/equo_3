@@ -5,12 +5,12 @@
 | Поле | Значение |
 |---|---|
 | Название | Equo — ER-диаграмма MVP v1 |
-| Назначение | Описать девять персистентных сущностей, их поля, ключи, ограничения и связи |
+| Назначение | Описать десять персистентных сущностей, их поля, ключи, ограничения и связи |
 | Статус | Финальная согласованная версия этапа проектирования |
 | Версия | 1 |
-| Дата актуальности | 2026-07-26 |
+| Дата актуальности | 2026-07-27 |
 | Владелец | Maksim Smolkov |
-| Источник | `equo-04-er-diagram.md`, `.dot`, `.svg` и `.png` из приложенного архива `equo-artifacts-final.zip` |
+| Источник | `equo-04-er-diagram.md`, `.dot`, `.svg` и `.png` из приложенного архива `equo-artifacts-final.zip`; решения владельца от 2026-07-27 |
 
 Представления диаграммы: [редактируемый DOT](er-diagram.dot), [SVG](er-diagram.svg), [PNG](er-diagram.png).
 
@@ -18,7 +18,7 @@
 
 **Статус:** финальная согласованная версия этапа проектирования.
 
-Диаграмма описывает девять персистентных сущностей. Производные read-модели, email queue/outbox, логи и метрики не входят в доменную ER-диаграмму и при необходимости проектируются отдельно.
+Диаграмма описывает десять персистентных сущностей, включая инфраструктурный email outbox. Производные read-модели, брокерные очереди RabbitMQ, логи и метрики в ER-диаграмму не входят.
 
 Связанные документы: [глоссарий](../glossary/glossary.md), [бизнес-правила](../business-rules/business-rules.md), [модель сущностей](entities.md), [HTTP-контракты](../api/http-contracts.md), [ADR](../adr/architecture-decisions.md).
 
@@ -38,6 +38,7 @@
 - `UserSession`
 - `UserActionToken`
 - `IdempotencyRecord`
+- `EmailDeliveryOutbox`
 
 ---
 
@@ -141,6 +142,22 @@ erDiagram
         timestamptz expiresAt "nullable"
     }
 
+    EMAIL_DELIVERY_OUTBOX {
+        uuid id PK
+        uuid userActionTokenId FK
+        varchar recipientEmail
+        varchar templateKey
+        bytea encryptedPayload "nullable"
+        varchar status "PENDING | PUBLISHED | SENT | FAILED"
+        timestamptz createdAt
+        timestamptz availableAt
+        timestamptz publishedAt "nullable"
+        timestamptz sentAt "nullable"
+        timestamptz failedAt "nullable"
+        integer publishAttempts
+        text lastError "nullable"
+    }
+
     USER ||--o{ CONNECT : first_side
     USER ||--o{ CONNECT : second_side
 
@@ -164,6 +181,7 @@ erDiagram
     USER ||--o{ USER_SESSION : owns
     USER ||--o{ USER_ACTION_TOKEN : owns
     USER o|--o{ IDEMPOTENCY_RECORD : associated_with
+    USER_ACTION_TOKEN ||--o| EMAIL_DELIVERY_OUTBOX : schedules
 ```
 
 ---
@@ -176,7 +194,7 @@ erDiagram
 id UUID PRIMARY KEY
 ```
 
-Это относится ко всем девяти сущностям.
+Это относится ко всем десяти сущностям.
 
 ---
 
@@ -202,6 +220,7 @@ id UUID PRIMARY KEY
 | `UserSession` | `userId` | `User.id` | нет |
 | `UserActionToken` | `userId` | `User.id` | нет |
 | `IdempotencyRecord` | `userId` | `User.id` | да |
+| `EmailDeliveryOutbox` | `userActionTokenId` | `UserActionToken.id` | нет |
 
 Для бизнес- и финансовых данных используются `ON DELETE NO ACTION` / `RESTRICT`. Каскадное физическое удаление финансовой истории не применяется.
 
@@ -263,7 +282,13 @@ UNIQUE(refreshTokenHash)
 
 ```text
 UNIQUE(tokenHash)
+
+UNIQUE(userId, purpose)
+WHERE usedAt IS NULL
+  AND invalidatedAt IS NULL
 ```
+
+Частичный индекс гарантирует не более одного незавершённого токена на `(userId, purpose)`. При выдаче доменный слой блокирует строку `User`, аннулирует прежний незавершённый токен и только затем создаёт новый в той же транзакции.
 
 ### `IdempotencyRecord`
 
@@ -277,6 +302,14 @@ UNIQUE(scope, operation, idempotencyKey)
 - для регистрации: `public`.
 
 `userId` хранится дополнительно как nullable FK для навигации и аудита, но не является источником уникальности.
+
+### `EmailDeliveryOutbox`
+
+```text
+UNIQUE(userActionTokenId)
+```
+
+Для одного токена существует не более одного задания доставки.
 
 ---
 
@@ -356,6 +389,17 @@ AND expiresAt > now()
 
 Для `CHANGE_EMAIL` `payload` содержит `newEmail`; для других назначений `payload = NULL`. Структура JSON проверяется приложением.
 
+### `EmailDeliveryOutbox`
+
+```text
+publishAttempts >= 0
+availableAt >= createdAt
+NOT (sentAt IS NOT NULL AND failedAt IS NOT NULL)
+status IN ('PENDING', 'PUBLISHED', 'SENT', 'FAILED')
+```
+
+Согласованность статуса, временных меток и наличия `encryptedPayload` дополнительно проверяется приложением.
+
 ---
 
 ## 8. Межтабличные инварианты доменного слоя
@@ -374,6 +418,9 @@ AND expiresAt > now()
 - для плательщика self-transfer отсутствует;
 - плательщик долга неизменяем;
 - удалённый долг и его состав больше не изменяются.
+- `EmailDeliveryOutbox.recipientEmail` и `templateKey` соответствуют purpose связанного токена;
+- consumer отправляет письмо только для текущего, неиспользованного, неаннулированного и неистёкшего токена;
+- relay переводит outbox в `PUBLISHED` только после publisher confirm RabbitMQ.
 
 Все изменения агрегата долга выполняются одной транзакцией.
 
@@ -401,6 +448,7 @@ AND expiresAt > now()
 | `User` → `UserSession` | пользователь — 0..N сессий; у сессии ровно один пользователь |
 | `User` → `UserActionToken` | пользователь — 0..N токенов; у токена ровно один пользователь |
 | `User` → `IdempotencyRecord` | пользователь — 0..N записей; у записи 0..1 пользователь |
+| `UserActionToken` → `EmailDeliveryOutbox` | токен — 0..1 задание доставки; у задания ровно один токен |
 
 ---
 
