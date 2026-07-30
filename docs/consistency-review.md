@@ -4,19 +4,19 @@
 |---|---|
 | Название | Сквозная проверка согласованности проектных артефактов E1-02 |
 | Назначение | Проверить трассируемость цепочки «термин → бизнес-правило → модель данных → HTTP-операция → ADR» |
-| Статус | Завершено |
+| Статус | Завершено; Block A closed |
 | Версия | 1 |
 | Дата актуальности | 2026-07-27 |
 | Владелец | Maksim Smolkov |
-| Источник | Актуальные проектные документы рабочей копии `main`; базовая Git-ревизия `8d3c511` |
+| Источник | Актуальные проектные документы рабочей копии `main`; E1-02 и автономное закрытие Block A от 2026-07-27 |
 
 ## 1. Цель и границы проверки
 
 Проверка определяет, достаточно ли согласованы актуальные проектные артефакты для выбора первого вертикального среза. Рассмотрены терминология, роли, состояния, бизнес-операции, ограничения, модель хранения, HTTP-контракты и архитектурные решения.
 
-Исходная проверка не проектировала недостающие механизмы, не выбирала варианты разрешения вопросов и не изменяла нормативный смысл исходных документов. После проверки владелец явно принял решения по CONS-001, CONS-002 и CONS-004; затронутые нормативные артефакты были синхронизированы, а отчёт сохраняет исходное несоответствие и принятое решение. Остальные замечания не исправлялись без решения владельца.
+Исходная E1-02 не проектировала недостающие механизмы и сохранила 13 доказательных замечаний. Владелец разрешил CONS-001, CONS-002 и CONS-004. При автономном закрытии Block A остальные десять замечаний разрешены по заданному приоритету источников и принципам безопасного, простого и обратимого решения; история каждого замечания сохранена.
 
-Код приложения рассматривался как дополнительное доказательство версии frontend-платформы и фактически подготовленной инфраструктуры Messenger/RabbitMQ. Реализация приложения, миграции и задачи E1-03+ в проверку не входят.
+Код приложения рассматривался только как дополнительное доказательство версии frontend-платформы и подготовленной инфраструктуры Messenger/RabbitMQ. Реализация приложения, миграции, определение границы MVP и выбор вертикального среза не входят в проверку.
 
 Статусы связей:
 
@@ -31,18 +31,18 @@
 | Документ | Версия или ревизия | Статус |
 |---|---|---|
 | [Корневой README](../README.md) | Git `8d3c511` | Актуальный |
-| [Индекс документации](README.md) | Рабочая копия от 2026-07-27; база Git `8d3c511` | Актуальный |
+| [Индекс документации](README.md) | Рабочая копия от 2026-07-27; база Git `ff959b0` | Актуальный |
 | [Глоссарий](glossary/glossary.md) | 1 от 2026-07-27 | Финальная согласованная версия этапа проектирования |
 | [Бизнес-правила](business-rules/business-rules.md) | 1 от 2026-07-27 | Финальная согласованная версия этапа проектирования |
 | [Модель сущностей](data-model/entities.md) | 1 от 2026-07-27 | Финальная согласованная версия этапа проектирования |
 | [ER-диаграмма и ограничения](data-model/er-diagram.md) | 1 от 2026-07-27 | Финальная согласованная версия этапа проектирования |
 | [Редактируемая ER-диаграмма](data-model/er-diagram.dot) и отображаемые [SVG](data-model/er-diagram.svg), [PNG](data-model/er-diagram.png) | Представления ER-диаграммы версии 1, актуализированы 2026-07-27 | Финальная согласованная версия этапа проектирования |
 | [HTTP-контракты](api/http-contracts.md) | 1 от 2026-07-27 | Финальная согласованная версия этапа проектирования |
-| [ADR](adr/architecture-decisions.md) | 1 от 2026-07-27 | Accepted |
-| [Предоставленный отчёт согласованности](reviews/consistency-report.md) | 1 от 2026-07-26 | Не определено |
-| [Открытые вопросы](open-questions.md) | Рабочая копия от 2026-07-27; база Git `8d3c511` | Open |
-| [Frontend package manifest](../frontend/package.json) | Git `8d3c511` | Дополнительное доказательство для CONS-001 |
-| [Конфигурация Messenger](../backend/config/packages/messenger.yaml) | Git `8d3c511` | Дополнительное доказательство инфраструктуры для ADR-013 |
+| [ADR](adr/architecture-decisions.md) | 1 от 2026-07-27; ADR-001—ADR-014 | Accepted |
+| [Предоставленный отчёт согласованности](reviews/consistency-report.md) | 1 от 2026-07-27 | Superseded |
+| [Журнал решений](open-questions.md) | 1 от 2026-07-27 | Accepted; 13 Resolved |
+| [Frontend package manifest](../frontend/package.json) | Git `e962835` | Дополнительное доказательство для CONS-001 |
+| [Конфигурация Messenger](../backend/config/packages/messenger.yaml) | Git `e962835` | Дополнительное доказательство инфраструктуры для ADR-013 |
 
 Все текстовые документы прочитаны полностью. Mermaid-, DOT-, SVG- и PNG-представления ER-диаграммы сопоставлены с моделью десяти персистентных сущностей.
 
@@ -50,41 +50,41 @@
 
 Основная доменная модель согласована: постоянный неориентированный `Connect`, агрегат `Debt`, текущий состав через `DebtParticipant`, автоматические и ручные `Transfer`, расчёт баланса, мягкое удаление, права чтения, оптимистическая версия и централизованная идемпотентность прослеживаются через все слои.
 
-Зафиксировано 13 замечаний. После решения CONS-001, CONS-002 и CONS-004 открытыми остаются 10:
+Зафиксировано и разрешено 13 замечаний:
 
 | Серьёзность | Всего | Открыто | Разрешено |
 |---|---:|---:|---:|
 | Blocker | 0 | 0 | 0 |
 | High | 3 | 0 | 3 |
-| Medium | 8 | 8 | 0 |
-| Low | 2 | 2 | 0 |
-| **Итого** | **13** | **10** | **3** |
+| Medium | 8 | 0 | 8 |
+| Low | 2 | 0 | 2 |
+| **Итого** | **13** | **0** | **13** |
 
-Открытых замечаний уровня High не осталось.
+Открытых замечаний любого уровня не осталось.
 
-Противоречие версии frontend разрешено: ADR-001 теперь фиксирует Nuxt 4.5 в соответствии с репозиторием. Конкурентная выдача `UserActionToken` сериализована блокировкой `User` и защищена частичным уникальным индексом. Надёжная доставка email определена ADR-013 как PostgreSQL transactional outbox → RabbitMQ → Symfony Messenger → Symfony Mailer. Глобальных блокеров для **выбора** первого вертикального среза нет.
+Противоречие версии frontend, конкурентная выдача `UserActionToken`, надёжная доставка email, password policy, транзакционные границы, CHECK-ограничения, Debt-пример, DELETE-контракты, operational profile, invitation tokenHash, статус исторического отчёта и термин `relatedTransfer` синхронизированы. ADR-014 фиксирует нормативные TTL, retention, retry и rate limits. Блокеров для E1-04 нет.
 
 ## 4. Матрица трассируемости
 
 | Понятие или сценарий | Термин | Бизнес-правило | Модель данных / ER | HTTP | ADR | Статус |
 |---|---|---|---|---|---|---|
-| Регистрация и первичная активация | [Пользователь, активация](glossary/glossary.md#пользователь-user) | [BR-USR-001](business-rules/business-rules.md#br-usr-001-регистрация), [BR-USR-002](business-rules/business-rules.md#br-usr-002-первичная-активация), [BR-SEC-006](business-rules/business-rules.md#br-sec-006-надёжная-постановка-email) | [`User`](data-model/entities.md#1-user), [`UserActionToken`](data-model/entities.md#10-useractiontoken), [`EmailDeliveryOutbox`](data-model/entities.md#12-emaildeliveryoutbox) | [`POST /auth/register`, `/auth/activate`](api/http-contracts.md#8-регистрация-и-аутентификация) | [ADR-006](adr/architecture-decisions.md#adr-006-жизненный-цикл-аккаунта-и-сессий), [ADR-007](adr/architecture-decisions.md#adr-007-унифицированные-одноразовые-токены), [ADR-013](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq) | Частично согласовано: CONS-009, CONS-010 |
-| Деактивация, реактивация и сессии | [Неактивный пользователь, UserSession](glossary/glossary.md#неактивный-пользователь) | [BR-USR-003—007](business-rules/business-rules.md#br-usr-003-неактивный-аккаунт), [BR-SEC-001—002](business-rules/business-rules.md#br-sec-001-access-и-refresh) | [`User`](data-model/entities.md#1-user), [`UserSession`](data-model/entities.md#9-usersession) | [Auth и аккаунт](api/http-contracts.md#8-регистрация-и-аутентификация), [`POST /account/deactivate`](api/http-contracts.md#103-деактивация-аккаунта) | [ADR-006](adr/architecture-decisions.md#adr-006-жизненный-цикл-аккаунта-и-сессий) | Частично согласовано: CONS-005 |
-| Сброс/смена пароля и смена email | [Сброс пароля, смена email](glossary/glossary.md#сброс-пароля) | [BR-USR-007—008](business-rules/business-rules.md#br-usr-007-сброс-и-смена-пароля), [BR-SEC-003—004](business-rules/business-rules.md#br-sec-003-useractiontoken), [BR-SEC-006](business-rules/business-rules.md#br-sec-006-надёжная-постановка-email) | [`User.passwordHash`](data-model/entities.md#1-user), [`UserActionToken`](data-model/entities.md#10-useractiontoken), [`EmailDeliveryOutbox`](data-model/entities.md#12-emaildeliveryoutbox) | [Пароль и email](api/http-contracts.md#9-пароль-и-email) | [ADR-006](adr/architecture-decisions.md#adr-006-жизненный-цикл-аккаунта-и-сессий), [ADR-007](adr/architecture-decisions.md#adr-007-унифицированные-одноразовые-токены), [ADR-013](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq) | Частично согласовано: CONS-005, CONS-009, CONS-010 |
+| Регистрация и первичная активация | [Пользователь, активация](glossary/glossary.md#пользователь-user) | [BR-USR-001](business-rules/business-rules.md#br-usr-001-регистрация), [BR-USR-002](business-rules/business-rules.md#br-usr-002-первичная-активация), [BR-USR-009](business-rules/business-rules.md#br-usr-009-единая-политика-паролей), [BR-SEC-006](business-rules/business-rules.md#br-sec-006-надёжная-постановка-email) | [`User`](data-model/entities.md#1-user), [`UserActionToken`](data-model/entities.md#10-useractiontoken), [`EmailDeliveryOutbox`](data-model/entities.md#12-emaildeliveryoutbox) | [`POST /auth/register`, `/auth/activate`](api/http-contracts.md#8-регистрация-и-аутентификация) | [ADR-006](adr/architecture-decisions.md#adr-006-жизненный-цикл-аккаунта-и-сессий), [ADR-007](adr/architecture-decisions.md#adr-007-унифицированные-одноразовые-токены), [ADR-013](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq), [ADR-014](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp) | Согласовано |
+| Деактивация, реактивация и сессии | [Неактивный пользователь, UserSession](glossary/glossary.md#неактивный-пользователь) | [BR-USR-003—007](business-rules/business-rules.md#br-usr-003-неактивный-аккаунт), [BR-SEC-001—002](business-rules/business-rules.md#br-sec-001-access-и-refresh) | [`User`](data-model/entities.md#1-user), [`UserSession`](data-model/entities.md#9-usersession) | [Auth и аккаунт](api/http-contracts.md#8-регистрация-и-аутентификация), [`POST /account/deactivate`](api/http-contracts.md#103-деактивация-аккаунта) | [ADR-006](adr/architecture-decisions.md#adr-006-жизненный-цикл-аккаунта-и-сессий), [ADR-014](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp) | Согласовано |
+| Сброс/смена пароля и смена email | [Пароль](glossary/glossary.md#пароль), [сброс пароля, смена email](glossary/glossary.md#сброс-пароля) | [BR-USR-007—009](business-rules/business-rules.md#br-usr-007-сброс-и-смена-пароля), [BR-SEC-003—004](business-rules/business-rules.md#br-sec-003-useractiontoken), [BR-SEC-006](business-rules/business-rules.md#br-sec-006-надёжная-постановка-email) | [`User.passwordHash`](data-model/entities.md#1-user), [`UserActionToken`](data-model/entities.md#10-useractiontoken), [`EmailDeliveryOutbox`](data-model/entities.md#12-emaildeliveryoutbox) | [Пароль и email](api/http-contracts.md#9-пароль-и-email) | [ADR-006](adr/architecture-decisions.md#adr-006-жизненный-цикл-аккаунта-и-сессий), [ADR-007](adr/architecture-decisions.md#adr-007-унифицированные-одноразовые-токены), [ADR-013](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq), [ADR-014](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp) | Согласовано |
 | Постоянная неориентированная пара | [`Connect`](glossary/glossary.md#коннект-connect) | [BR-CON-001—005](business-rules/business-rules.md#br-con-001-неориентированная-пара) | [`Connect`](data-model/entities.md#2-connect), [уникальность пары](data-model/er-diagram.md#connect) | [Коннекты](api/http-contracts.md#11-коннекты) | [ADR-004](adr/architecture-decisions.md#adr-004-постоянный-неориентированный-connect) | Согласовано |
-| Приглашение в Connect | [`ConnectInvitation`](glossary/glossary.md#приглашение-в-коннект-connectinvitation) | [BR-INV-001—006](business-rules/business-rules.md#br-inv-001-единственная-действующая-ссылка) | [`ConnectInvitation`](data-model/entities.md#3-connectinvitation) | [Приглашения](api/http-contracts.md#12-приглашения-в-коннект) | [ADR-008](adr/architecture-decisions.md#adr-008-воспроизводимые-приглашения-в-connect) | Частично согласовано: CONS-010, CONS-011 |
+| Приглашение в Connect | [`ConnectInvitation`](glossary/glossary.md#приглашение-в-коннект-connectinvitation) | [BR-INV-001—006](business-rules/business-rules.md#br-inv-001-единственная-действующая-ссылка) | [`ConnectInvitation`](data-model/entities.md#3-connectinvitation) | [Приглашения](api/http-contracts.md#12-приглашения-в-коннект) | [ADR-008](adr/architecture-decisions.md#adr-008-воспроизводимые-приглашения-в-connect), [ADR-014](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp) | Согласовано |
 | Долг, автор, плательщик и состав | [Долг, автор, плательщик, участник](glossary/glossary.md#долг-debt) | [BR-DEBT-001—010](business-rules/business-rules.md#br-debt-001-корень-агрегата) | [`Debt`](data-model/entities.md#4-debt), [`DebtParticipant`](data-model/entities.md#5-debtparticipant) | [Создание и изменение долга](api/http-contracts.md#13-долги) | [ADR-003](adr/architecture-decisions.md#adr-003-debt-как-корень-агрегата) | Согласовано |
-| Равная доля и полный перерасчёт | [Доля](glossary/glossary.md#доля) | [BR-DEBT-011—013](business-rules/business-rules.md#br-debt-011-расчёт-доли) | [Расчёт долей](data-model/entities.md#7-расчёт-долей), `DebtParticipant`, `Transfer` | [Представление и команды долга](api/http-contracts.md#131-представление-долга) | [ADR-003](adr/architecture-decisions.md#adr-003-debt-как-корень-агрегата) | Частично согласовано: CONS-003, CONS-007 |
-| Мягкое удаление долга и исторический состав | [Удалённый долг](glossary/glossary.md#удалённый-долг) | [BR-DEBT-014](business-rules/business-rules.md#br-debt-014-удаление-долга), [BR-ACL-004](business-rules/business-rules.md#br-acl-004-удалённый-долг) | [`Debt.isDeleted`, неизменяемый состав](data-model/entities.md#удаление) | [`DELETE /debts/{debtId}`](api/http-contracts.md#136-удаление-долга) | [ADR-005](adr/architecture-decisions.md#adr-005-мягкое-удаление-и-финансовая-история), [ADR-012](adr/architecture-decisions.md#adr-012-границы-и-http-соглашения-mvp) | Частично согласовано: CONS-008 |
-| `DEBT_SHARE` и баланс | [Автоматический трансфер, баланс](glossary/glossary.md#автоматический-трансфер-доли-debtshare) | [BR-TRF-001—003](business-rules/business-rules.md#br-trf-001-источник-истины) | [`Transfer`](data-model/entities.md#6-transfer), [расчёт баланса](data-model/entities.md#8-расчёт-баланса) | [Автоматические трансферы](api/http-contracts.md#15-автоматические-трансферы) | [ADR-002](adr/architecture-decisions.md#adr-002-transfer-как-источник-истины-для-баланса) | Согласовано |
-| Ручной трансфер, переплата и история | [`MANUAL`, переплата, история](glossary/glossary.md#ручной-трансфер-manual) | [BR-TRF-004—006, 008—009](business-rules/business-rules.md#br-trf-004-manual) | [`Transfer` типа `MANUAL`](data-model/entities.md#тип-manual) | [Создание, изменение и удаление трансфера](api/http-contracts.md#144-создание-ручного-трансфера) | [ADR-002](adr/architecture-decisions.md#adr-002-transfer-как-источник-истины-для-баланса), [ADR-010](adr/architecture-decisions.md#adr-010-оптимистическая-блокировка) | Частично согласовано: CONS-008 |
-| Историческая ссылка `relatedTransferId` | [`relatedTransfer`](glossary/glossary.md#связанный-трансфер-relatedtransfer) | [BR-TRF-007](business-rules/business-rules.md#br-trf-007-связанный-трансфер) | [`Transfer.relatedTransferId`](data-model/entities.md#relatedtransferid) | [Изменение `MANUAL`](api/http-contracts.md#145-изменение-ручного-трансфера) | [ADR-002](adr/architecture-decisions.md#adr-002-transfer-как-источник-истины-для-баланса) | Частично согласовано: CONS-013 |
+| Равная доля и полный перерасчёт | [Доля](glossary/glossary.md#доля) | [BR-DEBT-011—013](business-rules/business-rules.md#br-debt-011-расчёт-доли) | [Расчёт долей](data-model/entities.md#7-расчёт-долей), `DebtParticipant`, `Transfer` | [Представление и команды долга](api/http-contracts.md#131-представление-долга) | [ADR-003](adr/architecture-decisions.md#adr-003-debt-как-корень-агрегата) | Согласовано |
+| Мягкое удаление долга и исторический состав | [Удалённый долг](glossary/glossary.md#удалённый-долг) | [BR-DEBT-014](business-rules/business-rules.md#br-debt-014-удаление-долга), [BR-ACL-004](business-rules/business-rules.md#br-acl-004-удалённый-долг) | [`Debt.isDeleted`, неизменяемый состав](data-model/entities.md#удаление) | [`DELETE /debts/{debtId}`](api/http-contracts.md#136-удаление-долга) | [ADR-005](adr/architecture-decisions.md#adr-005-мягкое-удаление-и-финансовая-история), [ADR-012](adr/architecture-decisions.md#adr-012-границы-и-http-соглашения-mvp) | Согласовано |
+| `DEBT_SHARE` и баланс | [Автоматический трансфер, баланс](glossary/glossary.md#автоматический-трансфер-доли-debt_share) | [BR-TRF-001—003](business-rules/business-rules.md#br-trf-001-источник-истины) | [`Transfer`](data-model/entities.md#6-transfer), [расчёт баланса](data-model/entities.md#8-расчёт-баланса) | [Автоматические трансферы](api/http-contracts.md#15-автоматические-трансферы) | [ADR-002](adr/architecture-decisions.md#adr-002-transfer-как-источник-истины-для-баланса) | Согласовано |
+| Ручной трансфер, переплата и история | [`MANUAL`, переплата, история](glossary/glossary.md#ручной-трансфер-manual) | [BR-TRF-004—006, 008—009](business-rules/business-rules.md#br-trf-004-manual) | [`Transfer` типа `MANUAL`](data-model/entities.md#тип-manual) | [Создание, изменение и удаление трансфера](api/http-contracts.md#144-создание-ручного-трансфера) | [ADR-002](adr/architecture-decisions.md#adr-002-transfer-как-источник-истины-для-баланса), [ADR-010](adr/architecture-decisions.md#adr-010-оптимистическая-блокировка) | Согласовано |
+| Историческая ссылка `relatedTransferId` | [`relatedTransfer`](glossary/glossary.md#связанный-трансфер-relatedtransfer) | [BR-TRF-007](business-rules/business-rules.md#br-trf-007-связанный-трансфер) | [`Transfer.relatedTransferId`](data-model/entities.md#relatedtransferid) | [Изменение `MANUAL`](api/http-contracts.md#145-изменение-ручного-трансфера) | [ADR-002](adr/architecture-decisions.md#adr-002-transfer-как-источник-истины-для-баланса) | Согласовано |
 | Права чтения и защита персональных данных | [Права доступа](glossary/glossary.md#право-чтения-долга) | [BR-ACL-001—007](business-rules/business-rules.md#br-acl-001-connect-и-transfer) | [Связи и состояния](data-model/entities.md#13-карта-связей) | [`404`, `debtReference`, отсутствие email](api/http-contracts.md#3-стандартная-модель-ошибки) | [ADR-012](adr/architecture-decisions.md#adr-012-границы-и-http-соглашения-mvp) | Согласовано |
 | Оптимистическая блокировка | [Версия](glossary/glossary.md#версия-version) | [BR-CONC-001—003](business-rules/business-rules.md#br-conc-001-оптимистическая-версия) | `Debt.version`, `Transfer.version` | [`ETag` / `If-Match`](api/http-contracts.md#5-оптимистическая-блокировка) | [ADR-010](adr/architecture-decisions.md#adr-010-оптимистическая-блокировка) | Согласовано |
-| Идемпотентность команд создания | [Идемпотентность](glossary/glossary.md#идемпотентность) | [BR-IDEM-001—005](business-rules/business-rules.md#br-idem-001-общий-механизм) | [`IdempotencyRecord`](data-model/entities.md#11-idempotencyrecord) | [`Idempotency-Key`](api/http-contracts.md#4-идемпотентность) | [ADR-009](adr/architecture-decisions.md#adr-009-централизованная-идемпотентность) | Частично согласовано: CONS-010 |
-| Граница БД и доменного слоя | [Инвариант, атомарная операция](glossary/glossary.md#инвариант) | [BR-TXN-001—002](business-rules/business-rules.md#br-txn-001-межтабличные-инварианты) | [Ограничения БД](data-model/entities.md#14-рекомендуемые-ограничения-бд), [ER CHECK](data-model/er-diagram.md#7-локальные-check-ограничения) | [Транзакционность команд](api/http-contracts.md#18-транзакционность-команд) | [ADR-011](adr/architecture-decisions.md#adr-011-разделение-ответственности-бд-и-доменного-слоя) | Частично согласовано: CONS-005, CONS-006 |
-| Сроки хранения, retry и rate limits | [Сессия](glossary/glossary.md#пользовательская-сессия-usersession), [токен действия](glossary/glossary.md#токен-пользовательского-действия-useractiontoken), [durable intent](glossary/glossary.md#durable-intent) | [BR-IDEM-005](business-rules/business-rules.md#br-idem-005-окно-гарантии), [BR-SEC-005—006](business-rules/business-rules.md#br-sec-005-сроки-хранения) | `expiresAt` инфраструктурных сущностей, [`EmailDeliveryOutbox`](data-model/entities.md#12-emaildeliveryoutbox) | [Идемпотентность и rate limits](api/http-contracts.md#17-rate-limits) | [ADR-007](adr/architecture-decisions.md#adr-007-унифицированные-одноразовые-токены), [ADR-009](adr/architecture-decisions.md#adr-009-централизованная-идемпотентность), [ADR-013](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq) | Частично согласовано: CONS-010 |
-| Надёжная доставка email | [Transactional outbox](glossary/glossary.md#transactional-outbox), [`EmailDeliveryOutbox`](glossary/glossary.md#задание-доставки-email-emaildeliveryoutbox) | [BR-SEC-006](business-rules/business-rules.md#br-sec-006-надёжная-постановка-email) | [`EmailDeliveryOutbox`](data-model/entities.md#12-emaildeliveryoutbox), [ER](data-model/er-diagram.md#emaildeliveryoutbox) | [Транзакционность команд](api/http-contracts.md#18-транзакционность-команд) | [ADR-013](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq) | Частично согласовано: CONS-010; CONS-004 разрешён |
+| Идемпотентность команд создания | [Идемпотентность](glossary/glossary.md#идемпотентность) | [BR-IDEM-001—005](business-rules/business-rules.md#br-idem-001-общий-механизм) | [`IdempotencyRecord`](data-model/entities.md#11-idempotencyrecord) | [`Idempotency-Key`](api/http-contracts.md#4-идемпотентность) | [ADR-009](adr/architecture-decisions.md#adr-009-централизованная-идемпотентность), [ADR-014](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp) | Согласовано |
+| Граница БД и доменного слоя | [Инвариант, атомарная операция](glossary/glossary.md#инвариант) | [BR-TXN-001—002](business-rules/business-rules.md#br-txn-001-межтабличные-инварианты) | [Ограничения БД](data-model/entities.md#14-рекомендуемые-ограничения-бд), [ER CHECK](data-model/er-diagram.md#7-локальные-check-ограничения) | [Транзакционность команд](api/http-contracts.md#18-транзакционность-команд) | [ADR-011](adr/architecture-decisions.md#adr-011-разделение-ответственности-бд-и-доменного-слоя) | Согласовано |
+| Сроки хранения, retry и rate limits | [Сессия](glossary/glossary.md#пользовательская-сессия-usersession), [токен действия](glossary/glossary.md#токен-пользовательского-действия-useractiontoken), [durable intent](glossary/glossary.md#durable-intent) | [BR-IDEM-005](business-rules/business-rules.md#br-idem-005-окно-гарантии), [BR-SEC-005—007](business-rules/business-rules.md#br-sec-005-сроки-хранения) | `expiresAt` инфраструктурных сущностей, [`EmailDeliveryOutbox`](data-model/entities.md#12-emaildeliveryoutbox) | [Идемпотентность](api/http-contracts.md#4-идемпотентность), [rate limits](api/http-contracts.md#17-rate-limits) | [ADR-007](adr/architecture-decisions.md#adr-007-унифицированные-одноразовые-токены), [ADR-009](adr/architecture-decisions.md#adr-009-централизованная-идемпотентность), [ADR-013](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq), [ADR-014](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp) | Согласовано |
+| Надёжная доставка email | [Transactional outbox](glossary/glossary.md#transactional-outbox), [`EmailDeliveryOutbox`](glossary/glossary.md#задание-доставки-email-emaildeliveryoutbox) | [BR-SEC-006](business-rules/business-rules.md#br-sec-006-надёжная-постановка-email) | [`EmailDeliveryOutbox`](data-model/entities.md#12-emaildeliveryoutbox), [ER](data-model/er-diagram.md#emaildeliveryoutbox) | [Транзакционность команд](api/http-contracts.md#18-транзакционность-команд) | [ADR-013](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq), [ADR-014](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp) | Согласовано |
 | Frontend-платформа | Не применимо | Не применимо | Не применимо | [README: Nuxt 4](../README.md#repository-structure), [`nuxt: 4.5.0`](../frontend/package.json) | [ADR-001: Nuxt 4.5](adr/architecture-decisions.md#adr-001-архитектура-mvp-как-модульный-монолит) | Согласовано |
 
 ## 5. Найденные замечания
@@ -124,12 +124,15 @@
 ### CONS-003. Пример Debt нарушает формулу доли и полноту состава
 
 - **Серьёзность:** Medium
+- **Состояние:** Разрешено 2026-07-27
 - **Тип:** противоречие
 - **Затронутые артефакты:** HTTP-контракты, бизнес-правила, модель сущностей
-- **Источники:** [BR-DEBT-011](business-rules/business-rules.md#br-debt-011-расчёт-доли); [модель, формула](data-model/entities.md#формула); [HTTP, полное представление долга](api/http-contracts.md#131-представление-долга); [HTTP, список долгов](api/http-contracts.md#132-список-долгов)
-- **Несоответствие:** полное представление долга с `totalAmount = 6000` содержит только двух участников, но возвращает `shareAmount = 2000`; по формуле для двух участников результат равен 3000. Список для того же `debtId`, версии и даты возвращает `participantCount = 3` и `shareAmount = 2000`.
-- **Влияние:** пример нельзя использовать как однозначную основу клиентской модели, contract-тестов и проверки расчёта.
-- **Вопрос:** в полном представлении пропущен третий участник или неверны `shareAmount`/данные списка?
+- **Источники:** [BR-DEBT-011](business-rules/business-rules.md#br-debt-011-расчёт-доли); [модель, формула](data-model/entities.md#формула); [HTTP, полное представление долга](api/http-contracts.md#131-представление-долга); [HTTP, список долгов](api/http-contracts.md#132-список-долгов); [OQ-003](open-questions.md#oq-003)
+- **Исходное несоответствие:** полное представление долга с `totalAmount = 6000` содержало только двух участников, но возвращало `shareAmount = 2000`; список и create/update примеры задавали состав из трёх участников.
+- **Исходное влияние на разработку:** пример нельзя было использовать как однозначную основу клиентской модели, contract-тестов и проверки расчёта.
+- **Решение:** в полное представление добавлен отсутствовавший третий участник с уже использованным в create/update `userId`; три участника и `shareAmount = 2000` теперь согласованы.
+- **Остаточное влияние:** отсутствует.
+- **Вопрос:** закрыт.
 - **Рекомендуемый владелец:** Maksim Smolkov как владелец HTTP-контрактов.
 
 <a id="cons-004"></a>
@@ -143,108 +146,135 @@
 - **Источники:** [BR-SEC-006](business-rules/business-rules.md#br-sec-006-надёжная-постановка-email); [`EmailDeliveryOutbox`](data-model/entities.md#12-emaildeliveryoutbox); [HTTP, транзакционность команд](api/http-contracts.md#18-транзакционность-команд); [ADR-013](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq); [текущая конфигурация Messenger](../backend/config/packages/messenger.yaml)
 - **Исходное несоответствие:** HTTP-контракт требовал отдельного решения, но ER исключала outbox, а среди ADR-001—012 механизма не было.
 - **Исходное влияние на разработку:** реализация регистрации, активации, сброса пароля и смены email могла потребовать переделки транзакций, схемы данных, очередей и retry-политики.
-- **Решение:** бизнес-изменение, `UserActionToken` и `EmailDeliveryOutbox` создаются в одной транзакции PostgreSQL. Relay публикует durable persistent message в RabbitMQ с publisher confirms; Symfony Messenger consumer проверяет токен и выполняет SMTP через выделенный синхронный Mailer transport. Используются retry, failure transport, `deliveryId` и зашифрованный временный payload. Гарантия — `at-least-once`.
-- **Остаточное влияние:** точные значения backoff, числа попыток и сроков хранения остаются конфигурационными параметрами CONS-010. При реализации нужно исключить повторную async-маршрутизацию `SendEmailMessage`, присутствующую в текущей общей конфигурации; это требование явно закреплено ADR-013. Отсутствие exactly-once и гарантии получения почтовым ящиком принято осознанно.
+- **Решение:** бизнес-изменение, `UserActionToken` и `EmailDeliveryOutbox` создаются в одной транзакции PostgreSQL. Relay публикует durable persistent message в RabbitMQ с publisher confirms; Symfony Messenger consumer проверяет токен и выполняет SMTP через выделенный синхронный Mailer transport. Используются retry, failure transport, `deliveryId` и зашифрованный временный payload. Гарантия — `at-least-once`. Финальная сверка также добавила `EmailDeliveryOutbox` в обзор инфраструктурных сущностей модели, где раздел сущности уже присутствовал.
+- **Остаточное влияние:** отсутствует. Нормативные значения backoff, числа попыток и сроков хранения позднее зафиксированы при разрешении CONS-010 в ADR-014. При реализации нужно исключить повторную async-маршрутизацию `SendEmailMessage`, присутствующую в текущей общей конфигурации; это принятое требование ADR-013, а не открытый вопрос. Отсутствие exactly-once и гарантии получения почтовым ящиком принято осознанно.
 - **Вопрос:** закрыт.
 - **Рекомендуемый владелец:** Maksim Smolkov как владелец ADR.
 
 ### CONS-005. Не все межтабличные команды имеют явную транзакционную границу
 
 - **Серьёзность:** Medium
+- **Состояние:** Разрешено 2026-07-27
 - **Тип:** неполная трассируемость
 - **Затронутые артефакты:** бизнес-правила, модель сущностей, HTTP
-- **Источники:** [BR-USR-005](business-rules/business-rules.md#br-usr-005-деактивация); [BR-USR-007](business-rules/business-rules.md#br-usr-007-сброс-и-смена-пароля); [модель, транзакционные границы](data-model/entities.md#15-транзакционные-границы); [HTTP, транзакционность команд](api/http-contracts.md#18-транзакционность-команд)
-- **Несоответствие:** после разрешения CONS-002 и CONS-004 выдача `UserActionToken` и постановка email имеют явную транзакционную границу. Однако правила по-прежнему требуют совместно изменять `User` и `UserSession` при деактивации, смене и сбросе пароля, а модель не перечисляет отдельные транзакционные сценарии деактивации, смены пароля и массового отзыва сессий. HTTP называет часть операций атомарными, но не раскрывает состав их записи.
-- **Влияние:** без явного контракта атомарности возможны частично применённые security-состояния и различающиеся реализации команд.
-- **Вопрос:** какие изменения `User`, `UserSession` и использованных токенов входят в одну транзакцию для деактивации, смены и сброса пароля?
+- **Источники:** [BR-USR-005](business-rules/business-rules.md#br-usr-005-деактивация); [BR-USR-007](business-rules/business-rules.md#br-usr-007-сброс-и-смена-пароля); [модель, транзакционные границы](data-model/entities.md#15-транзакционные-границы); [HTTP, транзакционность команд](api/http-contracts.md#18-транзакционность-команд); [OQ-005](open-questions.md#oq-005)
+- **Исходное несоответствие:** правила требовали совместно изменять `User` и `UserSession`, но модель и HTTP не перечисляли точный состав транзакций деактивации, смены и сброса пароля.
+- **Исходное влияние на разработку:** были возможны частично применённые security-состояния и различающиеся реализации команд.
+- **Решение:** бизнес-правила, модель и HTTP фиксируют одну транзакцию с блокировкой `User`, всеми изменениями `UserSession` и, при сбросе, применяемого `UserActionToken`.
+- **Остаточное влияние:** отсутствует.
+- **Вопрос:** закрыт.
 - **Рекомендуемый владелец:** Maksim Smolkov как владелец правил, модели и HTTP-контрактов.
 
 ### CONS-006. CHECK-ограничения модели и ER не совпадают
 
 - **Серьёзность:** Medium
+- **Состояние:** Разрешено 2026-07-27
 - **Тип:** противоречие
 - **Затронутые артефакты:** модель сущностей, ER-диаграмма
-- **Источники:** [модель, рекомендуемые ограничения БД](data-model/entities.md#14-рекомендуемые-ограничения-бд); [ER, локальные CHECK](data-model/er-diagram.md#7-локальные-check-ограничения)
-- **Несоответствие:** модель требует `length(btrim(title)) > 0`, тогда как ER указывает более слабое `title <> ''`. ER также не перечисляет заявленные моделью проверки непустых `User.name`/`User.email`, `UserSession.expiresAt > createdAt` и `IdempotencyRecord.expiresAt`.
-- **Влияние:** разные исполнители могут создать миграции с разным уровнем структурной защиты; пробельные строки и некорректные сроки могут пройти часть вариантов схемы.
-- **Вопрос:** какой перечень CHECK-ограничений нормативен и должен ли ER полностью повторять рекомендуемые ограничения модели?
+- **Источники:** [модель, рекомендуемые ограничения БД](data-model/entities.md#14-рекомендуемые-ограничения-бд); [ER, локальные CHECK](data-model/er-diagram.md#7-локальные-check-ограничения); [OQ-006](open-questions.md#oq-006)
+- **Исходное несоответствие:** модель требовала `length(btrim(title)) > 0`, а ER — `title <> ''`; ER также не перечисляла проверки `User`, `UserSession` и `IdempotencyRecord`.
+- **Исходное влияние на разработку:** миграции могли получить разный уровень структурной защиты.
+- **Решение:** перечень раздела 14 модели нормативен; ER-описание полностью повторяет его локальные CHECK. Визуальные представления определены как обзорные.
+- **Остаточное влияние:** отсутствует.
+- **Вопрос:** закрыт.
 - **Рекомендуемый владелец:** Maksim Smolkov как владелец модели данных и ER.
 
 ### CONS-007. В формуле смешаны «текущий участник» и «активный пользователь»
 
 - **Серьёзность:** Medium
+- **Состояние:** Разрешено 2026-07-27
 - **Тип:** несогласованное именование
 - **Затронутые артефакты:** глоссарий, бизнес-правила, модель сущностей
-- **Источники:** [глоссарий, `DebtParticipant`](glossary/glossary.md#участник-долга-debtparticipant); [BR-DEBT-005](business-rules/business-rules.md#br-debt-005-текущий-участник-и-активный-пользователь); [BR-DEBT-007](business-rules/business-rules.md#br-debt-007-неактивный-текущий-участник); [модель, расчёт долей](data-model/entities.md#7-расчёт-долей)
-- **Несоответствие:** входные данные модели корректно называют текущие записи `DebtParticipant.isDeleted = false`, но описание `participantCount` далее говорит о числе «активных участников». Канонический комплект специально отделяет текущего участника от `User.isActive`.
-- **Влияние:** буквальная реализация неоднозначной фразы может исключить деактивированного текущего участника из перерасчёта и изменить финансовые суммы вопреки BR-DEBT-007.
-- **Вопрос:** подтверждается ли, что `participantCount` всегда определяется только `DebtParticipant.isDeleted = false`, независимо от `User.isActive`?
+- **Источники:** [глоссарий, `DebtParticipant`](glossary/glossary.md#участник-долга-debtparticipant); [BR-DEBT-005](business-rules/business-rules.md#br-debt-005-текущий-участник-и-активный-пользователь); [BR-DEBT-007](business-rules/business-rules.md#br-debt-007-неактивный-текущий-участник); [модель, расчёт долей](data-model/entities.md#7-расчёт-долей); [OQ-007](open-questions.md#oq-007)
+- **Исходное несоответствие:** описание `participantCount` использовало «активных участников», хотя канонический комплект отделяет текущего участника от `User.isActive`.
+- **Исходное влияние на разработку:** буквальная реализация могла исключить деактивированного участника и изменить финансовые суммы.
+- **Решение:** `participantCount` определяется только `DebtParticipant.isDeleted = false`; `User.isActive` не влияет на уже текущий состав. Синхронизированы BR, модель и HTTP.
+- **Остаточное влияние:** отсутствует.
+- **Вопрос:** закрыт.
 - **Рекомендуемый владелец:** Maksim Smolkov как владелец бизнес-правил и модели.
 
 ### CONS-008. DELETE-контракты не фиксируют все обязательные предусловия
 
 - **Серьёзность:** Medium
+- **Состояние:** Разрешено 2026-07-27
 - **Тип:** неполная трассируемость
 - **Затронутые артефакты:** бизнес-правила, HTTP-контракты
-- **Источники:** [BR-DEBT-002](business-rules/business-rules.md#br-debt-002-автор), [BR-DEBT-008](business-rules/business-rules.md#br-debt-008-заморозка), [BR-TRF-006](business-rules/business-rules.md#br-trf-006-управление-ручным-трансфером); [`DELETE /debts/{debtId}`](api/http-contracts.md#136-удаление-долга); [`DELETE /transfers/{transferId}`](api/http-contracts.md#146-удаление-ручного-трансфера)
-- **Несоответствие:** PUT-разделы перечисляют владельца, активность сторон, заморозку и ошибки, а DELETE-разделы описывают главным образом успешный эффект. Для удаления трансфера явно не повторены «только автор» и «обе стороны активны»; для удаления долга не приведены те же ошибки автора/заморозки, что для изменения.
-- **Влияние:** контракт не задаёт однозначные negative cases и ожидаемые коды ошибок для обязательных правил доступа.
-- **Вопрос:** применяются ли к DELETE те же предусловия и коды ошибок, что к соответствующим PUT, и должны ли они быть явно нормативно перечислены?
+- **Источники:** [BR-DEBT-002](business-rules/business-rules.md#br-debt-002-автор), [BR-DEBT-008](business-rules/business-rules.md#br-debt-008-заморозка), [BR-TRF-006](business-rules/business-rules.md#br-trf-006-управление-ручным-трансфером); [`DELETE /debts/{debtId}`](api/http-contracts.md#136-удаление-долга); [`DELETE /transfers/{transferId}`](api/http-contracts.md#146-удаление-ручного-трансфера); [OQ-008](open-questions.md#oq-008)
+- **Исходное несоответствие:** DELETE-разделы не повторяли обязательные правила автора, активности сторон, заморозки и ошибки соответствующих PUT.
+- **Исходное влияние на разработку:** public negative contract и ожидаемые коды ошибок были неоднозначны.
+- **Решение:** DELETE применяет те же авторизационные и freeze-предусловия, требует `If-Match`; HTTP перечисляет точные `403`, `404`, `409` и `428`.
+- **Остаточное влияние:** отсутствует.
+- **Вопрос:** закрыт.
 - **Рекомендуемый владелец:** Maksim Smolkov как владелец HTTP-контрактов и бизнес-правил.
 
 ### CONS-009. Не определена политика паролей
 
 - **Серьёзность:** Medium
+- **Состояние:** Разрешено 2026-07-27
 - **Тип:** пробел
 - **Затронутые артефакты:** бизнес-правила, модель `User`, HTTP регистрации/смены/сброса пароля, ADR
-- **Источники:** [BR-USR-001](business-rules/business-rules.md#br-usr-001-регистрация); [`User.passwordHash`](data-model/entities.md#1-user); [регистрация](api/http-contracts.md#81-регистрация), [сброс и смена пароля](api/http-contracts.md#9-пароль-и-email); [ADR-006](adr/architecture-decisions.md#adr-006-жизненный-цикл-аккаунта-и-сессий)
-- **Несоответствие:** документы требуют пароль и «безопасный хэш», но не определяют минимальные/максимальные требования к паролю, единые правила валидации для регистрации, смены и сброса либо нормативный источник security-политики.
-- **Влияние:** невозможно написать однозначные acceptance/contract-тесты; разные endpoints могут принять разные пароли.
-- **Вопрос:** какая единая политика паролей применяется ко всем трём операциям и где она должна быть нормативно зафиксирована?
-- **Рекомендуемый владелец:** Maksim Smolkov как владелец бизнес-правил; параметры требуют продуктового и security-согласования.
+- **Источники:** [глоссарий, пароль](glossary/glossary.md#пароль); [BR-USR-009](business-rules/business-rules.md#br-usr-009-единая-политика-паролей); [`User.passwordHash`](data-model/entities.md#1-user); [HTTP policy](api/http-contracts.md#90-политика-паролей); [ADR-006](adr/architecture-decisions.md#adr-006-жизненный-цикл-аккаунта-и-сессий); [OQ-009](open-questions.md#oq-009)
+- **Исходное несоответствие:** документы требовали пароль и безопасный хэш, но не определяли единую политику для регистрации, смены и сброса.
+- **Исходное влияние на разработку:** невозможно было написать однозначные acceptance/contract-тесты.
+- **Решение:** принята единая политика 12—128 Unicode code points, минимум один непробельный символ, без normalization/composition rules; Symfony PasswordHasher `auto`, backend authoritative.
+- **Остаточное влияние:** отсутствует.
+- **Вопрос:** закрыт.
+- **Рекомендуемый владелец:** Maksim Smolkov как владелец бизнес-правил; дальнейшее изменение политики оформляется синхронным изменением BR-USR-009, HTTP и ADR-006.
 
 ### CONS-010. Операционные TTL, окно повторов и rate limits не имеют значений
 
 - **Серьёзность:** Medium
+- **Состояние:** Разрешено 2026-07-27
 - **Тип:** пробел
 - **Затронутые артефакты:** бизнес-правила, модель инфраструктурных сущностей, HTTP, ADR-007, ADR-009, ADR-013
-- **Источники:** [BR-IDEM-005](business-rules/business-rules.md#br-idem-005-окно-гарантии); [BR-SEC-005—006](business-rules/business-rules.md#br-sec-005-сроки-хранения); [сроки хранения модели](data-model/entities.md#сроки-хранения-инфраструктурных-записей); [`EmailDeliveryOutbox`](data-model/entities.md#12-emaildeliveryoutbox); [HTTP, идемпотентность](api/http-contracts.md#42-поведение); [HTTP, rate limits](api/http-contracts.md#17-rate-limits); [ADR-009](adr/architecture-decisions.md#adr-009-централизованная-идемпотентность); [ADR-013](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq)
-- **Несоответствие:** параметры отнесены к конфигурации, но не определены максимальное клиентское окно повторов, минимальный TTL `IdempotencyRecord`, TTL пользовательских токенов/приглашений/сессий, сроки физической очистки, значения rate limits, число и backoff email-retry, срок аудита outbox и порог окончательного отказа. Примеры `expiresIn` и `Retry-After` не названы нормативными значениями.
-- **Влияние:** нельзя проверить выполнение BR-IDEM-005/BR-SEC-006 и подготовить воспроизводимые security, retention и delivery-retry тесты либо безопасные значения конфигурации.
-- **Вопрос:** где фиксируется нормативный профиль конфигурации MVP и какие значения/диапазоны обязательны?
-- **Рекомендуемый владелец:** Maksim Smolkov как владелец артефактов; значения требуют продуктового, security и эксплуатационного согласования.
+- **Источники:** [BR-IDEM-005](business-rules/business-rules.md#br-idem-005-окно-гарантии); [BR-SEC-005—007](business-rules/business-rules.md#br-sec-005-сроки-хранения); [сроки хранения модели](data-model/entities.md#сроки-хранения-инфраструктурных-записей); [HTTP, rate limits](api/http-contracts.md#17-rate-limits); [ADR-014](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp); [OQ-010](open-questions.md#oq-010)
+- **Исходное несоответствие:** TTL, retention, rate limits, число и backoff email retry были отнесены к конфигурации без нормативных значений.
+- **Исходное влияние на разработку:** нельзя было подготовить воспроизводимые security, retention и delivery-retry тесты.
+- **Решение:** ADR-014 централизует точные сроки действия, 30-дневный terminal retention, 24-часовую идемпотентность, конечные email retry и sliding-window rate limits; BR, модель, HTTP и связанные ADR синхронизированы. `IdempotencyRecord.expiresAt` сделан обязательным во всех представлениях модели и равен `createdAt + 24 hours`.
+- **Остаточное влияние:** значения остаются конфигурационными, но отклонение от нормативного профиля требует изменения ADR-014.
+- **Вопрос:** закрыт.
+- **Рекомендуемый владелец:** Maksim Smolkov как владелец артефактов; дальнейшее изменение профиля оформляется через ADR-014 и синхронное обновление BR, модели и HTTP.
 
 ### CONS-011. Обязательность сверки tokenHash приглашения неоднозначна
 
 - **Серьёзность:** Medium
+- **Состояние:** Разрешено 2026-07-27
 - **Тип:** неоднозначность
 - **Затронутые артефакты:** бизнес-правила, модель, HTTP, ADR-008
-- **Источники:** [BR-INV-006](business-rules/business-rules.md#br-inv-006-формат-ссылки); [модель, формат публичного токена](data-model/entities.md#формат-публичного-токена); [HTTP, формат токена приглашения](api/http-contracts.md#121-формат-токена-приглашения); [ADR-008](adr/architecture-decisions.md#adr-008-воспроизводимые-приглашения-в-connect)
-- **Несоответствие:** модель и HTTP требуют выбирать ключ при воспроизведении по совпадению полного `tokenHash`, но алгоритм проверки в HTTP и ADR говорит, что сервер «может» или «при необходимости» сверять хэш после проверки HMAC. Неясно, является ли совпадение сохранённого `tokenHash` обязательным для GET/accept.
-- **Влияние:** разные реализации key ring могут принимать разный набор подписей для одного `invitationId`, что затрагивает токен-валидацию и security-тесты.
-- **Вопрос:** должна ли каждая публичная операция с приглашением обязательно сверять хэш полного токена с записью после HMAC-проверки?
+- **Источники:** [BR-INV-006](business-rules/business-rules.md#br-inv-006-формат-ссылки); [модель, формат публичного токена](data-model/entities.md#формат-публичного-токена); [HTTP, формат токена приглашения](api/http-contracts.md#121-формат-токена-приглашения); [ADR-008](adr/architecture-decisions.md#adr-008-воспроизводимые-приглашения-в-connect); [OQ-011](open-questions.md#oq-011)
+- **Исходное несоответствие:** модель требовала совпадение полного `tokenHash`, а HTTP и ADR называли проверку необязательной.
+- **Исходное влияние на разработку:** реализации key ring могли принимать разный набор подписей.
+- **Решение:** каждая публичная invitation-операция после HMAC обязана сверить хэш полного токена с записью; BR, HTTP и ADR-008 синхронизированы.
+- **Остаточное влияние:** отсутствует.
+- **Вопрос:** закрыт.
 - **Рекомендуемый владелец:** Maksim Smolkov как владелец ADR-008 и HTTP-контракта.
 
 ### CONS-012. Статус прежнего отчёта не определён, а вывод больше не подтверждается
 
 - **Серьёзность:** Low
+- **Состояние:** Разрешено 2026-07-27
 - **Тип:** неоднозначность
 - **Затронутые артефакты:** предоставленный отчёт согласованности, индекс, открытые вопросы
-- **Источники:** [прежний отчёт](reviews/consistency-report.md); [индекс](README.md#индекс-артефактов); [открытые вопросы](open-questions.md#отсутствующие-метаданные)
-- **Несоответствие:** отчёт имеет статус `Не определено` и утверждает, что комплект согласован после исправлений. Настоящая независимая проверка обнаружила актуальные противоречия и пробелы.
-- **Влияние:** читателю неясно, является ли прежний отчёт исторической справкой, действующим подтверждением или документом, заменённым E1-02.
-- **Вопрос:** какой формальный статус назначить прежнему отчёту и считать ли его историческим после публикации E1-02?
+- **Источники:** [прежний отчёт](reviews/consistency-report.md); [индекс](README.md#индекс-артефактов); [OQ-012](open-questions.md#oq-012)
+- **Исходное несоответствие:** отчёт имел статус `Не определено` и утверждал полную согласованность, не подтверждённую более поздней E1-02.
+- **Исходное влияние на разработку:** читателю было неясно, какой отчёт актуален.
+- **Решение:** исходный отчёт получил статус `Superseded` и ссылку на E1-02; индекс обозначает его историческим.
+- **Остаточное влияние:** первоначальный вывод сохранён только как история.
+- **Вопрос:** закрыт.
 - **Рекомендуемый владелец:** Maksim Smolkov как владелец отчёта.
 
 ### CONS-013. Глоссарий неполно описывает исторический relatedTransfer
 
 - **Серьёзность:** Low
+- **Состояние:** Разрешено 2026-07-27
 - **Тип:** неполная трассируемость
 - **Затронутые артефакты:** глоссарий, бизнес-правила, модель, HTTP, ADR-002
-- **Источники:** [глоссарий, `relatedTransfer`](glossary/glossary.md#связанный-трансфер-relatedtransfer); [BR-TRF-007](business-rules/business-rules.md#br-trf-007-связанный-трансфер); [модель, `relatedTransferId`](data-model/entities.md#relatedtransferid); [HTTP, изменение ручного трансфера](api/http-contracts.md#145-изменение-ручного-трансфера); [ADR-002](adr/architecture-decisions.md#adr-002-transfer-как-источник-истины-для-баланса)
-- **Несоответствие:** глоссарий говорит, что при создании или изменении ссылка указывает только на активный `DEBT_SHARE`, но не фиксирует согласованное в остальных документах исключение: неизменённая историческая ссылка может сохраниться после мягкого удаления цели.
-- **Влияние:** терминологический источник допускает более строгую интерпретацию, чем нормативное правило и HTTP-контракт.
-- **Вопрос:** должен ли глоссарий явно включить исключение для неизменённой исторической ссылки?
+- **Источники:** [глоссарий, `relatedTransfer`](glossary/glossary.md#связанный-трансфер-relatedtransfer); [BR-TRF-007](business-rules/business-rules.md#br-trf-007-связанный-трансфер); [модель, `relatedTransferId`](data-model/entities.md#relatedtransferid); [HTTP, изменение ручного трансфера](api/http-contracts.md#145-изменение-ручного-трансфера); [ADR-002](adr/architecture-decisions.md#adr-002-transfer-как-источник-истины-для-баланса); [OQ-013](open-questions.md#oq-013)
+- **Исходное несоответствие:** глоссарий не фиксировал исключение для неизменённой исторической ссылки после мягкого удаления цели.
+- **Исходное влияние на разработку:** термин допускал более строгую интерпретацию, чем BR, модель и HTTP.
+- **Решение:** глоссарий явно описывает создание/замену только на неудалённый `DEBT_SHARE`, сохранение исторической ссылки и возможность очистки.
+- **Остаточное влияние:** отсутствует.
+- **Вопрос:** закрыт.
 - **Рекомендуемый владелец:** Maksim Smolkov как владелец глоссария и правил.
 
 ## 6. Полностью согласованные области
@@ -262,39 +292,66 @@
 - Разделение ответственности между локальными ограничениями PostgreSQL и межтабличными инвариантами доменного слоя.
 - Frontend-платформа Nuxt 4.5 согласована между README, package manifest и ADR-001.
 - Конкурентная выдача `UserActionToken` согласована между правилами, моделью, ER, HTTP и ADR-007.
-- Архитектурная граница надёжной email-доставки согласована в ADR-013; числовой профиль retry/retention остаётся CONS-010.
+- Архитектурная граница надёжной email-доставки согласована в ADR-013, а числовой профиль — в ADR-014.
+- Единая password policy согласована между глоссарием, BR-USR-009, моделью, HTTP и ADR-006.
+- Транзакционные границы деактивации, смены и сброса пароля согласованы между правилами, моделью и HTTP.
+- Полный перечень локальных CHECK согласован между моделью и ER-описанием.
+- Debt-примеры и семантика `participantCount` согласованы с BR-DEBT-011.
+- DELETE-контракты явно повторяют обязательные правила доступа, заморозки и optimistic locking.
+- Invitation token во всех публичных операциях проходит HMAC и обязательную полную `tokenHash`-проверку.
+- Исторический отчёт помечен `Superseded`, а термин `relatedTransfer` полностью описывает историческую ссылку.
 
 ## 7. Риски для начала разработки
 
-### Риски High
-
-Открытых рисков уровня High нет.
-
-### Остальные риски
-
-- Debt-срез требует заранее уточнить пример расчёта и термин `participantCount` (CONS-003, CONS-007).
-- Срезы изменения/удаления требуют дополнить negative contracts и атомарность (CONS-005, CONS-008).
-- Проектирование миграций требует единого перечня CHECK-ограничений (CONS-006).
-- Auth-срез требует явных транзакционных границ, политики паролей и нормативных security/retention-параметров (CONS-005, CONS-009, CONS-010).
-- Invitation-срез требует нормативных TTL/rate limits и обязательности сверки полного `tokenHash` (CONS-010, CONS-011).
-- CONS-012 и CONS-013 не блокируют код, но должны быть устранены для однозначной документации.
+Активных рисков согласованности блока A нет. Реализационные риски будущих задач должны оцениваться в их собственных границах и не являются открытыми вопросами E1-01—E1-03.
 
 ## 8. Рекомендуемый порядок разрешения вопросов
 
-1. CONS-001, CONS-002 и CONS-004 разрешены и синхронизированы во всех затронутых артефактах.
-2. До выбора auth-среза разрешить CONS-005, CONS-009 и CONS-010; до invitation-среза — CONS-010 и CONS-011.
-3. До выбора debt/transfer-среза разрешить CONS-003, CONS-006, CONS-007 и CONS-008.
-4. После смысловых решений синхронизировать глоссарий и статус исторического отчёта: CONS-012, CONS-013.
-5. Повторить проверку затронутых строк матрицы и перевести их в `Согласовано`; не закрывать вопросы только редакционным изменением без решения владельца.
+Порядок выполнен:
+
+1. CONS-001, CONS-002 и CONS-004 разрешены решениями владельца.
+2. CONS-003 и CONS-005—CONS-013 разрешены автономным закрытием Block A.
+3. Решения отражены в глоссарии, бизнес-правилах, модели, ER, HTTP, ADR-014, индексе и журнале.
+4. Все строки матрицы повторно проверены и переведены в `Согласовано`.
+5. История исходных несоответствий и отклонённых вариантов сохранена в `CONS-*` и `OQ-*`.
 
 ## 9. Итоговый вывод о готовности
 
-**Рекомендация: можно переходить к выбору первого вертикального среза с перечисленными ограничениями.**
+**Блок A завершён — можно переходить к E1-04.**
 
-Blocker- и High-замечаний нет, а ядро доменной, финансовой и email-инфраструктурной модели согласовано достаточно для сравнения кандидатов на первый срез. CONS-001, CONS-002 и CONS-004 разрешены. При выборе нужно явно сопоставить срез с оставшимися CONS-003, CONS-005—CONS-013:
+Все 13 замечаний разрешены, все 13 записей OQ имеют статус `Resolved`, матрица трассируемости полностью согласована. Активных продуктовых, архитектурных, security-, data- или HTTP-блокеров блока A нет.
 
-- debt/transfer-срез должен учитывать CONS-003, CONS-006—CONS-008;
-- auth-срез должен учитывать CONS-005, CONS-009 и CONS-010;
-- invitation-срез должен учитывать CONS-010 и CONS-011.
+Заключение разрешает только переход к определению границы MVP. Первый вертикальный срез здесь не выбран, backend/frontend и миграции не реализовывались.
 
-Архитектурных High-блокеров для выбора первого вертикального среза не осталось.
+## 10. Block A closure
+
+| Поле | Значение |
+|---|---|
+| Дата проверки | 2026-07-27 |
+| Проверенные этапы | E1-01, E1-02, E1-03 |
+| Проверенные документы | Корневой README, индекс, глоссарий, бизнес-правила, модель и ER, HTTP, ADR-001—ADR-014, оба отчёта согласованности, журнал OQ |
+| Всего замечаний | 13 |
+| Разрешено до closure | 3 |
+| Разрешено автоматически | 10 |
+| Активных CONS/OQ | 0 |
+| Активных блокеров | 0 |
+| Автор автоматических решений | Codex — autonomous Block A closure |
+
+Автоматически приняты:
+
+- согласование Debt-примера с составом из трёх участников;
+- атомарные границы security-команд;
+- нормативный полный перечень CHECK;
+- `participantCount` по текущему составу независимо от `User.isActive`;
+- единые DELETE-предусловия и ошибки;
+- единая password policy;
+- ADR-014 с TTL, retention, retry и rate limits;
+- обязательная полная `tokenHash`-проверка приглашения;
+- статус `Superseded` для исторического отчёта;
+- полное определение исторического `relatedTransfer`.
+
+Все решения отражены в нормативных документах, а исходные вопросы и причины сохранены. Активных блокеров нет.
+
+Финальная сверка выявила два остаточных расхождения представлений, объединённых с уже существующими записями, а не заведённых как смысловые дубли: отсутствовавший `EmailDeliveryOutbox` в обзорном списке модели относится к CONS-004, nullable-обозначение `IdempotencyRecord.expiresAt` — к CONS-010. Оба исправлены во всех затронутых представлениях.
+
+**Заключение: Блок A завершён — можно переходить к E1-04.**

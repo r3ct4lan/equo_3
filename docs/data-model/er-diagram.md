@@ -10,7 +10,7 @@
 | Версия | 1 |
 | Дата актуальности | 2026-07-27 |
 | Владелец | Maksim Smolkov |
-| Источник | `equo-04-er-diagram.md`, `.dot`, `.svg` и `.png` из приложенного архива `equo-artifacts-final.zip`; решения владельца от 2026-07-27 |
+| Источник | `equo-04-er-diagram.md`, `.dot`, `.svg` и `.png` из приложенного архива `equo-artifacts-final.zip`; решения владельца и автономное закрытие Block A от 2026-07-27 |
 
 Представления диаграммы: [редактируемый DOT](er-diagram.dot), [SVG](er-diagram.svg), [PNG](er-diagram.png).
 
@@ -139,7 +139,7 @@ erDiagram
         integer responseStatus "nullable"
         jsonb responseBody "nullable"
         timestamptz createdAt
-        timestamptz expiresAt "nullable"
+        timestamptz expiresAt
     }
 
     EMAIL_DELIVERY_OUTBOX {
@@ -315,6 +315,15 @@ UNIQUE(userActionTokenId)
 
 ## 7. Локальные CHECK-ограничения
 
+Этот раздел является полным нормативным перечнем локальных CHECK для MVP и синхронизирован с моделью сущностей. Визуальные Mermaid-, DOT-, SVG- и PNG-представления остаются обзорными.
+
+### `User`
+
+```text
+length(btrim(email)) > 0
+length(btrim(name)) > 0
+```
+
 ### `Connect`
 
 ```text
@@ -328,6 +337,7 @@ firstUserId < secondUserId
 (usedAt IS NULL AND acceptedById IS NULL)
 OR
 (usedAt IS NOT NULL AND acceptedById IS NOT NULL)
+expiresAt > createdAt
 ```
 
 ### `Debt`
@@ -335,7 +345,7 @@ OR
 ```text
 totalAmount > 0
 version >= 1
-title <> ''
+length(btrim(title)) > 0
 ```
 
 ### `Transfer`
@@ -368,6 +378,12 @@ AND debtParticipantId IS NULL
 
 Для `MANUAL` поле `relatedTransferId` может быть `NULL` или ссылаться на `DEBT_SHARE`.
 
+### `UserSession`
+
+```text
+expiresAt > createdAt
+```
+
 ### `UserActionToken`
 
 Статические ограничения:
@@ -375,6 +391,7 @@ AND debtParticipantId IS NULL
 ```text
 expiresAt > createdAt
 NOT (usedAt IS NOT NULL AND invalidatedAt IS NOT NULL)
+purpose IN ('ACTIVATE_ACCOUNT', 'RESET_PASSWORD', 'CHANGE_EMAIL')
 ```
 
 Активный токен:
@@ -388,6 +405,12 @@ AND expiresAt > now()
 Условие `expiresAt > now()` используется в запросах и доменном слое, а не в статическом `CHECK`, поскольку `now()` меняется со временем.
 
 Для `CHANGE_EMAIL` `payload` содержит `newEmail`; для других назначений `payload = NULL`. Структура JSON проверяется приложением.
+
+### `IdempotencyRecord`
+
+```text
+expiresAt > createdAt
+```
 
 ### `EmailDeliveryOutbox`
 

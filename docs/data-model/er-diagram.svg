@@ -250,7 +250,7 @@
 <text xml:space="preserve" text-anchor="start" x="351.72" y="-116" font-family="Arial" font-size="14.00">responseStatus : integer?</text>
 <text xml:space="preserve" text-anchor="start" x="351.72" y="-89.2" font-family="Arial" font-size="14.00">responseBody : jsonb?</text>
 <text xml:space="preserve" text-anchor="start" x="351.72" y="-62.4" font-family="Arial" font-size="14.00">createdAt : timestamptz</text>
-<text xml:space="preserve" text-anchor="start" x="351.72" y="-35.6" font-family="Arial" font-size="14.00">expiresAt : timestamptz?</text>
+<text xml:space="preserve" text-anchor="start" x="351.72" y="-35.6" font-family="Arial" font-size="14.00">expiresAt : timestamptz</text>
 <text xml:space="preserve" text-anchor="start" x="351.72" y="-11.2" font-family="Arial" font-style="italic" font-size="14.00">UK(scope, operation, idempotencyKey)</text>
 <polygon fill="none" stroke="black" points="345.72,0 345.72,-323.6 601.29,-323.6 601.29,0 345.72,0"/>
 </g>

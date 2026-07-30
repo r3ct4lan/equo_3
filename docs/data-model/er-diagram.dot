@@ -145,7 +145,7 @@ digraph EquoER {
       <TR><TD ALIGN="LEFT">responseStatus : integer?</TD></TR>
       <TR><TD ALIGN="LEFT">responseBody : jsonb?</TD></TR>
       <TR><TD ALIGN="LEFT">createdAt : timestamptz</TD></TR>
-      <TR><TD ALIGN="LEFT">expiresAt : timestamptz?</TD></TR>
+      <TR><TD ALIGN="LEFT">expiresAt : timestamptz</TD></TR>
       <TR><TD ALIGN="LEFT"><I>UK(scope, operation, idempotencyKey)</I></TD></TR>
     </TABLE>
   >];

@@ -10,7 +10,7 @@
 | Версия | 1 |
 | Дата актуальности | 2026-07-27 |
 | Владелец | Maksim Smolkov |
-| Источник | `equo-05-http-contracts.md` из приложенного архива `equo-artifacts-final.zip`; решения владельца от 2026-07-27 |
+| Источник | `equo-05-http-contracts.md` из приложенного архива `equo-artifacts-final.zip`; решения владельца и автономное закрытие Block A от 2026-07-27 |
 
 ## 1. Назначение документа
 
@@ -91,7 +91,7 @@ Accept: application/json
 Authorization: Bearer <access-token>
 ```
 
-Access-токен короткоживущий.
+Access-токен действует 15 минут. Refresh-сессия действует 30 дней.
 
 Refresh-токен передаётся в cookie:
 
@@ -170,6 +170,7 @@ X-Request-Id: 01J3M8N8CNQH9Y0G4SKY2GCG4A
 ```text
 VALIDATION_ERROR
 INVALID_CREDENTIALS
+PASSWORD_POLICY_VIOLATION
 AUTHENTICATION_REQUIRED
 INVALID_REFRESH_TOKEN
 ACCOUNT_INACTIVE
@@ -187,6 +188,7 @@ CONNECT_NOT_AVAILABLE
 TRANSFER_NOT_AVAILABLE
 FORBIDDEN
 VERSION_CONFLICT
+PRECONDITION_REQUIRED
 IDEMPOTENCY_KEY_REQUIRED
 IDEMPOTENCY_KEY_REUSED
 INVALID_PARTICIPANT
@@ -243,7 +245,8 @@ public         — регистрация
 - тот же ключ и тот же нормализованный запрос — возвращается первоначальный статус и тело;
 - тот же ключ с другим запросом — `409 IDEMPOTENCY_KEY_REUSED`;
 - запись и бизнес-изменения сохраняются в согласованной транзакции;
-- срок хранения `IdempotencyRecord` задаётся конфигурацией и определяет окно гарантированной идемпотентности; после физической очистки тот же ключ считается новым.
+- `IdempotencyRecord` имеет `expiresAt = createdAt + 24 hours`; это поддерживаемое клиентское окно гарантированной идемпотентности, после которого запись может быть физически очищена;
+- после физической очистки истёкшей записи тот же ключ считается новым.
 
 Если заголовок обязателен, но отсутствует:
 
@@ -639,6 +642,25 @@ Authorization: Bearer <access-token>
 
 # 9. Пароль и email
 
+## 9.0. Политика паролей
+
+Одинаковая проверка применяется к `password` при регистрации и к `newPassword` при смене или сбросе:
+
+- длина от 12 до 128 Unicode code points;
+- хотя бы один символ не является пробельным;
+- значение проверяется без обрезания и Unicode-нормализации;
+- обязательные классы символов отсутствуют.
+
+Backend является источником истины. Нарушение возвращает `422 VALIDATION_ERROR` с элементом `details.violations`:
+
+```json
+{
+  "field": "password",
+  "code": "PASSWORD_POLICY_VIOLATION",
+  "message": "Password must contain 12 to 128 characters and at least one non-whitespace character."
+}
+```
+
 ## 9.1. Запрос сброса пароля
 
 ```http
@@ -1026,7 +1048,7 @@ signature = HMAC-SHA256(invitationId, invitationSigningKey)
 1. извлекает `invitationId`;
 2. проверяет подпись;
 3. загружает `ConnectInvitation`;
-4. дополнительно может сверить `tokenHash` полного токена;
+4. обязательно вычисляет хэш полного токена и сверяет его с `tokenHash` записи;
 5. проверяет `usedAt` и `expiresAt`.
 
 Такой токен:
@@ -1174,6 +1196,18 @@ Authorization: Bearer <access-token>
       "isAuthor": false,
       "shareAmount": 2000,
       "transferId": "860f68dd-4956-498e-a422-26684f4f80ef"
+    },
+    {
+      "debtParticipantId": "db6cb721-9b33-42c7-a65e-5ee9cc548d49",
+      "user": {
+        "id": "03b179bc-cf9c-45dd-9236-6d420a346e19",
+        "name": "Anna",
+        "isActive": true
+      },
+      "isPayer": false,
+      "isAuthor": false,
+      "shareAmount": 2000,
+      "transferId": "a670851b-c9e6-4362-8682-7e9f9bbc87b6"
     }
   ],
   "isDeleted": false,
@@ -1185,6 +1219,8 @@ Authorization: Bearer <access-token>
 ```
 
 `participants` содержит записи текущего состава (`DebtParticipant.isDeleted = false`). У удалённого долга — состав на момент его удаления.
+
+`participantCount` и `shareAmount` рассчитываются по текущему составу независимо от `User.isActive`: деактивированный пользователь с `DebtParticipant.isDeleted = false` остаётся участником расчёта.
 
 ---
 
@@ -1399,6 +1435,17 @@ If-Match: "4"
 
 Восстановление долга в MVP отсутствует.
 
+### Предусловия и ошибки
+
+К удалению применяются те же правила автора и заморозки, что к изменению:
+
+- не автор — `403 FORBIDDEN`;
+- автор или плательщик неактивен — `409 DEBT_FROZEN`;
+- долг уже удалён — `409 DEBT_DELETED`;
+- несовпадение версии — `409 VERSION_CONFLICT`;
+- отсутствует `If-Match` — `428 PRECONDITION_REQUIRED`;
+- долг не существует или недоступен — `404 DEBT_NOT_AVAILABLE`.
+
 ---
 
 # 14. Трансферы
@@ -1604,6 +1651,16 @@ If-Match: "2"
 
 `DEBT_SHARE` через этот endpoint удалить нельзя.
 
+### Предусловия и ошибки
+
+- не `MANUAL` — `403 AUTOMATIC_TRANSFER_IMMUTABLE`;
+- не автор — `403 FORBIDDEN`;
+- хотя бы одна сторона неактивна — `409 TRANSFER_FROZEN`;
+- трансфер уже удалён — `409 TRANSFER_DELETED`;
+- несовпадение версии — `409 VERSION_CONFLICT`;
+- отсутствует `If-Match` — `428 PRECONDITION_REQUIRED`;
+- трансфер не существует или недоступен — `404 TRANSFER_NOT_AVAILABLE`.
+
 ---
 
 # 15. Автоматические трансферы
@@ -1697,17 +1754,25 @@ DELETE /debts/{debtId}
 
 # 17. Rate limits
 
-Конкретные значения задаются конфигурацией.
+Используется sliding window. Нормативный профиль MVP согласован с ADR-014:
 
-Отдельные лимиты должны существовать как минимум для:
+| Операция | Ключ | Лимит |
+|---|---|---:|
+| Вход | нормализованный email + IP | 5 за 15 минут |
+| Вход | IP | 30 за 15 минут |
+| Регистрация | IP | 5 за 1 час |
+| Регистрация | нормализованный email | 3 за 24 часа |
+| Запрос активации | пользователь или нормализованный email | 3 за 1 час |
+| Запрос активации | IP | 20 за 1 час |
+| Запрос сброса пароля | нормализованный email | 3 за 1 час |
+| Запрос сброса пароля | IP | 20 за 1 час |
+| Запрос смены email | пользователь | 3 за 1 час |
+| Применение `UserActionToken` | IP | 10 за 15 минут |
+| Применение `UserActionToken` | хэш токена | 5 за 15 минут |
+| Принятие приглашения | IP | 10 за 15 минут |
+| Принятие приглашения | `invitationId` | 5 за 15 минут |
 
-- входа;
-- регистрации;
-- запросов активации;
-- сброса пароля;
-- смены email;
-- использования одноразовых токенов;
-- принятия приглашений.
+Если для операции указано несколько ключей, запрос разрешён только при наличии квоты по каждому из них. Проверка по email не раскрывает существование аккаунта.
 
 Ответ:
 
@@ -1730,15 +1795,26 @@ Retry-After: 60
 - изменение ручного трансфера;
 - принятие приглашения;
 - активация аккаунта;
+- деактивация аккаунта;
 - сброс пароля;
+- смена пароля;
+- выход со всех устройств;
 - подтверждение смены email.
+
+Security-команды имеют следующий состав транзакции:
+
+- деактивация — блокировка `User`, проверка пароля, установка `isActive = false`, отзыв всех незавершённых `UserSession`;
+- смена пароля — блокировка `User`, проверка текущего пароля, обновление `passwordHash`, отзыв всех незавершённых `UserSession`;
+- сброс пароля — блокировка `User` и `UserActionToken`, проверка токена, обновление `passwordHash`, установка `usedAt`, отзыв всех незавершённых `UserSession`;
+- выход со всех устройств — блокировка `User` и отзыв всех незавершённых `UserSession`.
 
 Надёжная доставка email реализуется согласно [ADR-013](../adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq):
 
 1. бизнес-изменение, `UserActionToken` и `EmailDeliveryOutbox` фиксируются в одной транзакции PostgreSQL;
 2. relay публикует durable persistent message `SendUserActionEmail` в RabbitMQ с publisher confirms;
 3. Symfony Messenger consumer повторно проверяет актуальность токена и отправляет письмо через выделенный синхронный transport Symfony Mailer, не создавая второй асинхронный `SendEmailMessage`;
-4. retry выполняются с backoff, а исчерпавшее попытки сообщение попадает в failure transport.
+4. relay повторяет публикацию с задержкой от 30 секунд до 30 минут, пока токен действителен;
+5. после первой неудачной SMTP-попытки consumer выполняет пять повторов через 1 минуту, 5 минут, 15 минут, 1 час и 6 часов; после исчерпания сообщение попадает в failure transport.
 
 HTTP-ответ не ожидает SMTP и подтверждает только успешную фиксацию бизнес-изменения и durable intent. Публичные статусы и тела ответов не изменяются. Доставка имеет семантику `at-least-once`: потеря задания после commit исключается, но редкое повторное письмо после принятия SMTP возможно.
 
