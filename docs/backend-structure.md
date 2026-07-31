@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 2 |
+| Версия | 3 |
 | Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-07, ADR-001 и ADR-015 |
+| Источник | E1-07—E1-08, ADR-001 и ADR-015 |
 
 ## 1. Принцип организации
 
@@ -27,9 +27,9 @@ App\<Module>\Adapter
 `App\Infrastructure` — отдельный технический модуль, а не четвёртый слой каждого
 бизнес-модуля и не Shared Kernel.
 
-E1-07 физически создаёт только технический модуль, в котором уже есть
-содержательный код. Пространство имён `App\IdentityAccess\` подготовлено для
-первого вертикального среза, но пустые каталоги и marker-классы не создаются.
+E1-08 физически создаёт persistence-часть `App\IdentityAccess\` и технические
+records первого вертикального среза. Domain/Application-каталоги по-прежнему не
+создаются до появления содержательной реализации.
 Модули `Connects`, `Debts`, `Transfers` и `Invitations` появятся только вместе с
 первым реальным компонентом соответствующего сценария.
 
@@ -37,8 +37,8 @@ E1-07 физически создаёт только технический мо
 
 | Модуль | Ответственность | Корневое пространство имён | Состояние |
 |---|---|---|---|
-| Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация и активация | `App\IdentityAccess\` | Граница зафиксирована; предметных классов ещё нет |
-| Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Физически создан health endpoint |
+| Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация и активация | `App\IdentityAccess\` | Созданы Doctrine records User и UserActionToken |
+| Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Созданы health endpoint, технические records и schema listener |
 
 `IdempotencyRecord` по ADR-009 и `EmailDeliveryOutbox` по ADR-013 принадлежат
 `Infrastructure`. Они являются техническими Doctrine records и не требуют
@@ -49,14 +49,25 @@ E1-07 физически создаёт только технический мо
 ```text
 backend/
 ├── config/
-│   ├── packages/
-│   │   ├── doctrine.yaml
-│   │   └── messenger.yaml
-│   └── services.yaml
+│   └── packages/
+│       └── doctrine.yaml
+├── migrations/
+│   └── Version20260731153000.php
 ├── src/
+│   ├── IdentityAccess/
+│   │   └── Adapter/Persistence/Doctrine/Record/
+│   │       ├── UserRecord.php
+│   │       ├── UserActionTokenRecord.php
+│   │       └── UserActionTokenPurpose.php
 │   ├── Infrastructure/
-│   │   └── Http/
-│   │       └── HealthController.php
+│   │   ├── EmailDelivery/Persistence/Doctrine/Record/
+│   │   │   ├── EmailDeliveryOutboxRecord.php
+│   │   │   └── EmailDeliveryStatus.php
+│   │   ├── Idempotency/Persistence/Doctrine/Record/
+│   │   │   └── IdempotencyRecord.php
+│   │   ├── Persistence/Doctrine/
+│   │   │   └── InitialSchemaForeignKeyListener.php
+│   │   └── Http/HealthController.php
 │   └── Kernel.php
 └── tests/
     ├── Architecture/
@@ -64,6 +75,8 @@ backend/
     ├── Infrastructure/
     │   └── Http/
     │       └── HealthControllerTest.php
+    ├── Integration/Persistence/
+    │   └── InitialSchemaTest.php
     └── bootstrap.php
 ```
 
@@ -174,8 +187,11 @@ Application services, adapters и технические services регистр
 автоматически. Domain service с зависимостями регистрируется явно и остаётся
 независимым от container.
 
-Doctrine auto-mapping отключён. При появлении первого record добавляется явный
-mapping его конкретного namespace; глобальный `App\Entity` не используется.
+Doctrine auto-mapping отключён. В `doctrine.yaml` явно зарегистрированы только
+три фактически существующих persistence namespace: IdentityAccess records,
+Infrastructure Idempotency records и Infrastructure EmailDelivery records.
+Глобальный `App\Entity` не используется. Межмодульные FK остаются скалярными в
+ORM и отражаются в SchemaTool через технический schema listener.
 
 ## 8. Первый вертикальный срез
 
@@ -183,19 +199,22 @@ mapping его конкретного namespace; глобальный `App\Entit
 
 | Компонент | Расположение |
 |---|---|
-| `User`, `UserActionToken` и их инварианты | `IdentityAccess\Domain` |
+| Будущие `User`, `UserActionToken` и их прикладные инварианты | `IdentityAccess\Domain` |
 | Register/activate use cases | `IdentityAccess\Application` |
 | Порт постановки action email | `IdentityAccess\Application\Port` |
 | API проверки актуальности token для доставки | `IdentityAccess\Application\Api` |
 | Контроллеры `/auth/register` и `/auth/activate` | `IdentityAccess\Adapter\Http` |
-| Doctrine records, repositories и mapper пользователя/token | `IdentityAccess\Adapter\Persistence\Doctrine` |
-| `IdempotencyRecord` и координация повторов | `Infrastructure\Idempotency` |
-| `EmailDeliveryOutbox`, relay, consumer и Mailer integration | `Infrastructure\EmailDelivery` |
+| Реализованные Doctrine records пользователя/token | `IdentityAccess\Adapter\Persistence\Doctrine\Record` |
+| Реализованный `IdempotencyRecord`; будущая координация повторов | `Infrastructure\Idempotency` |
+| Реализованный `EmailDeliveryOutbox`; будущие relay, consumer и Mailer integration | `Infrastructure\EmailDelivery` |
 
 Infrastructure хранит ссылку outbox на action token как UUID, а не как
 межмодульную ORM-association. Создание outbox через application port участвует в
 той же PostgreSQL-транзакции, что User и token; публикация в RabbitMQ начинается
 после commit.
+
+Фактические таблицы, поля и ограничения описаны в
+[реализованной начальной схеме](data-model/implemented-initial-schema.md).
 
 ## 9. Правила добавления нового кода
 

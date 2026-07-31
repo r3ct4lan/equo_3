@@ -1,4 +1,6 @@
 {
+    "name": "equo/backend",
+    "description": "Backend application for Equo.",
     "type": "project",
     "license": "proprietary",
     "minimum-stability": "stable",
