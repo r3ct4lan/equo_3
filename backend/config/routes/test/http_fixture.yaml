@@ -12,3 +12,8 @@ test_http_error:
     path: /api/v1/_test/http/error
     controller: App\Tests\Fixture\Http\HttpInfrastructureController::error
     methods: [GET]
+
+test_http_sensitive_records:
+    path: /api/v1/_test/http/sensitive-records
+    controller: App\Tests\Fixture\Http\HttpInfrastructureController::sensitiveRecords
+    methods: [GET]

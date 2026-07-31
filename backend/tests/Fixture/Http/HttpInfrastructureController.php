@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Fixture\Http;
 
+use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserActionTokenRecord;
+use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserRecord;
+use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
 use DateTimeImmutable;
 use RuntimeException;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
@@ -33,5 +36,30 @@ final class HttpInfrastructureController
     public function error(): never
     {
         throw new RuntimeException('SQLSTATE password=secret at /var/www/backend/src/Internal.php:42');
+    }
+
+    /** @return array{user: UserRecord, token: UserActionTokenRecord} */
+    public function sensitiveRecords(): array
+    {
+        $createdAt = new DateTimeImmutable('2026-07-31T12:00:00Z');
+        $user = new UserRecord(
+            '550e8400-e29b-41d4-a716-446655440000',
+            'Ada',
+            'ada@example.test',
+            'password-hash-must-not-leak',
+            false,
+            $createdAt,
+        );
+        $token = new UserActionTokenRecord(
+            '550e8400-e29b-41d4-a716-446655440001',
+            $user,
+            'token-hash-must-not-leak',
+            UserActionTokenPurpose::ActivateAccount,
+            ['secret' => 'payload-must-not-leak'],
+            $createdAt,
+            $createdAt->modify('+24 hours'),
+        );
+
+        return ['user' => $user, 'token' => $token];
     }
 }

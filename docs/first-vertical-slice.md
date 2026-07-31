@@ -5,8 +5,8 @@
 | Название | Equo — первый вертикальный срез разработки |
 | Назначение | Выбрать и ограничить первый пользовательский сценарий, проходящий через UI, HTTP API, бизнес-логику и PostgreSQL |
 | Статус | Accepted |
-| Версия | 1 |
-| Дата актуальности | 2026-07-30 |
+| Версия | 2 |
+| Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
 | Исходный сценарий | [`MVP-SC-001`](mvp-scope.md#mvp-sc-001) |
 | Выбранный срез | Первичная регистрация с активацией по первому email |
@@ -32,18 +32,18 @@
 
 | Источник | Версия | Использование |
 |---|---|---|
-| [Бизнес-правила](business-rules/business-rules.md) | 1 от 2026-07-27 | Регистрация, активация, password policy, токены, идемпотентность, email, rate limits |
-| [Модель сущностей](data-model/entities.md) | 1 от 2026-07-27 | `User`, `UserActionToken`, `IdempotencyRecord`, `EmailDeliveryOutbox`, транзакционные границы |
+| [Бизнес-правила](business-rules/business-rules.md) | 2 от 2026-07-31 | Регистрация, активация, password policy, токены, идемпотентность, email, rate limits |
+| [Модель сущностей](data-model/entities.md) | 2 от 2026-07-31 | `User`, `UserActionToken`, `IdempotencyRecord`, `EmailDeliveryOutbox`, транзакционные границы |
 | [ER-модель](data-model/er-diagram.md) | 1 от 2026-07-27 | PK/FK, уникальность, `CHECK`, кардинальности |
-| [HTTP-контракты](api/http-contracts.md) | 1 от 2026-07-27 | `POST /auth/register`, `POST /auth/activate`, error envelope, idempotency, rate limits |
-| [ADR-001—ADR-014](adr/architecture-decisions.md) | 1 от 2026-07-27, `Accepted` | Модульный монолит, lifecycle аккаунта, action tokens, outbox, idempotency и операционный профиль |
+| [HTTP-контракты](api/http-contracts.md) | 3 от 2026-07-31 | `POST /auth/register`, `POST /auth/activate`, error envelope, idempotency, rate limits |
+| [ADR-001—ADR-017](adr/architecture-decisions.md) | 3 от 2026-07-31, `Accepted` | Модульный монолит, lifecycle аккаунта, action tokens, JWT, outbox, idempotency и операционный профиль |
 
 ### 2.2. Справочные и контрольные источники
 
 - [Глоссарий](glossary/glossary.md) — канонические термины `User`, активация, `UserActionToken`, outbox и durable intent.
 - [Границы MVP E1-04](mvp-scope.md) — категория `Must have`, основной путь и зависимости.
 - [Сквозная проверка E1-02](consistency-review.md) — Block A закрыт, нормативный комплект согласован.
-- [Журнал решений](open-questions.md) — все 13 вопросов `Resolved`, активных блокеров нет.
+- [Журнал решений](open-questions.md) — все 17 вопросов `Resolved`, активных блокеров нет.
 - [Корневой README](../README.md) и [индекс](README.md) — принятый стек и состав документации.
 
 Исторический [отчёт согласованности](reviews/consistency-report.md) имеет статус `Superseded` и не используется для актуальных решений.
@@ -317,7 +317,8 @@ Frontend передаёт `Idempotency-Key` для регистрации, не 
 - хэширование пароля через Symfony PasswordHasher `auto`;
 - создание `User.isActive = false`;
 - генерация криптографически случайного purpose-bound `ACTIVATE_ACCOUNT`;
-- хранение только `tokenHash`;
+- versioned HMAC-SHA-256 профиль ADR-016: 32 случайных байта, key version в
+  public token, хранение только versioned `tokenHash`, key ring вне БД;
 - срок действия 24 часа;
 - создание `User`, первого action token и outbox в одной транзакции;
 - согласованная фиксация `IdempotencyRecord` и business result;
@@ -509,6 +510,7 @@ UNIQUE(scope, operation, idempotencyKey)
 - секреты и ciphertext не журналируются;
 - consumer отправляет письмо только для текущего действующего token;
 - activation token purpose-bound и одноразовый;
+- action token использует отдельный versioned HMAC key ring по ADR-016;
 - успешная активация не считается аутентификацией;
 - техническая ошибка не раскрывает stack trace, hash, token или DB constraint.
 

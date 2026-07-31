@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Зафиксировать фактически реализованную в E1-08 часть модели данных первого вертикального среза |
 | Статус | Accepted |
-| Версия | 1 |
+| Версия | 2 |
 | Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-08; модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009 и ADR-011—ADR-015 |
+| Источник | E1-08—E1-10; модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016 |
 
 ## 1. Граница реализации
 
@@ -49,7 +49,7 @@ ER-тип `varchar` без заданной максимальной длины 
 |---|---|---:|---|
 | `id` | `UUID` | нет | Первичный ключ |
 | `user_id` | `UUID` | нет | FK на `app_user.id` |
-| `token_hash` | `TEXT` | нет | Хэш одноразового токена |
+| `token_hash` | `TEXT` | нет | Versioned HMAC-SHA-256 digest одноразового токена по ADR-016 |
 | `purpose` | `TEXT` | нет | `ACTIVATE_ACCOUNT`, `RESET_PASSWORD` или `CHANGE_EMAIL` |
 | `payload` | `JSONB` | да | Данные назначения токена |
 | `created_at`, `expires_at` | `TIMESTAMPTZ` | нет | Начало и конец срока действия |
@@ -119,7 +119,7 @@ PostgreSQL не дублирует контекстные правила. В с�
 реализованы:
 
 - нормализация email перед сохранением и проверка уникальности нового email;
-- хэширование пароля и публичного token;
+- применение PasswordHasher `auto` и ADR-016 при создании пароля/token;
 - срок token и idempotency record ровно 24 часа;
 - сериализация выдачи token блокировкой `User` и аннулирование предыдущего;
 - соответствие JSON payload назначению token;
@@ -133,7 +133,9 @@ PostgreSQL не дублирует контекстные правила. В с�
 Не создавались `Connect`, `ConnectInvitation`, `Debt`, `DebtParticipant`,
 `Transfer` и `UserSession`: они не нужны для регистрации и активации и относятся
 к следующим вертикальным сценариям. Не создавались repositories, mapper-слой,
-domain entities, fixtures и демонстрационные данные.
+полные domain entities, repositories, mapper-слой, fixtures и демонстрационные
+данные. Добавленные в E1-10 purpose enum и access policy описаны в
+[модели доступа](../security/access-model.md) и не меняют схему.
 
 ## 6. Миграция и автоматические проверки
 
@@ -159,4 +161,4 @@ domain entities, fixtures и демонстрационные данные.
 - [Бизнес-правила](../business-rules/business-rules.md);
 - [Первый вертикальный срез](../first-vertical-slice.md) и
   [критерии приёмки](../first-vertical-slice-acceptance.md);
-- [ADR-001, ADR-006, ADR-007, ADR-009 и ADR-011—ADR-015](../adr/architecture-decisions.md).
+- [ADR-001, ADR-006, ADR-007, ADR-009 и ADR-011—ADR-016](../adr/architecture-decisions.md).

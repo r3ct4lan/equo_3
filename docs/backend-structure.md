@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 4 |
+| Версия | 5 |
 | Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-07—E1-09, ADR-001, ADR-012 и ADR-015 |
+| Источник | E1-07—E1-10, ADR-001, ADR-006, ADR-007, ADR-012 и ADR-015—017 |
 
 ## 1. Принцип организации
 
@@ -28,8 +28,9 @@ App\<Module>\Adapter
 бизнес-модуля и не Shared Kernel.
 
 E1-08 физически создаёт persistence-часть `App\IdentityAccess\` и технические
-records первого вертикального среза. Domain/Application-каталоги по-прежнему не
-создаются до появления содержательной реализации.
+records первого вертикального среза. E1-10 добавляет чистый token-purpose в
+Domain, прикладную activation access policy, password hashing port и Symfony
+adapter — только компоненты с фактической функцией в первом срезе.
 Модули `Connects`, `Debts`, `Transfers` и `Invitations` появятся только вместе с
 первым реальным компонентом соответствующего сценария.
 
@@ -37,7 +38,7 @@ records первого вертикального среза. Domain/Application
 
 | Модуль | Ответственность | Корневое пространство имён | Состояние |
 |---|---|---|---|
-| Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация и активация | `App\IdentityAccess\` | Созданы Doctrine records User и UserActionToken |
+| Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация и активация | `App\IdentityAccess\` | Созданы token access policy, password hashing port/adapter и Doctrine records |
 | Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Созданы HTTP infrastructure, health endpoint, технические records и schema listener |
 
 `IdempotencyRecord` по ADR-009 и `EmailDeliveryOutbox` по ADR-013 принадлежат
@@ -58,10 +59,15 @@ backend/
 │   └── Version20260731153000.php
 ├── src/
 │   ├── IdentityAccess/
-│   │   └── Adapter/Persistence/Doctrine/Record/
-│   │       ├── UserRecord.php
-│   │       ├── UserActionTokenRecord.php
-│   │       └── UserActionTokenPurpose.php
+│   │   ├── Domain/Access/UserActionTokenPurpose.php
+│   │   ├── Application/
+│   │   │   ├── Authorization/ (activation access policy and decisions)
+│   │   │   └── Port/PasswordHashingPort.php
+│   │   └── Adapter/
+│   │       ├── Persistence/Doctrine/Record/
+│   │       │   ├── UserRecord.php
+│   │       │   └── UserActionTokenRecord.php
+│   │       └── Security/SymfonyPasswordHasher.php
 │   ├── Infrastructure/
 │   │   ├── EmailDelivery/Persistence/Doctrine/Record/
 │   │   │   ├── EmailDeliveryOutboxRecord.php
@@ -88,6 +94,9 @@ backend/
     │   └── HttpInfrastructureTest.php
     ├── Integration/Persistence/
     │   └── InitialSchemaTest.php
+    ├── IdentityAccess/
+    │   ├── Application/Authorization/ActivationAccessPolicyTest.php
+    │   └── Adapter/Security/SymfonyPasswordHasherTest.php
     └── bootstrap.php
 ```
 
@@ -198,6 +207,10 @@ Application services, adapters и технические services регистр
 автоматически. Domain service с зависимостями регистрируется явно и остаётся
 независимым от container.
 
+`PasswordHashingPort` явно связан с `SymfonyPasswordHasher`. Фабрика Symfony
+PasswordHasher получает нормативный алгоритм `auto`; открытый пароль и
+конкретный framework type не пересекают Application boundary.
+
 Общие request ID, exception и response subscribers зарегистрированы
 автоматически как services `App\Infrastructure\Http`. Бизнес-controller их не
 импортирует: стандартный Symfony `MapRequestPayload` обрабатывает transport DTO,
@@ -224,6 +237,9 @@ ORM и отражаются в SchemaTool через технический sche
 | Контроллеры `/auth/register` и `/auth/activate`, transport request DTO | `IdentityAccess\Adapter\Http` |
 | Чистые application commands/response DTO | `IdentityAccess\Application` |
 | Реализованные Doctrine records пользователя/token | `IdentityAccess\Adapter\Persistence\Doctrine\Record` |
+| Реализованная activation object policy | `IdentityAccess\Application\Authorization` |
+| Purpose action token | `IdentityAccess\Domain\Access` |
+| Password hashing port и Symfony adapter | `IdentityAccess\Application\Port` и `IdentityAccess\Adapter\Security` |
 | Реализованный `IdempotencyRecord`; будущая координация повторов | `Infrastructure\Idempotency` |
 | Реализованный `EmailDeliveryOutbox`; будущие relay, consumer и Mailer integration | `Infrastructure\EmailDelivery` |
 
@@ -264,7 +280,9 @@ Infrastructure хранит ссылку outbox на action token как UUID, �
 - [ADR-012 — HTTP-соглашения](adr/architecture-decisions.md#adr-012-границы-и-http-соглашения-mvp);
 - [ADR-013 — transactional outbox и RabbitMQ](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq);
 - [ADR-014 — операционный профиль](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp);
-- [ADR-015 — слои и зависимости модулей](adr/architecture-decisions.md#adr-015-слои-backend-и-направления-зависимостей-модулей).
+- [ADR-015 — слои и зависимости модулей](adr/architecture-decisions.md#adr-015-слои-backend-и-направления-зависимостей-модулей);
+- [ADR-016 — криптографический профиль UserActionToken](adr/architecture-decisions.md#adr-016-криптографический-профиль-useractiontoken);
+- [ADR-017 — профиль JWT access token](adr/architecture-decisions.md#adr-017-профиль-jwt-access-token).
 
 Граница реализации взята из [описания первого вертикального среза](first-vertical-slice.md)
 и его [критериев приёмки](first-vertical-slice-acceptance.md).

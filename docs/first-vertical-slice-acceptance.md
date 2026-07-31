@@ -5,8 +5,8 @@
 | Название | Equo — критерии приёмки первого вертикального среза |
 | Назначение | Зафиксировать однозначное и проверяемое поведение первичной регистрации и активации по первому email |
 | Статус | Accepted |
-| Версия | 1 |
-| Дата актуальности | 2026-07-30 |
+| Версия | 2 |
+| Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
 | Исходный сценарий | [`MVP-SC-001`](mvp-scope.md#mvp-sc-001) |
 | Первый срез | [Первичная регистрация с активацией по первому email](first-vertical-slice.md) |
@@ -33,11 +33,11 @@
 
 | Источник | Версия и статус | Использование |
 |---|---|---|
-| [Бизнес-правила](business-rules/business-rules.md) | 1 от 2026-07-27, Accepted | Регистрация, активация, password policy, token lifecycle, идемпотентность, транзакции, email и rate limits |
-| [Модель сущностей](data-model/entities.md) | 1 от 2026-07-27, Accepted | Поля и инварианты `User`, `UserActionToken`, `IdempotencyRecord`, `EmailDeliveryOutbox` |
+| [Бизнес-правила](business-rules/business-rules.md) | 2 от 2026-07-31, Accepted | Регистрация, активация, password policy, token lifecycle, идемпотентность, транзакции, email и rate limits |
+| [Модель сущностей](data-model/entities.md) | 2 от 2026-07-31, Accepted | Поля и инварианты `User`, `UserActionToken`, `IdempotencyRecord`, `EmailDeliveryOutbox` |
 | [ER-модель](data-model/er-diagram.md) | 1 от 2026-07-27, Accepted | PK/FK, `NOT NULL`, `CHECK`, `UNIQUE`, частичные индексы и кардинальности |
-| [HTTP-контракты](api/http-contracts.md) | 1 от 2026-07-27, Accepted | Форматы запросов и ответов, ошибки, идемпотентность, rate limits и транзакционность |
-| [ADR-001—ADR-014](adr/architecture-decisions.md) | 1 от 2026-07-27, Accepted | Модульный монолит, account lifecycle, action tokens, idempotency, границы БД, HTTP, outbox и операционный профиль |
+| [HTTP-контракты](api/http-contracts.md) | 3 от 2026-07-31, Accepted | Форматы запросов и ответов, ошибки, идемпотентность, rate limits и транзакционность |
+| [ADR-001—ADR-017](adr/architecture-decisions.md) | 3 от 2026-07-31, Accepted | Модульный монолит, account lifecycle, action/JWT token profiles, idempotency, границы БД, HTTP, outbox и операционный профиль |
 
 ### 2.2. Справочные и контрольные источники
 
@@ -45,7 +45,7 @@
 - [Границы MVP E1-04](mvp-scope.md) — `MVP-SC-001` как `Must have`, основной путь и зависимости.
 - [Первый вертикальный срез E1-05](first-vertical-slice.md) — выбранный вариант, его границы и исключения.
 - [Сквозная проверка E1-02](consistency-review.md) — завершение Block A и согласованность нормативного комплекта.
-- [Журнал решений](open-questions.md) — 13 вопросов `Resolved`, активных вопросов нет.
+- [Журнал решений](open-questions.md) — 17 вопросов `Resolved`, активных вопросов нет.
 - [Корневой README](../README.md) и [индекс документации](README.md) — стек и состав артефактов.
 
 Исторический [отчёт согласованности](reviews/consistency-report.md) имеет статус `Superseded` и не является нормативным.
@@ -616,6 +616,8 @@
 Дано пользователь передал password и система создала activation token
 Когда данные сохраняются, логируются и возвращаются
 Тогда хранится только passwordHash и tokenHash
+И raw token содержит 32 случайных байта и keyVersion по ADR-016
+И tokenHash является versioned HMAC-SHA-256 digest полного raw token
 И открытый token/ссылка временно находятся только в encrypted outbox payload
 И password, raw token, hashes, ciphertext и ключ шифрования отсутствуют в API errors и логах
 ```
@@ -623,7 +625,7 @@
 - **UI:** не сохраняет raw token дольше операции и не повторяет password.
 - **API:** не возвращает закрытые поля.
 - **Данные:** encryption key вне БД; payload очищается в нормативных конечных случаях.
-- **Основание:** [BR-USR-009](business-rules/business-rules.md#br-usr-009-единая-политика-паролей), [BR-SEC-003/006](business-rules/business-rules.md#br-sec-003-useractiontoken), [ADR-007/013](adr/architecture-decisions.md#adr-007-унифицированные-одноразовые-токены).
+- **Основание:** [BR-USR-009](business-rules/business-rules.md#br-usr-009-единая-политика-паролей), [BR-SEC-003/006](business-rules/business-rules.md#br-sec-003-useractiontoken), [ADR-007/013/016](adr/architecture-decisions.md#adr-007-унифицированные-одноразовые-токены).
 
 #### AC-031. UUID и серверное UTC-время
 
@@ -1260,7 +1262,11 @@
 | `TD-19` | Два concurrent request с same key/body | Concurrent replay | Два одинаковых исходных результата, один набор |
 | `TD-20` | Два concurrent request с distinct keys/same normalized email | Unique race | Один `201`, один `409`, один набор |
 
-Для rate-limit и retry тестов fixture задаёт контролируемые IP, normalized email, token hash, clock и число предыдущих попыток; сами нормативные значения берутся только из [HTTP 17](api/http-contracts.md#17-rate-limits) и [ADR-014](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp).
+Для token-тестов fixture использует отдельный тестовый `keyVersion` и HMAC key,
+которые не применяются вне `test`; проверяются формат, lookup текущим ключом,
+отказ неизвестной версии и совместимость retention key. Для rate-limit и retry
+тестов fixture задаёт контролируемые IP, normalized email, token hash, clock и
+число предыдущих попыток; нормативные значения берутся из [HTTP 17](api/http-contracts.md#17-rate-limits), [ADR-014](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp) и [ADR-016](adr/architecture-decisions.md#adr-016-криптографический-профиль-useractiontoken).
 
 ## 13. Матрица трассируемости
 
@@ -1271,7 +1277,7 @@
 | AC-001 | Полный путь | [USR-001—003, SEC-006](business-rules/business-rules.md#br-usr-001-регистрация) | U,T,I,O | [8.1, 8.3, 18](api/http-contracts.md#81-регистрация) | [001,006,007,013](adr/architecture-decisions.md#adr-001-архитектура-mvp-как-модульный-монолит) | E2E, INT, MAN |
 | AC-002 | Регистрация | [USR-001/003](business-rules/business-rules.md#br-usr-001-регистрация) | U,T,I,O | [8.1](api/http-contracts.md#81-регистрация) | [012](adr/architecture-decisions.md#adr-012-границы-и-http-соглашения-mvp) | API, INT |
 | AC-003 | Получить email | [SEC-006](business-rules/business-rules.md#br-sec-006-надёжная-постановка-email) | T,O | [18](api/http-contracts.md#18-транзакционность-команд) | [013](adr/architecture-decisions.md#adr-013-надёжная-доставка-email-через-transactional-outbox-и-rabbitmq) | INT, E2E, MAN |
-| AC-004 | Активировать | [USR-002, SEC-003](business-rules/business-rules.md#br-usr-002-первичная-активация) | U,T | [8.3](api/http-contracts.md#83-активация-аккаунта) | [006,007](adr/architecture-decisions.md#adr-006-жизненный-цикл-аккаунта-и-сессий) | API, INT |
+| AC-004 | Активировать | [USR-002, SEC-003](business-rules/business-rules.md#br-usr-002-первичная-активация) | U,T | [8.3](api/http-contracts.md#83-активация-аккаунта) | [006,007,016](adr/architecture-decisions.md#adr-006-жизненный-цикл-аккаунта-и-сессий) | API, INT |
 | AC-005 | Остаться signed-out | [USR-002/003](business-rules/business-rules.md#br-usr-002-первичная-активация) | U | [8.1/8.3](api/http-contracts.md#81-регистрация) | [006](adr/architecture-decisions.md#adr-006-жизненный-цикл-аккаунта-и-сессий) | API, INT, FE |
 | AC-006 | Ввести name | [TXN-002](business-rules/business-rules.md#br-txn-002-ответственность-бд) | U | [3,8.1](api/http-contracts.md#3-стандартная-модель-ошибки) | [011,012](adr/architecture-decisions.md#adr-011-разделение-ответственности-бд-и-доменного-слоя) | API, FE |
 | AC-007 | Ввести name | [TXN-002](business-rules/business-rules.md#br-txn-002-ответственность-бд) | U | [3,8.1](api/http-contracts.md#3-стандартная-модель-ошибки) | [011](adr/architecture-decisions.md#adr-011-разделение-ответственности-бд-и-доменного-слоя) | UT, API, INT |

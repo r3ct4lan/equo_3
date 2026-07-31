@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Persistence;
 
-use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserActionTokenPurpose;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserActionTokenRecord;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserRecord;
+use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
 use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryOutboxRecord;
 use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryStatus;
 use App\Infrastructure\Idempotency\Persistence\Doctrine\Record\IdempotencyRecord;
