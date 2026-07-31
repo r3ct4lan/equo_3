@@ -13,6 +13,25 @@ doctrine:
         identity_generation_preferences:
             Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
         auto_mapping: false
+        mappings:
+            IdentityAccess:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/IdentityAccess/Adapter/Persistence/Doctrine/Record'
+                prefix: 'App\IdentityAccess\Adapter\Persistence\Doctrine\Record'
+                alias: IdentityAccess
+            InfrastructureIdempotency:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Infrastructure/Idempotency/Persistence/Doctrine/Record'
+                prefix: 'App\Infrastructure\Idempotency\Persistence\Doctrine\Record'
+                alias: InfrastructureIdempotency
+            InfrastructureEmailDelivery:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Infrastructure/EmailDelivery/Persistence/Doctrine/Record'
+                prefix: 'App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record'
+                alias: InfrastructureEmailDelivery
 
 when@test:
     doctrine:
