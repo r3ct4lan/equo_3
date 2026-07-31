@@ -15,6 +15,7 @@ final class HealthControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertResponseFormatSame('json');
+        self::assertResponseHasHeader('X-Request-Id');
         self::assertJsonStringEqualsJsonString(
             '{"status":"ok","service":"equo-api"}',
             (string) $client->getResponse()->getContent(),

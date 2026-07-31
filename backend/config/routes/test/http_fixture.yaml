@@ -1,0 +1,14 @@
+test_http_payload:
+    path: /api/v1/_test/http/payload
+    controller: App\Tests\Fixture\Http\HttpInfrastructureController::payload
+    methods: [POST]
+
+test_http_response:
+    path: /api/v1/_test/http/response
+    controller: App\Tests\Fixture\Http\HttpInfrastructureController::response
+    methods: [GET]
+
+test_http_error:
+    path: /api/v1/_test/http/error
+    controller: App\Tests\Fixture\Http\HttpInfrastructureController::error
+    methods: [GET]
