@@ -1,4 +1,8 @@
 services:
+    App\IdentityAccess\Application\Port\PasswordHashingPort:
+        alias: App\IdentityAccess\Adapter\Security\SymfonyPasswordHasher
+        public: true
+
     App\Tests\Fixture\Http\HttpInfrastructureController:
         autowire: true
         autoconfigure: true

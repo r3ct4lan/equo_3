@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Adapter\Persistence\Doctrine\Record;
 
+use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Ignore;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'user_action_token')]
@@ -60,6 +62,7 @@ class UserActionTokenRecord
         return $this->user;
     }
 
+    #[Ignore]
     public function tokenHash(): string
     {
         return $this->tokenHash;
@@ -71,6 +74,7 @@ class UserActionTokenRecord
     }
 
     /** @return array<string, mixed>|null */
+    #[Ignore]
     public function payload(): ?array
     {
         return $this->payload;

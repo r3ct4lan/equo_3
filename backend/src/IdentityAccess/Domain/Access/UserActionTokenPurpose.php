@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\IdentityAccess\Adapter\Persistence\Doctrine\Record;
+namespace App\IdentityAccess\Domain\Access;
 
 enum UserActionTokenPurpose: string
 {

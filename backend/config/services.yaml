@@ -24,5 +24,14 @@ services:
             - '../src/*/Adapter/Persistence/Doctrine/Record/'
             - '../src/Infrastructure/*/Persistence/Doctrine/Record/'
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+    Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactory:
+        arguments:
+            $passwordHashers:
+                App\IdentityAccess\Application\Port\PasswordHashingPort:
+                    algorithm: auto
+
+    Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface:
+        alias: Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactory
+
+    App\IdentityAccess\Application\Port\PasswordHashingPort:
+        alias: App\IdentityAccess\Adapter\Security\SymfonyPasswordHasher

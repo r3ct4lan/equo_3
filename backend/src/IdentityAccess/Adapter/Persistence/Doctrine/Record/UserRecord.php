@@ -7,6 +7,7 @@ namespace App\IdentityAccess\Adapter\Persistence\Doctrine\Record;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Ignore;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'app_user')]
@@ -45,6 +46,7 @@ class UserRecord
         return $this->email;
     }
 
+    #[Ignore]
     public function passwordHash(): string
     {
         return $this->passwordHash;
