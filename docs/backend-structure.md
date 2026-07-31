@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 3 |
+| Версия | 4 |
 | Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-07—E1-08, ADR-001 и ADR-015 |
+| Источник | E1-07—E1-09, ADR-001, ADR-012 и ADR-015 |
 
 ## 1. Принцип организации
 
@@ -38,7 +38,7 @@ records первого вертикального среза. Domain/Application
 | Модуль | Ответственность | Корневое пространство имён | Состояние |
 |---|---|---|---|
 | Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация и активация | `App\IdentityAccess\` | Созданы Doctrine records User и UserActionToken |
-| Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Созданы health endpoint, технические records и schema listener |
+| Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Созданы HTTP infrastructure, health endpoint, технические records и schema listener |
 
 `IdempotencyRecord` по ADR-009 и `EmailDeliveryOutbox` по ADR-013 принадлежат
 `Infrastructure`. Они являются техническими Doctrine records и не требуют
@@ -49,8 +49,11 @@ records первого вертикального среза. Domain/Application
 ```text
 backend/
 ├── config/
-│   └── packages/
-│       └── doctrine.yaml
+│   ├── packages/
+│   │   ├── doctrine.yaml
+│   │   └── validator.yaml
+│   ├── routes/test/http_fixture.yaml
+│   └── services_test.yaml
 ├── migrations/
 │   └── Version20260731153000.php
 ├── src/
@@ -67,14 +70,22 @@ backend/
 │   │   │   └── IdempotencyRecord.php
 │   │   ├── Persistence/Doctrine/
 │   │   │   └── InitialSchemaForeignKeyListener.php
-│   │   └── Http/HealthController.php
+│   │   └── Http/
+│   │       ├── ApiExceptionSubscriber.php
+│   │       ├── ApiJsonResponder.php
+│   │       ├── ApiResponseSubscriber.php
+│   │       ├── HealthController.php
+│   │       ├── RequestIdSubscriber.php
+│   │       └── ValidationViolationNormalizer.php
 │   └── Kernel.php
 └── tests/
     ├── Architecture/
     │   └── ModuleDependencyTest.php
-    ├── Infrastructure/
-    │   └── Http/
-    │       └── HealthControllerTest.php
+    ├── Fixture/Http/
+    │   └── test-only DTO, response and controller
+    ├── Infrastructure/Http/
+    │   ├── HealthControllerTest.php
+    │   └── HttpInfrastructureTest.php
     ├── Integration/Persistence/
     │   └── InitialSchemaTest.php
     └── bootstrap.php
@@ -187,6 +198,13 @@ Application services, adapters и технические services регистр
 автоматически. Domain service с зависимостями регистрируется явно и остаётся
 независимым от container.
 
+Общие request ID, exception и response subscribers зарегистрированы
+автоматически как services `App\Infrastructure\Http`. Бизнес-controller их не
+импортирует: стандартный Symfony `MapRequestPayload` обрабатывает transport DTO,
+а `kernel.view` сериализует возвращённый response DTO/array. Test fixture
+controller и routes подключаются только через `services_test.yaml` и
+`routes/test/`.
+
 Doctrine auto-mapping отключён. В `doctrine.yaml` явно зарегистрированы только
 три фактически существующих persistence namespace: IdentityAccess records,
 Infrastructure Idempotency records и Infrastructure EmailDelivery records.
@@ -203,7 +221,8 @@ ORM и отражаются в SchemaTool через технический sche
 | Register/activate use cases | `IdentityAccess\Application` |
 | Порт постановки action email | `IdentityAccess\Application\Port` |
 | API проверки актуальности token для доставки | `IdentityAccess\Application\Api` |
-| Контроллеры `/auth/register` и `/auth/activate` | `IdentityAccess\Adapter\Http` |
+| Контроллеры `/auth/register` и `/auth/activate`, transport request DTO | `IdentityAccess\Adapter\Http` |
+| Чистые application commands/response DTO | `IdentityAccess\Application` |
 | Реализованные Doctrine records пользователя/token | `IdentityAccess\Adapter\Persistence\Doctrine\Record` |
 | Реализованный `IdempotencyRecord`; будущая координация повторов | `Infrastructure\Idempotency` |
 | Реализованный `EmailDeliveryOutbox`; будущие relay, consumer и Mailer integration | `Infrastructure\EmailDelivery` |
@@ -215,6 +234,8 @@ Infrastructure хранит ссылку outbox на action token как UUID, �
 
 Фактические таблицы, поля и ограничения описаны в
 [реализованной начальной схеме](data-model/implemented-initial-schema.md).
+Общие JSON/error/request ID правила описаны в
+[реализации HTTP-слоя](api/http-implementation.md).
 
 ## 9. Правила добавления нового кода
 
@@ -229,6 +250,9 @@ Infrastructure хранит ссылку outbox на action token как UUID, �
 7. При добавлении record одновременно настройте явный Doctrine mapping и
    проверьте исключение из service discovery.
 8. Любое исключение из dependency matrix требует нового ADR.
+9. Symfony validation attributes размещайте на transport DTO в `Adapter\Http`;
+   Application command/DTO остаётся framework-independent.
+10. Controller возвращает response DTO/array, но никогда не Doctrine record.
 
 ## 10. Применённые решения
 

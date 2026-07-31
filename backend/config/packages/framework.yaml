@@ -2,6 +2,10 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
+    serializer:
+        default_context:
+            allow_extra_attributes: false
+
     # Note that the session will be started ONLY if you read or write from it.
     session: true
 
