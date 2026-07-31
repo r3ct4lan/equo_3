@@ -7,10 +7,10 @@
 | Название | Equo — Architecture Decision Records |
 | Назначение | Зафиксировать архитектурные решения, принятые на этапе проектирования Equo |
 | Статус | Accepted |
-| Версия | 3 |
+| Версия | 4 |
 | Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
-| Источник | `equo-06-adr.md` из приложенного архива `equo-artifacts-final.zip`; решения владельца, автономное закрытие Block A, E1-07 и E1-10 |
+| Источник | `equo-06-adr.md` из приложенного архива `equo-artifacts-final.zip`; решения владельца, автономное закрытие Block A, E1-07, E1-10 и E1-11 |
 
 - **Статус комплекта:** финальная согласованная версия этапа проектирования
 
@@ -53,6 +53,7 @@
 | ADR-015 | Слои backend и направления зависимостей модулей | Accepted |
 | ADR-016 | Криптографический профиль `UserActionToken` | Accepted |
 | ADR-017 | Профиль JWT access token | Accepted |
+| ADR-018 | Frontend lifecycle access token, session bootstrap и CSRF | Accepted |
 
 ---
 
@@ -1457,6 +1458,142 @@ subject и audience и явный тип token.
 - появление отдельного identity service требует JWKS или внешнего issuer;
 - вводятся роли/permissions, MFA или token binding;
 - меняются JWT Best Current Practices.
+
+---
+
+# ADR-018: Frontend lifecycle access token, session bootstrap и CSRF
+
+- **Статус:** Accepted
+- **Дата:** 2026-07-31
+- **Связанный вопрос:** [OQ-018](../open-questions.md#oq-018)
+
+## Контекст
+
+ADR-006/012/017 определяют короткоживущий Bearer JWT и opaque rotating refresh
+token в `HttpOnly` cookie, но не задают, где browser хранит access token, как
+восстанавливается сессия после reload и как cookie-authenticated операции
+защищаются от CSRF. Выбор Web Storage упростил бы reload, но увеличил бы
+последствия XSS; перевод всей аутентификации на cookie изменил бы принятый HTTP
+контракт и потребовал бы заменяющего ADR.
+
+Frontend и API публикуются через один Nginx origin. Это позволяет сохранить
+Bearer-модель для protected API и ограничить cookie-authenticated auth flow
+same-origin запросами.
+
+## Решение
+
+### Access token
+
+- access token хранится только в client-side памяти текущей вкладки;
+- token запрещено сохранять в `localStorage`, `sessionStorage`, IndexedDB,
+  frontend persistence plugin, доступной JavaScript cookie или Nuxt SSR payload;
+- token не входит в `useCurrentUser`, application logs, telemetry или error
+  payload;
+- login и refresh передают полученный token единственному API client, который
+  добавляет `Authorization: Bearer` только на время запроса;
+- публичные данные current user могут храниться отдельно в сериализуемом
+  состоянии, но не являются доказательством аутентификации backend;
+- access token одной вкладки не передаётся другой вкладке, в том числе через
+  `BroadcastChannel`.
+
+### Session bootstrap и refresh
+
+Session bootstrap выполняется в browser после hydration:
+
+1. состояние сессии остаётся `unknown`, а protected route не выполняет redirect;
+2. frontend выполняет один cookie-authenticated `POST /api/v1/auth/refresh`;
+3. при успехе новый access token остаётся в памяти, после чего frontend вызывает
+   `GET /api/v1/me`;
+4. `401` от refresh переводит состояние в `anonymous` и очищает token;
+5. transport/`5xx` ошибка переводит состояние в `error` и допускает явный retry,
+   но не маскируется как anonymous session;
+6. только после завершения bootstrap route middleware принимает решение о
+   продолжении или redirect.
+
+В одной вкладке одновременные refresh-запросы объединяются в один in-flight
+Promise. Вкладки одного origin сериализуют refresh между собой, чтобы два
+запроса не использовали один rotating token одновременно; конкретный browser
+primitive выбирается при реализации. Каждая вкладка после получения своей
+очереди делает refresh для собственного in-memory access token. Между вкладками
+передаются только события изменения/завершения сессии, но не token.
+
+После `401` от protected API client может выполнить не более одного refresh и
+одного повторения исходного запроса. Transport errors, `403` и остальные ответы
+автоматический refresh не запускают. Logout очищает локальный token и current
+user независимо от результата очистки UI; успешный server logout рассылает
+вкладкам событие завершения сессии.
+
+### CSRF для refresh и logout
+
+Refresh token сохраняет профиль ADR-006:
+
+```text
+HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth
+```
+
+Для `POST /api/v1/auth/refresh` и предъявляющего refresh cookie
+`POST /api/v1/auth/logout` обязательны все следующие проверки:
+
+- точное совпадение `Origin` с настроенным application origin;
+- `Sec-Fetch-Site` при наличии имеет значение `same-origin` или `none`;
+- credentialed CORS не разрешается недоверенным origins;
+- заголовок `X-CSRF-Token` совпадает со значением отдельной CSRF cookie;
+- CSRF token криптографически подписан и привязан к конкретной refresh-сессии;
+  простой unsigned double-submit запрещён.
+
+CSRF cookie выдаётся вместе с refresh cookie при login и обновляется вместе с
+ней при refresh. Она доступна frontend-коду только для переноса значения в
+header и использует профиль
+`__Host-equo_csrf=<token>; Secure; SameSite=Lax; Path=/` без `Domain` и без
+`HttpOnly`. Logout очищает обе cookie. Logout без refresh cookie остаётся
+идемпотентным и возвращает `204` без изменения состояния. При наличии refresh
+cookie неверная или отсутствующая same-origin/CSRF проверка возвращает публичный
+`403 FORBIDDEN` до выполнения ротации или отзыва refresh-сессии.
+
+`SameSite=Lax` является дополнительной защитой, а не заменой Origin,
+Fetch Metadata и CSRF token. Иная cross-site deployment topology требует
+пересмотра этого ADR и явного списка доверенных origins/cookie policy.
+
+## Последствия
+
+Положительные:
+
+- XSS не получает долгоживущий refresh token и не находит access token в
+  постоянном browser storage после завершения вкладки;
+- reload восстанавливает сессию без раскрытия refresh token JavaScript-коду;
+- принятые Bearer HTTP-контракты и JWT profile остаются неизменными;
+- CSRF-защита cookie-authenticated команд не полагается только на `SameSite`.
+
+Отрицательные:
+
+- каждая вкладка после reload выполняет bootstrap и должна координировать
+  rotating refresh token с другими вкладками;
+- authenticated SSR data не поддерживается: до browser bootstrap отображается
+  нейтральное loading state;
+- XSS в активной вкладке всё ещё может выполнять действия от имени пользователя,
+  поэтому остаются обязательными CSP, output escaping и отсутствие raw HTML;
+- frontend и backend должны совместно реализовать дополнительный CSRF lifecycle.
+
+## Отклонённые альтернативы
+
+**BFF или server-side session cookie вместо Bearer token.** Даёт более строгую
+изоляцию token от browser JavaScript, но меняет ADR-006/012/017 и публичные
+HTTP-контракты. Возможен только через заменяющий ADR.
+
+**`sessionStorage` или `localStorage`.** Отклонены, поскольку любой выполняемый
+в origin JavaScript получает Bearer token; различие срока хранения не устраняет
+XSS-риск.
+
+**Access token в обычной cookie.** Отклонён, поскольку превращает все protected
+API commands в cookie-authenticated операции и меняет принятую Bearer-модель.
+
+## Условия пересмотра
+
+- появляется отдельный BFF или identity service;
+- требуется authenticated SSR без browser bootstrap;
+- frontend и API размещаются cross-site;
+- требования threat model или browser platform исключают безопасную
+  координацию rotating refresh между вкладками.
 
 ---
 

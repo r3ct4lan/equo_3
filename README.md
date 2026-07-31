@@ -55,6 +55,32 @@ Use `docker compose logs <service>` to inspect one service. Run
 `docker compose down` (or `make down`) to stop the project without deleting
 named data volumes.
 
+## Frontend runtime configuration
+
+The browser calls the API through the same Nginx origin. The committed defaults
+are safe development values:
+
+```text
+NUXT_PUBLIC_API_BASE=/api
+NUXT_API_INTERNAL_BASE=http://nginx/api
+```
+
+`NUXT_PUBLIC_API_BASE` is included in the client bundle and must not contain
+secrets. `NUXT_API_INTERNAL_BASE` is server-only and lets Nuxt SSR reach the API
+inside the deployment network. Override both values through the deployment
+environment when the network topology differs.
+
+Frontend checks run inside the existing container:
+
+```bash
+docker compose exec frontend npm run test:unit
+docker compose exec frontend npm run typecheck
+docker compose exec frontend npm run build
+```
+
+Implementation and placement rules are documented in
+[docs/frontend-foundation.md](docs/frontend-foundation.md).
+
 ## Repository structure
 
 ```text

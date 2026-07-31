@@ -7,10 +7,10 @@
 | Название | Equo — HTTP-контракты API v1 |
 | Назначение | Описать публичный HTTP API первой версии Equo |
 | Статус | Финальная согласованная версия этапа проектирования |
-| Версия | 3 |
+| Версия | 4 |
 | Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
-| Источник | `equo-05-http-contracts.md` из приложенного архива `equo-artifacts-final.zip`; решения владельца, автономное закрытие Block A и OQ-015—017 |
+| Источник | `equo-05-http-contracts.md` из приложенного архива `equo-artifacts-final.zip`; решения владельца, автономное закрытие Block A и OQ-015—018 |
 
 ## 1. Назначение документа
 
@@ -108,7 +108,30 @@ Refresh-токен передаётся в cookie:
 Set-Cookie: equo_refresh=<token>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth
 ```
 
-Параметр `SameSite` может меняться конфигурацией развёртывания, если frontend и API работают на разных сайтах.
+Принятый browser auth profile предполагает единый application origin.
+Cross-site размещение frontend и API и изменение `SameSite` требуют пересмотра
+ADR-018, cookie policy и списка доверенных origins.
+
+Browser хранит access token только в памяти текущей вкладки. Его нельзя
+сохранять в Web Storage, IndexedDB, frontend persistence, cookie или SSR
+payload. После reload frontend выполняет client-side session bootstrap:
+единственный refresh, затем `GET /api/v1/me`. Protected navigation ожидает
+завершения bootstrap. После `401` protected request допускается не более одного
+refresh и одного повторения запроса; одновременные refresh-запросы
+дедуплицируются в пределах вкладки и сериализуются между вкладками.
+
+Login и refresh вместе с refresh cookie устанавливают отдельную cookie:
+
+```http
+Set-Cookie: __Host-equo_csrf=<signed-session-bound-token>; Secure; SameSite=Lax; Path=/
+```
+
+Для refresh и logout с refresh cookie browser передаёт её значение в
+`X-CSRF-Token`. Сервер до ротации или отзыва сессии проверяет точный `Origin`,
+`Sec-Fetch-Site` при наличии, совпадение header/cookie, подпись и привязку CSRF
+token к refresh-сессии. Credentialed CORS для недоверенных origins запрещён.
+Ошибка этой проверки возвращает `403 FORBIDDEN`. Полный lifecycle определён
+ADR-018.
 
 Каждая защищённая команда дополнительно проверяет актуальное значение `User.isActive`.
 
@@ -600,6 +623,7 @@ POST /api/v1/auth/login
 ```http
 200 OK
 Set-Cookie: equo_refresh=<token>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth
+Set-Cookie: __Host-equo_csrf=<signed-session-bound-token>; Secure; SameSite=Lax; Path=/
 ```
 
 ```json
@@ -629,7 +653,10 @@ Set-Cookie: equo_refresh=<token>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/a
 
 ```http
 POST /api/v1/auth/refresh
-Cookie: equo_refresh=<token>
+Origin: <application-origin>
+Sec-Fetch-Site: same-origin
+X-CSRF-Token: <csrf-token>
+Cookie: equo_refresh=<token>; __Host-equo_csrf=<csrf-token>
 ```
 
 ### Результат
@@ -637,6 +664,7 @@ Cookie: equo_refresh=<token>
 ```http
 200 OK
 Set-Cookie: equo_refresh=<new-token>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth
+Set-Cookie: __Host-equo_csrf=<new-signed-session-bound-token>; Secure; SameSite=Lax; Path=/
 ```
 
 ```json
@@ -652,7 +680,8 @@ Refresh-токен ротируется. Старый токен станови�
 
 - `401 AUTHENTICATION_REQUIRED`;
 - `401 INVALID_REFRESH_TOKEN`;
-- `403 ACCOUNT_INACTIVE`.
+- `403 ACCOUNT_INACTIVE`;
+- `403 FORBIDDEN` — неверная same-origin или CSRF-проверка.
 
 ---
 
@@ -660,6 +689,10 @@ Refresh-токен ротируется. Старый токен станови�
 
 ```http
 POST /api/v1/auth/logout
+Origin: <application-origin>
+Sec-Fetch-Site: same-origin
+X-CSRF-Token: <csrf-token>
+Cookie: equo_refresh=<token>; __Host-equo_csrf=<csrf-token>
 ```
 
 Требует refresh cookie. Access-токен необязателен.
@@ -668,10 +701,14 @@ POST /api/v1/auth/logout
 
 ```http
 204 No Content
-Set-Cookie: equo_refresh=; Max-Age=0; HttpOnly; Secure; Path=/api/v1/auth
+Set-Cookie: equo_refresh=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth
+Set-Cookie: __Host-equo_csrf=; Max-Age=0; Secure; SameSite=Lax; Path=/
 ```
 
-Повторный вызов также возвращает `204`. Уже выданный access-токен может действовать до короткого `exp`.
+Повторный вызов без refresh cookie также возвращает `204` и не требует CSRF
+token. При наличии refresh cookie неверная same-origin или CSRF-проверка
+возвращает `403 FORBIDDEN`. Уже выданный access-токен может действовать до
+короткого `exp`.
 
 ---
 
@@ -764,7 +801,8 @@ POST /api/v1/auth/password-reset
 
 ```http
 204 No Content
-Set-Cookie: equo_refresh=; Max-Age=0; HttpOnly; Secure; Path=/api/v1/auth
+Set-Cookie: equo_refresh=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth
+Set-Cookie: __Host-equo_csrf=; Max-Age=0; Secure; SameSite=Lax; Path=/
 ```
 
 Сервер:
@@ -798,7 +836,8 @@ Authorization: Bearer <access-token>
 
 ```http
 204 No Content
-Set-Cookie: equo_refresh=; Max-Age=0; HttpOnly; Secure; Path=/api/v1/auth
+Set-Cookie: equo_refresh=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth
+Set-Cookie: __Host-equo_csrf=; Max-Age=0; Secure; SameSite=Lax; Path=/
 ```
 
 Все refresh-сессии, включая текущую, отзываются. Ответ очищает refresh cookie, после чего клиент должен войти заново. Уже выданный access-токен может технически действовать до короткого `exp`.
@@ -947,7 +986,8 @@ Authorization: Bearer <access-token>
 
 ```http
 204 No Content
-Set-Cookie: equo_refresh=; Max-Age=0; HttpOnly; Secure; Path=/api/v1/auth
+Set-Cookie: equo_refresh=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth
+Set-Cookie: __Host-equo_csrf=; Max-Age=0; Secure; SameSite=Lax; Path=/
 ```
 
 Сервер:

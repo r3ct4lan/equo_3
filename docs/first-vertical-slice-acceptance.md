@@ -5,7 +5,7 @@
 | Название | Equo — критерии приёмки первого вертикального среза |
 | Назначение | Зафиксировать однозначное и проверяемое поведение первичной регистрации и активации по первому email |
 | Статус | Accepted |
-| Версия | 2 |
+| Версия | 3 |
 | Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
 | Исходный сценарий | [`MVP-SC-001`](mvp-scope.md#mvp-sc-001) |
@@ -36,8 +36,8 @@
 | [Бизнес-правила](business-rules/business-rules.md) | 2 от 2026-07-31, Accepted | Регистрация, активация, password policy, token lifecycle, идемпотентность, транзакции, email и rate limits |
 | [Модель сущностей](data-model/entities.md) | 2 от 2026-07-31, Accepted | Поля и инварианты `User`, `UserActionToken`, `IdempotencyRecord`, `EmailDeliveryOutbox` |
 | [ER-модель](data-model/er-diagram.md) | 1 от 2026-07-27, Accepted | PK/FK, `NOT NULL`, `CHECK`, `UNIQUE`, частичные индексы и кардинальности |
-| [HTTP-контракты](api/http-contracts.md) | 3 от 2026-07-31, Accepted | Форматы запросов и ответов, ошибки, идемпотентность, rate limits и транзакционность |
-| [ADR-001—ADR-017](adr/architecture-decisions.md) | 3 от 2026-07-31, Accepted | Модульный монолит, account lifecycle, action/JWT token profiles, idempotency, границы БД, HTTP, outbox и операционный профиль |
+| [HTTP-контракты](api/http-contracts.md) | 4 от 2026-07-31, Accepted | Форматы запросов и ответов, ошибки, идемпотентность, rate limits и транзакционность |
+| [ADR-001—ADR-018](adr/architecture-decisions.md) | 4 от 2026-07-31, Accepted | Модульный монолит, account lifecycle, action/access/refresh token profiles, idempotency, границы БД, HTTP, outbox и операционный профиль |
 
 ### 2.2. Справочные и контрольные источники
 
@@ -45,7 +45,7 @@
 - [Границы MVP E1-04](mvp-scope.md) — `MVP-SC-001` как `Must have`, основной путь и зависимости.
 - [Первый вертикальный срез E1-05](first-vertical-slice.md) — выбранный вариант, его границы и исключения.
 - [Сквозная проверка E1-02](consistency-review.md) — завершение Block A и согласованность нормативного комплекта.
-- [Журнал решений](open-questions.md) — 17 вопросов `Resolved`, активных вопросов нет.
+- [Журнал решений](open-questions.md) — 18 вопросов `Resolved`, активных вопросов нет.
 - [Корневой README](../README.md) и [индекс документации](README.md) — стек и состав артефактов.
 
 Исторический [отчёт согласованности](reviews/consistency-report.md) имеет статус `Superseded` и не является нормативным.

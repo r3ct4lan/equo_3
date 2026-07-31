@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Описать реализованную в E1-10 модель доступа регистрации и активации |
 | Статус | Accepted |
-| Версия | 2 |
+| Версия | 3 |
 | Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-10; BR-USR-001—003/009; BR-SEC-003—004; ADR-006/007/012/014—017; первый вертикальный срез |
+| Источник | E1-10—E1-11; BR-USR-001—003/009; BR-SEC-003—004; ADR-006/007/012/014—018; первый вертикальный срез |
 
 ## 1. Граница реализации
 
@@ -42,6 +42,14 @@ token на 15 минут и rotating refresh session на 30 дней. Обяз�
 `typ=at+jwt`, versioned `kid`, claims `iss/aud/sub/iat/exp/jti`, точная проверка
 issuer/audience и clock skew не более 30 секунд. Она не реализована в E1-10,
 потому что login и `UserSession` отсутствуют в границе и начальной схеме.
+
+ADR-018 фиксирует browser lifecycle этой будущей аутентификации: access token
+находится только в памяти вкладки; reload запускает client-side
+`refresh → /me`; одновременные refresh сериализуются; protected navigation
+ожидает bootstrap. Cookie-authenticated refresh/logout защищаются точной
+same-origin проверкой и подписанным session-bound double-submit CSRF token.
+Это принятое решение, но его production-реализация остаётся частью
+`MVP-SC-002`, а не E1-10/E1-11.
 
 ## 4. Object authorization activation token
 
@@ -110,8 +118,9 @@ Doctrine `UserRecord` хранит только `passwordHash`. Он не явл
 - token generation/hash lookup — до register/activate use cases по ADR-016;
 - token application transaction и HTTP endpoints;
 - финансовые voters/policies и проверки Connect/Debt/Transfer;
-- CSRF и CORS: cookie-authenticated command в срезе отсутствует, frontend и API
-  используют единый Nginx entry point.
+- реализация принятого ADR-018: in-memory token lifecycle, session bootstrap,
+  межвкладочная сериализация refresh и CSRF/CORS checks; cookie-authenticated
+  command в первом срезе отсутствует.
 
 ## 9. Проверки безопасности
 
@@ -125,6 +134,6 @@ errors, request ID и публичный healthcheck.
 
 - [Бизнес-правила](../business-rules/business-rules.md);
 - [HTTP-контракты](../api/http-contracts.md);
-- [ADR-006, ADR-007, ADR-012 и ADR-014—ADR-017](../adr/architecture-decisions.md);
+- [ADR-006, ADR-007, ADR-012 и ADR-014—ADR-018](../adr/architecture-decisions.md);
 - [первый вертикальный срез](../first-vertical-slice.md#13-права-доступа-и-безопасность);
 - [критерии приёмки](../first-vertical-slice-acceptance.md#66-права-token-lifecycle-и-переход-состояния).
