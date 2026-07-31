@@ -18,6 +18,11 @@ services:
     # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
+        exclude:
+            - '../src/Kernel.php'
+            - '../src/*/Domain/'
+            - '../src/*/Adapter/Persistence/Doctrine/Record/'
+            - '../src/Infrastructure/*/Persistence/Doctrine/Record/'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
