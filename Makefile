@@ -31,4 +31,5 @@ test:
 	docker compose exec -e APP_ENV=test backend php bin/console doctrine:migrations:migrate --no-interaction
 	docker compose exec -e APP_ENV=test backend php bin/phpunit
 	docker compose exec frontend npm audit --audit-level=moderate
+	docker compose exec frontend npm run test:unit
 	docker compose exec frontend npm run typecheck

@@ -3,7 +3,7 @@ WORKDIR /app
 RUN npm install --global npm@11.6.2
 COPY package.json package-lock.json ./
 COPY scripts ./scripts
-RUN npm install
+RUN npm ci
 COPY . .
 EXPOSE 3000
 CMD ["npm", "run", "dev"]
