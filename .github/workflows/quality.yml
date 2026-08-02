@@ -16,7 +16,7 @@ concurrency:
 
 env:
   APP_ENV: test
-  APP_DEBUG: '0'
+  APP_DEBUG: '1'
   APP_RUNTIME_OPTIONS: '{"disable_dotenv":true}'
   APP_SECRET: ci_test_only_not_a_production_secret
   DATABASE_URL: postgresql://equo_ci:equo_ci_only@127.0.0.1:5432/equo_ci?serverVersion=17&charset=utf8
