@@ -35,7 +35,7 @@ async function activateAccount(): Promise<void> {
   activationError.value = null
 
   try {
-    await $api<null>(ACTIVATE_ENDPOINT, {
+    await $api<undefined>(ACTIVATE_ENDPOINT, {
       method: 'POST',
       body: {
         token: activationToken

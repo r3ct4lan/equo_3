@@ -12,7 +12,7 @@ interface IdempotencyPort
         string $scope,
         string $operation,
         string $key,
-        string $requestHash,
+        string $canonicalRequest,
         DateTimeImmutable $now,
     ): ?StoredHttpResult;
 

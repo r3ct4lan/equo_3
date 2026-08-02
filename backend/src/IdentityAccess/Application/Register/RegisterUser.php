@@ -58,30 +58,30 @@ final readonly class RegisterUser
             throw new ApplicationFailure(ApplicationFailureCode::PasswordPolicyViolation);
         }
 
-        $retryAfter = $this->rateLimit->registrationRetryAfter($command->ipAddress, $email->value);
-
-        if (null !== $retryAfter) {
-            throw new ApplicationFailure(ApplicationFailureCode::RateLimitExceeded, $retryAfter);
-        }
-
-        $requestHash = hash('sha256', json_encode([
+        $canonicalRequest = json_encode([
             'email' => $email->value,
             'name' => $command->name,
             'password' => $command->password,
-        ], JSON_THROW_ON_ERROR));
+        ], JSON_THROW_ON_ERROR);
         $now = $this->clock->now();
 
-        return $this->transaction->run(function () use ($command, $email, $requestHash, $now): RegisterResult {
+        return $this->transaction->run(function () use ($command, $email, $canonicalRequest, $now): RegisterResult {
             $stored = $this->idempotency->begin(
                 self::IDEMPOTENCY_SCOPE,
                 self::IDEMPOTENCY_OPERATION,
                 $command->idempotencyKey,
-                $requestHash,
+                $canonicalRequest,
                 $now,
             );
 
             if ($stored instanceof StoredHttpResult) {
                 return $this->restore($stored);
+            }
+
+            $retryAfter = $this->rateLimit->registrationRetryAfter($command->ipAddress, $email->value);
+
+            if (null !== $retryAfter) {
+                throw new ApplicationFailure(ApplicationFailureCode::RateLimitExceeded, $retryAfter);
             }
 
             if ($this->identityRepository->emailExists($email->value)) {

@@ -3,6 +3,7 @@ name: equo-3-e2e
 x-backend-environment: &backend-environment
   APP_ENV: e2e
   APP_DEBUG: '0'
+  APP_RUNTIME_OPTIONS: '{"disable_dotenv":true}'
   APP_SECRET: equo_e2e_only_not_a_production_secret
   DATABASE_URL: postgresql://equo_e2e:equo_e2e_only@postgres:5432/equo_e2e?serverVersion=17&charset=utf8
   MESSENGER_TRANSPORT_DSN: amqp://equo_e2e:equo_e2e_only@rabbitmq:5672/%2f/messages
@@ -10,9 +11,12 @@ x-backend-environment: &backend-environment
   MAILER_DSN: smtp://mailpit:1025
   MAILER_FROM: no-reply@equo.test
   TRUSTED_PROXIES: 127.0.0.1,172.16.0.0/12
+  DEFAULT_URI: http://nginx
   FRONTEND_BASE_URL: http://nginx
   ACTION_TOKEN_ACTIVE_VERSION: v1
   ACTION_TOKEN_HMAC_KEYS: '{"v1":"YWN0aW9uLXRva2VuLWRldi1rZXktMzItYnl0ZXMhISE="}'
+  IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION: v1
+  IDEMPOTENCY_FINGERPRINT_HMAC_KEYS: '{"v1":"aWRlbXBvdGVuY3ktZmluZ2VycHJpbnQtZGV2LWtleS0zMiEh"}'
   EMAIL_PAYLOAD_KEY: ZW1haWwtcGF5bG9hZC1kZXYta2V5LTMyLWJ5dGVzISE=
 
 services:

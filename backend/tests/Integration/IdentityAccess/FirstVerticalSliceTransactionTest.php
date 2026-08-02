@@ -6,6 +6,7 @@ namespace App\Tests\Integration\IdentityAccess;
 
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineTransaction;
+use App\IdentityAccess\Adapter\Security\VersionedRequestFingerprint;
 use App\IdentityAccess\Adapter\System\SymfonyUuid;
 use App\IdentityAccess\Adapter\System\SystemClock;
 use App\IdentityAccess\Application\Port\ActionTokenCodecPort;
@@ -33,7 +34,7 @@ final class FirstVerticalSliceTransactionTest extends KernelTestCase
         $connection->beginTransaction();
         $key = '49000000-0000-4000-8000-'.sprintf('%012d', random_int(1, 999999999999));
         $createdAt = new DateTimeImmutable('2026-08-02T10:00:00Z');
-        $idempotency = new DoctrineIdempotency($entityManager, new SymfonyUuid());
+        $idempotency = new DoctrineIdempotency($entityManager, new SymfonyUuid(), $this->requestFingerprint());
 
         try {
             self::assertNull($idempotency->begin('public', 'register', $key, 'first-hash', $createdAt));
@@ -41,7 +42,11 @@ final class FirstVerticalSliceTransactionTest extends KernelTestCase
             $entityManager->flush();
             $entityManager->clear();
 
-            $beforeExpiry = (new DoctrineIdempotency($entityManager, new SymfonyUuid()))->begin(
+            $beforeExpiry = (new DoctrineIdempotency(
+                $entityManager,
+                new SymfonyUuid(),
+                $this->requestFingerprint(),
+            ))->begin(
                 'public',
                 'register',
                 $key,
@@ -53,7 +58,11 @@ final class FirstVerticalSliceTransactionTest extends KernelTestCase
             self::assertSame(['result' => 'created'], $beforeExpiry->body);
             $entityManager->clear();
 
-            self::assertNull((new DoctrineIdempotency($entityManager, new SymfonyUuid()))->begin(
+            self::assertNull((new DoctrineIdempotency(
+                $entityManager,
+                new SymfonyUuid(),
+                $this->requestFingerprint(),
+            ))->begin(
                 'public',
                 'register',
                 $key,
@@ -68,7 +77,7 @@ final class FirstVerticalSliceTransactionTest extends KernelTestCase
                 'idempotencyKey' => $key,
             ]);
             self::assertInstanceOf(IdempotencyRecord::class, $record);
-            self::assertSame('second-hash', $record->requestHash());
+            self::assertStringStartsWith('v1:', $record->requestHash());
             self::assertNull($record->responseStatus());
             self::assertNull($record->responseBody());
             self::assertEquals($createdAt->modify('+24 hours'), $record->createdAt());
@@ -111,7 +120,7 @@ final class FirstVerticalSliceTransactionTest extends KernelTestCase
             $container->get(ActionTokenCodecPort::class),
             $container->get(PayloadCipher::class),
             new DoctrineIdentityRepository($entityManager),
-            new DoctrineIdempotency($entityManager, $uuid),
+            new DoctrineIdempotency($entityManager, $uuid, $this->requestFingerprint()),
             $failingOutbox,
             $rateLimit,
             new DoctrineTransaction($entityManager),
@@ -196,5 +205,13 @@ final class FirstVerticalSliceTransactionTest extends KernelTestCase
 
         $connection->delete('user_action_token', ['id' => $tokenId]);
         $connection->delete('app_user', ['id' => $userId]);
+    }
+
+    private function requestFingerprint(): VersionedRequestFingerprint
+    {
+        return new VersionedRequestFingerprint(
+            'v1',
+            '{"v1":"aWRlbXBvdGVuY3ktZmluZ2VycHJpbnQtdGVzdC1rZXktMzI="}',
+        );
     }
 }
