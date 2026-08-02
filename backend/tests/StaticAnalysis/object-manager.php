@@ -7,7 +7,11 @@ use Symfony\Component\Dotenv\Dotenv;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 
-(new Dotenv())->bootEnv(dirname(__DIR__, 2).'/.env');
+$dotenvPath = dirname(__DIR__, 2).'/.env';
+
+if (is_file($dotenvPath)) {
+    (new Dotenv())->bootEnv($dotenvPath);
+}
 
 $kernel = new Kernel('test', true);
 $kernel->boot();
