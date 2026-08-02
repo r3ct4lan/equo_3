@@ -32,8 +32,14 @@ const apiError = computed(() => error.value ? toApiClientError(error.value) : nu
         Welcome to Equo
       </h1>
       <p class="hero__lede">
-        The application foundation is ready for registration and account activation.
+        Create an account, confirm your email, and get ready to make shared expenses easier to understand.
       </p>
+      <div class="hero__actions">
+        <NuxtLink
+          class="button"
+          to="/register"
+        >Create an account</NuxtLink>
+      </div>
     </section>
 
     <section

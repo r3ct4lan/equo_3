@@ -20,6 +20,10 @@
             class="nav-link"
             to="/"
           >Home</NuxtLink>
+          <NuxtLink
+            class="nav-link"
+            to="/register"
+          >Register</NuxtLink>
         </nav>
       </div>
     </header>
