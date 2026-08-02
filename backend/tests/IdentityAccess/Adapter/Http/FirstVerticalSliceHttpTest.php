@@ -7,6 +7,7 @@ namespace App\Tests\IdentityAccess\Adapter\Http;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserActionTokenRecord;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserRecord;
 use App\IdentityAccess\Application\Port\ActionTokenCodecPort;
+use App\IdentityAccess\Application\Port\PasswordHashingPort;
 use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
 use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryOutboxRecord;
 use App\Infrastructure\EmailDelivery\Security\PayloadCipher;
@@ -17,6 +18,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class FirstVerticalSliceHttpTest extends WebTestCase
@@ -59,11 +61,13 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
         self::assertTrue(Uuid::isValid($body['user']['id']));
         self::assertMatchesRegularExpression('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/', $body['user']['createdAt']);
         self::assertResponseHasHeader('X-Request-Id');
+        self::assertResponseHeaderSame('Content-Type', 'application/json');
 
         self::assertSame(1, $this->countRows('app_user'));
         self::assertSame(1, $this->countRows('user_action_token'));
         self::assertSame(1, $this->countRows('email_delivery_outbox'));
         self::assertSame(1, $this->countRows('idempotency_record'));
+        self::assertNotContains('user_session', $this->connection->createSchemaManager()->listTableNames());
 
         $outbox = $this->entityManager->getRepository(EmailDeliveryOutboxRecord::class)->findOneBy([]);
         self::assertInstanceOf(EmailDeliveryOutboxRecord::class, $outbox);
@@ -149,19 +153,74 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
         self::assertSame(0, $this->countRows('app_user'));
     }
 
-    public function testPasswordPolicyViolationHasStableBusinessCode(): void
+    #[DataProvider('validPasswordBoundaryProvider')]
+    public function testValidPasswordBoundariesReachPersistenceWithoutNormalization(
+        string $password,
+        string $email,
+    ): void {
+        $this->register($email, Uuid::v4()->toRfc4122(), password: $password);
+
+        self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
+        $storedHash = $this->connection->fetchOne('SELECT password_hash FROM app_user WHERE email = ?', [$email]);
+        self::assertIsString($storedHash);
+        $hasher = self::getContainer()->get(PasswordHasherFactoryInterface::class)
+            ->getPasswordHasher(PasswordHashingPort::class);
+        self::assertTrue($hasher->verify($storedHash, $password));
+
+        if ($password !== trim($password)) {
+            self::assertFalse($hasher->verify($storedHash, trim($password)));
+        }
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function validPasswordBoundaryProvider(): iterable
+    {
+        yield '12 code points' => [str_repeat('a', 12), 'password-min@example.test'];
+        yield '128 code points' => [str_repeat('я', 128), 'password-max@example.test'];
+        yield 'significant whitespace' => ['  abcdefghij  ', 'password-whitespace@example.test'];
+    }
+
+    #[DataProvider('invalidPasswordBoundaryProvider')]
+    public function testPasswordPolicyViolationHasStableBusinessCode(string $password, string $email): void
     {
         $this->jsonRequest(
             'POST',
             '/api/v1/auth/register',
-            $this->validRegistration('short@example.test', str_repeat('a', 11)),
-            '41111111-1111-4111-8111-111111111111',
+            $this->validRegistration($email, $password),
+            Uuid::v4()->toRfc4122(),
         );
 
         self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
         self::assertSame('PASSWORD_POLICY_VIOLATION', $this->error()['code']);
-        self::assertStringNotContainsString(str_repeat('a', 11), (string) $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString($password, (string) $this->client->getResponse()->getContent());
         self::assertSame(0, $this->countRows('app_user'));
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function invalidPasswordBoundaryProvider(): iterable
+    {
+        yield '11 code points' => [str_repeat('a', 11), 'password-short@example.test'];
+        yield '129 code points' => [str_repeat('a', 129), 'password-long@example.test'];
+        yield 'whitespace only' => [str_repeat(' ', 12), 'password-blank@example.test'];
+    }
+
+    public function testUnknownRequestFieldsAreRejectedWithoutWrites(): void
+    {
+        $registration = $this->validRegistration('unknown-field@example.test');
+        $registration['ownerId'] = '00000000-0000-4000-8000-000000000001';
+        $this->jsonRequest('POST', '/api/v1/auth/register', $registration, Uuid::v4()->toRfc4122());
+
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        self::assertSame('INVALID_REQUEST', $this->error()['code']);
+        self::assertSame(0, $this->countRows('app_user'));
+
+        $this->jsonRequest('POST', '/api/v1/auth/activate', [
+            'token' => self::getContainer()->get(ActionTokenCodecPort::class)->issue()->publicToken,
+            'userId' => '00000000-0000-4000-8000-000000000001',
+        ], ip: '192.0.2.49');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        self::assertSame('INVALID_REQUEST', $this->error()['code']);
     }
 
     public function testNormalizedDuplicateEmailReturnsConflictWithoutSecondSet(): void
@@ -276,27 +335,66 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
         self::assertSame('INVALID_TOKEN', $this->error()['code']);
     }
 
-    public function testRegistrationAndTokenRateLimitsUseAllNormativeKeys(): void
+    public function testRegistrationIpRateLimitUsesFivePerHourBoundary(): void
     {
         for ($attempt = 1; $attempt <= 6; ++$attempt) {
             $this->register(
                 sprintf('ip-limit-%d@example.test', $attempt),
-                sprintf('81111111-1111-4111-8111-%012d', $attempt),
+                Uuid::v4()->toRfc4122(),
                 '198.51.100.1',
             );
         }
-        self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
-        self::assertSame('RATE_LIMIT_EXCEEDED', $this->error()['code']);
-        self::assertNotNull($this->client->getResponse()->headers->get('Retry-After'));
-        self::assertSame(5, $this->countRows('app_user'));
 
-        $rawToken = self::getContainer()->get(ActionTokenCodecPort::class)->issue()->publicToken;
-        for ($attempt = 1; $attempt <= 6; ++$attempt) {
-            $this->jsonRequest('POST', '/api/v1/auth/activate', ['token' => $rawToken], ip: '198.51.100.2');
+        $this->assertRateLimitError(3600);
+        self::assertSame(5, $this->countRows('app_user'));
+    }
+
+    public function testRegistrationEmailRateLimitUsesNormalizedEmailAcrossIps(): void
+    {
+        for ($attempt = 1; $attempt <= 4; ++$attempt) {
+            $this->register(
+                0 === $attempt % 2 ? '  Email-Limit@Example.Test  ' : 'email-limit@example.test',
+                Uuid::v4()->toRfc4122(),
+                '198.51.100.'.(10 + $attempt),
+            );
         }
-        self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
-        self::assertSame('RATE_LIMIT_EXCEEDED', $this->error()['code']);
-        self::assertNotNull($this->client->getResponse()->headers->get('Retry-After'));
+
+        $this->assertRateLimitError(86_400);
+        self::assertSame(1, $this->countRows('app_user'));
+    }
+
+    public function testActivationIpRateLimitUsesTenPerFifteenMinutesBoundary(): void
+    {
+        $codec = self::getContainer()->get(ActionTokenCodecPort::class);
+
+        for ($attempt = 1; $attempt <= 11; ++$attempt) {
+            $this->jsonRequest(
+                'POST',
+                '/api/v1/auth/activate',
+                ['token' => $codec->issue()->publicToken],
+                ip: '198.51.100.30',
+            );
+        }
+
+        $this->assertRateLimitError(900);
+        self::assertSame(0, $this->countRows('app_user'));
+    }
+
+    public function testActivationTokenRateLimitUsesFivePerFifteenMinutesAcrossIps(): void
+    {
+        $rawToken = self::getContainer()->get(ActionTokenCodecPort::class)->issue()->publicToken;
+
+        for ($attempt = 1; $attempt <= 6; ++$attempt) {
+            $this->jsonRequest(
+                'POST',
+                '/api/v1/auth/activate',
+                ['token' => $rawToken],
+                ip: '198.51.100.'.(40 + $attempt),
+            );
+        }
+
+        $this->assertRateLimitError(900);
+        self::assertSame(0, $this->countRows('app_user'));
     }
 
     public function testHealthEndpointStillWorks(): void
@@ -308,9 +406,13 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
     }
 
     /** @return array<string, mixed> */
-    private function register(string $email, string $key, string $ip = '192.0.2.1'): array
-    {
-        $this->jsonRequest('POST', '/api/v1/auth/register', $this->validRegistration($email), $key, $ip);
+    private function register(
+        string $email,
+        string $key,
+        string $ip = '192.0.2.1',
+        string $password = 'A2345678901!',
+    ): array {
+        $this->jsonRequest('POST', '/api/v1/auth/register', $this->validRegistration($email, $password), $key, $ip);
 
         return $this->jsonBody();
     }
@@ -363,6 +465,17 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
     private function countRows(string $table): int
     {
         return (int) $this->connection->fetchOne('SELECT COUNT(*) FROM '.$table);
+    }
+
+    private function assertRateLimitError(int $maximumRetryAfter): void
+    {
+        self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
+        self::assertSame('RATE_LIMIT_EXCEEDED', $this->error()['code']);
+        $retryAfter = $this->client->getResponse()->headers->get('Retry-After');
+        self::assertNotNull($retryAfter);
+        self::assertMatchesRegularExpression('/\A\d+\z/', $retryAfter);
+        self::assertGreaterThanOrEqual(1, (int) $retryAfter);
+        self::assertLessThanOrEqual($maximumRetryAfter, (int) $retryAfter);
     }
 
     /** @param array<string, mixed> $values

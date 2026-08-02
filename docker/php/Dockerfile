@@ -16,8 +16,7 @@ COPY backend/composer.json backend/composer.lock backend/symfony.lock ./
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
 COPY backend ./
-RUN composer run-script post-install-cmd \
-    && mkdir -p var/cache var/log \
+RUN mkdir -p var/cache var/log \
     && chown -R www-data:www-data var
 
 CMD ["php-fpm"]

@@ -60,7 +60,7 @@ export function validateRegistration(values: Readonly<RegistrationValues>): Fiel
 }
 
 export function createRegistrationAttemptKeys(
-  generateKey: () => string = () => crypto.randomUUID()
+  generateKey: () => string = generateIdempotencyKey
 ) {
   let currentKey: string | null = null
 
@@ -79,6 +79,29 @@ export function createRegistrationAttemptKeys(
       return currentKey
     }
   }
+}
+
+export function generateIdempotencyKey(
+  randomBytes: () => Uint8Array = () => crypto.getRandomValues(new Uint8Array(16))
+): string {
+  const bytes = Uint8Array.from(randomBytes())
+
+  if (bytes.length !== 16) {
+    throw new Error('UUID generation requires exactly 16 random bytes.')
+  }
+
+  bytes[6] = (bytes[6]! & 0x0f) | 0x40
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80
+
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0'))
+
+  return [
+    hex.slice(0, 4).join(''),
+    hex.slice(4, 6).join(''),
+    hex.slice(6, 8).join(''),
+    hex.slice(8, 10).join(''),
+    hex.slice(10, 16).join('')
+  ].join('-')
 }
 
 export function registrationErrorPresentation(error: SafeApiError): ErrorPresentation {

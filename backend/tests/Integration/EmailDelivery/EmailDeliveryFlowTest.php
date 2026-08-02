@@ -94,6 +94,28 @@ final class EmailDeliveryFlowTest extends KernelTestCase
         self::assertNull($outbox->encryptedPayload());
     }
 
+    public function testConsumerSkipsAlreadyFailedDeliveryWithoutCallingMailer(): void
+    {
+        $outbox = $this->fixture(EmailDeliveryStatus::Failed);
+        $failedAt = $outbox->failedAt();
+        $transport = $this->createMock(TransportInterface::class);
+        $transport->expects(self::never())->method('send');
+        $handler = new SendUserActionEmailHandler(
+            $this->entityManager,
+            self::getContainer()->get(TokenDeliveryQuery::class),
+            new PayloadCipher(self::PAYLOAD_KEY),
+            $transport,
+            'http://localhost',
+            'no-reply@equo.local',
+        );
+
+        $handler(new SendUserActionEmail($outbox->id()));
+
+        self::assertSame(EmailDeliveryStatus::Failed, $outbox->status());
+        self::assertSame($failedAt?->format('U'), $outbox->failedAt()?->format('U'));
+        self::assertNull($outbox->encryptedPayload());
+    }
+
     public function testRelayPublicationFailureKeepsDurableIntentAndSchedulesThirtySecondRetry(): void
     {
         $outbox = $this->fixture(EmailDeliveryStatus::Pending);
@@ -183,6 +205,60 @@ final class EmailDeliveryFlowTest extends KernelTestCase
         self::assertFalse($strategy->isRetryable($exhausted));
     }
 
+    public function testRelayRetryBackoffDoublesAndCapsAtThirtyMinutes(): void
+    {
+        $outbox = $this->fixture(EmailDeliveryStatus::Pending);
+        $now = new DateTimeImmutable('2026-08-02T10:00:00Z');
+
+        foreach ([30, 60, 120, 240, 480, 960, 1800, 1800] as $expectedDelay) {
+            $outbox->beginPublish();
+            $outbox->deferAfterPublishFailure($now);
+
+            self::assertEquals($now->modify(sprintf('+%d seconds', $expectedDelay)), $outbox->availableAt());
+            self::assertSame('Message broker publication failed.', $outbox->lastError());
+        }
+    }
+
+    public function testUncertainSmtpOutcomeCanRetryWithoutDuplicatingBusinessState(): void
+    {
+        $outbox = $this->fixture(EmailDeliveryStatus::Published);
+        $deliveries = 0;
+        $transport = $this->createStub(TransportInterface::class);
+        $transport->method('send')->willReturnCallback(static function () use (&$deliveries): null {
+            ++$deliveries;
+
+            if (1 === $deliveries) {
+                throw new RuntimeException('Connection lost after an uncertain SMTP handoff.');
+            }
+
+            return null;
+        });
+        $handler = new SendUserActionEmailHandler(
+            $this->entityManager,
+            self::getContainer()->get(TokenDeliveryQuery::class),
+            new PayloadCipher(self::PAYLOAD_KEY),
+            $transport,
+            'http://localhost',
+            'no-reply@equo.local',
+        );
+
+        try {
+            $handler(new SendUserActionEmail($outbox->id()));
+            self::fail('The first uncertain handoff must leave the delivery retryable.');
+        } catch (RuntimeException) {
+            self::assertSame(EmailDeliveryStatus::Published, $outbox->status());
+        }
+
+        $handler(new SendUserActionEmail($outbox->id()));
+
+        self::assertSame(2, $deliveries);
+        self::assertSame(EmailDeliveryStatus::Sent, $outbox->status());
+        self::assertNull($outbox->encryptedPayload());
+        self::assertSame(1, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM app_user'));
+        self::assertSame(1, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM user_action_token'));
+        self::assertSame(1, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM email_delivery_outbox'));
+    }
+
     private function fixture(EmailDeliveryStatus $status, bool $expired = false): EmailDeliveryOutboxRecord
     {
         $now = new DateTimeImmutable('now');
@@ -204,18 +280,19 @@ final class EmailDeliveryFlowTest extends KernelTestCase
             $now->modify('-2 hours'),
             $expired ? $now->modify('-1 hour') : $now->modify('+1 hour'),
         );
+        $terminal = in_array($status, [EmailDeliveryStatus::Sent, EmailDeliveryStatus::Failed], true);
         $outbox = new EmailDeliveryOutboxRecord(
             sprintf('20000000-0000-4000-8000-%s', $suffix),
             $token->id(),
             $user->email(),
             'activate-account',
-            (new PayloadCipher(self::PAYLOAD_KEY))->encrypt(['token' => 'v1.public-token']),
+            $terminal ? null : (new PayloadCipher(self::PAYLOAD_KEY))->encrypt(['token' => 'v1.public-token']),
             $status,
             $now,
             $now,
             EmailDeliveryStatus::Published === $status ? $now : null,
-            null,
-            null,
+            EmailDeliveryStatus::Sent === $status ? $now : null,
+            EmailDeliveryStatus::Failed === $status ? $now : null,
             EmailDeliveryStatus::Published === $status ? 1 : 0,
             null,
         );

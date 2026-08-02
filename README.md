@@ -53,6 +53,8 @@ make install        # install exact backend/frontend lock files
 make check-fast     # run style/static/config/type checks
 make test           # run backend and frontend tests
 make check          # run the complete local quality gate
+make test-e2e       # run the isolated browser registration/activation journey
+make check-full     # run the quality gate and browser E2E
 make lint           # check PHP and frontend style without changes
 make format         # explicitly fix PHP and frontend style
 make audit          # audit Composer and npm dependencies
@@ -83,6 +85,7 @@ also validates the lock file and ESLint rules:
 ```bash
 docker compose exec frontend npm run check
 docker compose exec frontend npm run test:unit
+docker compose exec frontend npm run test:component
 docker compose exec frontend npm run typecheck
 docker compose exec frontend npm run build
 ```
@@ -92,10 +95,15 @@ Implementation and placement rules are documented in
 
 ## Quality gate and CI
 
-`make check` is the merge-oriented local entry point. It covers backend style,
+`make check` is the fast merge-oriented local entry point. It covers backend style,
 PHPStan, Symfony/Doctrine validation, migrations on an isolated empty database,
 PHPUnit, frontend lint/typecheck/tests/build, dependency audits, common secret
 patterns, generated changes and Nginx smoke checks.
+
+`make check-full` additionally executes the first vertical slice in Chromium
+against a disposable Compose project with tmpfs PostgreSQL/Redis/RabbitMQ and
+Mailpit. It neither connects to the development database nor creates/deletes
+named Docker volumes.
 
 The equivalent GitHub Actions workflow runs for pull requests and pushes to
 `main`. Detailed commands, audit thresholds and recommended required checks are

@@ -2,12 +2,12 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать единый набор обязательных проверок E1-12 |
+| Назначение | Описать единый набор обязательных проверок E1-12 с browser E2E из E1-15 |
 | Статус | Accepted; первый GitHub Actions run ещё не выполнен |
-| Версия | 1 |
-| Дата актуальности | 2026-07-31 |
+| Версия | 2 |
+| Дата актуальности | 2026-08-02 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-12; ADR-001/011/015; backend E1-07—E1-10; frontend E1-11 |
+| Источник | E1-12, E1-15; ADR-001/011/015; backend E1-07—E1-13; frontend E1-11/E1-14 |
 
 ## 1. Единая точка входа
 
@@ -15,6 +15,12 @@
 
 ```bash
 make check
+```
+
+Полный gate с реальным browser journey первого вертикального среза:
+
+```bash
+make check-full
 ```
 
 Перед запуском должны быть установлены зависимости и поднят основной Compose
@@ -41,10 +47,12 @@ smoke-проверки. Скрипт запоминает исходный `git 
 | Команда | Назначение | Изменяет source |
 |---|---|---:|
 | `make check` | Полный обязательный quality gate | Нет |
+| `make check-full` | `make check` и изолированный browser E2E первого среза | Нет |
 | `make check-fast` | Repository checks, backend quality, frontend lint/typecheck | Нет |
 | `make check-backend` | Backend quality, пустая test-БД, PHPUnit и audit | Нет |
 | `make check-frontend` | Lock, ESLint, typecheck, tests, build и audit | Нет |
-| `make test` | Backend tests на изолированной БД и frontend unit tests | Нет |
+| `make test` | Backend tests на изолированной БД и frontend unit/component tests | Нет |
+| `make test-e2e` | Chromium E2E регистрации, Mailpit email и активации | Нет |
 | `make lint` | PHP и TypeScript/Vue style check | Нет |
 | `make format` | Исправить PHP и frontend style | **Да** |
 | `make audit` | Composer и npm dependency audit | Нет |
@@ -84,7 +92,7 @@ stylistic rules. Отдельные Prettier, Stylelint, UI preset и lint frame
 1. dry-run `npm ci` как проверку согласованности `package.json`/lock;
 2. ESLint для TypeScript/Vue с нулевым допустимым количеством warnings;
 3. Nuxt TypeScript typecheck;
-4. существующие Node unit tests;
+4. Node unit tests и Nuxt component/composable tests в `happy-dom`;
 5. production Nuxt build.
 
 `.nuxt`, `.output`, `coverage` и `node_modules` исключены из lint.
@@ -108,7 +116,25 @@ stylistic rules. Отдельные Prettier, Stylelint, UI preset и lint frame
 Команда не выполняет `schema:update --force`, не очищает dev-таблицы и не
 удаляет Docker volumes.
 
-## 6. Dependency audit
+## 6. Browser E2E первого вертикального среза
+
+`make test-e2e` поднимает отдельный Compose project `equo-3-e2e` и проверяет
+регистрацию и активацию в Chromium через тот же Nginx origin, который использует
+пользователь. PostgreSQL, Redis и RabbitMQ работают на `tmpfs`; Mailpit принимает
+реальное письмо. Dev-база, основной Compose stack и named volumes не затрагиваются.
+
+Сценарии проверяют полный happy path, client validation и исправление формы,
+защиту от двойного submit, unknown/used capability, отсутствие token/session в
+URL/cookie/storage после активации и безопасный retry с тем же
+`Idempotency-Key`. При падении сохраняются screenshot и redacted browser
+diagnostics; trace и video отключены, чтобы capability не попал в артефакты.
+Nginx E2E access log содержит только `$uri`, без query string.
+
+Скрипт всегда останавливает только свой Compose project через
+`down --remove-orphans`, проверяет отсутствие source drift и не вызывает
+`down --volumes`.
+
+## 7. Dependency audit
 
 - `composer audit --locked` блокирует любую известную advisory и abandoned
   package; исключений сейчас нет;
@@ -119,7 +145,7 @@ stylistic rules. Отдельные Prettier, Stylelint, UI preset и lint frame
 - недоступность registry/advisory service является видимой ошибкой gate, а не
   успешной проверкой.
 
-## 7. Repository checks
+## 8. Repository checks
 
 `scripts/check-secrets.sh` проверяет tracked-файлы на распространённые private
 key, GitHub, AWS, Slack и live payment token patterns. Это лёгкая штатная
@@ -131,7 +157,7 @@ CI и полный локальный gate дополнительно прове
 проверка обнаруживает изменения tracked-файлов и новые untracked-файлы. Кеши и
 build output должны находиться только в ignored paths.
 
-## 8. GitHub Actions
+## 9. GitHub Actions
 
 Workflow: [`.github/workflows/quality.yml`](../.github/workflows/quality.yml).
 Он запускается для pull request и push в `main`, а также вручную. Используются
@@ -145,6 +171,7 @@ Workflow: [`.github/workflows/quality.yml`](../.github/workflows/quality.yml).
 | `Backend tests and migrations` | empty migration chain, schema, PHPUnit | PHP 8.4 + PostgreSQL 17 service |
 | `Frontend quality and build` | `npm ci`, `npm run check` | Node.js 22 |
 | `Dependency audit` | Composer и npm audit | PHP 8.4 + Node.js 22 |
+| `First vertical slice browser E2E` | реальная регистрация, доставка email, активация и recovery cases | Изолированный Compose + Chromium + Mailpit |
 | `Application smoke` | full Compose build/start, Nginx `/` и `/api/health` | Изолированный CI Compose stack |
 
 CI вызывает те же Composer/npm/Make scripts, что local gate. Различаются только
@@ -157,7 +184,11 @@ Smoke job остаётся в `APP_ENV=test`; test-only `BACKEND_DATABASE_URL` �
 Первый CI run возможен только после отдельного commit/push. До него нельзя
 считать pipeline зелёным.
 
-## 9. Типичные причины падения
+При падении E2E job публикует `frontend/test-results/` на 7 дней. В artifact
+попадают только screenshots и очищенная диагностика; raw activation token и
+password намеренно не записываются.
+
+## 10. Типичные причины падения
 
 | Симптом | Действие |
 |---|---|
@@ -167,9 +198,10 @@ Smoke job остаётся в `APP_ENV=test`; test-only `BACKEND_DATABASE_URL` �
 | Migration/schema mismatch | Добавить новую migration; не применять `schema:update --force` |
 | Audit advisory | Оценить advisory и точечно обновить dependency либо оформить временное исключение |
 | Smoke failure | Проверить `docker compose ps` и logs соответствующего service |
+| Browser E2E failure | Скачать redacted artifact, проверить screenshot и safe API paths; локально повторить `make test-e2e` |
 | Generated diff | Перенести output в ignored path или сделать generator deterministic |
 
-## 10. Branch protection
+## 11. Branch protection
 
 Branch protection этой задачей не настраивается. Для `main` рекомендуется
 потребовать следующие checks после подтверждения их точных GitHub names первым
@@ -180,13 +212,14 @@ run:
 - `Backend tests and migrations`;
 - `Frontend quality and build`;
 - `Dependency audit`;
+- `First vertical slice browser E2E`;
 - `Application smoke`.
 
-## 11. Сознательно отложено
+## 12. Сознательно отложено
 
 - полноценный history/entropy secret scanner;
 - coverage threshold и публикация coverage artifact;
 - Deptrac вместо существующего ADR-015 PHPUnit test;
-- mutation, browser E2E, performance и accessibility automation;
+- mutation, performance и отдельная accessibility automation;
 - Dependabot/Renovate и автоматическое обновление dependencies;
 - branch protection и required checks до первого успешного CI run.

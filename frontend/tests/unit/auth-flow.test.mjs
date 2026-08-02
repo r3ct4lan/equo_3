@@ -4,6 +4,7 @@ import {
   ACTIVATE_ENDPOINT,
   activationErrorPresentation,
   createRegistrationAttemptKeys,
+  generateIdempotencyKey,
   REGISTER_ENDPOINT,
   registrationErrorPresentation,
   validateRegistration
@@ -84,6 +85,13 @@ test('reuses one idempotency key for unchanged retries and rotates after edits',
 
   keys.complete()
   assert.equal(keys.peek(), null)
+})
+
+test('generates an RFC 4122 UUID v4 without requiring crypto.randomUUID', () => {
+  const key = generateIdempotencyKey(() => new Uint8Array(16))
+
+  assert.equal(key, '00000000-0000-4000-8000-000000000000')
+  assert.match(generateIdempotencyKey(), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
 })
 
 test('maps registration validation, business, rate and technical failures semantically', () => {

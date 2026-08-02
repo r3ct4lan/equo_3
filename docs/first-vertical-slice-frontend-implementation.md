@@ -51,7 +51,7 @@ bootstrap или backend authorization. Activation token является capabi
 |---|---|---|---|
 | Registration URL/method | `POST /api/v1/auth/register` | `$api` base `/api` + `/v1/auth/register`, `POST` | unit constant test, browser smoke, backend regression |
 | Registration body | только `name`, `email`, `password` | typed `RegisterRequest`, явное формирование body | typecheck, code review, browser smoke |
-| Idempotency | UUID header; один key на попытку | `crypto.randomUUID()`, stable retry, reset после edit/success, pending double-submit guard | unit lifecycle test, browser double-click, DB: одна user/outbox запись |
+| Idempotency | UUID header; один key на попытку | RFC 4122 UUID v4 через `crypto.getRandomValues`, stable retry, reset после edit/success, pending double-submit guard | unit format/lifecycle test, browser double-click/retry, DB: одна user/outbox запись |
 | Registration success | `201`, user + `activationRequired=true` | typed `RegisterResponse`, activation-required state; password очищается | browser smoke, backend HTTP tests |
 | Activation URL/method | `POST /api/v1/auth/activate` | `$api` base `/api` + `/v1/auth/activate`, `POST` | unit constant test, Mailpit browser smoke |
 | Activation body | только raw `token` | typed `ActivateRequest`; token только в component memory | typecheck, browser storage/URL check |
