@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Сценарий | `MVP-SC-001` — первичная регистрация с активацией по первому email |
-| Статус | Implemented; backend tests and local quality gate verified |
+| Статус | Implemented; ADR-019 applied; backend tests and local quality gate verified |
 | Дата | 2026-08-02 |
 | Область | Symfony backend, PostgreSQL, rate limiting, outbox/RabbitMQ/Mailer и backend-тесты |
 
@@ -12,7 +12,7 @@
 Инициатор, предусловия, входные поля, успешные состояния, правила доступа,
 ошибки, HTTP method/URL, schemas, статусы, идемпотентность и конкурентное
 поведение однозначно определены документами E1-05/E1-06, HTTP-контрактом,
-бизнес-правилами и ADR-006/007/009/011—016. Оба endpoint публичны; отдельные
+бизнес-правилами и ADR-006/007/009/011—016/019. Оба endpoint публичны; отдельные
 `401` и `403` к ним неприменимы. Capability активации — действующий
 purpose-bound token. Схема E1-08 содержит все четыре необходимые таблицы,
 поэтому изменение схемы не требуется.
@@ -87,6 +87,9 @@ operation. Application не зависит от HTTP и не возвращае�
   зашифрованном outbox payload и очищается в конечном состоянии;
 - регистрация, token, outbox и сохранённый idempotent response фиксируются одной
   транзакцией; окно replay — 24 часа;
+- registration request fingerprint использует versioned HMAC-SHA-256 и
+  отдельный key ring; прежний SHA-256 поддерживается только для уже созданных
+  записей до окончания их 24-часового окна;
 - одинаковый конкурентный key сериализуется PostgreSQL advisory lock, а
   конкурентный email окончательно защищён unique constraint;
 - активация блокирует token и User; только одна конкурентная команда применяет

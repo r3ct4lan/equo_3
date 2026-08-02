@@ -24,6 +24,7 @@ services:
     restart: unless-stopped
     environment: &backend-environment
       APP_ENV: "${APP_ENV:-dev}"
+      APP_RUNTIME_OPTIONS: '{"disable_dotenv":true}'
       APP_SECRET: "${APP_SECRET:-change-me-in-local-env}"
       DATABASE_URL: "${BACKEND_DATABASE_URL:-postgresql://${POSTGRES_USER:-equo}:${POSTGRES_PASSWORD:-equo}@postgres:5432/${POSTGRES_DB:-equo}?serverVersion=17&charset=utf8}"
       MESSENGER_TRANSPORT_DSN: "amqp://${RABBITMQ_DEFAULT_USER:-equo}:${RABBITMQ_DEFAULT_PASS:-equo}@rabbitmq:5672/%2f/messages"
@@ -31,9 +32,12 @@ services:
       MAILER_DSN: "smtp://mailpit:1025"
       MAILER_FROM: "no-reply@equo.local"
       TRUSTED_PROXIES: "127.0.0.1,172.16.0.0/12"
+      DEFAULT_URI: "${DEFAULT_URI:-http://localhost}"
       FRONTEND_BASE_URL: "${FRONTEND_BASE_URL:-http://localhost}"
       ACTION_TOKEN_ACTIVE_VERSION: "v1"
       ACTION_TOKEN_HMAC_KEYS: '{"v1":"YWN0aW9uLXRva2VuLWRldi1rZXktMzItYnl0ZXMhISE="}'
+      IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION: "v1"
+      IDEMPOTENCY_FINGERPRINT_HMAC_KEYS: '{"v1":"aWRlbXBvdGVuY3ktZmluZ2VycHJpbnQtZGV2LWtleS0zMiEh"}'
       EMAIL_PAYLOAD_KEY: "ZW1haWwtcGF5bG9hZC1kZXYta2V5LTMyLWJ5dGVzISE="
     volumes: &backend-volumes
       - ./backend:/var/www/backend

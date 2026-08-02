@@ -127,7 +127,6 @@ export function registrationErrorPresentation(error: SafeApiError): ErrorPresent
         retryable: false
       }
     case 'IDEMPOTENCY_KEY_REUSED':
-    case 'IDEMPOTENCY_CONFLICT':
       return {
         title: 'Registration attempt changed',
         message: 'Review the form and submit it again as a new attempt.',
@@ -141,9 +140,9 @@ export function registrationErrorPresentation(error: SafeApiError): ErrorPresent
           : 'Wait a little before trying to register again.',
         retryable: false
       }
-    case 'UNAUTHENTICATED':
-    case 'ACCESS_DENIED':
-    case 'NOT_FOUND':
+    case 'AUTHENTICATION_REQUIRED':
+    case 'FORBIDDEN':
+    case 'RESOURCE_NOT_FOUND':
       return {
         title: 'Registration is unavailable',
         message: 'This registration request could not be completed.',
@@ -200,9 +199,9 @@ export function activationErrorPresentation(error: SafeApiError): ErrorPresentat
           : 'Wait a little before trying this link again.',
         retryable: false
       }
-    case 'UNAUTHENTICATED':
-    case 'ACCESS_DENIED':
-    case 'NOT_FOUND':
+    case 'AUTHENTICATION_REQUIRED':
+    case 'FORBIDDEN':
+    case 'RESOURCE_NOT_FOUND':
       return {
         title: 'Account could not be activated',
         message: 'This activation request could not be completed.',

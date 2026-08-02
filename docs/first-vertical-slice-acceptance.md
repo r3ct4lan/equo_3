@@ -5,8 +5,8 @@
 | Название | Equo — критерии приёмки первого вертикального среза |
 | Назначение | Зафиксировать однозначное и проверяемое поведение первичной регистрации и активации по первому email |
 | Статус | Accepted |
-| Версия | 3 |
-| Дата актуальности | 2026-07-31 |
+| Версия | 4 |
+| Дата актуальности | 2026-08-02 |
 | Владелец | Maksim Smolkov |
 | Исходный сценарий | [`MVP-SC-001`](mvp-scope.md#mvp-sc-001) |
 | Первый срез | [Первичная регистрация с активацией по первому email](first-vertical-slice.md) |
@@ -37,7 +37,7 @@
 | [Модель сущностей](data-model/entities.md) | 2 от 2026-07-31, Accepted | Поля и инварианты `User`, `UserActionToken`, `IdempotencyRecord`, `EmailDeliveryOutbox` |
 | [ER-модель](data-model/er-diagram.md) | 1 от 2026-07-27, Accepted | PK/FK, `NOT NULL`, `CHECK`, `UNIQUE`, частичные индексы и кардинальности |
 | [HTTP-контракты](api/http-contracts.md) | 4 от 2026-07-31, Accepted | Форматы запросов и ответов, ошибки, идемпотентность, rate limits и транзакционность |
-| [ADR-001—ADR-018](adr/architecture-decisions.md) | 4 от 2026-07-31, Accepted | Модульный монолит, account lifecycle, action/access/refresh token profiles, idempotency, границы БД, HTTP, outbox и операционный профиль |
+| [ADR-001—ADR-019](adr/architecture-decisions.md) | 5 от 2026-08-02, Accepted | Модульный монолит, account lifecycle, action/access/refresh token profiles, защищённый idempotency fingerprint, границы БД, HTTP, outbox и операционный профиль |
 
 ### 2.2. Справочные и контрольные источники
 
@@ -45,7 +45,7 @@
 - [Границы MVP E1-04](mvp-scope.md) — `MVP-SC-001` как `Must have`, основной путь и зависимости.
 - [Первый вертикальный срез E1-05](first-vertical-slice.md) — выбранный вариант, его границы и исключения.
 - [Сквозная проверка E1-02](consistency-review.md) — завершение Block A и согласованность нормативного комплекта.
-- [Журнал решений](open-questions.md) — 18 вопросов `Resolved`, активных вопросов нет.
+- [Журнал решений](open-questions.md) — 20 вопросов `Resolved`, активных вопросов нет.
 - [Корневой README](../README.md) и [индекс документации](README.md) — стек и состав артефактов.
 
 Исторический [отчёт согласованности](reviews/consistency-report.md) имеет статус `Superseded` и не является нормативным.
@@ -1174,7 +1174,10 @@
 | Delivery failures | `AC-047—054` | Publisher confirm, relay/SMTP retry, stale token, failure transport, at-least-once |
 | UI и безопасные ошибки | `AC-055—061` | Loading/success/validation/business/access/technical/retry states |
 
-Граничные значения, которых нет в нормативной документации (например, максимальная длина `name`, максимальная длина `email` или политика неизвестных JSON-полей), намеренно не добавлены.
+Граничные значения, которых нет в нормативной документации (например,
+максимальная длина `name` или `email`), намеренно не добавлены. Неизвестные
+JSON-поля отклоняются с `400 INVALID_REQUEST` по принятому OQ-015 и
+[HTTP 2.6](api/http-contracts.md#26-граница-json-запроса).
 
 ## 8. Права доступа
 
@@ -1233,7 +1236,10 @@
 | Apply-token rate limit | `429` | `RATE_LIMIT_EXCEEDED`, точный `Retry-After` | Нет изменений |
 | Непредвиденная ошибка | `500` | Standard safe envelope с `requestId` | Полный commit или полный rollback |
 
-Для всех ответов действуют JSON/camelCase/UUID/RFC3339 UTC и `X-Request-Id` из [общих соглашений](api/http-contracts.md#2-общие-соглашения). Неописанное поведение extra JSON fields этим документом не задаётся.
+Для всех ответов действуют JSON/camelCase/UUID/RFC3339 UTC и `X-Request-Id` из
+[общих соглашений](api/http-contracts.md#2-общие-соглашения). Непустые
+неизвестные JSON-поля отклоняются с `400 INVALID_REQUEST` согласно принятому
+OQ-015 и [HTTP 2.6](api/http-contracts.md#26-граница-json-запроса).
 
 ## 12. Тестовые данные
 
@@ -1430,7 +1436,7 @@
 | Production email provider API и гарантия получения конечным mailbox | Будущая эксплуатационная конфигурация; SMTP abstraction сохраняется |
 | Full monitoring/replay UI и физический retention cleanup | `MVP-SC-022`; для среза обязательны безопасные логи, failure transport и нормативные состояния |
 | Детальный visual design, component architecture, class/library choices | Последующие design/implementation задачи |
-| Неописанные max lengths для name/email и политика extra JSON fields | Требуют нормативного решения; не предполагаются E1-06 |
+| Неописанные max lengths для name/email | Требуют нормативного решения; не предполагаются E1-06 |
 
 Фоновые email-процессы не исключены, потому что являются обязательной частью первого пользовательского результата по BR-SEC-006/ADR-013.
 
@@ -1444,7 +1450,8 @@
 - Интеграционные проверки broker/SMTP должны уметь наблюдать publisher confirms и sync Mailer outcome; конкретный instrumentation не задаётся.
 - `at-least-once` нормативно допускает редкое повторное письмо в узком crash-window (`AC-053`), но не повторные аккаунты, токены или переходы.
 - Mailpit доказывает локальный SMTP handoff, а не доставку production mailbox.
-- HTTP-контракт не задаёт политику неизвестных JSON-полей и пределы длины `name/email`; критерии их не выдумывают.
+- Неизвестные JSON-поля отклоняются согласно OQ-015/HTTP 2.6; пределы длины
+  `name`/`email` не заданы и критериями не выдумываются.
 - Отдельный resend flow исключён, поэтому UI expired/invalid token не должен притворяться, что может выпустить новую ссылку.
 - Долгосрочная физическая очистка остаётся требованием готовности всего MVP, но не является частью приёмки первого среза.
 

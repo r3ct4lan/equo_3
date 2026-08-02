@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Зафиксировать фактически реализованную в E1-08 часть модели данных первого вертикального среза |
 | Статус | Accepted |
-| Версия | 3 |
-| Дата актуальности | 2026-07-31 |
+| Версия | 5 |
+| Дата актуальности | 2026-08-02 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-08—E1-10 и test infrastructure E1-12; модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016 |
+| Источник | E1-08—E1-10, E1-12—E1-13 и аудит E1-16; модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016, ADR-019 |
 
 ## 1. Граница реализации
 
@@ -62,7 +62,7 @@ ER-тип `varchar` без заданной максимальной длины 
 | Колонка | PostgreSQL | NULL | Назначение |
 |---|---|---:|---|
 | `id` | `UUID` | нет | Первичный ключ |
-| `scope`, `operation`, `idempotency_key`, `request_hash` | `TEXT` | нет | Пространство, команда, ключ и хэш запроса |
+| `scope`, `operation`, `idempotency_key`, `request_hash` | `TEXT` | нет | Пространство, команда, ключ и versioned HMAC-SHA-256 fingerprint запроса по ADR-019 |
 | `user_id` | `UUID` | да | FK на `app_user.id` для навигации и аудита |
 | `response_status` | `INTEGER` | да | Сохранённый HTTP-статус |
 | `response_body` | `JSONB` | да | Сохранённый ответ |
@@ -113,28 +113,34 @@ Doctrine SchemaTool, не создавая зависимости Infrastructure
 used token; user и expiry idempotency record; pending outbox по
 `(available_at, created_at)`, status и временные метки завершения доставки.
 
-## 4. Что остаётся в Application/Domain
+## 4. Что реализовано в Application/Domain
 
-PostgreSQL не дублирует контекстные правила. В следующих задачах должны быть
+PostgreSQL не дублирует контекстные правила. В E1-13 для первого среза
 реализованы:
 
-- нормализация email перед сохранением и проверка уникальности нового email;
-- применение PasswordHasher `auto` и ADR-016 при создании пароля/token;
-- срок token и idempotency record ровно 24 часа;
-- сериализация выдачи token блокировкой `User` и аннулирование предыдущего;
-- соответствие JSON payload назначению token;
-- согласованность outbox status, timestamp и наличия encrypted payload;
-- соответствие recipient/template назначению связанного token;
-- атомарная координация User, token, outbox и idempotency result;
-- очистка записей согласно ADR-014.
+- нормализация email перед сохранением и проверка уникальности;
+- PasswordHasher `auto` и ADR-016 для password/action token;
+- TTL token и idempotency record ровно 24 часа;
+- application policy purpose/lifecycle action token;
+- согласованность activation payload, recipient/template и outbox lifecycle;
+- атомарная координация `User`, token, outbox и idempotency result;
+- сериализация конкурентных registration/activation через advisory lock,
+  уникальные ограничения и pessimistic row locks.
+
+Не входит в первый срез и остаётся отложенным физический retention cleanup по
+ADR-014. Выдача replacement token с блокировкой существующего `User` относится
+к исключённому resend/reactivation flow; первичная регистрация создаёт первый
+token вместе с новой строкой `User`.
 
 ## 5. Сознательно отложенная ER-модель
 
 Не создавались `Connect`, `ConnectInvitation`, `Debt`, `DebtParticipant`,
 `Transfer` и `UserSession`: они не нужны для регистрации и активации и относятся
-к следующим вертикальным сценариям. Не создавались repositories, mapper-слой,
-полные domain entities, repositories, mapper-слой, fixtures и демонстрационные
-данные. Добавленные в E1-10 purpose enum и access policy описаны в
+к следующим вертикальным сценариям. Не создавались mapper-слой для полной
+ER-модели, fixtures и демонстрационные данные. Минимальные repositories, domain
+objects и application use cases регистрации/активации добавлены в E1-13 и
+описаны в [backend-реализации](../first-vertical-slice-backend-implementation.md).
+Purpose enum и access policy описаны в
 [модели доступа](../security/access-model.md) и не меняют схему.
 
 ## 6. Миграция и автоматические проверки

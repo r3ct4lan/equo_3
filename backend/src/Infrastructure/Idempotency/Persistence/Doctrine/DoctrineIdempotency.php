@@ -7,6 +7,7 @@ namespace App\Infrastructure\Idempotency\Persistence\Doctrine;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use App\IdentityAccess\Application\Port\IdempotencyPort;
+use App\IdentityAccess\Application\Port\RequestFingerprintPort;
 use App\IdentityAccess\Application\Port\StoredHttpResult;
 use App\IdentityAccess\Application\Port\UuidPort;
 use App\Infrastructure\Idempotency\Persistence\Doctrine\Record\IdempotencyRecord;
@@ -19,15 +20,18 @@ final class DoctrineIdempotency implements IdempotencyPort
     /** @var array<string, IdempotencyRecord> */
     private array $active = [];
 
-    public function __construct(private EntityManagerInterface $entityManager, private UuidPort $uuid)
-    {
+    public function __construct(
+        private EntityManagerInterface $entityManager,
+        private UuidPort $uuid,
+        private RequestFingerprintPort $requestFingerprint,
+    ) {
     }
 
     public function begin(
         string $scope,
         string $operation,
         string $key,
-        string $requestHash,
+        string $canonicalRequest,
         DateTimeImmutable $now,
     ): ?StoredHttpResult {
         $this->entityManager->getConnection()->executeQuery(
@@ -42,6 +46,7 @@ final class DoctrineIdempotency implements IdempotencyPort
         ]);
 
         if (!$record instanceof IdempotencyRecord) {
+            $requestHash = $this->requestFingerprint->create($canonicalRequest);
             $record = new IdempotencyRecord(
                 $this->uuid->generate(),
                 $scope,
@@ -63,12 +68,16 @@ final class DoctrineIdempotency implements IdempotencyPort
         $this->active[$this->index($scope, $operation, $key)] = $record;
 
         if ($record->expiresAt() <= $now) {
-            $record->restart($requestHash, $now, $now->modify('+24 hours'));
+            $record->restart(
+                $this->requestFingerprint->create($canonicalRequest),
+                $now,
+                $now->modify('+24 hours'),
+            );
 
             return null;
         }
 
-        if (!hash_equals($record->requestHash(), $requestHash)) {
+        if (!$this->requestFingerprint->matches($record->requestHash(), $canonicalRequest)) {
             throw new ApplicationFailure(ApplicationFailureCode::IdempotencyKeyReused);
         }
 

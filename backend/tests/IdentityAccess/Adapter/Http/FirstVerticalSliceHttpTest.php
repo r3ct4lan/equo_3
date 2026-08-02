@@ -247,12 +247,41 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
         self::assertSame($firstContent, (string) $this->client->getResponse()->getContent());
         self::assertSame(1, $this->countRows('app_user'));
         self::assertSame(1, $this->countRows('email_delivery_outbox'));
+        $storedFingerprint = $this->connection->fetchOne(
+            'SELECT request_hash FROM idempotency_record WHERE idempotency_key = ?',
+            [$key],
+        );
+        self::assertIsString($storedFingerprint);
+        self::assertMatchesRegularExpression('/\Av1:[A-Za-z0-9_-]{43}\z/', $storedFingerprint);
+        self::assertNotSame(hash('sha256', json_encode([
+            'email' => 'replay@example.test',
+            'name' => 'Alex Doe',
+            'password' => 'A2345678901!',
+        ], JSON_THROW_ON_ERROR)), $storedFingerprint);
 
         $changed = $this->validRegistration('replay@example.test');
         $changed['name'] = 'Changed Name';
         $this->jsonRequest('POST', '/api/v1/auth/register', $changed, $key, '192.0.2.61');
         self::assertResponseStatusCodeSame(Response::HTTP_CONFLICT);
         self::assertSame('IDEMPOTENCY_KEY_REUSED', $this->error()['code']);
+    }
+
+    public function testIdempotentReplayKeepsOriginalResultWithoutConsumingRegistrationRateLimits(): void
+    {
+        $key = '61211111-1111-4111-8111-111111111111';
+        $first = $this->register('replay-rate-limit@example.test', $key, '192.0.2.60');
+
+        for ($attempt = 0; $attempt < 6; ++$attempt) {
+            $replay = $this->register('replay-rate-limit@example.test', $key, '192.0.2.60');
+
+            self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
+            self::assertSame($first, $replay);
+        }
+
+        self::assertSame(1, $this->countRows('app_user'));
+        self::assertSame(1, $this->countRows('user_action_token'));
+        self::assertSame(1, $this->countRows('email_delivery_outbox'));
+        self::assertSame(1, $this->countRows('idempotency_record'));
     }
 
     public function testExpiredIdempotencyWindowIsNotReplayed(): void

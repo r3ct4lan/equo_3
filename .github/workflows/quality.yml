@@ -16,10 +16,22 @@ concurrency:
 
 env:
   APP_ENV: test
+  APP_DEBUG: '0'
+  APP_RUNTIME_OPTIONS: '{"disable_dotenv":true}'
   APP_SECRET: ci_test_only_not_a_production_secret
   DATABASE_URL: postgresql://equo_ci:equo_ci_only@127.0.0.1:5432/equo_ci?serverVersion=17&charset=utf8
   MESSENGER_TRANSPORT_DSN: in-memory://
   MAILER_DSN: null://null
+  MAILER_FROM: no-reply@equo.test
+  REDIS_URL: redis://127.0.0.1:6379
+  TRUSTED_PROXIES: 127.0.0.1
+  DEFAULT_URI: http://localhost
+  FRONTEND_BASE_URL: http://localhost
+  ACTION_TOKEN_ACTIVE_VERSION: v1
+  ACTION_TOKEN_HMAC_KEYS: '{"v1":"YWN0aW9uLXRva2VuLWNpLWtleS0zMi1ieXRlcyEhISE="}'
+  IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION: v1
+  IDEMPOTENCY_FINGERPRINT_HMAC_KEYS: '{"v1":"aWRlbXBvdGVuY3ktZmluZ2VycHJpbnQtY2kta2V5LTMyISEh"}'
+  EMAIL_PAYLOAD_KEY: ZW1haWwtcGF5bG9hZC1kZXYta2V5LTMyLWJ5dGVzISE=
 
 jobs:
   repository-quality:
@@ -130,6 +142,8 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Use the repository npm version
+        run: npm install --global npm@11.6.2
       - name: Install frontend dependencies from lock file
         working-directory: frontend
         run: npm ci

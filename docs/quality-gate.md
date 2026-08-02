@@ -3,11 +3,11 @@
 | Поле | Значение |
 |---|---|
 | Назначение | Описать единый набор обязательных проверок E1-12 с browser E2E из E1-15 |
-| Статус | Accepted; первый GitHub Actions run ещё не выполнен |
-| Версия | 2 |
+| Статус | Accepted; E1-16 CI fixes ожидают проверки новым repository event |
+| Версия | 4 |
 | Дата актуальности | 2026-08-02 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-12, E1-15; ADR-001/011/015; backend E1-07—E1-13; frontend E1-11/E1-14 |
+| Источник | E1-12, E1-15—E1-16; ADR-001/011/015; backend E1-07—E1-13; frontend E1-11/E1-14 |
 
 ## 1. Единая точка входа
 
@@ -87,6 +87,10 @@ Frontend использует один официальный Nuxt flat ESLint c
 stylistic rules. Отдельные Prettier, Stylelint, UI preset и lint framework не
 добавлены.
 
+Node.js фиксирован major-веткой 22, npm — точной версией `11.6.2` в
+`packageManager`, frontend Dockerfile и CI. Это необходимо, поскольку npm 10 и
+npm 11 по-разному проверяют optional transitive dependencies данного lock-файла.
+
 `npm run check` выполняет:
 
 1. dry-run `npm ci` как проверку согласованности `package.json`/lock;
@@ -122,6 +126,8 @@ stylistic rules. Отдельные Prettier, Stylelint, UI preset и lint frame
 регистрацию и активацию в Chromium через тот же Nginx origin, который использует
 пользователь. PostgreSQL, Redis и RabbitMQ работают на `tmpfs`; Mailpit принимает
 реальное письмо. Dev-база, основной Compose stack и named volumes не затрагиваются.
+RabbitMQ запускается и достигает `healthy` до старта остальных временных
+зависимостей, чтобы исключить наблюдавшийся resource/startup race Docker Desktop.
 
 Сценарии проверяют полный happy path, client validation и исправление формы,
 защиту от двойного submit, unknown/used capability, отсутствие token/session в
@@ -181,8 +187,14 @@ Smoke job остаётся в `APP_ENV=test`; test-only `BACKEND_DATABASE_URL` �
 на base name, к которому Symfony добавляет `_test`, а PostgreSQL service сразу
 создаёт соответствующую suffixed database.
 
-Первый CI run возможен только после отдельного commit/push. До него нельзя
-считать pipeline зелёным.
+Первый фактический push-run `30760126539` для `7b189d3` завершился ошибкой на
+чистом checkout: Symfony Runtime ожидал отсутствующий ignored `backend/.env`, а
+bundled npm 10 в Node 22 отклонил lock-файл, сформированный npm 11. E1-16
+устраняет причины: CI/Compose передают полный runtime environment и
+`APP_RUNTIME_OPTIONS={"disable_dotenv":true}`, а workflow устанавливает
+repository npm `11.6.2` до `npm ci`. Локальные эквиваленты проверены; новый
+GitHub Actions run возможен только после отдельного commit/push и до него не
+должен называться зелёным.
 
 При падении E2E job публикует `frontend/test-results/` на 7 дней. В artifact
 попадают только screenshots и очищенная диагностика; raw activation token и
@@ -222,4 +234,7 @@ run:
 - Deptrac вместо существующего ADR-015 PHPUnit test;
 - mutation, performance и отдельная accessibility automation;
 - Dependabot/Renovate и автоматическое обновление dependencies;
-- branch protection и required checks до первого успешного CI run.
+- branch protection и required checks до первого успешного CI run;
+- обновление pinned GitHub Actions с Node 20 runtime после отдельной проверки
+  новых immutable commit SHA (текущие runs показывают deprecation warning, но
+  это не причина падения jobs).

@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Сценарий | `MVP-SC-001` — регистрация и первичная активация по email |
-| Статус | Implemented; `AC-001—061` трассированы и автоматизированы |
+| Статус | Implemented; `AC-001—061` трассированы и автоматизированы; AC-030 закрыт ADR-019 и HMAC regression tests |
 | Дата | 2026-08-02 |
 | Область | Domain, application, PostgreSQL, HTTP, frontend component/composable и browser E2E |
 
@@ -54,7 +54,7 @@
 | AC-027 concurrent email | DB, HTTP | two-process unique race + conflict | Нет | Сохранить |
 | AC-028 rollback регистрации | DB | controlled outbox failure, zero rows | Нет | Сохранить |
 | AC-029 минимальный ER-фрагмент | DB, HTTP | mapping/constraints + complete set counts | Нет | Сохранить |
-| AC-030 секреты | DOM, security, HTTP, MAIL | hashing, HMAC, ciphertext, safe serialization | Нет browser storage check | `E2E-01/E2E-03` |
+| AC-030 секреты | DOM, security, HTTP, MAIL | password hashing, versioned request/token HMAC, ciphertext, safe serialization | Нет browser storage check | `E2E-01/E2E-03` |
 | AC-031 UUID/UTC | HTTP, DB | exact response shape/format | Нет | Сохранить |
 | AC-032 несвязанные данные | DB | registration set/rollback/concurrency assertions | Явная отрицательная область описана, отдельный synthetic test не нужен | Документировать |
 | AC-033 unknown token | APP, HTTP, FE-U | access policy + no-change HTTP | Нет browser security state | `E2E-03` |
@@ -186,7 +186,16 @@ browser E2E. Искусственные тесты `401/403`, ролей, tenant
 | `make check` | 0 | backend quality/tests/audit, frontend quality/tests/build/audit, migrations, smoke, source-drift check passed | 62.0 s |
 | `make check-full` | 0 | полный `make check` + 4/4 E2E; source drift отсутствует | 133.4 s; E2E 19.7 s |
 
-Фактический GitHub Actions run не выполнялся: задача запрещает commit/push, а
-workflow запускается для repository events. Его YAML и все локально вызываемые
-job-команды проверены. Изолированный E2E project после запусков остановлен;
-контейнеров и named volumes `equo-3-e2e*` не осталось.
+После E1-15 был выполнен push и GitHub Actions run `30760126539`; он завершился
+ошибкой на чистом checkout из-за отсутствующего `backend/.env` и различия npm
+10/11 при проверке lock-файла. Исправления E1-16 описаны в
+[quality gate](quality-gate.md), но новый CI run без отдельного commit/push не
+выполнялся. Исторические локальные результаты таблицы выше остаются
+действительными для ревизии E1-15; актуальные результаты E1-16 приведены в
+[контрактной сверке](first-vertical-slice-contract-review.md).
+
+После принятия ADR-019 добавлены четыре security tests на versioned HMAC,
+несовпадение с обычным SHA-256, replay после ротации, legacy cutover и
+fail-closed для неизвестной версии. HTTP test проверяет фактически сохранённый
+HMAC. Финальный E1-16 `make check-full` прошёл: backend 111/111 (880
+assertions), frontend 16 unit + 9 component и 4/4 browser E2E.
