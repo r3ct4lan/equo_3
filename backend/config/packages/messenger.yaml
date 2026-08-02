@@ -7,9 +7,13 @@ framework:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
                     auto_setup: true
+                    confirm_timeout: 5
+                retry_strategy:
+                    service: App\Infrastructure\EmailDelivery\Messaging\UserActionEmailRetryStrategy
             failed: 'doctrine://default?queue_name=failed&auto_setup=0'
 
         routing:
+            App\Infrastructure\EmailDelivery\Messaging\SendUserActionEmail: async
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
 
 when@test:

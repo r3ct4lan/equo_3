@@ -115,4 +115,47 @@ class EmailDeliveryOutboxRecord
     {
         return $this->lastError;
     }
+
+    public function beginPublish(): void
+    {
+        ++$this->publishAttempts;
+        $this->lastError = null;
+    }
+
+    public function markPublished(DateTimeImmutable $publishedAt): void
+    {
+        $this->status = EmailDeliveryStatus::Published;
+        $this->publishedAt = $publishedAt;
+        $this->lastError = null;
+    }
+
+    public function deferAfterPublishFailure(DateTimeImmutable $now): void
+    {
+        $delay = min(30 * (2 ** max(0, $this->publishAttempts - 1)), 1800);
+        $this->availableAt = $now->modify(sprintf('+%d seconds', $delay));
+        $this->lastError = 'Message broker publication failed.';
+    }
+
+    public function markSent(DateTimeImmutable $sentAt): void
+    {
+        $this->status = EmailDeliveryStatus::Sent;
+        $this->sentAt = $sentAt;
+        $this->failedAt = null;
+        $this->encryptedPayload = null;
+        $this->lastError = null;
+    }
+
+    public function markFailed(DateTimeImmutable $failedAt, string $safeError): void
+    {
+        $this->status = EmailDeliveryStatus::Failed;
+        $this->failedAt = $failedAt;
+        $this->sentAt = null;
+        $this->encryptedPayload = null;
+        $this->lastError = $safeError;
+    }
+
+    public function isTerminal(): bool
+    {
+        return in_array($this->status, [EmailDeliveryStatus::Sent, EmailDeliveryStatus::Failed], true);
+    }
 }

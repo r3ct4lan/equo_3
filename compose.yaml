@@ -29,6 +29,12 @@ services:
       MESSENGER_TRANSPORT_DSN: "amqp://${RABBITMQ_DEFAULT_USER:-equo}:${RABBITMQ_DEFAULT_PASS:-equo}@rabbitmq:5672/%2f/messages"
       REDIS_URL: "redis://redis:6379"
       MAILER_DSN: "smtp://mailpit:1025"
+      MAILER_FROM: "no-reply@equo.local"
+      TRUSTED_PROXIES: "127.0.0.1,172.16.0.0/12"
+      FRONTEND_BASE_URL: "${FRONTEND_BASE_URL:-http://localhost}"
+      ACTION_TOKEN_ACTIVE_VERSION: "v1"
+      ACTION_TOKEN_HMAC_KEYS: '{"v1":"YWN0aW9uLXRva2VuLWRldi1rZXktMzItYnl0ZXMhISE="}'
+      EMAIL_PAYLOAD_KEY: "ZW1haWwtcGF5bG9hZC1kZXYta2V5LTMyLWJ5dGVzISE="
     volumes: &backend-volumes
       - ./backend:/var/www/backend
       - backend_vendor:/var/www/backend/vendor
@@ -144,7 +150,14 @@ services:
       dockerfile: docker/php/Dockerfile
       target: development
     restart: unless-stopped
-    command: ["php", "bin/console", "messenger:consume", "async", "--time-limit=3600", "--memory-limit=256M", "-vv"]
+    command:
+      - sh
+      - -lc
+      - >-
+        while true; do
+          php bin/console app:email-outbox:relay --no-interaction;
+          php bin/console messenger:consume async --time-limit=5 --memory-limit=256M -vv;
+        done
     environment: *backend-environment
     volumes: *backend-volumes
     depends_on:

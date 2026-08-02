@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Описать реализованную в E1-10 модель доступа регистрации и активации |
 | Статус | Accepted |
-| Версия | 3 |
-| Дата актуальности | 2026-07-31 |
+| Версия | 4 |
+| Дата актуальности | 2026-08-02 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-10—E1-11; BR-USR-001—003/009; BR-SEC-003—004; ADR-006/007/012/014—018; первый вертикальный срез |
+| Источник | E1-10—E1-11; E1-13; BR-USR-001—003/009; BR-SEC-003—004; ADR-006/007/012/014—018; первый вертикальный срез |
 
 ## 1. Граница реализации
 
@@ -69,9 +69,10 @@ Policy находится в `App\IdentityAccess\Application\Authorization` и �
 ADR-016 задаёт token как
 `<keyVersion>.<base64url(32 cryptographically random bytes)>`, а сохранённый
 `tokenHash` как versioned HMAC-SHA-256 digest полного token. Key ring находится
-вне БД/репозитория, старый verification key хранится минимум 31 день. Поиск по
-digest и атомарное применение будут частью use case активации и не реализуются
-до появления предметного endpoint.
+вне БД/репозитория, старый verification key хранится минимум 31 день. E1-13
+реализует generation, digest lookup, purpose/lifecycle policy и атомарное
+применение в `RegisterUser`/`ActivateAccount`. Token и связанный User
+блокируются в транзакции; `userId` всегда берётся из server-side token record.
 
 ## 5. Пароли
 
@@ -115,8 +116,6 @@ Doctrine `UserRecord` хранит только `passwordHash`. Он не явл
 - refresh cookie, rotation, revocation и `UserSession`;
 - production firewall/entry point/access-control для protected endpoints;
 - password login verification;
-- token generation/hash lookup — до register/activate use cases по ADR-016;
-- token application transaction и HTTP endpoints;
 - финансовые voters/policies и проверки Connect/Debt/Transfer;
 - реализация принятого ADR-018: in-memory token lifecycle, session bootstrap,
   межвкладочная сериализация refresh и CSRF/CORS checks; cookie-authenticated
@@ -124,11 +123,13 @@ Doctrine `UserRecord` хранит только `passwordHash`. Он не явл
 
 ## 9. Проверки безопасности
 
-Unit tests покрывают valid/wrong-purpose/expired/used/invalidated/unknown token
-и подтверждают, что разрешённый `userId` берётся из token. PasswordHasher test
-проверяет отсутствие plaintext в результате, успешную проверку правильного
-пароля и отказ для неправильного. Общие HTTP tests продолжают проверять safe
-errors, request ID и публичный healthcheck.
+Unit, application и HTTP tests покрывают valid/wrong-purpose/expired/used/
+invalidated/unknown token и подтверждают, что разрешённый `userId` берётся из
+token. Отдельная process race доказывает один переход при двух конкурентных
+activation requests. PasswordHasher test проверяет отсутствие plaintext в
+результате, успешную проверку правильного пароля и отказ для неправильного.
+Общие HTTP tests продолжают проверять safe errors, request ID и публичный
+healthcheck.
 
 ## 10. Нормативные источники
 

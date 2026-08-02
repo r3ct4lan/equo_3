@@ -2,19 +2,21 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать фактическую Symfony-реализацию общих HTTP-соглашений API v1 после E1-09 |
+| Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 после E1-09 и endpoint первого среза после E1-13 |
 | Статус | Accepted |
-| Версия | 1 |
-| Дата актуальности | 2026-07-31 |
+| Версия | 2 |
+| Дата актуальности | 2026-08-02 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-09; HTTP-контракты v2; ADR-012; ADR-015; OQ-015 |
+| Источник | E1-09; E1-13; HTTP-контракты v2; ADR-012; ADR-015; OQ-015 |
 
 ## 1. Граница реализации
 
-Общий HTTP-слой реализует transport concerns, но не содержит предметных
-endpoint, use case или бизнес-правил. Фактические production routes по-прежнему
-ограничены `/api/health`. Fixture routes с префиксом `/api/v1/_test/http` и их
-controller загружаются только при `APP_ENV=test`.
+Общий HTTP-слой реализует transport concerns и остаётся отделён от предметной
+логики. E1-13 добавляет production routes `/api/v1/auth/register` и
+`/api/v1/auth/activate`; их controllers используют общий DTO/error/response
+pipeline и вызывают application use case. Также доступен `/api/health`.
+Fixture routes с префиксом `/api/v1/_test/http` и их controller загружаются
+только при `APP_ENV=test`.
 
 OpenAPI bundle не добавлялся: ADR не выбирает машинно-читаемый формат, а
 нормативным источником остаются [HTTP-контракты](http-contracts.md).
@@ -135,9 +137,10 @@ connection details и secrets не передаются logger.
 | Rate limit | 429 | `RATE_LIMIT_EXCEEDED` |
 | Непредвиденная или неклассифицированная ошибка | 500 | `INTERNAL_SERVER_ERROR` |
 
-Business-specific `409`/`410` и точные token/idempotency codes будут добавлены
-в HTTP adapter соответствующего use case вместе с предметным endpoint. Общая
-инфраструктура не угадывает бизнес-код по техническому exception message.
+Business-specific `409`/`410`, password, rate-limit и точные
+token/idempotency codes первого среза отображаются из стабильного
+`ApplicationFailureCode`. Общая инфраструктура не угадывает бизнес-код по
+техническому exception message.
 
 ## 7. Validation violations
 
@@ -183,6 +186,12 @@ serialization, request ID, method/route errors, безопасный internal er
 диагностический logging context без raw exception data.
 `HealthControllerTest` дополнительно проверяет `X-Request-Id` существующего
 healthcheck.
+
+`FirstVerticalSliceHttpTest` проверяет production register/activate routes,
+точные response schemas/statuses, validation и malformed JSON, idempotency,
+password policy, token lifecycle/capability, rate limits, отсутствие secrets и
+фактические изменения PostgreSQL. Процессные integration tests отдельно
+проверяют конкурентный replay, unique email и одноразовую активацию.
 
 ## 11. Нормативные источники
 

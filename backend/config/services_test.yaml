@@ -1,6 +1,27 @@
 services:
+    test.rate_limiter_cache:
+        alias: cache.rate_limiter
+        public: true
+
+    test.register_user:
+        alias: App\IdentityAccess\Application\Register\RegisterUser
+        public: true
+
+    test.activate_account:
+        alias: App\IdentityAccess\Application\Activate\ActivateAccount
+        public: true
+
+    App\IdentityAccess\Application\Port\ActionTokenCodecPort:
+        alias: App\IdentityAccess\Adapter\Security\VersionedActionTokenCodec
+        public: true
+
     App\IdentityAccess\Application\Port\PasswordHashingPort:
         alias: App\IdentityAccess\Adapter\Security\SymfonyPasswordHasher
+        public: true
+
+    App\Infrastructure\EmailDelivery\Security\PayloadCipher:
+        arguments:
+            $encodedKey: '%env(EMAIL_PAYLOAD_KEY)%'
         public: true
 
     App\Tests\Fixture\Http\HttpInfrastructureController:
