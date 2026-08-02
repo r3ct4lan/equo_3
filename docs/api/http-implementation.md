@@ -24,6 +24,7 @@ OpenAPI bundle не добавлялся: ADR не выбирает машинн
 | Компонент | Ответственность |
 |---|---|
 | `RequestIdSubscriber` | Принимает безопасный `X-Request-Id` или создаёт ULID; добавляет итоговый ID в каждый `/api/*` response |
+| `JsonContentTypeSubscriber` | До DTO mapping допускает для отмеченных JSON-body endpoints только точный media type `application/json` |
 | Symfony `MapRequestPayload` | Декодирует JSON и создаёт typed transport DTO до вызова controller |
 | Symfony Validator | Проверяет attributes transport DTO и формирует violation list |
 | `ValidationViolationNormalizer` | Преобразует violations в стабильные `field/code/message` и сортирует их |
@@ -37,6 +38,7 @@ OpenAPI bundle не добавлялся: ADR не выбирает машинн
 HTTP request
   → RequestIdSubscriber
   → routing/controller resolution
+  → JsonContentTypeSubscriber(exact application/json)
   → MapRequestPayload(JSON, strict extra fields)
   → transport request DTO
   → Symfony Validator
@@ -55,6 +57,13 @@ Symfony, `Request`, `JsonResponse` или Validator constraints.
 #[MapRequestPayload(acceptFormat: 'json')]
 RegisterHttpRequest $request
 ```
+
+`JsonContentTypeSubscriber` на `kernel.controller` автоматически находит
+параметры с `MapRequestPayload` и выполняет проверку до
+разрешения аргументов. Guard сравнивает точный media type без регистрозависимости.
+Параметры `application/json`, например `charset=utf-8`, допустимы;
+`application/x-json` и `application/*+json` возвращают
+`415 UNSUPPORTED_MEDIA_TYPE` согласно публичному контракту.
 
 Serializer global context задаёт `allow_extra_attributes: false`.
 
@@ -86,6 +95,9 @@ controller/application response DTO
   безопасный `500`, поэтому случайный обход графа Doctrine не раскрывается.
 
 Doctrine records не являются response DTO и не передаются из controller.
+Architecture test запрещает production controllers зависеть от Doctrine records.
+Чувствительные persistence accessors дополнительно помечаются Symfony `#[Ignore]`
+как защита от случайной сериализации.
 Успешный ответ без тела по-прежнему создаётся обычным Symfony `Response` со
 статусом `204` и не проходит object serialization.
 
@@ -95,15 +107,17 @@ Doctrine records не являются response DTO и не передаются
 exception
   → ApiExceptionSubscriber
   → classification по безопасному типу/status
-  → logging для неожиданного 500 (exception + requestId)
+  → structured logging для неожиданного 500 (exceptionClass + requestId)
   → error{code,message,details?,requestId}
   → ApiJsonResponder
   → X-Request-Id header
 ```
 
 Subscriber применяется только к `/api/*`. Исходное сообщение exception никогда
-не используется как публичный message. Stack trace, SQL, filesystem paths,
-connection details и secrets остаются только внутри server-side logging.
+не используется как публичный message или log field. Production использует
+Monolog с JSON output в `stderr`; diagnostic context содержит только ULID запроса
+и класс исключения. Raw exception message, stack trace, SQL, filesystem paths,
+connection details и secrets не передаются logger.
 
 ## 6. Поддержанные технические ошибки
 
@@ -147,22 +161,26 @@ Business-specific `409`/`410` и точные token/idempotency codes будут
 
 ## 9. Зависимости
 
-Добавлены только официальные Symfony-компоненты `7.4.*`:
+HTTP-фундамент использует минимальный набор Symfony-компонентов и стандартную
+Symfony-интеграцию Monolog:
 
 - `symfony/serializer` — object/array/enum/date JSON serialization;
 - `symfony/validator` — DTO validation;
 - `symfony/uid` — ULID request IDs;
 - `symfony/property-access` — необходимый `ObjectNormalizer` для typed DTO;
   он транзитивно добавляет `property-info` и `type-info`.
+- `symfony/monolog-bundle` и `monolog/monolog` — production-capable structured
+  logging с отдельным каналом `api`.
 
 NelmioApiDocBundle, API Platform и другие API framework/bundle не добавлялись.
 
 ## 10. Автоматические проверки
 
 `HttpInfrastructureTest` использует test-only controller и проверяет successful
-mapping, malformed/empty JSON, content type, missing fields, type mismatch,
+mapping, malformed/empty JSON, strict content type, missing fields, type mismatch,
 несколько violations, unknown fields, UUID/date/enum/null/collection/nested
-serialization, request ID, method/route errors и безопасный internal error.
+serialization, request ID, method/route errors, безопасный internal error и
+диагностический logging context без raw exception data.
 `HealthControllerTest` дополнительно проверяет `X-Request-Id` существующего
 healthcheck.
 

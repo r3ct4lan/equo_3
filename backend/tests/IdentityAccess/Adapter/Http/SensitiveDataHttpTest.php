@@ -21,5 +21,7 @@ final class SensitiveDataHttpTest extends WebTestCase
         self::assertStringNotContainsString('token-hash-must-not-leak', $content);
         self::assertStringNotContainsString('payload', $content);
         self::assertStringNotContainsString('payload-must-not-leak', $content);
+        self::assertStringNotContainsString('encryptedPayload', $content);
+        self::assertStringNotContainsString('encrypted-payload-must-not-leak', $content);
     }
 }

@@ -7,6 +7,8 @@ namespace App\Tests\Fixture\Http;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserActionTokenRecord;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserRecord;
 use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
+use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryOutboxRecord;
+use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryStatus;
 use DateTimeImmutable;
 use RuntimeException;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
@@ -39,7 +41,7 @@ final class HttpInfrastructureController
         throw new RuntimeException('SQLSTATE password=secret at /var/www/backend/src/Internal.php:42');
     }
 
-    /** @return array{user: UserRecord, token: UserActionTokenRecord} */
+    /** @return array{user: UserRecord, token: UserActionTokenRecord, outbox: EmailDeliveryOutboxRecord} */
     public function sensitiveRecords(): array
     {
         $createdAt = new DateTimeImmutable('2026-07-31T12:00:00Z');
@@ -60,7 +62,22 @@ final class HttpInfrastructureController
             $createdAt,
             $createdAt->modify('+24 hours'),
         );
+        $outbox = new EmailDeliveryOutboxRecord(
+            '550e8400-e29b-41d4-a716-446655440002',
+            $token->id(),
+            $user->email(),
+            'activate-account',
+            'encrypted-payload-must-not-leak',
+            EmailDeliveryStatus::Pending,
+            $createdAt,
+            $createdAt,
+            null,
+            null,
+            null,
+            0,
+            null,
+        );
 
-        return ['user' => $user, 'token' => $token];
+        return ['user' => $user, 'token' => $token, 'outbox' => $outbox];
     }
 }

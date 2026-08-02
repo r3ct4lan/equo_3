@@ -51,8 +51,8 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
 
         if (Response::HTTP_INTERNAL_SERVER_ERROR === $definition['status']) {
             $this->logger->error('Unhandled API exception.', [
-                'exception' => $exception,
                 'requestId' => $requestId,
+                'exceptionClass' => $exception::class,
             ]);
         }
 

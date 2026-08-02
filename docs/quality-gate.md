@@ -126,8 +126,10 @@ key, GitHub, AWS, Slack и live payment token patterns. Это лёгкая шт
 защита, а не полноценная entropy/history scanner. Реальные secrets запрещено
 передавать через repository или CI variables этой задачи.
 
-CI и полный локальный gate дополнительно выполняют `git diff`/status check после
-инструментов. Кеши и build output должны находиться только в ignored paths.
+CI и полный локальный gate дополнительно проверяют полный
+`git status --porcelain=v1 --untracked-files=all` после инструментов. Поэтому
+проверка обнаруживает изменения tracked-файлов и новые untracked-файлы. Кеши и
+build output должны находиться только в ignored paths.
 
 ## 8. GitHub Actions
 

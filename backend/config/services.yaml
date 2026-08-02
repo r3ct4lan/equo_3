@@ -35,3 +35,7 @@ services:
 
     App\IdentityAccess\Application\Port\PasswordHashingPort:
         alias: App\IdentityAccess\Adapter\Security\SymfonyPasswordHasher
+
+    App\Infrastructure\Http\ApiExceptionSubscriber:
+        arguments:
+            $logger: '@monolog.logger.api'

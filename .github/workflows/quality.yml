@@ -32,7 +32,7 @@ jobs:
       - name: Scan tracked files for common secret patterns
         run: ./scripts/check-secrets.sh
       - name: Verify checks leave no generated changes
-        run: git diff --exit-code
+        run: ./scripts/check-worktree-clean.sh
 
   backend-quality:
     name: Backend quality
@@ -65,7 +65,7 @@ jobs:
         working-directory: backend
         run: composer check
       - name: Verify checks leave no generated changes
-        run: git diff --exit-code
+        run: ./scripts/check-worktree-clean.sh
 
   backend-tests:
     name: Backend tests and migrations
@@ -115,7 +115,7 @@ jobs:
         working-directory: backend
         run: composer test
       - name: Verify checks leave no generated changes
-        run: git diff --exit-code
+        run: ./scripts/check-worktree-clean.sh
 
   frontend-quality:
     name: Frontend quality and build
@@ -137,7 +137,7 @@ jobs:
         working-directory: frontend
         run: npm run check
       - name: Verify checks leave no generated changes
-        run: git diff --exit-code
+        run: ./scripts/check-worktree-clean.sh
 
   dependency-audit:
     name: Dependency audit
@@ -195,7 +195,7 @@ jobs:
         if: failure()
         run: docker compose logs --no-color
       - name: Verify checks leave no generated changes
-        run: git diff --exit-code
+        run: ./scripts/check-worktree-clean.sh
       - name: Stop the isolated Compose stack
         if: always()
         run: docker compose down --volumes --remove-orphans

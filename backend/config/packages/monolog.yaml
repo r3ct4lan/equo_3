@@ -1,0 +1,30 @@
+monolog:
+    channels:
+        - api
+
+when@prod:
+    monolog:
+        handlers:
+            main:
+                type: stream
+                path: php://stderr
+                level: info
+                formatter: monolog.formatter.json
+                channels: ['!event']
+
+when@dev:
+    monolog:
+        handlers:
+            main:
+                type: stream
+                path: php://stderr
+                level: debug
+                channels: ['!event']
+
+when@test:
+    monolog:
+        handlers:
+            api_test:
+                type: test
+                level: error
+                channels: [api]

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Infrastructure\Http;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
@@ -56,6 +58,36 @@ final class HttpInfrastructureTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
         self::assertSame('UNSUPPORTED_MEDIA_TYPE', $this->error($client)['code']);
+    }
+
+    #[DataProvider('unsupportedJsonMediaTypeProvider')]
+    public function testAlternativeJsonMediaTypesAreRejected(string $contentType): void
+    {
+        $client = self::createClient();
+        $client->request('POST', self::PAYLOAD_PATH, server: ['CONTENT_TYPE' => $contentType], content: '{}');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
+        self::assertSame('UNSUPPORTED_MEDIA_TYPE', $this->error($client)['code']);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function unsupportedJsonMediaTypeProvider(): iterable
+    {
+        yield 'legacy application/x-json' => ['application/x-json'];
+        yield 'vendor structured JSON' => ['application/vnd.equo+json'];
+    }
+
+    public function testApplicationJsonWithCharsetIsAccepted(): void
+    {
+        $client = self::createClient();
+        $client->request(
+            'POST',
+            self::PAYLOAD_PATH,
+            server: ['CONTENT_TYPE' => 'application/json; charset=utf-8'],
+            content: sprintf('{"name":"Ada","id":"%s"}', self::UUID),
+        );
+
+        self::assertResponseIsSuccessful();
     }
 
     public function testMissingRequiredFieldReturnsValidationViolation(): void
@@ -153,6 +185,28 @@ final class HttpInfrastructureTest extends WebTestCase
         self::assertStringNotContainsString('SQLSTATE', $content);
         self::assertStringNotContainsString('password=secret', $content);
         self::assertStringNotContainsString('/var/www', $content);
+    }
+
+    public function testInternalErrorLogsOnlySafeDiagnosticContext(): void
+    {
+        $client = self::createClient();
+        $handler = self::getContainer()->get('monolog.handler.api_test');
+        $handler->clear();
+
+        $client->request('GET', '/api/v1/_test/http/error');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_INTERNAL_SERVER_ERROR);
+        $records = $handler->getRecords();
+        self::assertCount(1, $records);
+        $record = $records[0];
+        self::assertSame('Unhandled API exception.', $record->message);
+        self::assertSame(RuntimeException::class, $record->context['exceptionClass'] ?? null);
+        self::assertSame($client->getResponse()->headers->get('X-Request-Id'), $record->context['requestId'] ?? null);
+
+        $diagnostic = serialize($record->toArray());
+        self::assertStringNotContainsString('SQLSTATE', $diagnostic);
+        self::assertStringNotContainsString('password=secret', $diagnostic);
+        self::assertStringNotContainsString('/var/www', $diagnostic);
     }
 
     public function testErrorResponseIsJsonAndContainsSameRequestIdAsHeader(): void

@@ -81,6 +81,7 @@ backend/
 │   │       ├── ApiJsonResponder.php
 │   │       ├── ApiResponseSubscriber.php
 │   │       ├── HealthController.php
+│   │       ├── JsonContentTypeSubscriber.php
 │   │       ├── RequestIdSubscriber.php
 │   │       └── ValidationViolationNormalizer.php
 │   └── Kernel.php

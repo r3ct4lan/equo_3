@@ -7,6 +7,7 @@ namespace App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Ignore;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'email_delivery_outbox')]
@@ -69,6 +70,7 @@ class EmailDeliveryOutboxRecord
         return $this->templateKey;
     }
 
+    #[Ignore]
     public function encryptedPayload(): ?string
     {
         return $this->encryptedPayload;
