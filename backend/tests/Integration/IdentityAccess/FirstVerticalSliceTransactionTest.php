@@ -17,6 +17,7 @@ use App\IdentityAccess\Application\Register\RegisterUser;
 use App\IdentityAccess\Domain\User\PasswordPolicy;
 use App\Infrastructure\EmailDelivery\Security\PayloadCipher;
 use App\Infrastructure\Idempotency\Persistence\Doctrine\DoctrineIdempotency;
+use App\Infrastructure\Idempotency\Persistence\Doctrine\Record\IdempotencyRecord;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
@@ -24,6 +25,63 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class FirstVerticalSliceTransactionTest extends KernelTestCase
 {
+    public function testIdempotencyReplaysBeforeAndRestartsExactlyAtTwentyFourHours(): void
+    {
+        self::bootKernel();
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $connection = $entityManager->getConnection();
+        $connection->beginTransaction();
+        $key = '49000000-0000-4000-8000-'.sprintf('%012d', random_int(1, 999999999999));
+        $createdAt = new DateTimeImmutable('2026-08-02T10:00:00Z');
+        $idempotency = new DoctrineIdempotency($entityManager, new SymfonyUuid());
+
+        try {
+            self::assertNull($idempotency->begin('public', 'register', $key, 'first-hash', $createdAt));
+            $idempotency->complete('public', 'register', $key, 201, ['result' => 'created'], null);
+            $entityManager->flush();
+            $entityManager->clear();
+
+            $beforeExpiry = (new DoctrineIdempotency($entityManager, new SymfonyUuid()))->begin(
+                'public',
+                'register',
+                $key,
+                'first-hash',
+                $createdAt->modify('+24 hours -1 microsecond'),
+            );
+            self::assertNotNull($beforeExpiry);
+            self::assertSame(201, $beforeExpiry->status);
+            self::assertSame(['result' => 'created'], $beforeExpiry->body);
+            $entityManager->clear();
+
+            self::assertNull((new DoctrineIdempotency($entityManager, new SymfonyUuid()))->begin(
+                'public',
+                'register',
+                $key,
+                'second-hash',
+                $createdAt->modify('+24 hours'),
+            ));
+            $entityManager->flush();
+
+            $record = $entityManager->getRepository(IdempotencyRecord::class)->findOneBy([
+                'scope' => 'public',
+                'operation' => 'register',
+                'idempotencyKey' => $key,
+            ]);
+            self::assertInstanceOf(IdempotencyRecord::class, $record);
+            self::assertSame('second-hash', $record->requestHash());
+            self::assertNull($record->responseStatus());
+            self::assertNull($record->responseBody());
+            self::assertEquals($createdAt->modify('+24 hours'), $record->createdAt());
+            self::assertEquals($createdAt->modify('+48 hours'), $record->expiresAt());
+        } finally {
+            if ($connection->isTransactionActive()) {
+                $connection->rollBack();
+            }
+
+            $entityManager->clear();
+        }
+    }
+
     public function testRegistrationFailureRollsBackEveryRecord(): void
     {
         self::bootKernel();

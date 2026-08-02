@@ -2,7 +2,7 @@ COMPOSE := docker compose
 BACKEND_EXEC := $(COMPOSE) exec -T -e APP_ENV=test backend
 FRONTEND_EXEC := $(COMPOSE) exec -T frontend
 
-.PHONY: audit audit-backend audit-frontend build build-frontend check check-backend check-backend-quality check-fast check-frontend check-frontend-quality check-repository down format format-backend format-frontend install lint lint-backend lint-frontend logs migrate ps restart shell-backend shell-frontend smoke test test-backend test-frontend up
+.PHONY: audit audit-backend audit-frontend build build-frontend check check-backend check-backend-quality check-fast check-frontend check-frontend-quality check-full check-repository down format format-backend format-frontend install lint lint-backend lint-frontend logs migrate ps restart shell-backend shell-frontend smoke test test-backend test-e2e test-frontend up
 
 build:
 	$(COMPOSE) build
@@ -37,6 +37,8 @@ migrate:
 
 check:
 	./scripts/run-quality-gate.sh
+
+check-full: check test-e2e
 
 check-fast: check-repository check-backend-quality check-frontend-quality
 
@@ -75,8 +77,11 @@ test: test-backend test-frontend
 test-backend:
 	./scripts/test-backend.sh
 
+test-e2e:
+	./scripts/test-e2e.sh
+
 test-frontend:
-	$(FRONTEND_EXEC) npm run test:unit
+	$(FRONTEND_EXEC) npm test
 
 build-frontend:
 	$(FRONTEND_EXEC) npm run build

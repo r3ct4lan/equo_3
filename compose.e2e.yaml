@@ -1,0 +1,165 @@
+name: equo-3-e2e
+
+x-backend-environment: &backend-environment
+  APP_ENV: e2e
+  APP_DEBUG: '0'
+  APP_SECRET: equo_e2e_only_not_a_production_secret
+  DATABASE_URL: postgresql://equo_e2e:equo_e2e_only@postgres:5432/equo_e2e?serverVersion=17&charset=utf8
+  MESSENGER_TRANSPORT_DSN: amqp://equo_e2e:equo_e2e_only@rabbitmq:5672/%2f/messages
+  REDIS_URL: redis://redis:6379
+  MAILER_DSN: smtp://mailpit:1025
+  MAILER_FROM: no-reply@equo.test
+  TRUSTED_PROXIES: 127.0.0.1,172.16.0.0/12
+  FRONTEND_BASE_URL: http://nginx
+  ACTION_TOKEN_ACTIVE_VERSION: v1
+  ACTION_TOKEN_HMAC_KEYS: '{"v1":"YWN0aW9uLXRva2VuLWRldi1rZXktMzItYnl0ZXMhISE="}'
+  EMAIL_PAYLOAD_KEY: ZW1haWwtcGF5bG9hZC1kZXYta2V5LTMyLWJ5dGVzISE=
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: equo_e2e
+      POSTGRES_USER: equo_e2e
+      POSTGRES_PASSWORD: equo_e2e_only
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U equo_e2e -d equo_e2e]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    networks: [e2e]
+
+  redis:
+    image: redis:8.2-alpine
+    command: [redis-server, --save, '', --appendonly, 'no']
+    tmpfs:
+      - /data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    networks: [e2e]
+
+  rabbitmq:
+    image: rabbitmq:4.2-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: equo_e2e
+      RABBITMQ_DEFAULT_PASS: equo_e2e_only
+    tmpfs:
+      - /var/lib/rabbitmq
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    networks: [e2e]
+
+  mailpit:
+    image: axllent/mailpit:v1.28
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    networks: [e2e]
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: development
+    environment: *backend-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, kill -0 1]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks: [e2e]
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: development
+    command:
+      - sh
+      - -lc
+      - >-
+        while true; do
+          php bin/console app:email-outbox:relay --no-interaction;
+          php bin/console messenger:consume async --time-limit=5 --memory-limit=256M -vv;
+        done
+    environment: *backend-environment
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [e2e]
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      HOST: 0.0.0.0
+      PORT: '3000'
+      CHOKIDAR_USEPOLLING: 'false'
+      WATCHPACK_POLLING: 'false'
+      NUXT_PUBLIC_API_BASE: /api
+      NUXT_API_INTERNAL_BASE: http://nginx/api
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 15s
+    networks: [e2e]
+
+  nginx:
+    image: nginx:1.28-alpine
+    volumes:
+      - ./docker/nginx/e2e.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./backend/public:/var/www/backend/public:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, wget -q -O /dev/null http://127.0.0.1/api/health]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [e2e]
+
+  e2e:
+    profiles: [e2e]
+    build:
+      context: .
+      dockerfile: docker/e2e/Dockerfile
+    environment:
+      CI: ${CI:-}
+      E2E_BASE_URL: http://nginx
+      E2E_MAILPIT_URL: http://mailpit:8025
+    volumes:
+      - ./frontend/test-results:/workspace/frontend/test-results
+    depends_on:
+      nginx:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    networks: [e2e]
+
+networks:
+  e2e:
+    driver: bridge
