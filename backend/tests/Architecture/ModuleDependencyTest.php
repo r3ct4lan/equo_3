@@ -90,6 +90,29 @@ final class ModuleDependencyTest extends TestCase
         self::assertSame([], array_values(array_unique($violations)), implode(PHP_EOL, array_unique($violations)));
     }
 
+    public function testControllersDoNotDependOnDoctrineRecords(): void
+    {
+        $violations = [];
+
+        foreach ($this->sourceFiles() as $file) {
+            if (!str_ends_with($file->getBasename(), 'Controller.php')) {
+                continue;
+            }
+
+            foreach ($this->qualifiedNamesIn($file) as $dependency) {
+                if (str_contains($dependency, '\\Persistence\\Doctrine\\Record\\')) {
+                    $violations[] = sprintf(
+                        '%s must return a response DTO or array, not depend on %s.',
+                        $this->relativePath($file),
+                        $dependency,
+                    );
+                }
+            }
+        }
+
+        self::assertSame([], $violations, implode(PHP_EOL, $violations));
+    }
+
     /** @return list<SplFileInfo> */
     private function sourceFiles(): array
     {
