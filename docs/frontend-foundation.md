@@ -2,19 +2,18 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать фактическую Nuxt 4 структуру и общие frontend-механизмы после E1-11 |
-| Статус | Accepted |
-| Версия | 3 |
-| Дата актуальности | 2026-07-31 |
+| Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и первый frontend-срез после E1-14 |
+| Статус | Implemented |
+| Версия | 4 |
+| Дата актуальности | 2026-08-02 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-11—E1-12; HTTP-контракты v4; ADR-001/006/012/017/018; реализация E1-09; модель доступа E1-10 |
+| Источник | E1-11—E1-14; HTTP-контракты v4; ADR-001/006/012/017/018; реализация E1-09/E1-13; модель доступа E1-10 |
 
 ## 1. Граница реализации
 
-E1-11 создаёт общий frontend-фундамент, но не реализует регистрацию,
-активацию, login или другой предметный сценарий. В production-маршрутах есть
-только нейтральная стартовая страница; Nuxt `error.vue` отвечает за безопасное
-состояние `404` и непредвиденную ошибку.
+E1-11 создаёт общий frontend-фундамент. E1-14 использует его для первого
+предметного сценария: публичных экранов регистрации и активации. Nuxt
+`error.vue` отвечает за безопасное состояние `404` и непредвиденную ошибку.
 
 Первый вертикальный срез публичен. Production JWT authenticator, refresh,
 `GET /api/v1/me` и `UserSession` ещё отсутствуют в backend согласно
@@ -40,12 +39,12 @@ frontend/
 │   │   ├── useApiForm.ts
 │   │   └── useCurrentUser.ts
 │   ├── layouts/default.vue
-│   ├── pages/index.vue
+│   ├── pages/{index,register,activate}.vue
 │   ├── plugins/api.ts
 │   ├── types/{api,session}.ts
 │   ├── types/nuxt.d.ts
-│   └── utils/api-error.ts
-├── tests/unit/api-error.test.mjs
+│   └── utils/{api-error,auth-flow}.ts
+├── tests/unit/{api-error,auth-flow}.test.mjs
 ├── Dockerfile
 ├── nuxt.config.ts
 └── package.json
@@ -61,15 +60,15 @@ frontend/
 - `types` повторяет только реально используемую часть публичного контракта;
 - `utils` содержит чистую нормализацию, которую можно тестировать без Nuxt.
 
-Feature-каталог следует добавлять только вместе с первым реальным экраном.
-Например, registration request/response types и компоненты размещаются рядом с
-реализуемой registration page, а не заранее в общем каталоге.
+Первый небольшой feature не вводит отдельную иерархию каталогов: его страницы
+находятся в `pages`, transport-типы — в `types/api.ts`, а чистая validation,
+семантика ошибок и lifecycle idempotency attempt — в `utils/auth-flow.ts`.
 
 ## 3. Application shell и маршруты
 
 `app.vue` использует стандартные `NuxtLayout` и `NuxtPage`. Default layout
 содержит skip link, семантические `header/nav/main/footer`, адаптивный контейнер
-и только существующую ссылку Home. Стартовая страница показывает нейтральное
+и ссылки только на существующие Home и Register. Стартовая страница показывает нейтральное
 состояние приложения и после hydration выполняет реальный `GET /api/health`
 через `$api`. Проверка выполняется client-side, чтобы frontend healthcheck и
 SSR shell не образовывали циклическую зависимость от Nginx/API при старте.
@@ -191,7 +190,32 @@ Backend остаётся источником бизнес-правил. Реа�
 CSS задаёт читаемую типографику, spacing/container, focus, базовые form/error
 стили и `prefers-reduced-motion`; branding и UI framework не вводились.
 
-## 9. Проверки
+## 9. Первый вертикальный сценарий
+
+`/register` принимает только `name`, `email`, `password`, выполняет лёгкую
+клиентскую validation для удобства и отправляет точный request через `$api` в
+`POST /api/v1/auth/register`. Backend остаётся авторитетным для email
+normalization, password policy, уникальности и rate limits. UUID
+`Idempotency-Key` создаётся при первой сетевой отправке, сохраняется для
+неизменённого технического retry и заменяется после любого редактирования
+формы. Pending блокирует поля и повторный submit.
+
+Успех `201` заменяет форму на activation-required state, очищает password и не
+объявляет login. Backend field violations связываются с input; известные
+business/rate ошибки отображаются по стабильному `error.code`, а техническая
+ошибка допускает повтор той же попытки и показывает только безопасный request
+ID.
+
+`/activate?token=…` считывает capability token только в памяти компонента,
+сразу заменяет URL на `/activate` и вызывает `POST /api/v1/auth/activate`.
+Success `204`, invalid/expired/used/invalidated/rate и технический retry имеют
+отдельные состояния. Token не рендерится, не попадает в Nuxt state/storage и
+очищается после terminal result или ухода со страницы. Resend и login не
+имитируются, поскольку не входят в первый срез.
+
+Подробная трассировка: [frontend первого вертикального сценария](first-vertical-slice-frontend-implementation.md).
+
+## 10. Проверки
 
 ```bash
 docker compose exec frontend npm ci
@@ -212,10 +236,8 @@ E1-11 не добавлял npm-пакетов. E1-12 добавляет тол�
 с версией `5.2.0`, которую использует Nuxt 4.5: прежний диапазон 4.x перекрывал
 Nuxt Router и делал его Volar plugin недоступным для `vue-tsc`.
 
-## 10. Сознательно отложено
+## 11. Сознательно отложено
 
-- registration и activation pages, их DTO и предметная validation;
-- idempotency-attempt lifecycle конкретной registration form;
 - login, refresh, logout и current-user network bootstrap;
 - реализация принятого ADR-018: in-memory token holder, session bootstrap,
   межвкладочная сериализация refresh и signed double-submit CSRF;
@@ -223,7 +245,7 @@ Nuxt Router и делал его Volar plugin недоступным для `vue
 - Pinia, form/validation library, UI framework и OpenAPI generator;
 - окончательный branding, уведомления, аналитика и страницы будущих модулей.
 
-## 11. Нормативные источники
+## 12. Нормативные источники
 
 - [HTTP-контракты](api/http-contracts.md);
 - [реализация HTTP-слоя](api/http-implementation.md);

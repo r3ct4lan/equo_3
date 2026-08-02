@@ -38,6 +38,29 @@ export interface HealthResponse {
   service: string
 }
 
+export interface RegisterRequest {
+  name: string
+  email: string
+  password: string
+}
+
+export interface RegisteredUser {
+  id: Uuid
+  name: string
+  email: string
+  isActive: false
+  createdAt: UtcDateTime
+}
+
+export interface RegisterResponse {
+  user: RegisteredUser
+  activationRequired: true
+}
+
+export interface ActivateRequest {
+  token: string
+}
+
 export interface ApiRequestOptions extends Omit<FetchOptions<'json'>, 'baseURL' | 'credentials'> {
   accessToken?: string | null
 }

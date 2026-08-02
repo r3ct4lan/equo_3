@@ -26,6 +26,7 @@ export class ApiClientError extends Error {
   readonly status: number | null
   readonly code: string
   readonly requestId: string | null
+  readonly retryAfterSeconds: number | null
   readonly details: ApiErrorDetails | null
   readonly violations: readonly ApiViolation[]
   readonly fieldErrors: FieldErrorMap
@@ -36,6 +37,7 @@ export class ApiClientError extends Error {
     code: string
     message: string
     requestId?: string | null
+    retryAfterSeconds?: number | null
     details?: ApiErrorDetails | null
     violations?: readonly ApiViolation[]
   }) {
@@ -45,6 +47,7 @@ export class ApiClientError extends Error {
     this.status = options.status ?? null
     this.code = options.code
     this.requestId = options.requestId ?? null
+    this.retryAfterSeconds = options.retryAfterSeconds ?? null
     this.details = options.details ?? null
     this.violations = options.violations ?? []
     this.fieldErrors = groupViolations(this.violations)
@@ -81,6 +84,7 @@ export function toApiClientError(error: unknown): ApiClientError {
   const status = readStatus(record, response)
   const envelope = readEnvelope(record?.data ?? response?._data)
   const headerRequestId = readRequestIdHeader(response?.headers)
+  const retryAfterSeconds = readRetryAfterHeader(response?.headers)
 
   if (envelope) {
     const violations = readViolations(envelope.error.details)
@@ -91,6 +95,7 @@ export function toApiClientError(error: unknown): ApiClientError {
       code: envelope.error.code,
       message: envelope.error.message,
       requestId: envelope.error.requestId ?? headerRequestId,
+      retryAfterSeconds,
       details: envelope.error.details ?? null,
       violations
     })
@@ -102,7 +107,8 @@ export function toApiClientError(error: unknown): ApiClientError {
       status,
       code: 'HTTP_ERROR',
       message: HTTP_MESSAGES[status] ?? 'The service could not complete the request.',
-      requestId: headerRequestId
+      requestId: headerRequestId,
+      retryAfterSeconds
     })
   }
 
@@ -177,6 +183,21 @@ function readRequestIdHeader(headers: unknown): string | null {
   }
 
   return null
+}
+
+function readRetryAfterHeader(headers: unknown): number | null {
+  if (!headers || typeof (headers as Headers).get !== 'function') {
+    return null
+  }
+
+  const value = (headers as Headers).get('retry-after')
+
+  if (!value || !/^\d+$/u.test(value)) {
+    return null
+  }
+
+  const seconds = Number(value)
+  return Number.isSafeInteger(seconds) ? seconds : null
 }
 
 function hasErrorName(error: unknown, expected: string): boolean {

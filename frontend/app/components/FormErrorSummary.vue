@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{
+  title?: string
   message?: string | null
 }>()
 
@@ -24,7 +25,7 @@ watch(() => props.message, async (message) => {
     aria-live="assertive"
     tabindex="-1"
   >
-    <strong>Check the form</strong>
+    <strong>{{ title ?? 'Check the form' }}</strong>
     <p>{{ message }}</p>
   </div>
 </template>

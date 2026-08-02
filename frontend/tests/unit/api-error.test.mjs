@@ -69,3 +69,21 @@ test('maps a connection failure to a safe network error', () => {
   assert.equal(error.code, 'NETWORK_ERROR')
   assert.doesNotMatch(error.message, /private-host/)
 })
+
+test('preserves a numeric Retry-After header without exposing other response data', () => {
+  const error = toApiClientError({
+    response: {
+      status: 429,
+      headers: new Headers({ 'Retry-After': '47' }),
+      _data: {
+        error: {
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: 'Too many requests.',
+          requestId: '01J3M8N8CNQH9Y0G4SKY2GCG4A'
+        }
+      }
+    }
+  })
+
+  assert.equal(error.retryAfterSeconds, 47)
+})

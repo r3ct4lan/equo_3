@@ -45,6 +45,13 @@ textarea {
   font: inherit;
 }
 
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;
@@ -140,6 +147,12 @@ h2 {
   color: var(--color-primary-strong);
 }
 
+nav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
 .app-main {
   flex: 1;
   padding-block: clamp(2rem, 7vw, 5rem);
@@ -161,6 +174,18 @@ h2 {
   font-size: clamp(1.05rem, 2.5vw, 1.3rem);
 }
 
+.hero__actions,
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.hero__actions {
+  margin-top: 1.5rem;
+}
+
 .eyebrow {
   margin-bottom: 0.625rem;
   color: var(--color-primary);
@@ -177,6 +202,18 @@ h2 {
   border-radius: var(--radius-medium);
   background: var(--color-surface);
   box-shadow: var(--shadow-surface);
+}
+
+.auth-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(20rem, 1fr);
+  align-items: start;
+  gap: clamp(2rem, 7vw, 6rem);
+}
+
+.auth-intro {
+  position: sticky;
+  top: 2rem;
 }
 
 .stack > * + * {
@@ -249,6 +286,7 @@ h2 {
   background: var(--color-primary);
   color: #ffffff;
   font-weight: 750;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -265,6 +303,14 @@ h2 {
   border-color: var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+.button--secondary:hover:not(:disabled) {
+  background: #f2f5fa;
+}
+
+.form-fields {
+  min-width: 0;
 }
 
 .form-field {
@@ -298,6 +344,33 @@ h2 {
   color: var(--color-error);
 }
 
+.form-help,
+.support-reference {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.925rem;
+}
+
+.support-reference {
+  overflow-wrap: anywhere;
+}
+
+.support-reference code {
+  color: var(--color-text);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  margin: -1px;
+  clip: rect(0 0 0 0);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .form-error-summary {
   padding: 1rem;
   border: 1px solid;
@@ -317,6 +390,20 @@ h2 {
 
   .state-message {
     flex-direction: column;
+  }
+
+  .form-actions > * {
+    width: 100%;
+  }
+}
+
+@media (max-width: 52rem) {
+  .auth-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-intro {
+    position: static;
   }
 }
 
