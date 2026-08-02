@@ -99,4 +99,9 @@ class UserActionTokenRecord
     {
         return $this->invalidatedAt;
     }
+
+    public function markUsed(DateTimeImmutable $usedAt): void
+    {
+        $this->usedAt = $usedAt;
+    }
 }

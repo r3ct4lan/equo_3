@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Http;
 
+use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
+use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Response;
@@ -68,6 +70,10 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
         $error['requestId'] = $requestId;
         $headers = $exception instanceof HttpExceptionInterface ? $exception->getHeaders() : [];
 
+        if ($exception instanceof ApplicationFailure && null !== $exception->retryAfter) {
+            $headers['Retry-After'] = (string) $exception->retryAfter;
+        }
+
         $event->setResponse($this->responder->respond(
             ['error' => $error],
             $definition['status'],
@@ -78,6 +84,21 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
     /** @return array{status: int, code: string, message: string, details: array<string, mixed>|null} */
     private function classify(Throwable $exception): array
     {
+        if ($exception instanceof ApplicationFailure) {
+            return match ($exception->failureCode) {
+                ApplicationFailureCode::InvalidRequest => $this->definition(Response::HTTP_BAD_REQUEST, 'INVALID_REQUEST', 'Request is invalid.'),
+                ApplicationFailureCode::IdempotencyKeyRequired => $this->definition(Response::HTTP_BAD_REQUEST, 'IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required.'),
+                ApplicationFailureCode::EmailAlreadyExists => $this->definition(Response::HTTP_CONFLICT, 'EMAIL_ALREADY_EXISTS', 'Email is already registered.'),
+                ApplicationFailureCode::IdempotencyKeyReused => $this->definition(Response::HTTP_CONFLICT, 'IDEMPOTENCY_KEY_REUSED', 'Idempotency-Key was already used for another request.'),
+                ApplicationFailureCode::PasswordPolicyViolation => $this->definition(Response::HTTP_UNPROCESSABLE_ENTITY, 'PASSWORD_POLICY_VIOLATION', 'Password does not satisfy the required policy.'),
+                ApplicationFailureCode::InvalidToken => $this->definition(Response::HTTP_BAD_REQUEST, 'INVALID_TOKEN', 'Token is invalid.'),
+                ApplicationFailureCode::TokenExpired => $this->definition(Response::HTTP_GONE, 'TOKEN_EXPIRED', 'Token has expired.'),
+                ApplicationFailureCode::TokenUsed => $this->definition(Response::HTTP_GONE, 'TOKEN_USED', 'Token has already been used.'),
+                ApplicationFailureCode::TokenInvalidated => $this->definition(Response::HTTP_GONE, 'TOKEN_INVALIDATED', 'Token has been invalidated.'),
+                ApplicationFailureCode::RateLimitExceeded => $this->definition(Response::HTTP_TOO_MANY_REQUESTS, 'RATE_LIMIT_EXCEEDED', 'Rate limit exceeded.'),
+            };
+        }
+
         if ($validationException = $this->find($exception, ValidationFailedException::class)) {
             return [
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,

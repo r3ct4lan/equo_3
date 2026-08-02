@@ -94,4 +94,22 @@ class IdempotencyRecord
     {
         return $this->expiresAt;
     }
+
+    public function restart(string $requestHash, DateTimeImmutable $createdAt, DateTimeImmutable $expiresAt): void
+    {
+        $this->userId = null;
+        $this->requestHash = $requestHash;
+        $this->responseStatus = null;
+        $this->responseBody = null;
+        $this->createdAt = $createdAt;
+        $this->expiresAt = $expiresAt;
+    }
+
+    /** @param array<string, mixed> $responseBody */
+    public function complete(int $responseStatus, array $responseBody, ?string $userId): void
+    {
+        $this->responseStatus = $responseStatus;
+        $this->responseBody = $responseBody;
+        $this->userId = $userId;
+    }
 }

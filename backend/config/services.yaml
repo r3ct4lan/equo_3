@@ -36,6 +36,60 @@ services:
     App\IdentityAccess\Application\Port\PasswordHashingPort:
         alias: App\IdentityAccess\Adapter\Security\SymfonyPasswordHasher
 
+    App\IdentityAccess\Domain\User\PasswordPolicy: ~
+
+    App\IdentityAccess\Application\Port\ClockPort:
+        alias: App\IdentityAccess\Adapter\System\SystemClock
+
+    App\IdentityAccess\Application\Port\UuidPort:
+        alias: App\IdentityAccess\Adapter\System\SymfonyUuid
+
+    App\IdentityAccess\Application\Port\ActionTokenCodecPort:
+        alias: App\IdentityAccess\Adapter\Security\VersionedActionTokenCodec
+
+    App\IdentityAccess\Application\Port\IdentityRepositoryPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository
+
+    App\IdentityAccess\Application\Port\TransactionPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineTransaction
+
+    App\IdentityAccess\Application\Port\IdempotencyPort:
+        alias: App\Infrastructure\Idempotency\Persistence\Doctrine\DoctrineIdempotency
+
+    App\IdentityAccess\Application\Port\EmailOutboxPort:
+        alias: App\Infrastructure\EmailDelivery\Persistence\Doctrine\DoctrineEmailOutbox
+
+    App\IdentityAccess\Application\Port\PayloadCipherPort:
+        alias: App\Infrastructure\EmailDelivery\Security\PayloadCipher
+
+    App\IdentityAccess\Application\Port\RateLimitPort:
+        alias: App\IdentityAccess\Adapter\Security\SymfonyRateLimit
+
+    App\IdentityAccess\Application\Api\TokenDeliveryQuery:
+        alias: App\IdentityAccess\Application\Api\DoctrineTokenDeliveryQuery
+
+    App\IdentityAccess\Adapter\Security\VersionedActionTokenCodec:
+        arguments:
+            $activeVersion: '%env(ACTION_TOKEN_ACTIVE_VERSION)%'
+            $encodedKeyRing: '%env(ACTION_TOKEN_HMAC_KEYS)%'
+
+    App\Infrastructure\EmailDelivery\Security\PayloadCipher:
+        arguments:
+            $encodedKey: '%env(EMAIL_PAYLOAD_KEY)%'
+
+    App\IdentityAccess\Adapter\Security\SymfonyRateLimit:
+        arguments:
+            $registrationIpLimiter: '@limiter.registration_ip'
+            $registrationEmailLimiter: '@limiter.registration_email'
+            $activationIpLimiter: '@limiter.activation_ip'
+            $activationTokenLimiter: '@limiter.activation_token'
+
+    App\Infrastructure\EmailDelivery\Messaging\SendUserActionEmailHandler:
+        arguments:
+            $mailerTransport: '@mailer.default_transport'
+            $frontendBaseUrl: '%env(FRONTEND_BASE_URL)%'
+            $fromAddress: '%env(MAILER_FROM)%'
+
     App\Infrastructure\Http\ApiExceptionSubscriber:
         arguments:
             $logger: '@monolog.logger.api'

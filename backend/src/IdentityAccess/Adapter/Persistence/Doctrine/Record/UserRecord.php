@@ -61,4 +61,9 @@ class UserRecord
     {
         return $this->createdAt;
     }
+
+    public function activate(): void
+    {
+        $this->isActive = true;
+    }
 }

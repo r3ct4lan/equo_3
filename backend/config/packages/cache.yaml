@@ -15,5 +15,15 @@ framework:
         #app: cache.adapter.apcu
 
         # Namespaced pools use the above "app" backend by default
-        #pools:
-            #my.dedicated.cache: null
+        pools:
+            cache.rate_limiter:
+                adapter: cache.adapter.redis
+                provider: '%env(REDIS_URL)%'
+
+when@test:
+    framework:
+        cache:
+            pools:
+                cache.rate_limiter:
+                    adapter: cache.adapter.filesystem
+                    provider: null

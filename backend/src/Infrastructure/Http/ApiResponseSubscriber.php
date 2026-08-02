@@ -31,6 +31,7 @@ final readonly class ApiResponseSubscriber implements EventSubscriberInterface
             return;
         }
 
-        $event->setResponse($this->responder->respond($result));
+        $status = $event->getRequest()->attributes->getInt('_api_status', 200);
+        $event->setResponse($this->responder->respond($result, $status));
     }
 }
