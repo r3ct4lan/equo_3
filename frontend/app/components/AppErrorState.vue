@@ -14,7 +14,10 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="state-message state-message--error" role="alert">
+  <div
+    class="state-message state-message--error"
+    role="alert"
+  >
     <div>
       <strong>{{ title }}</strong>
       <p>{{ message }}</p>

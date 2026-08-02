@@ -5,12 +5,12 @@
 | Название | Индекс проектной документации Equo |
 | Назначение | Обеспечить единый вход в комплект проектных артефактов и правила их актуализации |
 | Статус | Accepted |
-| Версия | 8 |
+| Версия | 9 |
 | Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
-| Источник | Project documentation; инвентаризация `equo-artifacts-final.zip`, результаты E1-01—E1-11 и решение OQ-018 |
+| Источник | Project documentation; инвентаризация `equo-artifacts-final.zip`, результаты E1-01—E1-12 и решение OQ-018 |
 
-В этом каталоге хранится канонический комплект проектных артефактов, систематизированный в E1-01, а также результаты E1-02—E1-11 и закрытия Block A. Используйте этот индекс для поиска терминов предметной области, бизнес-ограничений, модели данных, API-контрактов, архитектурных решений, границ MVP, первого вертикального среза, его критериев приёмки и истории принятых решений.
+В этом каталоге хранится канонический комплект проектных артефактов, систематизированный в E1-01, а также результаты E1-02—E1-12 и закрытия Block A. Используйте этот индекс для поиска терминов предметной области, бизнес-ограничений, модели данных, API-контрактов, архитектурных решений, границ MVP, первого вертикального среза, его критериев приёмки, quality gate и истории принятых решений.
 
 ## Индекс артефактов
 
@@ -28,6 +28,7 @@
 | [Реализация HTTP-слоя](api/http-implementation.md) | Фактические Symfony-механизмы JSON, DTO validation, serialization, request ID и standard errors после E1-09 | Accepted | Изменились HTTP subscribers, Serializer/Validator config, error classification или правила response DTO |
 | [Модель доступа первого среза](security/access-model.md) | Публичные субъекты, capability-based activation policy, password hashing и принятые token/JWT profiles после E1-10 | Accepted | Изменились правила доступа, token lifecycle, password hashing, authentication profile или security-конфигурация |
 | [Frontend-фундамент](frontend-foundation.md) | Фактическая Nuxt-структура, API client, error/session/form state и UI-правила после E1-11; принятый session profile ADR-018 | Accepted | Изменились frontend-каталоги, runtime API config, общие типы/состояния, маршрутизация или правила форм |
+| [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, audits, smoke и GitHub Actions после E1-12 | Accepted; first CI run pending | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
 | [Architecture Decision Records](adr/architecture-decisions.md) | Принятые архитектурные решения ADR-001 — ADR-018 | Accepted | Решение заменяется новым или выполнено условие его пересмотра; историю следует сохранять, добавляя новый ADR |
 | [Сквозная проверка согласованности E1-02](consistency-review.md) | Матрица трассируемости, история `CONS-*` и итог закрытия Block A | Завершено | Изменился любой нормативный артефакт, обнаружено новое расхождение либо пересматривается заключение Block A |
 | [Границы MVP](mvp-scope.md) | Цель, каталог `MVP-SC-*`, классификация, основной путь, зависимости и критерии запуска E1-04 | Accepted | Изменилась цель MVP, категория сценария, обязательный путь, критерий запуска или решение о границе |

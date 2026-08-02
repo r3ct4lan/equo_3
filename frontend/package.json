@@ -5,6 +5,11 @@
   "scripts": {
     "dev": "nuxt dev --host 0.0.0.0 --port 3000",
     "build": "nuxt build",
+    "check": "npm run check:lock && npm run lint && npm run typecheck && npm run test:unit && npm run build",
+    "check:lock": "npm ci --dry-run --ignore-scripts --no-audit",
+    "check:quality": "npm run check:lock && npm run lint && npm run typecheck",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
     "test:unit": "node --experimental-strip-types --test tests/unit/*.test.mjs",
     "typecheck": "nuxt typecheck",
     "postinstall": "node scripts/patch-nitropack.mjs"
@@ -15,7 +20,9 @@
     "vue-router": "5.2.0"
   },
   "devDependencies": {
+    "@nuxt/eslint-config": "^1.16.0",
     "@types/node": "^22.0.0",
+    "eslint": "^10.8.0",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.2.4"
   },

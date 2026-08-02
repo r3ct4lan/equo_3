@@ -17,6 +17,7 @@ point.
 cd /home/r3ct4lan/projects/equo_3
 cp .env.example .env
 make build
+make install
 make up
 make migrate
 ```
@@ -48,7 +49,13 @@ make ps             # show container state
 make shell-backend  # open a shell in PHP-FPM
 make shell-frontend # open a shell in Nuxt
 make migrate        # run Doctrine migrations
-make test           # run backend and frontend checks
+make install        # install exact backend/frontend lock files
+make check-fast     # run style/static/config/type checks
+make test           # run backend and frontend tests
+make check          # run the complete local quality gate
+make lint           # check PHP and frontend style without changes
+make format         # explicitly fix PHP and frontend style
+make audit          # audit Composer and npm dependencies
 ```
 
 Use `docker compose logs <service>` to inspect one service. Run
@@ -70,9 +77,11 @@ secrets. `NUXT_API_INTERNAL_BASE` is server-only and lets Nuxt SSR reach the API
 inside the deployment network. Override both values through the deployment
 environment when the network topology differs.
 
-Frontend checks run inside the existing container:
+Frontend checks run inside the existing container. The complete frontend gate
+also validates the lock file and ESLint rules:
 
 ```bash
+docker compose exec frontend npm run check
 docker compose exec frontend npm run test:unit
 docker compose exec frontend npm run typecheck
 docker compose exec frontend npm run build
@@ -80,6 +89,17 @@ docker compose exec frontend npm run build
 
 Implementation and placement rules are documented in
 [docs/frontend-foundation.md](docs/frontend-foundation.md).
+
+## Quality gate and CI
+
+`make check` is the merge-oriented local entry point. It covers backend style,
+PHPStan, Symfony/Doctrine validation, migrations on an isolated empty database,
+PHPUnit, frontend lint/typecheck/tests/build, dependency audits, common secret
+patterns, generated changes and Nginx smoke checks.
+
+The equivalent GitHub Actions workflow runs for pull requests and pushes to
+`main`. Detailed commands, audit thresholds and recommended required checks are
+documented in [docs/quality-gate.md](docs/quality-gate.md).
 
 ## Repository structure
 

@@ -45,7 +45,8 @@ export function useApiForm<TValues extends Record<string, unknown>>(initialValue
     try {
       const data = await handler(submittedValues)
       return { ok: true, data }
-    } catch (error: unknown) {
+    }
+    catch (error: unknown) {
       const normalized = toApiClientError(error)
 
       if (normalized.isCanceled) {
@@ -56,7 +57,8 @@ export function useApiForm<TValues extends Record<string, unknown>>(initialValue
       formError.value = normalized
 
       return { ok: false, reason: 'request' }
-    } finally {
+    }
+    finally {
       isSubmitting.value = false
     }
   }

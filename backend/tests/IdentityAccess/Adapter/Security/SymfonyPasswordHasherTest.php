@@ -11,14 +11,15 @@ use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactory;
 
 final class SymfonyPasswordHasherTest extends KernelTestCase
 {
-    public function testApplicationPortResolvesToSymfonyAdapterInTestContainer(): void
+    public function testApplicationPortResolvesToWorkingHasherInTestContainer(): void
     {
         self::bootKernel();
 
-        self::assertInstanceOf(
-            SymfonyPasswordHasher::class,
-            self::getContainer()->get(PasswordHashingPort::class),
-        );
+        $port = self::getContainer()->get(PasswordHashingPort::class);
+        $plainPassword = 'container resolved password';
+        $hash = $port->hash($plainPassword);
+
+        self::assertNotSame($plainPassword, $hash);
     }
 
     public function testPasswordIsHashedWithConfiguredAutoHasher(): void

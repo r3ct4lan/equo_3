@@ -21,18 +21,32 @@ const apiError = computed(() => error.value ? toApiClientError(error.value) : nu
 
 <template>
   <div class="stack stack--large">
-    <section class="hero" aria-labelledby="home-title">
-      <p class="eyebrow">Shared expenses, clearly</p>
-      <h1 id="home-title">Welcome to Equo</h1>
+    <section
+      class="hero"
+      aria-labelledby="home-title"
+    >
+      <p class="eyebrow">
+        Shared expenses, clearly
+      </p>
+      <h1 id="home-title">
+        Welcome to Equo
+      </h1>
       <p class="hero__lede">
         The application foundation is ready for registration and account activation.
       </p>
     </section>
 
-    <section class="panel stack" aria-labelledby="service-title">
+    <section
+      class="panel stack"
+      aria-labelledby="service-title"
+    >
       <div>
-        <p class="eyebrow">System status</p>
-        <h2 id="service-title">API connection</h2>
+        <p class="eyebrow">
+          System status
+        </p>
+        <h2 id="service-title">
+          API connection
+        </h2>
       </div>
 
       <AppLoadingState
@@ -48,8 +62,15 @@ const apiError = computed(() => error.value ? toApiClientError(error.value) : nu
         @retry="refresh"
       />
 
-      <div v-else-if="health" class="status-card status-card--success" role="status">
-        <span class="status-card__marker" aria-hidden="true" />
+      <div
+        v-else-if="health"
+        class="status-card status-card--success"
+        role="status"
+      >
+        <span
+          class="status-card__marker"
+          aria-hidden="true"
+        />
         <div>
           <strong>API available</strong>
           <p>{{ health.service }} reported {{ health.status }}.</p>

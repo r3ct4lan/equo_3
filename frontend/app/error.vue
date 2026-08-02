@@ -16,8 +16,14 @@ useHead({
 
 <template>
   <NuxtLayout>
-    <section class="panel stack" role="alert" aria-labelledby="error-title">
-      <p class="eyebrow">{{ isNotFound ? '404' : 'Error' }}</p>
+    <section
+      class="panel stack"
+      role="alert"
+      aria-labelledby="error-title"
+    >
+      <p class="eyebrow">
+        {{ isNotFound ? '404' : 'Error' }}
+      </p>
       <h1 id="error-title">
         {{ isNotFound ? 'Page not found' : 'Something went wrong' }}
       </h1>
@@ -27,7 +33,11 @@ useHead({
           : 'The page could not be displayed safely. Please return home and try again.' }}
       </p>
       <div>
-        <button class="button" type="button" @click="clearError({ redirect: '/' })">
+        <button
+          class="button"
+          type="button"
+          @click="clearError({ redirect: '/' })"
+        >
           Return home
         </button>
       </div>

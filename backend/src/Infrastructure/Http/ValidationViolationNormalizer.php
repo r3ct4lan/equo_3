@@ -56,6 +56,6 @@ final class ValidationViolationNormalizer
             return 'Value has invalid type.';
         }
 
-        return $violation->getMessage();
+        return (string) $violation->getMessage();
     }
 }

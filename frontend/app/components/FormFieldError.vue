@@ -13,7 +13,10 @@ defineProps<{
     role="alert"
     aria-live="polite"
   >
-    <li v-for="message in messages" :key="message">
+    <li
+      v-for="message in messages"
+      :key="message"
+    >
       {{ message }}
     </li>
   </ul>

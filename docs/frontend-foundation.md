@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Описать фактическую Nuxt 4 структуру и общие frontend-механизмы после E1-11 |
 | Статус | Accepted |
-| Версия | 2 |
+| Версия | 3 |
 | Дата актуальности | 2026-07-31 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-11; HTTP-контракты v4; ADR-001/006/012/017/018; реализация E1-09; модель доступа E1-10 |
+| Источник | E1-11—E1-12; HTTP-контракты v4; ADR-001/006/012/017/018; реализация E1-09; модель доступа E1-10 |
 
 ## 1. Граница реализации
 
@@ -195,6 +195,7 @@ CSS задаёт читаемую типографику, spacing/container, foc
 
 ```bash
 docker compose exec frontend npm ci
+docker compose exec frontend npm run lint
 docker compose exec frontend npm run test:unit
 docker compose exec frontend npm run typecheck
 docker compose exec frontend npm run build
@@ -202,10 +203,12 @@ curl --fail http://localhost:${APP_PORT:-80}/
 curl --fail http://localhost:${APP_PORT:-80}/api/health
 ```
 
-`make test` запускает backend PHPUnit, npm audit, frontend unit tests и
-typecheck. Production build проверяется отдельно до публикации.
+`make check-frontend` запускает lock check, ESLint, typecheck, unit tests,
+production build и npm audit. `make check` добавляет backend, repository и smoke
+gate; полный состав описан в [quality gate E1-12](quality-gate.md).
 
-Новых npm-пакетов E1-11 не добавляет. Существующий direct `vue-router` выровнен
+E1-11 не добавлял npm-пакетов. E1-12 добавляет только dev-only ESLint и
+официальный Nuxt flat config. Существующий direct `vue-router` выровнен
 с версией `5.2.0`, которую использует Nuxt 4.5: прежний диапазон 4.x перекрывал
 Nuxt Router и делал его Volar plugin недоступным для `vue-tsc`.
 

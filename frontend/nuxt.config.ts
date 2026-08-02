@@ -1,5 +1,4 @@
 export default defineNuxtConfig({
-  compatibilityDate: '2026-07-26',
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
@@ -8,10 +7,7 @@ export default defineNuxtConfig({
       apiBase: '/api'
     }
   },
-  typescript: {
-    strict: true,
-    typeCheck: true
-  },
+  compatibilityDate: '2026-07-26',
   vite: {
     server: {
       watch: {
@@ -19,5 +15,9 @@ export default defineNuxtConfig({
         interval: 500
       }
     }
+  },
+  typescript: {
+    strict: true,
+    typeCheck: true
   }
 })
