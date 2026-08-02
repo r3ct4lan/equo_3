@@ -25,7 +25,7 @@ services:
     environment: &backend-environment
       APP_ENV: "${APP_ENV:-dev}"
       APP_SECRET: "${APP_SECRET:-change-me-in-local-env}"
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-equo}:${POSTGRES_PASSWORD:-equo}@postgres:5432/${POSTGRES_DB:-equo}?serverVersion=17&charset=utf8"
+      DATABASE_URL: "${BACKEND_DATABASE_URL:-postgresql://${POSTGRES_USER:-equo}:${POSTGRES_PASSWORD:-equo}@postgres:5432/${POSTGRES_DB:-equo}?serverVersion=17&charset=utf8}"
       MESSENGER_TRANSPORT_DSN: "amqp://${RABBITMQ_DEFAULT_USER:-equo}:${RABBITMQ_DEFAULT_PASS:-equo}@rabbitmq:5672/%2f/messages"
       REDIS_URL: "redis://redis:6379"
       MAILER_DSN: "smtp://mailpit:1025"
@@ -87,6 +87,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks: [equo]
+
+  postgres-test:
+    image: postgres:17-alpine
+    profiles: [quality]
+    environment:
+      POSTGRES_DB: equo_test
+      POSTGRES_USER: equo_test
+      POSTGRES_PASSWORD: equo_test_only
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U equo_test -d equo_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
     networks: [equo]
 
   redis:

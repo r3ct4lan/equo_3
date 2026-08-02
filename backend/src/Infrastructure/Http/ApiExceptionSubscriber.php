@@ -126,8 +126,9 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
     }
 
     /** @template T of Throwable
-     *  @param class-string<T> $class
-     *  @return T|null
+     * @param class-string<T> $class
+     *
+     * @return T|null
      */
     private function find(Throwable $exception, string $class): ?Throwable
     {

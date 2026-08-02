@@ -31,7 +31,8 @@ export default defineNuxtPlugin(() => {
         headers,
         retry: fetchOptions.retry ?? false
       })
-    } catch (error: unknown) {
+    }
+    catch (error: unknown) {
       const normalized = toApiClientError(error)
 
       if (normalized.status === 401) {

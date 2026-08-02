@@ -1,35 +1,93 @@
-.PHONY: build up down restart logs ps shell-backend shell-frontend migrate test
+COMPOSE := docker compose
+BACKEND_EXEC := $(COMPOSE) exec -T -e APP_ENV=test backend
+FRONTEND_EXEC := $(COMPOSE) exec -T frontend
+
+.PHONY: audit audit-backend audit-frontend build build-frontend check check-backend check-backend-quality check-fast check-frontend check-frontend-quality check-repository down format format-backend format-frontend install lint lint-backend lint-frontend logs migrate ps restart shell-backend shell-frontend smoke test test-backend test-frontend up
 
 build:
-	docker compose build
+	$(COMPOSE) build
+
+install:
+	@if $(COMPOSE) ps --status running --services | grep -Eq '^(backend|frontend|worker)$$'; then echo 'Stop application containers with make down before make install.' >&2; exit 1; fi
+	$(COMPOSE) run --rm -T --no-deps backend composer install --no-interaction --prefer-dist --no-scripts
+	$(COMPOSE) run --rm -T --no-deps frontend npm ci
 
 up:
-	docker compose up -d
+	$(COMPOSE) up -d
 
 down:
-	docker compose down
+	$(COMPOSE) down
 
 restart: down up
 
 logs:
-	docker compose logs -f
+	$(COMPOSE) logs -f
 
 ps:
-	docker compose ps
+	$(COMPOSE) ps
 
 shell-backend:
-	docker compose exec backend sh
+	$(COMPOSE) exec backend sh
 
 shell-frontend:
-	docker compose exec frontend sh
+	$(COMPOSE) exec frontend sh
 
 migrate:
-	docker compose exec backend php bin/console doctrine:migrations:migrate --no-interaction
+	$(COMPOSE) exec backend php bin/console doctrine:migrations:migrate --no-interaction
 
-test:
-	docker compose exec -e APP_ENV=test backend php bin/console doctrine:database:create --if-not-exists --no-interaction
-	docker compose exec -e APP_ENV=test backend php bin/console doctrine:migrations:migrate --no-interaction
-	docker compose exec -e APP_ENV=test backend php bin/phpunit
-	docker compose exec frontend npm audit --audit-level=moderate
-	docker compose exec frontend npm run test:unit
-	docker compose exec frontend npm run typecheck
+check:
+	./scripts/run-quality-gate.sh
+
+check-fast: check-repository check-backend-quality check-frontend-quality
+
+check-backend: check-backend-quality test-backend audit-backend
+
+check-backend-quality:
+	$(BACKEND_EXEC) composer check
+
+check-frontend: check-frontend-quality test-frontend build-frontend audit-frontend
+
+check-frontend-quality:
+	$(FRONTEND_EXEC) npm run check:quality
+
+check-repository:
+	./scripts/check-secrets.sh
+	./scripts/check-ci-config.sh
+
+lint: lint-backend lint-frontend
+
+lint-backend:
+	$(BACKEND_EXEC) composer check:style
+
+lint-frontend:
+	$(FRONTEND_EXEC) npm run lint
+
+format: format-backend format-frontend
+
+format-backend:
+	$(BACKEND_EXEC) composer fix:style
+
+format-frontend:
+	$(FRONTEND_EXEC) npm run lint:fix
+
+test: test-backend test-frontend
+
+test-backend:
+	./scripts/test-backend.sh
+
+test-frontend:
+	$(FRONTEND_EXEC) npm run test:unit
+
+build-frontend:
+	$(FRONTEND_EXEC) npm run build
+
+audit: audit-backend audit-frontend
+
+audit-backend:
+	$(BACKEND_EXEC) composer audit --locked
+
+audit-frontend:
+	$(FRONTEND_EXEC) npm audit --audit-level=moderate
+
+smoke:
+	./scripts/smoke.sh

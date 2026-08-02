@@ -13,6 +13,7 @@ use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 
 final class HttpInfrastructureController
 {
+    /** @return array{id: string|null, name: string|null} */
     public function payload(
         #[MapRequestPayload(acceptFormat: 'json')]
         FixtureRequest $payload,

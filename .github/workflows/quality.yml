@@ -1,0 +1,201 @@
+name: Quality gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_ENV: test
+  APP_SECRET: ci_test_only_not_a_production_secret
+  DATABASE_URL: postgresql://equo_ci:equo_ci_only@127.0.0.1:5432/equo_ci?serverVersion=17&charset=utf8
+  MESSENGER_TRANSPORT_DSN: in-memory://
+  MAILER_DSN: null://null
+
+jobs:
+  repository-quality:
+    name: Repository quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Scan tracked files for common secret patterns
+        run: ./scripts/check-secrets.sh
+      - name: Verify checks leave no generated changes
+        run: git diff --exit-code
+
+  backend-quality:
+    name: Backend quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.4'
+          extensions: amqp, ctype, iconv, intl, pdo_pgsql, redis, sockets
+          coverage: none
+          tools: composer:v2
+      - name: Resolve Composer cache directory
+        id: composer-cache
+        working-directory: backend
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Cache Composer downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-php84-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php84-
+      - name: Install backend dependencies
+        working-directory: backend
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Run backend quality checks
+        working-directory: backend
+        run: composer check
+      - name: Verify checks leave no generated changes
+        run: git diff --exit-code
+
+  backend-tests:
+    name: Backend tests and migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: equo_ci_test
+          POSTGRES_USER: equo_ci
+          POSTGRES_PASSWORD: equo_ci_only
+        options: >-
+          --health-cmd "pg_isready -U equo_ci -d equo_ci_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+        ports:
+          - 5432:5432
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.4'
+          extensions: amqp, ctype, iconv, intl, pdo_pgsql, redis, sockets
+          coverage: none
+          tools: composer:v2
+      - name: Resolve Composer cache directory
+        id: composer-cache
+        working-directory: backend
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Cache Composer downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-php84-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php84-
+      - name: Install backend dependencies
+        working-directory: backend
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Apply migrations to the empty database
+        working-directory: backend
+        run: composer check:migrations
+      - name: Run PHPUnit
+        working-directory: backend
+        run: composer test
+      - name: Verify checks leave no generated changes
+        run: git diff --exit-code
+
+  frontend-quality:
+    name: Frontend quality and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies from lock file
+        working-directory: frontend
+        run: npm ci
+      - name: Run frontend quality, tests, and production build
+        working-directory: frontend
+        run: npm run check
+      - name: Verify checks leave no generated changes
+        run: git diff --exit-code
+
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Audit Composer lock file
+        working-directory: backend
+        run: composer audit --locked
+      - name: Audit npm lock file
+        working-directory: frontend
+        run: npm audit --audit-level=moderate
+
+  smoke:
+    name: Application smoke
+    needs:
+      - backend-quality
+      - backend-tests
+      - frontend-quality
+      - repository-quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_PORT: '8080'
+      POSTGRES_DB: equo_ci_smoke_test
+      POSTGRES_USER: equo_ci
+      POSTGRES_PASSWORD: equo_ci_only
+      BACKEND_DATABASE_URL: postgresql://equo_ci:equo_ci_only@postgres:5432/equo_ci_smoke?serverVersion=17&charset=utf8
+      RABBITMQ_DEFAULT_USER: equo_ci
+      RABBITMQ_DEFAULT_PASS: equo_ci_only
+      NUXT_PUBLIC_API_BASE: /api
+      NUXT_API_INTERNAL_BASE: http://nginx/api
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build and start the isolated Compose stack
+        run: docker compose up -d --build --wait
+      - name: Smoke-test frontend and API through Nginx
+        run: make smoke
+      - name: Show service logs after failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Verify checks leave no generated changes
+        run: git diff --exit-code
+      - name: Stop the isolated Compose stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans

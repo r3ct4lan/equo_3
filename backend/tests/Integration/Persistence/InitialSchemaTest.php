@@ -12,8 +12,8 @@ use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliverySt
 use App\Infrastructure\Idempotency\Persistence\Doctrine\Record\IdempotencyRecord;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\DriverException;
+use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\NotNullConstraintViolationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -289,8 +289,7 @@ final class InitialSchemaTest extends KernelTestCase
         string $userId,
         string $tokenHash,
         string $expiresAt = '2026-07-31 13:00:00+00',
-    ): void
-    {
+    ): void {
         $this->connection->insert('user_action_token', [
             'id' => $id,
             'user_id' => $userId,
