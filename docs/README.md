@@ -5,12 +5,12 @@
 | Название | Индекс проектной документации Equo |
 | Назначение | Обеспечить единый вход в комплект проектных артефактов и правила их актуализации |
 | Статус | Accepted |
-| Версия | 14 |
-| Дата актуальности | 2026-08-02 |
+| Версия | 15 |
+| Дата актуальности | 2026-08-03 |
 | Владелец | Maksim Smolkov |
-| Источник | Project documentation; инвентаризация `equo-artifacts-final.zip`, результаты E1-01—E1-16 и решения OQ-018—OQ-020 |
+| Источник | Project documentation; инвентаризация `equo-artifacts-final.zip`, результаты E1-01—E1-17 и решения OQ-018—OQ-020 |
 
-В этом каталоге хранится канонический комплект проектных артефактов, систематизированный в E1-01, а также результаты E1-02—E1-16 и закрытия Block A. Используйте этот индекс для поиска терминов предметной области, бизнес-ограничений, модели данных, API-контрактов, архитектурных решений, границ MVP, первого вертикального среза, его критериев приёмки, реализаций backend/frontend, автоматического покрытия, quality gate и истории принятых решений.
+В этом каталоге хранится канонический комплект проектных артефактов, систематизированный в E1-01, а также результаты E1-02—E1-17 и закрытия Block A. Используйте этот индекс для поиска терминов предметной области, бизнес-ограничений, модели данных, API-контрактов, архитектурных решений, границ MVP, первого вертикального среза, его критериев приёмки, реализаций backend/frontend, автоматического покрытия, technical acceptance, quality gate и истории принятых решений.
 
 ## Индекс артефактов
 
@@ -28,7 +28,7 @@
 | [Реализация HTTP-слоя](api/http-implementation.md) | Фактические Symfony-механизмы JSON, DTO validation, serialization, request ID и standard errors после E1-09 | Accepted | Изменились HTTP subscribers, Serializer/Validator config, error classification или правила response DTO |
 | [Модель доступа первого среза](security/access-model.md) | Публичные субъекты, capability-based activation policy, password hashing и принятые token/JWT profiles после E1-10 | Accepted | Изменились правила доступа, token lifecycle, password hashing, authentication profile или security-конфигурация |
 | [Frontend-фундамент](frontend-foundation.md) | Фактическая Nuxt-структура, API client, error/session/form state и UI-правила после E1-11; принятый session profile ADR-018 | Accepted | Изменились frontend-каталоги, runtime API config, общие типы/состояния, маршрутизация или правила форм |
-| [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, audits, smoke и GitHub Actions после E1-12 | Accepted; E1-16 fixes pending CI run | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
+| [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, audits, smoke и GitHub Actions после E1-12 | Accepted; exact-SHA CI подтверждён в E1-17 | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
 | [Architecture Decision Records](adr/architecture-decisions.md) | Принятые ADR-001—ADR-019 | Accepted | Решение заменяется новым или выполнено условие его пересмотра; историю следует сохранять, добавляя новый ADR |
 | [Сквозная проверка согласованности E1-02](consistency-review.md) | Матрица трассируемости, история `CONS-*` и итог закрытия Block A | Завершено | Изменился любой нормативный артефакт, обнаружено новое расхождение либо пересматривается заключение Block A |
 | [Границы MVP](mvp-scope.md) | Цель, каталог `MVP-SC-*`, классификация, основной путь, зависимости и критерии запуска E1-04 | Accepted | Изменилась цель MVP, категория сценария, обязательный путь, критерий запуска или решение о границе |
@@ -39,7 +39,8 @@
 | [Автоматическое покрытие первого вертикального среза](first-vertical-slice-test-coverage.md) | Матрица `AC-001—061` и `BR-*`, component/integration/browser E2E, изоляция и результаты E1-15 | Implemented | Изменились критерии, тесты первого среза, E2E-инфраструктура или CI job |
 | [Структура backend](backend-structure.md) | Фактические модули, namespace, service discovery и допустимые зависимости после E1-07 | Accepted | Изменились модульные границы, каталоги, namespace, правила зависимостей или регистрация сервисов |
 | [Отчёт согласованности](reviews/consistency-report.md) | Исторический отчёт из исходного архива, заменённый проверкой E1-02 | Superseded | Только при исправлении метаданных или исторической ссылки; актуальные выводы ведутся в E1-02 |
-| [Сверка «контракт — реализация»](first-vertical-slice-contract-review.md) | Полная E1-16 трассировка `AC-001—061`, расхождения, данные/HTTP/frontend/security и результаты проверок | Reviewed; local PASS, CI rerun pending | Изменился первый срез или выполнен новый CI run |
+| [Сверка «контракт — реализация»](first-vertical-slice-contract-review.md) | Полная E1-16 трассировка `AC-001—061`, расхождения, данные/HTTP/frontend/security и результаты проверок | Reviewed; local PASS; CI-условие закрыто в E1-17 | Изменился первый срез или выполнен новый CI run |
+| [Техническая демонстрация и приёмка первого среза](acceptance/first-vertical-slice.md) | Версия, demo script, ручные UI/DB evidence, матрица `AC-001—061`, финальные gates, exact-SHA CI и решение E1-17 | Accepted владельцем продукта | Выполнена новая демонстрация, изменился первый срез или появился дефект |
 | [Открытые вопросы](open-questions.md) | Единый журнал `OQ-*`; все 20 вопросов разрешены | Accepted | Обнаружен подтверждённый вопрос, принято или пересмотрено решение либо изменился связанный `CONS-*` |
 
 ## Инвентаризация источника

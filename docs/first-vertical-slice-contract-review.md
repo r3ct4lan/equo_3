@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Сценарий | `MVP-SC-001` — первичная регистрация с активацией по первому email |
-| Статус | `CONDITIONAL PASS`: AC-001—061 согласованы; локальный gate зелёный, CI rerun требует repository event |
+| Статус | `PASS`: AC-001—061 согласованы; локальный gate и exact-SHA CI зелёные |
 | Дата | 2026-08-02 |
 | Ветка / база | `main` / `origin/main` |
 | Проверенный диапазон | `a35944b..7b189d3` (`1520825` E1-13, `8419809` E1-14, `7b189d3` E1-15) |
@@ -104,8 +104,8 @@ tenant: регистрация публична, activation авторизует
 | ID | Уровень | Категория | Источник истины / факт | Влияние и действие | Статус |
 |---|---|---|---|---|---|
 | E1-16-001 | HIGH | A | AC-023/BR-IDEM-003 требуют original replay; rate limit выполнялся раньше idempotency lookup | replay после нескольких попыток становился 429; idempotency lookup перенесён до rate limit, добавлен HTTP regression | RESOLVED |
-| E1-16-002 | HIGH | A | CI должен работать на clean checkout; Symfony требовал ignored `backend/.env` | полный runtime env и `disable_dotenv` заданы CI/Compose | RESOLVED LOCALLY; CI rerun pending |
-| E1-16-003 | HIGH | A | CI использует Node 22, Docker — npm 11.6.2; bundled npm 10 отклонял lock | npm 11.6.2 зафиксирован в package metadata/workflow; clean npm test проходит | RESOLVED LOCALLY; CI rerun pending |
+| E1-16-002 | HIGH | A | CI должен работать на clean checkout; Symfony требовал ignored `backend/.env` | полный runtime env и `disable_dotenv` заданы CI/Compose | RESOLVED; exact-SHA CI passed |
+| E1-16-003 | HIGH | A | CI использует Node 22, Docker — npm 11.6.2; bundled npm 10 отклонял lock | npm 11.6.2 зафиксирован в package metadata/workflow; clean npm test проходит | RESOLVED; exact-SHA CI passed |
 | E1-16-004 | MEDIUM | A | HTTP contract использует `AUTHENTICATION_REQUIRED/FORBIDDEN/RESOURCE_NOT_FOUND`, activation response пуст | удалены устаревшие frontend aliases; activation вызов типизирован `undefined` | RESOLVED |
 | E1-16-005 | MEDIUM | B | Фактические E1-13 use cases/repositories уже существуют, schema doc называл их будущими | производная схема актуализирована | RESOLVED |
 | E1-16-006 | MEDIUM | B | GitHub run уже был и упал, docs говорили «не запускался» | quality/index/test docs отражают run и локальные fixes | RESOLVED |
@@ -195,9 +195,9 @@ Capability удаляется из URL до API-вызова, хранится �
 
 Runtime-поведение AC-001—061 согласовано и автоматизировано; AC-030 закрыт
 versioned HMAC-профилем ADR-019, а E1-06 согласован с HTTP 2.6. Локальный
-`make check-full` проходит. Сценарий готов к E1-17 с единственным внешним
-условием: локально исправленный CI должен получить новый repository event после
-отдельно разрешённых commit/push.
+`make check-full` проходит. Exact-SHA GitHub Actions run `30764973795` для
+`3e2bd2179a2bb73b16a39a7ac2d84a4120d7094a` завершился успешно: 7/7 jobs
+получили `success`. Внешнее CI-условие E1-16 закрыто в E1-17.
 
 Dev-база не удалялась и не очищалась; Docker volumes не удалялись. Принятые
 бизнес-правила, критерии, HTTP-контракт, ER и accepted ADR не менялись молча.

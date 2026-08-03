@@ -3,9 +3,9 @@
 | Поле | Значение |
 |---|---|
 | Назначение | Описать единый набор обязательных проверок E1-12 с browser E2E из E1-15 |
-| Статус | Accepted; E1-16 CI fixes ожидают проверки новым repository event |
-| Версия | 4 |
-| Дата актуальности | 2026-08-02 |
+| Статус | Accepted; exact-SHA CI подтверждён в E1-17 |
+| Версия | 5 |
+| Дата актуальности | 2026-08-03 |
 | Владелец | Maksim Smolkov |
 | Источник | E1-12, E1-15—E1-16; ADR-001/011/015; backend E1-07—E1-13; frontend E1-11/E1-14 |
 
@@ -187,14 +187,13 @@ Smoke job остаётся в `APP_ENV=test`; test-only `BACKEND_DATABASE_URL` �
 на base name, к которому Symfony добавляет `_test`, а PostgreSQL service сразу
 создаёт соответствующую suffixed database.
 
-Первый фактический push-run `30760126539` для `7b189d3` завершился ошибкой на
-чистом checkout: Symfony Runtime ожидал отсутствующий ignored `backend/.env`, а
-bundled npm 10 в Node 22 отклонил lock-файл, сформированный npm 11. E1-16
-устраняет причины: CI/Compose передают полный runtime environment и
+Первый фактический push-run `30760126539` для `7b189d3` выявил зависимости
+чистого checkout от ignored `backend/.env` и различие npm 10/11. После
+исправлений E1-16 exact-SHA run `30764973795` для
+`3e2bd2179a2bb73b16a39a7ac2d84a4120d7094a` завершился успешно: все семь jobs
+получили `success`. CI/Compose передают полный runtime environment и
 `APP_RUNTIME_OPTIONS={"disable_dotenv":true}`, а workflow устанавливает
-repository npm `11.6.2` до `npm ci`. Локальные эквиваленты проверены; новый
-GitHub Actions run возможен только после отдельного commit/push и до него не
-должен называться зелёным.
+repository npm `11.6.2` до `npm ci`.
 
 При падении E2E job публикует `frontend/test-results/` на 7 дней. В artifact
 попадают только screenshots и очищенная диагностика; raw activation token и
@@ -234,7 +233,7 @@ run:
 - Deptrac вместо существующего ADR-015 PHPUnit test;
 - mutation, performance и отдельная accessibility automation;
 - Dependabot/Renovate и автоматическое обновление dependencies;
-- branch protection и required checks до первого успешного CI run;
+- настройка branch protection и required checks для `main`;
 - обновление pinned GitHub Actions с Node 20 runtime после отдельной проверки
   новых immutable commit SHA (текущие runs показывают deprecation warning, но
   это не причина падения jobs).
