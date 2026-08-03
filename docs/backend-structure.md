@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 5 |
-| Дата актуальности | 2026-07-31 |
+| Версия | 6 |
+| Дата актуальности | 2026-08-03 |
 | Владелец | Maksim Smolkov |
 | Источник | E1-07—E1-10, ADR-001, ADR-006, ADR-007, ADR-012 и ADR-015—017 |
 
@@ -27,10 +27,9 @@ App\<Module>\Adapter
 `App\Infrastructure` — отдельный технический модуль, а не четвёртый слой каждого
 бизнес-модуля и не Shared Kernel.
 
-E1-08 физически создаёт persistence-часть `App\IdentityAccess\` и технические
-records первого вертикального среза. E1-10 добавляет чистый token-purpose в
-Domain, прикладную activation access policy, password hashing port и Symfony
-adapter — только компоненты с фактической функцией в первом срезе.
+В `App\IdentityAccess\` реализованы persistence-часть регистрации и активации,
+чистый token-purpose в Domain, прикладная activation access policy, password
+hashing port и Symfony adapter.
 Модули `Connects`, `Debts`, `Transfers` и `Invitations` появятся только вместе с
 первым реальным компонентом соответствующего сценария.
 
@@ -285,5 +284,6 @@ Infrastructure хранит ссылку outbox на action token как UUID, �
 - [ADR-016 — криптографический профиль UserActionToken](adr/architecture-decisions.md#adr-016-криптографический-профиль-useractiontoken);
 - [ADR-017 — профиль JWT access token](adr/architecture-decisions.md#adr-017-профиль-jwt-access-token).
 
-Граница реализации взята из [описания первого вертикального среза](first-vertical-slice.md)
-и его [критериев приёмки](first-vertical-slice-acceptance.md).
+Текущая граница реализации соответствует [границам MVP](mvp-scope.md),
+[бизнес-правилам](business-rules/business-rules.md) и
+[HTTP-контрактам](api/http-contracts.md).

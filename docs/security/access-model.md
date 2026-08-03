@@ -1,17 +1,17 @@
-# Equo — фактическая модель доступа первого вертикального среза
+# Equo — фактическая модель доступа MVP
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать реализованную в E1-10 модель доступа регистрации и активации |
+| Назначение | Описать реализованную модель доступа регистрации и активации |
 | Статус | Accepted |
-| Версия | 4 |
-| Дата актуальности | 2026-08-02 |
+| Версия | 5 |
+| Дата актуальности | 2026-08-03 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-10—E1-11; E1-13; BR-USR-001—003/009; BR-SEC-003—004; ADR-006/007/012/014—018; первый вертикальный срез |
+| Источник | BR-USR-001—003/009; BR-SEC-003—004; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
 
 ## 1. Граница реализации
 
-Первый вертикальный срез содержит только публичную регистрацию и применение
+Текущая реализация содержит публичную регистрацию и применение
 `ACTIVATE_ACCOUNT`. Login, JWT access token, refresh cookie, `UserSession`,
 logout и финансовые protected endpoints явно исключены. Поэтому E1-10 не
 добавляет production firewall, authenticator, временный bearer header,
@@ -69,8 +69,8 @@ Policy находится в `App\IdentityAccess\Application\Authorization` и �
 ADR-016 задаёт token как
 `<keyVersion>.<base64url(32 cryptographically random bytes)>`, а сохранённый
 `tokenHash` как versioned HMAC-SHA-256 digest полного token. Key ring находится
-вне БД/репозитория, старый verification key хранится минимум 31 день. E1-13
-реализует generation, digest lookup, purpose/lifecycle policy и атомарное
+вне БД/репозитория, старый verification key хранится минимум 31 день. Реализация
+включает generation, digest lookup, purpose/lifecycle policy и атомарное
 применение в `RegisterUser`/`ActivateAccount`. Token и связанный User
 блокируются в транзакции; `userId` всегда берётся из server-side token record.
 
@@ -136,5 +136,4 @@ healthcheck.
 - [Бизнес-правила](../business-rules/business-rules.md);
 - [HTTP-контракты](../api/http-contracts.md);
 - [ADR-006, ADR-007, ADR-012 и ADR-014—ADR-018](../adr/architecture-decisions.md);
-- [первый вертикальный срез](../first-vertical-slice.md#13-права-доступа-и-безопасность);
-- [критерии приёмки](../first-vertical-slice-acceptance.md#66-права-token-lifecycle-и-переход-состояния).
+- [Границы MVP](../mvp-scope.md).

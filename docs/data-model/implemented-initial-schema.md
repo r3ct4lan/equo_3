@@ -2,17 +2,16 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Зафиксировать фактически реализованную в E1-08 часть модели данных первого вертикального среза |
+| Назначение | Зафиксировать фактически реализованную часть модели данных текущего MVP |
 | Статус | Accepted |
-| Версия | 5 |
-| Дата актуальности | 2026-08-02 |
+| Версия | 6 |
+| Дата актуальности | 2026-08-03 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-08—E1-10, E1-12—E1-13 и аудит E1-16; модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016, ADR-019 |
+| Источник | Модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016, ADR-019; фактические migrations и mapping |
 
 ## 1. Граница реализации
 
-Для регистрации и активации аккаунта реализованы только четыре записи, без
-которых невозможно выполнить первый вертикальный сценарий:
+Для реализованных регистрации и активации аккаунта используются четыре записи:
 
 | ER-сущность | Таблица | Doctrine-класс | Владелец |
 |---|---|---|---|
@@ -115,8 +114,7 @@ used token; user и expiry idempotency record; pending outbox по
 
 ## 4. Что реализовано в Application/Domain
 
-PostgreSQL не дублирует контекстные правила. В E1-13 для первого среза
-реализованы:
+PostgreSQL не дублирует контекстные правила. В Application/Domain реализованы:
 
 - нормализация email перед сохранением и проверка уникальности;
 - PasswordHasher `auto` и ADR-016 для password/action token;
@@ -127,7 +125,7 @@ PostgreSQL не дублирует контекстные правила. В E1-
 - сериализация конкурентных registration/activation через advisory lock,
   уникальные ограничения и pessimistic row locks.
 
-Не входит в первый срез и остаётся отложенным физический retention cleanup по
+Остаётся отложенным физический retention cleanup по
 ADR-014. Выдача replacement token с блокировкой существующего `User` относится
 к исключённому resend/reactivation flow; первичная регистрация создаёт первый
 token вместе с новой строкой `User`.
@@ -138,8 +136,8 @@ token вместе с новой строкой `User`.
 `Transfer` и `UserSession`: они не нужны для регистрации и активации и относятся
 к следующим вертикальным сценариям. Не создавались mapper-слой для полной
 ER-модели, fixtures и демонстрационные данные. Минимальные repositories, domain
-objects и application use cases регистрации/активации добавлены в E1-13 и
-описаны в [backend-реализации](../first-vertical-slice-backend-implementation.md).
+objects и application use cases регистрации/активации находятся в модуле
+`IdentityAccess`.
 Purpose enum и access policy описаны в
 [модели доступа](../security/access-model.md) и не меняют схему.
 
@@ -167,6 +165,5 @@ up-to-date status и синхронность mapping/schema, запускает
 - [Модель сущностей](entities.md);
 - [ER-диаграмма](er-diagram.md);
 - [Бизнес-правила](../business-rules/business-rules.md);
-- [Первый вертикальный срез](../first-vertical-slice.md) и
-  [критерии приёмки](../first-vertical-slice-acceptance.md);
+- [Границы MVP](../mvp-scope.md);
 - [ADR-001, ADR-006, ADR-007, ADR-009 и ADR-011—ADR-016](../adr/architecture-decisions.md).

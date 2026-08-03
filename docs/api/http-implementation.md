@@ -2,17 +2,17 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 после E1-09 и endpoint первого среза после E1-13 |
+| Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных endpoint регистрации/активации |
 | Статус | Accepted |
-| Версия | 2 |
-| Дата актуальности | 2026-08-02 |
+| Версия | 3 |
+| Дата актуальности | 2026-08-03 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-09; E1-13; HTTP-контракты v2; ADR-012; ADR-015; OQ-015 |
+| Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
 
 ## 1. Граница реализации
 
 Общий HTTP-слой реализует transport concerns и остаётся отделён от предметной
-логики. E1-13 добавляет production routes `/api/v1/auth/register` и
+логики. Реализованы production routes `/api/v1/auth/register` и
 `/api/v1/auth/activate`; их controllers используют общий DTO/error/response
 pipeline и вызывают application use case. Также доступен `/api/health`.
 Fixture routes с префиксом `/api/v1/_test/http` и их controller загружаются
@@ -197,6 +197,4 @@ password policy, token lifecycle/capability, rate limits, отсутствие s
 
 - [HTTP-контракты API v1](http-contracts.md);
 - [ADR-012 и ADR-015](../adr/architecture-decisions.md);
-- [OQ-015](../open-questions.md#oq-015);
-- [первый вертикальный срез](../first-vertical-slice.md) и
-  [критерии приёмки](../first-vertical-slice-acceptance.md).
+- [OQ-015](../open-questions.md#oq-015).
