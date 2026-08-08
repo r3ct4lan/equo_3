@@ -1,0 +1,16 @@
+security:
+    firewalls:
+        dev:
+            pattern: ^/(_profiler|_wdt|assets|build)/
+            security: false
+        main:
+            security: false
+
+    access_control:
+        # Production auth rules are added with the authenticator stage.
+
+when@test:
+    security:
+        firewalls:
+            main:
+                security: false

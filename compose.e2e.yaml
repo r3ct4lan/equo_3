@@ -18,6 +18,15 @@ x-backend-environment: &backend-environment
   IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION: v1
   IDEMPOTENCY_FINGERPRINT_HMAC_KEYS: '{"v1":"aWRlbXBvdGVuY3ktZmluZ2VycHJpbnQtZGV2LWtleS0zMiEh"}'
   EMAIL_PAYLOAD_KEY: ZW1haWwtcGF5bG9hZC1kZXYta2V5LTMyLWJ5dGVzISE=
+  EQUO_JWT_SIGNING_KEY_VERSION: v1
+  EQUO_JWT_SIGNING_PRIVATE_KEY: base64-encoded-rsa-private-key-placeholder
+  EQUO_JWT_PUBLIC_KEY_RING: '{"v1":"base64-encoded-rsa-public-key-placeholder"}'
+  EQUO_JWT_ISSUER: https://equo.test
+  EQUO_JWT_AUDIENCE: equo-api
+  EQUO_JWT_ACCESS_TTL_SECONDS: '900'
+  EQUO_JWT_CLOCK_SKEW_SECONDS: '30'
+  EQUO_CSRF_SIGNING_KEY_VERSION: v1
+  EQUO_CSRF_SIGNING_KEY_RING: '{"v1":"base64-encoded-32-byte-csrf-key-placeholder"}'
 
 services:
   postgres:

@@ -19,6 +19,22 @@ services:
         alias: App\IdentityAccess\Adapter\Security\VersionedRequestFingerprint
         public: true
 
+    App\IdentityAccess\Application\Port\AccessTokenIssuerPort:
+        alias: App\IdentityAccess\Adapter\Security\Rs256AccessTokenCodec
+        public: true
+
+    App\IdentityAccess\Application\Port\AccessTokenVerifierPort:
+        alias: App\IdentityAccess\Adapter\Security\Rs256AccessTokenCodec
+        public: true
+
+    App\IdentityAccess\Application\Port\RefreshTokenCodecPort:
+        alias: App\IdentityAccess\Adapter\Security\RefreshTokenCodec
+        public: true
+
+    App\IdentityAccess\Application\Port\CsrfTokenCodecPort:
+        alias: App\IdentityAccess\Adapter\Security\VersionedCsrfTokenCodec
+        public: true
+
     App\IdentityAccess\Application\Port\PasswordHashingPort:
         alias: App\IdentityAccess\Adapter\Security\SymfonyPasswordHasher
         public: true
