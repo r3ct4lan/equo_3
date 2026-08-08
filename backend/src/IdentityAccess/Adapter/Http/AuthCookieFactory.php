@@ -12,6 +12,18 @@ final readonly class AuthCookieFactory
     /** @return list<Cookie> */
     public function loginCookies(string $refreshToken, string $csrfToken, DateTimeImmutable $expiresAt): array
     {
+        return $this->sessionCookies($refreshToken, $csrfToken, $expiresAt);
+    }
+
+    /** @return list<Cookie> */
+    public function refreshCookies(string $refreshToken, string $csrfToken, DateTimeImmutable $expiresAt): array
+    {
+        return $this->sessionCookies($refreshToken, $csrfToken, $expiresAt);
+    }
+
+    /** @return list<Cookie> */
+    private function sessionCookies(string $refreshToken, string $csrfToken, DateTimeImmutable $expiresAt): array
+    {
         return [
             Cookie::create('equo_refresh')
                 ->withValue($refreshToken)

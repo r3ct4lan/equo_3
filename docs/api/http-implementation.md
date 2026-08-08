@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth endpoints |
 | Статус | Accepted |
-| Версия | 4 |
+| Версия | 5 |
 | Дата актуальности | 2026-08-08 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
@@ -13,8 +13,9 @@
 
 Общий HTTP-слой реализует transport concerns и остаётся отделён от предметной
 логики. Реализованы production routes `/api/v1/auth/register`,
-`/api/v1/auth/activate` и `/api/v1/auth/login`; их controllers используют общий
-DTO/error/response pipeline и вызывают application use case. Также доступен
+`/api/v1/auth/activate`, `/api/v1/auth/login` и `/api/v1/auth/refresh`; их
+controllers используют общий error/response pipeline и вызывают application use
+case. JSON-body endpoints дополнительно используют DTO mapping. Также доступен
 `/api/health`.
 Fixture routes с префиксом `/api/v1/_test/http` и их controller загружаются
 только при `APP_ENV=test`.
@@ -104,10 +105,10 @@ Architecture test запрещает production controllers зависеть о�
 Успешный ответ без тела по-прежнему создаётся обычным Symfony `Response` со
 статусом `204` и не проходит object serialization.
 
-`LoginController` строит response body явно из allow-list полей
-`accessToken`, `expiresIn` и public `user`. Refresh token и CSRF token остаются
-private internal values `LoginResult`; controller получает их только через
-callback-метод с обязательным аргументом, который generic serializer не вызывает.
+`LoginController` и `RefreshController` строят response body явно из allow-list
+полей. Refresh token и CSRF token остаются private internal values result DTO;
+controller получает их только через callback-метод с обязательным аргументом,
+который generic serializer не вызывает.
 
 ## 4.1. Реализованный login endpoint
 
@@ -132,6 +133,31 @@ Cookies:
 
 Failure responses `401`, `403`, `422`, `429` и technical `500` не устанавливают
 auth cookies.
+
+## 4.2. Реализованный refresh endpoint
+
+`POST /api/v1/auth/refresh` не принимает JSON body и не требует
+`Content-Type`. Controller вручную читает только cookies/headers через
+`RefreshRequestGuard`, затем вызывает application use case.
+
+Guard выполняет проверки в фиксированном порядке:
+
+- missing/empty `equo_refresh` cookie возвращает `401 AUTHENTICATION_REQUIRED`;
+- `Origin` должен точно совпасть с `EQUO_APPLICATION_ORIGIN`;
+- `Sec-Fetch-Site`, если присутствует, должен быть `same-origin` или `none`;
+- CSRF cookie `__Host-equo_csrf` и header `X-CSRF-Token` должны существовать и
+  совпасть;
+- application use case затем проверяет подпись CSRF token и его привязку к
+  найденной refresh-сессии.
+
+Успешный refresh в одной транзакции находит `UserSession` по digest
+предъявленного refresh token, берёт pessimistic write lock, проверяет lifecycle
+сессии и актуальное состояние пользователя, атомарно заменяет
+`refresh_token_hash`, выпускает новый access JWT и новые refresh/CSRF cookies.
+`created_at` и `expires_at` сессии не меняются, поэтому refresh не продлевает
+30-дневный срок.
+
+Failure responses `401`, `403` и technical `500` не устанавливают auth cookies.
 
 ## 5. Поток ошибки
 
@@ -166,6 +192,8 @@ connection details и secrets не передаются logger.
 | Нет `If-Match` | 428 | `PRECONDITION_REQUIRED` |
 | Rate limit | 429 | `RATE_LIMIT_EXCEEDED` |
 | Неверные login credentials | 401 | `INVALID_CREDENTIALS` |
+| Refresh cookie отсутствует | 401 | `AUTHENTICATION_REQUIRED` |
+| Refresh token malformed/unknown/expired/revoked/replayed | 401 | `INVALID_REFRESH_TOKEN` |
 | Неактивный аккаунт после верного пароля | 403 | `ACCOUNT_INACTIVE` |
 | Непредвиденная или неклассифицированная ошибка | 500 | `INTERNAL_SERVER_ERROR` |
 
@@ -225,8 +253,12 @@ password policy, token lifecycle/capability, rate limits, отсутствие s
 фактические изменения PostgreSQL. Процессные integration tests отдельно
 проверяют конкурентный replay, unique email и одноразовую активацию.
 `LoginHttpTest` проверяет production login route, точный body, JWT, cookies,
-validation, safe credential/inactive errors, login rate limits, отсутствие
-cookies/session на failure и отсутствие refresh/`/me` routes.
+validation, safe credential/inactive errors, login rate limits и отсутствие
+cookies/session на failure. `RefreshHttpTest`,
+`RefreshSessionPersistenceTest` и `RefreshConcurrencyTest` проверяют production
+refresh route, отсутствие body/content-type requirement, same-origin/CSRF guard,
+cookie rotation, неизменный session expiry, rollback, replay rejection и ровно
+одну успешную ротацию при двух конкурентных refresh requests.
 
 ## 11. Нормативные источники
 

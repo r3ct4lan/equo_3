@@ -111,6 +111,10 @@ services:
             $activeVersion: '%env(EQUO_CSRF_SIGNING_KEY_VERSION)%'
             $encodedKeyRing: '%env(EQUO_CSRF_SIGNING_KEY_RING)%'
 
+    App\IdentityAccess\Adapter\Http\RefreshRequestGuard:
+        arguments:
+            $applicationOrigin: '%env(EQUO_APPLICATION_ORIGIN)%'
+
     App\Infrastructure\EmailDelivery\Security\PayloadCipher:
         arguments:
             $encodedKey: '%env(EMAIL_PAYLOAD_KEY)%'

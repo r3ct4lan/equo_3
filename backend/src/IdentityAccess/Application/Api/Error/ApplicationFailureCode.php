@@ -18,4 +18,7 @@ enum ApplicationFailureCode: string
     case RateLimitExceeded = 'RATE_LIMIT_EXCEEDED';
     case InvalidCredentials = 'INVALID_CREDENTIALS';
     case AccountInactive = 'ACCOUNT_INACTIVE';
+    case AuthenticationRequired = 'AUTHENTICATION_REQUIRED';
+    case InvalidRefreshToken = 'INVALID_REFRESH_TOKEN';
+    case Forbidden = 'FORBIDDEN';
 }

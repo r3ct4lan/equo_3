@@ -2,9 +2,9 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать реализованную модель доступа регистрации, активации и backend login |
+| Назначение | Описать реализованную модель доступа регистрации, активации, backend login и refresh rotation |
 | Статус | Accepted |
-| Версия | 6 |
+| Версия | 7 |
 | Дата актуальности | 2026-08-08 |
 | Владелец | Maksim Smolkov |
 | Источник | BR-USR-001—003/009; BR-SEC-003—004; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
@@ -12,11 +12,13 @@
 ## 1. Граница реализации
 
 Текущая реализация содержит публичную регистрацию, применение
-`ACTIVATE_ACCOUNT` и backend login. Login создаёт `UserSession`, выдаёт JWT
-access token в response body и устанавливает refresh/CSRF cookies. Refresh
-endpoint, JWT authenticator, `/me`, logout и финансовые protected endpoints явно
-исключены. Поэтому текущий этап не добавляет production firewall, authenticator,
-временный bearer header, hardcoded пользователя или фиктивную роль.
+`ACTIVATE_ACCOUNT`, backend login и refresh rotation. Login создаёт
+`UserSession`, выдаёт JWT access token в response body и устанавливает
+refresh/CSRF cookies. Refresh endpoint ротирует refresh token и выдаёт новый
+access token без продления срока сессии. JWT authenticator, `/me`, logout и
+финансовые protected endpoints явно исключены. Поэтому текущий этап не добавляет
+production firewall, authenticator, временный bearer header, hardcoded
+пользователя или фиктивную роль.
 
 В срезе нет RBAC-ролей. Право активации является capability: его даёт только
 действующий purpose-bound token. Успешная активация не создаёт аутентификацию и
@@ -29,6 +31,7 @@ endpoint, JWT authenticator, `/me`, logout и финансовые protected end
 | Незарегистрированный посетитель | `POST /api/v1/auth/register` | Новый `User` | Публично; далее validation, idempotency и rate limit | Контрактная ошибка операции, не `401/403` |
 | Предъявитель token | `POST /api/v1/auth/activate` | `User`, связанный с найденным token | Purpose `ACTIVATE_ACCOUNT`; token не истёк, не использован и не аннулирован | `400 INVALID_TOKEN` либо соответствующий `410` |
 | Любой клиент с credentials | `POST /api/v1/auth/login` | `User` и новая `UserSession` | Публично; normalized email/password, login rate limits, `isActive = true` | `401 INVALID_CREDENTIALS`, `403 ACCOUNT_INACTIVE`, `429 RATE_LIMIT_EXCEEDED` |
+| Browser с refresh cookies | `POST /api/v1/auth/refresh` | Существующая `UserSession` | `equo_refresh`, exact `Origin`, allowed `Sec-Fetch-Site`, double-submit CSRF, signed CSRF bound to session, active session и active user | `401 AUTHENTICATION_REQUIRED`, `401 INVALID_REFRESH_TOKEN`, `403 FORBIDDEN`, `403 ACCOUNT_INACTIVE` |
 | Любой клиент | `GET /api/health` | Health state | Публично | — |
 | Authenticated user | Protected API | — | Ещё не реализовано | Реализуется на этапе authenticator и `/me` |
 
@@ -47,13 +50,16 @@ issuer/audience и clock skew не более 30 секунд. JWT authenticator
 boundary ещё не реализованы, поэтому access token пока только выдаётся и
 проверяется тестами.
 
-ADR-018 фиксирует browser lifecycle этой будущей аутентификации: access token
-находится только в памяти вкладки; reload запускает client-side
-`refresh → /me`; одновременные refresh сериализуются; protected navigation
-ожидает bootstrap. Cookie-authenticated refresh/logout защищаются точной
-same-origin проверкой и подписанным session-bound double-submit CSRF token.
-Login уже выдаёт session-bound CSRF cookie. Проверка CSRF/Origin на request
-остаётся частью будущего refresh/logout этапа.
+Refresh rotation реализует backend-часть ADR-018: cookie-authenticated refresh
+защищён точной same-origin проверкой, Fetch Metadata и подписанным
+session-bound double-submit CSRF token. Сервер находит сессию по digest refresh
+token под pessimistic lock, проверяет lifecycle и текущий `User.isActive`,
+заменяет только `refresh_token_hash` и выпускает новый access token плюс новые
+cookies. `expires_at` не сдвигается.
+
+Оставшаяся часть ADR-018 ещё впереди: access token должен жить только в памяти
+вкладки; reload запускает client-side `refresh → /me`; одновременные refresh во
+frontend сериализуются; protected navigation ждёт bootstrap.
 
 ## 4. Object authorization activation token
 
@@ -117,19 +123,22 @@ hash и всегда возвращает `false`, поэтому Application н
 | Password hashing port | `IdentityAccess\Application\Port\PasswordHashingPort` |
 | Symfony PasswordHasher adapter | `IdentityAccess\Adapter\Security\SymfonyPasswordHasher` |
 | Login use case | `IdentityAccess\Application\Login\LoginUser` |
+| Refresh use case | `IdentityAccess\Application\Refresh\RefreshSession` |
 | Login controller/cookies | `IdentityAccess\Adapter\Http\LoginController`, `AuthCookieFactory` |
+| Refresh controller/guard/cookies | `IdentityAccess\Adapter\Http\RefreshController`, `RefreshRequestGuard`, `AuthCookieFactory` |
 | Login credential lookup | `IdentityAccess\Application\Port\StoredLoginIdentity`, `DoctrineIdentityRepository` |
+| Current user lookup for refresh | `IdentityAccess\Application\Port\CurrentUserState`, `DoctrineIdentityRepository` |
 | DI binding и `auto` config | `backend/config/services.yaml` |
 | HTTP security errors | `Infrastructure\Http\ApiExceptionSubscriber` |
 
 ## 8. Сознательно отложено
 
 - current authenticated user и protected JWT authenticator;
-- refresh cookie reading, rotation, revocation и refresh endpoint;
 - production firewall/entry point/access-control для protected endpoints;
+- logout, logout-all, family-wide revoke и refresh revocation endpoints;
 - финансовые voters/policies и проверки Connect/Debt/Transfer;
-- оставшаяся реализация принятого ADR-018: in-memory token lifecycle, session
-  bootstrap, межвкладочная сериализация refresh и CSRF/CORS checks.
+- оставшаяся frontend-реализация принятого ADR-018: in-memory token lifecycle,
+  session bootstrap и межвкладочная сериализация refresh.
 
 ## 9. Проверки безопасности
 
@@ -140,7 +149,10 @@ activation requests. PasswordHasher test проверяет отсутствие
 результате, успешную проверку правильного пароля и отказ для неправильного.
 Login tests покрывают credential enumeration boundary, inactive account,
 hash-only session storage, cookie attributes, rate limits, rollback и отсутствие
-secrets в response/serializer. Общие HTTP tests продолжают проверять safe
+secrets в response/serializer. Refresh tests покрывают same-origin/CSRF guard,
+session-bound CSRF, inactive owner, malformed/unknown/expired/revoked/replayed
+refresh tokens, hash-only rotation, неизменный expiry, rollback и конкурентный
+race, где успешен ровно один запрос. Общие HTTP tests продолжают проверять safe
 errors, request ID и публичный healthcheck.
 
 ## 10. Нормативные источники

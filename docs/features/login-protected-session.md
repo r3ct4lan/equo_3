@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Название | Login и защищённая browser-сессия |
-| Статус | Backend login implemented / Ready for refresh rotation |
+| Статус | Backend refresh rotation implemented / Ready for authenticator and `/me` |
 | Дата аудита | 2026-08-08 |
 | Связанный сценарий | `MVP-SC-002` |
 | Диапазон задач | `DR-E1-001—053` |
@@ -13,9 +13,10 @@
 
 Активный пользователь входит по нормализованному email и паролю, получает
 короткоживущий JWT access token, а browser получает защищённую refresh-сессию в
-`HttpOnly` cookie. После reload frontend выполняет `refresh → /me`, восстанавливает
-current user и позволяет пользователю продолжить работу без повторного ввода
-пароля до окончания 30-дневной refresh-сессии.
+`HttpOnly` cookie. Backend уже поддерживает refresh rotation: browser может
+предъявить refresh/CSRF cookies и получить новый access token без продления
+30-дневного срока сессии. Следующий backend-шаг — Bearer authenticator и `/me`,
+после чего frontend сможет выполнять полный reload-flow `refresh → /me`.
 
 В фичу не входят logout, logout-all, reset/change password, изменение профиля,
 деактивация и финансовые страницы. Минимальная защищённая `/me`-страница нужна
@@ -73,7 +74,7 @@ state определяется доменным lifecycle: сессия неде
 - срок refresh-сессии равен 30 дням;
 - login создаёт `UserSession`, первый `refresh_token_hash` и response cookies в
   одной бизнес-транзакции до выдачи открытого token клиенту;
-- refresh выполняется в транзакции с pessimistic lock строки `UserSession`,
+- refresh реализован и выполняется в транзакции с pessimistic lock строки `UserSession`,
   проверкой текущего хэша, актуального lifecycle и `User.isActive`, после чего
   атомарно заменяет `refresh_token_hash`;
 - старый refresh token после успешной ротации не принимается.
@@ -232,14 +233,19 @@ Set-Cookie: __Host-equo_csrf=<signed-session-bound-token>; Secure; SameSite=Lax;
 ```
 
 CSRF cookie has no `Domain` and no `HttpOnly`; frontend reads it only to copy the
-value into `X-CSRF-Token`. Refresh/logout with refresh cookie require all checks:
+value into `X-CSRF-Token`. Refresh with refresh cookie requires all checks in
+this order:
 
+- refresh cookie `equo_refresh` must be present, otherwise
+  `401 AUTHENTICATION_REQUIRED`;
 - exact `Origin` match with configured application origin;
 - `Sec-Fetch-Site` is either `same-origin` or `none` when present;
 - credentialed CORS is not allowed for untrusted origins;
 - `X-CSRF-Token` equals the CSRF cookie value;
 - CSRF token signature is valid and bound to the concrete refresh session;
 - refresh rotation updates both cookies.
+
+Logout is still outside the implemented scope.
 
 `SameSite=Lax` is defense in depth, not a replacement for Origin, Fetch Metadata
 or signed session-bound double-submit CSRF.
