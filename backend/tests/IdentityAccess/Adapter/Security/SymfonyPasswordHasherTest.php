@@ -20,6 +20,10 @@ final class SymfonyPasswordHasherTest extends KernelTestCase
         $hash = $port->hash($plainPassword);
 
         self::assertNotSame($plainPassword, $hash);
+        self::assertTrue($port->verify($plainPassword, $hash));
+        self::assertFalse($port->verify('incorrect password', $hash));
+        self::assertFalse($port->verify($plainPassword, null));
+        self::assertFalse($port->verify('incorrect password', null));
     }
 
     public function testPasswordIsHashedWithConfiguredAutoHasher(): void
@@ -37,5 +41,8 @@ final class SymfonyPasswordHasherTest extends KernelTestCase
         self::assertStringNotContainsString($plainPassword, $hash);
         self::assertTrue($hasher->verify($hash, $plainPassword));
         self::assertFalse($hasher->verify($hash, 'incorrect password'));
+        self::assertTrue($port->verify($plainPassword, $hash));
+        self::assertFalse($port->verify('incorrect password', $hash));
+        self::assertFalse($port->verify($plainPassword, null));
     }
 }

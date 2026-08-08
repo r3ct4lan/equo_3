@@ -2,19 +2,20 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных endpoint регистрации/активации |
+| Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth endpoints |
 | Статус | Accepted |
-| Версия | 3 |
-| Дата актуальности | 2026-08-03 |
+| Версия | 4 |
+| Дата актуальности | 2026-08-08 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
 
 ## 1. Граница реализации
 
 Общий HTTP-слой реализует transport concerns и остаётся отделён от предметной
-логики. Реализованы production routes `/api/v1/auth/register` и
-`/api/v1/auth/activate`; их controllers используют общий DTO/error/response
-pipeline и вызывают application use case. Также доступен `/api/health`.
+логики. Реализованы production routes `/api/v1/auth/register`,
+`/api/v1/auth/activate` и `/api/v1/auth/login`; их controllers используют общий
+DTO/error/response pipeline и вызывают application use case. Также доступен
+`/api/health`.
 Fixture routes с префиксом `/api/v1/_test/http` и их controller загружаются
 только при `APP_ENV=test`.
 
@@ -45,7 +46,7 @@ HTTP request
   → transport request DTO
   → Symfony Validator
   → controller
-  → application command/use case (в следующих задачах)
+  → application command/use case
 ```
 
 Future transport DTO располагается в `<Module>\Adapter\Http\Request`, потому что
@@ -103,6 +104,35 @@ Architecture test запрещает production controllers зависеть о�
 Успешный ответ без тела по-прежнему создаётся обычным Symfony `Response` со
 статусом `204` и не проходит object serialization.
 
+`LoginController` строит response body явно из allow-list полей
+`accessToken`, `expiresIn` и public `user`. Refresh token и CSRF token остаются
+private internal values `LoginResult`; controller получает их только через
+callback-метод с обязательным аргументом, который generic serializer не вызывает.
+
+## 4.1. Реализованный login endpoint
+
+`POST /api/v1/auth/login` принимает `email` и `password`, нормализует email в
+Application через `EmailAddress`, проверяет обе login-квоты и затем выполняет
+credential lookup. Для отсутствующего пользователя password adapter всё равно
+выполняет одну реальную verification по adapter-owned dummy hash; неверный
+пароль и неизвестный email возвращают одинаковый `401 INVALID_CREDENTIALS`.
+`ACCOUNT_INACTIVE` возвращается только после успешной проверки пароля.
+
+Успешный login в одной PostgreSQL-транзакции создаёт новую `UserSession`,
+выпускает access JWT, opaque refresh token и session-bound CSRF token. Каждый
+успешный login создаёт отдельную session; предыдущие sessions не переиспользуются
+и не отзываются.
+
+Cookies:
+
+- `equo_refresh`: `HttpOnly`, `Secure`, `SameSite=Lax`,
+  `Path=/api/v1/auth`, без `Domain`, expires соответствует session expiry;
+- `__Host-equo_csrf`: not `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`,
+  без `Domain`, expires соответствует session expiry.
+
+Failure responses `401`, `403`, `422`, `429` и technical `500` не устанавливают
+auth cookies.
+
 ## 5. Поток ошибки
 
 ```text
@@ -135,6 +165,8 @@ connection details и secrets не передаются logger.
 | DTO/type/constraint validation | 422 | `VALIDATION_ERROR` |
 | Нет `If-Match` | 428 | `PRECONDITION_REQUIRED` |
 | Rate limit | 429 | `RATE_LIMIT_EXCEEDED` |
+| Неверные login credentials | 401 | `INVALID_CREDENTIALS` |
+| Неактивный аккаунт после верного пароля | 403 | `ACCOUNT_INACTIVE` |
 | Непредвиденная или неклассифицированная ошибка | 500 | `INTERNAL_SERVER_ERROR` |
 
 Business-specific `409`/`410`, password, rate-limit и точные
@@ -192,6 +224,9 @@ healthcheck.
 password policy, token lifecycle/capability, rate limits, отсутствие secrets и
 фактические изменения PostgreSQL. Процессные integration tests отдельно
 проверяют конкурентный replay, unique email и одноразовую активацию.
+`LoginHttpTest` проверяет production login route, точный body, JWT, cookies,
+validation, safe credential/inactive errors, login rate limits, отсутствие
+cookies/session на failure и отсутствие refresh/`/me` routes.
 
 ## 11. Нормативные источники
 

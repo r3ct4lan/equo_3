@@ -13,6 +13,8 @@ interface IdentityRepositoryPort
 {
     public function emailExists(string $normalizedEmail): bool;
 
+    public function loginIdentityByEmail(string $normalizedEmail): ?StoredLoginIdentity;
+
     public function addRegistration(User $user, UserActionToken $token): void;
 
     public function activationTokenForUpdate(string $tokenHash): ?StoredActivationToken;

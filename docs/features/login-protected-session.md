@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Название | Login и защищённая browser-сессия |
-| Статус | Session persistence implemented / Ready for login use case |
+| Статус | Backend login implemented / Ready for refresh rotation |
 | Дата аудита | 2026-08-08 |
 | Связанный сценарий | `MVP-SC-002` |
 | Диапазон задач | `DR-E1-001—053` |
@@ -309,9 +309,31 @@ Implemented in the security-primitives stage:
 - unit/container/HTTP regression tests proving the primitives and confirming
   existing public routes remain public.
 
-Not implemented in this stage: `user_session` migration/persistence,
-login/refresh application use cases, controllers, cookies, Symfony
-authenticator, `/me`, rate limits or frontend lifecycle.
+Implemented in the session-persistence stage:
+
+- `UserSession` domain lifecycle;
+- `user_session` migration and Doctrine mapping;
+- application repository port and Doctrine adapter;
+- pessimistic lock lookup for future refresh rotation;
+- hash-only storage, serializer protection, schema parity and rollback tests.
+
+Implemented in the backend-login stage:
+
+- `POST /api/v1/auth/login` controller and typed request DTO;
+- normalized-email credential lookup through an Application DTO, not
+  `UserRecord`;
+- official Symfony password verification with adapter-owned dummy verification
+  for unknown users;
+- login rate limits by normalized email+IP and by IP;
+- atomic `UserSession` creation, access JWT issuance, refresh token issuance and
+  session-bound CSRF issuance;
+- exact refresh and CSRF cookies via a narrow HTTP cookie factory;
+- HTTP, integration, application and sensitive-data tests.
+
+Not implemented in this stage: refresh endpoint, refresh-cookie reading,
+rotation, Origin/Fetch Metadata guard, CSRF request verification, Symfony
+authenticator, `/me`, protected firewall, logout, rate limits beyond login and
+existing public operations, or frontend lifecycle.
 
 ## 11. Зависимости и конфигурация
 
@@ -379,7 +401,7 @@ material. No real keys or production secrets belong in the repository.
 |---|---|---|---|---|---|---|---|---|
 | 1. Security primitives | Random token generator, refresh hash, CSRF signer, JWT adapter interfaces | Hashing, CSRF bind/verify, JWT claim validation | Key ring loading from env | Safe error mapping and public-route regression | — | — | — | Implemented; no custom crypto; secrets excluded from logs/serialization |
 | 2. Migration и session persistence | `user_session` migration, Doctrine record/mapping, repository | Lifecycle domain model | Schema/mapping parity, hash-only storage | — | DB lock smoke | — | — | Implemented in `Version20260808223000`; constraints match normative model: only `expires_at > created_at` CHECK for `UserSession` |
-| 3. Login | Login service, controller, rate limiters, cookie issuer | Credential branch decisions | Active/inactive users, transaction creates session | `200`, `INVALID_CREDENTIALS`, `ACCOUNT_INACTIVE`, `RATE_LIMIT_EXCEEDED` | — | Login form states | — | No account enumeration; cookies correct |
+| 3. Login | Login service, controller, rate limiters, cookie issuer | Credential branch decisions | Active/inactive users, transaction creates session | `200`, `INVALID_CREDENTIALS`, `ACCOUNT_INACTIVE`, `RATE_LIMIT_EXCEEDED` | — | — | — | Implemented for backend only; no account enumeration; cookies correct |
 | 4. Refresh | Refresh service, lock/rotation, CSRF/same-origin verifier | Lifecycle decisions | Rotation, expiry, revoked, inactive user | Cookie rotation, CSRF, Origin, errors | Two simultaneous refresh requests | Bootstrap refresh mock states | — | Old token never revives; no silent fallback |
 | 5. Authenticator и `/me` | SecurityBundle firewall, custom authenticator, current-user query, `/me` | JWT validation branches | Load current user after JWT validation | `GET /me` success/401/inactive | — | Protected route state hooks | — | Protected endpoint has real current user boundary |
 | 6. Frontend lifecycle | In-memory token holder, bootstrap, API retry, route middleware, `/me` page | Token holder and retry budget | — | — | Single-flight browser logic | `unknown/authenticated/anonymous/error`, no storage | — | One refresh and one retry max; no token persistence |
@@ -411,6 +433,11 @@ Resolved open questions:
 - `OQ-020`: no additional `UserSession.revokedAt` DB CHECK is added; terminal
   state is a domain lifecycle rule.
 
-Blockers for the next implementation stage:
+Next implementation stage:
 
-- None after `OQ-020` resolution.
+- refresh rotation with session row lock, current hash replacement,
+  same-origin/CSRF request checks and cookie rotation.
+
+Blockers:
+
+- None.

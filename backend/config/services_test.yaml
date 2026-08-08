@@ -11,6 +11,10 @@ services:
         alias: App\IdentityAccess\Application\Activate\ActivateAccount
         public: true
 
+    test.login_user:
+        alias: App\IdentityAccess\Application\Login\LoginUser
+        public: true
+
     App\IdentityAccess\Application\Port\ActionTokenCodecPort:
         alias: App\IdentityAccess\Adapter\Security\VersionedActionTokenCodec
         public: true

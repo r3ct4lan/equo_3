@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 7 |
+| Версия | 8 |
 | Дата актуальности | 2026-08-08 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-07—E1-12, ADR-001, ADR-006, ADR-007, ADR-012—017 и фактическая реализация первого вертикального среза |
+| Источник | E1-07—E1-12, backend login stage, ADR-001, ADR-006, ADR-007, ADR-012—018 и фактическая реализация auth среза |
 
 ## 1. Принцип организации
 
@@ -29,7 +29,8 @@ App\<Module>\Adapter
 
 В `App\IdentityAccess\` реализованы регистрация и активация, их Domain и
 Application use cases, persistence, прикладная activation access policy,
-password hashing, session security primitives и server-side session persistence.
+password hashing, session security primitives, server-side session persistence
+и backend login endpoint.
 Модули `Connects`, `Debts`, `Transfers` и `Invitations` появятся только вместе с
 первым реальным компонентом соответствующего сценария.
 
@@ -37,7 +38,7 @@ password hashing, session security primitives и server-side session persistence
 
 | Модуль | Ответственность | Корневое пространство имён | Состояние |
 |---|---|---|---|
-| Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация, активация и refresh-сессия | `App\IdentityAccess\` | Реализованы Domain/Application первого среза, security primitives, session persistence, HTTP/security/persistence adapters и Doctrine records |
+| Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация, активация, login и refresh-сессия | `App\IdentityAccess\` | Реализованы Domain/Application auth среза, login endpoint, security primitives, session persistence, HTTP/security/persistence adapters и Doctrine records |
 | Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Реализованы HTTP infrastructure, идемпотентность, зашифрованный outbox, relay, Messenger consumer, Mailer integration и schema listener |
 
 `IdempotencyRecord` по ADR-009 и `EmailDeliveryOutbox` по ADR-013 принадлежат
@@ -64,12 +65,12 @@ backend/
 │   │   │   ├── Access/{UserActionToken,UserActionTokenPurpose,UserSession}.php
 │   │   │   └── User/{EmailAddress,PasswordPolicy,User}.php
 │   │   ├── Application/
-│   │   │   ├── {Activate,Register}/
+│   │   │   ├── {Activate,Login,Register}/
 │   │   │   ├── Api/
 │   │   │   ├── Authorization/
 │   │   │   └── Port/
 │   │   └── Adapter/
-│   │       ├── Http/
+│   │       ├── Http/{ActivateController,AuthCookieFactory,LoginController,RegisterController}.php
 │   │       ├── Persistence/Doctrine/
 │   │       │   ├── DoctrineIdentityRepository.php
 │   │       │   ├── DoctrineUserSessionRepository.php
@@ -252,10 +253,10 @@ ORM и отражаются в SchemaTool через технический sche
 | Компонент | Расположение |
 |---|---|
 | `User`, `UserActionToken` и их прикладные инварианты | `IdentityAccess\Domain` |
-| Register/activate use cases | `IdentityAccess\Application` |
+| Register/activate/login use cases | `IdentityAccess\Application` |
 | Порт постановки action email | `IdentityAccess\Application\Port` |
 | API проверки актуальности token для доставки | `IdentityAccess\Application\Api` |
-| Контроллеры `/auth/register` и `/auth/activate`, transport request DTO | `IdentityAccess\Adapter\Http` |
+| Контроллеры `/auth/register`, `/auth/activate`, `/auth/login`, transport request DTO и auth cookie factory | `IdentityAccess\Adapter\Http` |
 | Чистые application commands/response DTO | `IdentityAccess\Application` |
 | Реализованные Doctrine records пользователя/token/session | `IdentityAccess\Adapter\Persistence\Doctrine\Record` |
 | Реализованная activation object policy | `IdentityAccess\Application\Authorization` |
