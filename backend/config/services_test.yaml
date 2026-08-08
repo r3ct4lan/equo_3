@@ -35,6 +35,10 @@ services:
         alias: App\IdentityAccess\Adapter\Security\VersionedCsrfTokenCodec
         public: true
 
+    App\IdentityAccess\Application\Port\UserSessionRepositoryPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineUserSessionRepository
+        public: true
+
     App\IdentityAccess\Application\Port\PasswordHashingPort:
         alias: App\IdentityAccess\Adapter\Security\SymfonyPasswordHasher
         public: true
