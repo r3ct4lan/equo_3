@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Название | Login и защищённая browser-сессия |
-| Статус | Contract audited / Ready for implementation |
+| Статус | Security primitives implemented / Ready for session persistence |
 | Дата аудита | 2026-08-08 |
 | Связанный сценарий | `MVP-SC-002` |
 | Диапазон задач | `DR-E1-001—053` |
@@ -296,49 +296,88 @@ tokens. `BroadcastChannel` may be used only for token-free session events such a
 `session-ended` or `refresh-completed`; it must never carry access token,
 refresh token or CSRF token.
 
-## 10. Зависимости и конфигурация
+## 10. Security primitives implementation progress
+
+Implemented in the security-primitives stage:
+
+- Application ports and DTO for access token issue/verification, refresh token
+  issue/digest and session-bound CSRF token issue/verification;
+- RS256 JWT adapter around `lcobucci/jwt`;
+- opaque refresh-token codec;
+- versioned HMAC-SHA-256 CSRF token codec;
+- DI bindings and safe env placeholders;
+- unit/container/HTTP regression tests proving the primitives and confirming
+  existing public routes remain public.
+
+Not implemented in this stage: `user_session` migration/persistence,
+login/refresh application use cases, controllers, cookies, Symfony
+authenticator, `/me`, rate limits or frontend lifecycle.
+
+## 11. Зависимости и конфигурация
 
 Current backend dependencies include Symfony 7.4 components, Doctrine ORM,
-Symfony RateLimiter, PasswordHasher, Serializer, Validator and Monolog. They do
-not currently include `symfony/security-bundle`, `symfony/security-http`,
-`symfony/security-core`, `lcobucci/jwt` or `web-token/jwt-framework`.
+Symfony RateLimiter, PasswordHasher, Serializer, Validator, Monolog,
+SecurityBundle and `lcobucci/jwt`.
 
-Required future additions:
+Added dependencies:
 
-| Need | Planned dependency | Reason |
+| Need | Dependency | Reason |
 |---|---|---|
-| Symfony production authenticator/firewall | `symfony/security-bundle:7.4.*` | Official Symfony SecurityBundle provides authentication/authorization integration and custom authenticators. |
-| JWT/JWS generation and validation | `lcobucci/jwt:^5.6` | Official package supports JWT/JWS, RS256/asymmetric signing, Composer install, PHP `~8.4.0`, `ext-openssl`, `ext-sodium`, `psr/clock`. |
-| RS256 with `kid` and key ring | App adapter around `lcobucci/jwt` | Keeps ADR-017 allow-list, exact issuer/audience and local key lookup in project code without custom crypto. |
+| Symfony production authenticator/firewall foundation | `symfony/security-bundle:7.4.*` | Installed now, but configured with `security: false` until the authenticator stage so current public endpoints stay unchanged. |
+| JWT/JWS generation and validation | `lcobucci/jwt:^5.6` | Provides RS256/JWS implementation; project code owns ADR-017 allow-list, exact issuer/audience and local key lookup. |
 
 `web-token/jwt-framework` was checked as an alternative. It is Symfony-bundle
 oriented and supports PHP `>=8.2` plus Symfony `^7.0|^8.0`, but it is broader
 JOSE/JWE infrastructure than needed for the current minimal RS256 access token.
-The audit therefore selects `lcobucci/jwt` for the next implementation stage.
+The implementation therefore uses `lcobucci/jwt`.
 
-Planned env variables:
+Implemented refresh token format:
+
+- public token: `rt.<base64url(32 random bytes)>`;
+- storage hash: `sha256:<64 lowercase hex SHA-256 digest of the public token>`;
+- malformed public tokens return no digest.
+
+Implemented CSRF token/key-ring format:
+
+- token: `<keyVersion>.<base64url(32 random bytes nonce)>.<base64url(HMAC-SHA-256 signature)>`;
+- signature message: `equo.csrf.v1`, key version, nonce and lowercased
+  `sessionId`, separated unambiguously with NUL bytes;
+- key ring: JSON object `keyVersion -> base64-encoded key`;
+- active key signs new tokens; retained old keys verify existing tokens.
+
+Implemented JWT key environment format:
+
+- `EQUO_JWT_SIGNING_PRIVATE_KEY`: base64-encoded PEM RSA private key;
+- `EQUO_JWT_PUBLIC_KEY_RING`: JSON object `kid -> base64-encoded PEM RSA public key`;
+- active `kid` must be present in the public ring;
+- RSA keys must be at least 2048 bits;
+- `EQUO_JWT_ACCESS_TTL_SECONDS` must be `900`;
+- `EQUO_JWT_CLOCK_SKEW_SECONDS` must be between `0` and `30`.
+
+Environment variables:
 
 | Variable | Purpose |
 |---|---|
 | `EQUO_JWT_SIGNING_KEY_VERSION` | Active JWT signing `kid` |
-| `EQUO_JWT_SIGNING_PRIVATE_KEY` | Active RSA private key or secret-manager reference |
-| `EQUO_JWT_PUBLIC_KEY_RING` | Versioned public verification key ring |
+| `EQUO_JWT_SIGNING_PRIVATE_KEY` | Base64-encoded PEM RSA private key or deployment-provided equivalent |
+| `EQUO_JWT_PUBLIC_KEY_RING` | JSON key ring of base64-encoded PEM RSA public keys |
 | `EQUO_JWT_ISSUER` | Exact expected issuer |
 | `EQUO_JWT_AUDIENCE` | Exact expected audience |
-| `EQUO_JWT_ACCESS_TTL_SECONDS` | Defaults to normative `900` if configurable |
-| `EQUO_JWT_CLOCK_SKEW_SECONDS` | Defaults to normative max `30` |
+| `EQUO_JWT_ACCESS_TTL_SECONDS` | Normative `900` |
+| `EQUO_JWT_CLOCK_SKEW_SECONDS` | `0—30`, max normative `30` |
 | `EQUO_CSRF_SIGNING_KEY_VERSION` | Active CSRF signing key version |
-| `EQUO_CSRF_SIGNING_KEY_RING` | CSRF signing/verification key ring |
+| `EQUO_CSRF_SIGNING_KEY_RING` | JSON key ring of base64-encoded HMAC keys, each at least 256 bits |
 | `EQUO_APPLICATION_ORIGIN` | Exact same-origin/Origin comparison value |
 | `EQUO_REFRESH_TTL_DAYS` | Defaults to normative `30` if configurable |
 
-No real keys or production secrets belong in the repository.
+Tracked env examples use intentionally invalid placeholders for JWT/CSRF key
+material. No real keys or production secrets belong in the repository.
 
-## 11. План реализации и тестовая матрица
+## 12. План реализации и тестовая матрица
 
 | Step | Production components | Unit tests | Integration tests | HTTP tests | Concurrency tests | Frontend/component tests | Browser E2E | Done criteria |
 |---|---|---|---|---|---|---|---|---|
-| 1. Security primitives | Random token generator, refresh hash, CSRF signer, JWT adapter interfaces | Hashing, CSRF bind/verify, JWT claim validation | Key ring loading from env | Safe error mapping | — | — | — | No custom crypto; secrets excluded from logs/serialization |
+| 1. Security primitives | Random token generator, refresh hash, CSRF signer, JWT adapter interfaces | Hashing, CSRF bind/verify, JWT claim validation | Key ring loading from env | Safe error mapping and public-route regression | — | — | — | Implemented; no custom crypto; secrets excluded from logs/serialization |
 | 2. Migration и session persistence | `user_session` migration, Doctrine record/mapping, repository | Lifecycle value objects | Schema/mapping parity, hash-only storage | — | DB lock smoke | — | — | Constraints match normative model: only `expires_at > created_at` CHECK for `UserSession` |
 | 3. Login | Login service, controller, rate limiters, cookie issuer | Credential branch decisions | Active/inactive users, transaction creates session | `200`, `INVALID_CREDENTIALS`, `ACCOUNT_INACTIVE`, `RATE_LIMIT_EXCEEDED` | — | Login form states | — | No account enumeration; cookies correct |
 | 4. Refresh | Refresh service, lock/rotation, CSRF/same-origin verifier | Lifecycle decisions | Rotation, expiry, revoked, inactive user | Cookie rotation, CSRF, Origin, errors | Two simultaneous refresh requests | Bootstrap refresh mock states | — | Old token never revives; no silent fallback |
@@ -347,7 +386,7 @@ No real keys or production secrets belong in the repository.
 | 7. Browser E2E/security regression | Full stack auth path | — | — | — | Refresh race in process/browser where practical | — | `register → activate → login → reload → authenticated /me` | Secrets absent from body/logs/URL/storage |
 | 8. Docs и roadmap closure | Update implemented docs/env examples/roadmap after implementation | — | — | — | — | — | Full check | Actual docs match shipped code; roadmap only checked after merge-ready completion |
 
-## 12. Решения и открытые вопросы
+## 13. Решения и открытые вопросы
 
 Подтверждённые решения:
 
@@ -358,7 +397,7 @@ No real keys or production secrets belong in the repository.
   single refresh/retry budget, no token persistence.
 - Browser primitive for cross-tab serialization: Web Locks API; token-free
   events may use BroadcastChannel.
-- Future JWT dependency: `lcobucci/jwt:^5.6`; future Symfony auth dependency:
+- JWT dependency: `lcobucci/jwt:^5.6`; Symfony auth dependency:
   `symfony/security-bundle:7.4.*`.
 
 Found contradictions:
