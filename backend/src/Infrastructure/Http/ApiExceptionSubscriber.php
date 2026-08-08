@@ -98,6 +98,9 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
                 ApplicationFailureCode::RateLimitExceeded => $this->definition(Response::HTTP_TOO_MANY_REQUESTS, 'RATE_LIMIT_EXCEEDED', 'Rate limit exceeded.'),
                 ApplicationFailureCode::InvalidCredentials => $this->definition(Response::HTTP_UNAUTHORIZED, 'INVALID_CREDENTIALS', 'Email or password is incorrect.'),
                 ApplicationFailureCode::AccountInactive => $this->definition(Response::HTTP_FORBIDDEN, 'ACCOUNT_INACTIVE', 'Account is inactive.'),
+                ApplicationFailureCode::AuthenticationRequired => $this->definition(Response::HTTP_UNAUTHORIZED, 'AUTHENTICATION_REQUIRED', 'Authentication is required.'),
+                ApplicationFailureCode::InvalidRefreshToken => $this->definition(Response::HTTP_UNAUTHORIZED, 'INVALID_REFRESH_TOKEN', 'Refresh token is invalid.'),
+                ApplicationFailureCode::Forbidden => $this->definition(Response::HTTP_FORBIDDEN, 'FORBIDDEN', 'Operation is forbidden.'),
             };
         }
 

@@ -174,13 +174,14 @@ final class LoginHttpTest extends WebTestCase
         $this->assertNoCookiesOrSessions();
     }
 
-    public function testLoginRouteIsPublicAndFutureRoutesAreAbsent(): void
+    public function testLoginRouteIsPublicRefreshExistsAndMeIsStillAbsent(): void
     {
         $this->jsonRequest([]);
         self::assertNotContains($this->client->getResponse()->getStatusCode(), [401, 403]);
 
         $this->client->request('POST', '/api/v1/auth/refresh', server: ['CONTENT_TYPE' => 'application/json'], content: '{}');
-        self::assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+        self::assertSame('AUTHENTICATION_REQUIRED', $this->error($this->jsonBody())['code']);
 
         $this->client->request('GET', '/api/v1/me');
         self::assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
