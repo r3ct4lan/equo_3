@@ -50,6 +50,9 @@ services:
     App\IdentityAccess\Application\Port\IdentityRepositoryPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository
 
+    App\IdentityAccess\Application\Port\UserSessionRepositoryPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineUserSessionRepository
+
     App\IdentityAccess\Application\Port\TransactionPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineTransaction
 

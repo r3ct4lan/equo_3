@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Название | Login и защищённая browser-сессия |
-| Статус | Security primitives implemented / Ready for session persistence |
+| Статус | Session persistence implemented / Ready for login use case |
 | Дата аудита | 2026-08-08 |
 | Связанный сценарий | `MVP-SC-002` |
 | Диапазон задач | `DR-E1-001—053` |
@@ -378,7 +378,7 @@ material. No real keys or production secrets belong in the repository.
 | Step | Production components | Unit tests | Integration tests | HTTP tests | Concurrency tests | Frontend/component tests | Browser E2E | Done criteria |
 |---|---|---|---|---|---|---|---|---|
 | 1. Security primitives | Random token generator, refresh hash, CSRF signer, JWT adapter interfaces | Hashing, CSRF bind/verify, JWT claim validation | Key ring loading from env | Safe error mapping and public-route regression | — | — | — | Implemented; no custom crypto; secrets excluded from logs/serialization |
-| 2. Migration и session persistence | `user_session` migration, Doctrine record/mapping, repository | Lifecycle value objects | Schema/mapping parity, hash-only storage | — | DB lock smoke | — | — | Constraints match normative model: only `expires_at > created_at` CHECK for `UserSession` |
+| 2. Migration и session persistence | `user_session` migration, Doctrine record/mapping, repository | Lifecycle domain model | Schema/mapping parity, hash-only storage | — | DB lock smoke | — | — | Implemented in `Version20260808223000`; constraints match normative model: only `expires_at > created_at` CHECK for `UserSession` |
 | 3. Login | Login service, controller, rate limiters, cookie issuer | Credential branch decisions | Active/inactive users, transaction creates session | `200`, `INVALID_CREDENTIALS`, `ACCOUNT_INACTIVE`, `RATE_LIMIT_EXCEEDED` | — | Login form states | — | No account enumeration; cookies correct |
 | 4. Refresh | Refresh service, lock/rotation, CSRF/same-origin verifier | Lifecycle decisions | Rotation, expiry, revoked, inactive user | Cookie rotation, CSRF, Origin, errors | Two simultaneous refresh requests | Bootstrap refresh mock states | — | Old token never revives; no silent fallback |
 | 5. Authenticator и `/me` | SecurityBundle firewall, custom authenticator, current-user query, `/me` | JWT validation branches | Load current user after JWT validation | `GET /me` success/401/inactive | — | Protected route state hooks | — | Protected endpoint has real current user boundary |
