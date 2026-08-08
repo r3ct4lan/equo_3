@@ -16,4 +16,6 @@ enum ApplicationFailureCode: string
     case TokenUsed = 'TOKEN_USED';
     case TokenInvalidated = 'TOKEN_INVALIDATED';
     case RateLimitExceeded = 'RATE_LIMIT_EXCEEDED';
+    case InvalidCredentials = 'INVALID_CREDENTIALS';
+    case AccountInactive = 'ACCOUNT_INACTIVE';
 }

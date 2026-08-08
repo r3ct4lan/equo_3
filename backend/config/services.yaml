@@ -121,6 +121,8 @@ services:
             $registrationEmailLimiter: '@limiter.registration_email'
             $activationIpLimiter: '@limiter.activation_ip'
             $activationTokenLimiter: '@limiter.activation_token'
+            $loginIpLimiter: '@limiter.login_ip'
+            $loginEmailIpLimiter: '@limiter.login_email_ip'
 
     App\Infrastructure\EmailDelivery\Messaging\SendUserActionEmailHandler:
         arguments:

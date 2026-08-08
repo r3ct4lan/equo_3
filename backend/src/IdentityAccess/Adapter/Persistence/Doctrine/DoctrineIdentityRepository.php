@@ -10,6 +10,7 @@ use App\IdentityAccess\Application\Api\TokenDeliveryState;
 use App\IdentityAccess\Application\Authorization\ActivationTokenAccess;
 use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
 use App\IdentityAccess\Application\Port\StoredActivationToken;
+use App\IdentityAccess\Application\Port\StoredLoginIdentity;
 use App\IdentityAccess\Domain\Access\UserActionToken;
 use App\IdentityAccess\Domain\User\User;
 use DateTimeImmutable;
@@ -26,6 +27,23 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
     public function emailExists(string $normalizedEmail): bool
     {
         return null !== $this->entityManager->getRepository(UserRecord::class)->findOneBy(['email' => $normalizedEmail]);
+    }
+
+    public function loginIdentityByEmail(string $normalizedEmail): ?StoredLoginIdentity
+    {
+        $record = $this->entityManager->getRepository(UserRecord::class)->findOneBy(['email' => $normalizedEmail]);
+
+        if (!$record instanceof UserRecord) {
+            return null;
+        }
+
+        return new StoredLoginIdentity(
+            $record->id(),
+            $record->name(),
+            $record->email(),
+            $record->passwordHash(),
+            $record->isActive(),
+        );
     }
 
     public function addRegistration(User $user, UserActionToken $token): void

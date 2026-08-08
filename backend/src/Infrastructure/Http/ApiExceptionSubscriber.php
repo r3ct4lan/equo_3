@@ -96,6 +96,8 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
                 ApplicationFailureCode::TokenUsed => $this->definition(Response::HTTP_GONE, 'TOKEN_USED', 'Token has already been used.'),
                 ApplicationFailureCode::TokenInvalidated => $this->definition(Response::HTTP_GONE, 'TOKEN_INVALIDATED', 'Token has been invalidated.'),
                 ApplicationFailureCode::RateLimitExceeded => $this->definition(Response::HTTP_TOO_MANY_REQUESTS, 'RATE_LIMIT_EXCEEDED', 'Rate limit exceeded.'),
+                ApplicationFailureCode::InvalidCredentials => $this->definition(Response::HTTP_UNAUTHORIZED, 'INVALID_CREDENTIALS', 'Email or password is incorrect.'),
+                ApplicationFailureCode::AccountInactive => $this->definition(Response::HTTP_FORBIDDEN, 'ACCOUNT_INACTIVE', 'Account is inactive.'),
             };
         }
 

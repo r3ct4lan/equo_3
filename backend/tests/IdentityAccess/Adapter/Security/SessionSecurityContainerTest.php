@@ -50,6 +50,9 @@ final class SessionSecurityContainerTest extends WebTestCase
 
         $client->request('POST', '/api/v1/auth/activate', server: ['CONTENT_TYPE' => 'application/json'], content: '{}');
         self::assertNotContains($client->getResponse()->getStatusCode(), [401, 403]);
+
+        $client->request('POST', '/api/v1/auth/login', server: ['CONTENT_TYPE' => 'application/json'], content: '{}');
+        self::assertNotContains($client->getResponse()->getStatusCode(), [401, 403]);
     }
 
     private static function setEnv(string $name, string $value): void
