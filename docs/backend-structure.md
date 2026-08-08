@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 6 |
-| Дата актуальности | 2026-08-03 |
+| Версия | 7 |
+| Дата актуальности | 2026-08-08 |
 | Владелец | Maksim Smolkov |
-| Источник | E1-07—E1-10, ADR-001, ADR-006, ADR-007, ADR-012 и ADR-015—017 |
+| Источник | E1-07—E1-12, ADR-001, ADR-006, ADR-007, ADR-012—017 и фактическая реализация первого вертикального среза |
 
 ## 1. Принцип организации
 
@@ -27,9 +27,9 @@ App\<Module>\Adapter
 `App\Infrastructure` — отдельный технический модуль, а не четвёртый слой каждого
 бизнес-модуля и не Shared Kernel.
 
-В `App\IdentityAccess\` реализованы persistence-часть регистрации и активации,
-чистый token-purpose в Domain, прикладная activation access policy, password
-hashing port и Symfony adapter.
+В `App\IdentityAccess\` реализованы регистрация и активация, их Domain и
+Application use cases, persistence, прикладная activation access policy,
+password hashing и security adapters.
 Модули `Connects`, `Debts`, `Transfers` и `Invitations` появятся только вместе с
 первым реальным компонентом соответствующего сценария.
 
@@ -37,8 +37,8 @@ hashing port и Symfony adapter.
 
 | Модуль | Ответственность | Корневое пространство имён | Состояние |
 |---|---|---|---|
-| Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация и активация | `App\IdentityAccess\` | Созданы token access policy, password hashing port/adapter и Doctrine records |
-| Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Созданы HTTP infrastructure, health endpoint, технические records и schema listener |
+| Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация и активация | `App\IdentityAccess\` | Реализованы Domain/Application первого среза, HTTP/security/persistence adapters и Doctrine records |
+| Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Реализованы HTTP infrastructure, идемпотентность, зашифрованный outbox, relay, Messenger consumer, Mailer integration и schema listener |
 
 `IdempotencyRecord` по ADR-009 и `EmailDeliveryOutbox` по ADR-013 принадлежат
 `Infrastructure`. Они являются техническими Doctrine records и не требуют
@@ -51,6 +51,7 @@ backend/
 ├── config/
 │   ├── packages/
 │   │   ├── doctrine.yaml
+│   │   ├── messenger.yaml
 │   │   └── validator.yaml
 │   ├── routes/test/http_fixture.yaml
 │   └── services_test.yaml
@@ -58,21 +59,37 @@ backend/
 │   └── Version20260731153000.php
 ├── src/
 │   ├── IdentityAccess/
-│   │   ├── Domain/Access/UserActionTokenPurpose.php
+│   │   ├── Domain/
+│   │   │   ├── Access/{UserActionToken,UserActionTokenPurpose}.php
+│   │   │   └── User/{EmailAddress,PasswordPolicy,User}.php
 │   │   ├── Application/
-│   │   │   ├── Authorization/ (activation access policy and decisions)
-│   │   │   └── Port/PasswordHashingPort.php
+│   │   │   ├── {Activate,Register}/
+│   │   │   ├── Api/
+│   │   │   ├── Authorization/
+│   │   │   └── Port/
 │   │   └── Adapter/
+│   │       ├── Http/
 │   │       ├── Persistence/Doctrine/Record/
 │   │       │   ├── UserRecord.php
 │   │       │   └── UserActionTokenRecord.php
-│   │       └── Security/SymfonyPasswordHasher.php
+│   │       ├── Security/
+│   │       └── System/
 │   ├── Infrastructure/
-│   │   ├── EmailDelivery/Persistence/Doctrine/Record/
-│   │   │   ├── EmailDeliveryOutboxRecord.php
-│   │   │   └── EmailDeliveryStatus.php
-│   │   ├── Idempotency/Persistence/Doctrine/Record/
-│   │   │   └── IdempotencyRecord.php
+│   │   ├── EmailDelivery/
+│   │   │   ├── Command/RelayEmailOutboxCommand.php
+│   │   │   ├── Messaging/
+│   │   │   │   ├── FinalDeliveryFailureSubscriber.php
+│   │   │   │   ├── SendUserActionEmail.php
+│   │   │   │   ├── SendUserActionEmailHandler.php
+│   │   │   │   └── UserActionEmailRetryStrategy.php
+│   │   │   ├── Outbox/OutboxRelay.php
+│   │   │   ├── Persistence/Doctrine/
+│   │   │   │   ├── DoctrineEmailOutbox.php
+│   │   │   │   └── Record/{EmailDeliveryOutboxRecord,EmailDeliveryStatus}.php
+│   │   │   └── Security/PayloadCipher.php
+│   │   ├── Idempotency/Persistence/Doctrine/
+│   │   │   ├── DoctrineIdempotency.php
+│   │   │   └── Record/IdempotencyRecord.php
 │   │   ├── Persistence/Doctrine/
 │   │   │   └── InitialSchemaForeignKeyListener.php
 │   │   └── Http/
@@ -92,8 +109,9 @@ backend/
     ├── Infrastructure/Http/
     │   ├── HealthControllerTest.php
     │   └── HttpInfrastructureTest.php
-    ├── Integration/Persistence/
-    │   └── InitialSchemaTest.php
+    ├── Integration/
+    │   ├── EmailDelivery/EmailDeliveryFlowTest.php
+    │   └── Persistence/InitialSchemaTest.php
     ├── IdentityAccess/
     │   ├── Application/Authorization/ActivationAccessPolicyTest.php
     │   └── Adapter/Security/SymfonyPasswordHasherTest.php
@@ -230,7 +248,7 @@ ORM и отражаются в SchemaTool через технический sche
 
 | Компонент | Расположение |
 |---|---|
-| Будущие `User`, `UserActionToken` и их прикладные инварианты | `IdentityAccess\Domain` |
+| `User`, `UserActionToken` и их прикладные инварианты | `IdentityAccess\Domain` |
 | Register/activate use cases | `IdentityAccess\Application` |
 | Порт постановки action email | `IdentityAccess\Application\Port` |
 | API проверки актуальности token для доставки | `IdentityAccess\Application\Api` |
@@ -240,13 +258,33 @@ ORM и отражаются в SchemaTool через технический sche
 | Реализованная activation object policy | `IdentityAccess\Application\Authorization` |
 | Purpose action token | `IdentityAccess\Domain\Access` |
 | Password hashing port и Symfony adapter | `IdentityAccess\Application\Port` и `IdentityAccess\Adapter\Security` |
-| Реализованный `IdempotencyRecord`; будущая координация повторов | `Infrastructure\Idempotency` |
-| Реализованный `EmailDeliveryOutbox`; будущие relay, consumer и Mailer integration | `Infrastructure\EmailDelivery` |
+| `IdempotencyRecord` и координация безопасных повторов регистрации | `Infrastructure\Idempotency` |
+| `EmailDeliveryOutbox`, шифрование payload, relay, Messenger consumer, retry/failure handling и Mailer integration | `Infrastructure\EmailDelivery` |
 
 Infrastructure хранит ссылку outbox на action token как UUID, а не как
 межмодульную ORM-association. Создание outbox через application port участвует в
 той же PostgreSQL-транзакции, что User и token; публикация в RabbitMQ начинается
 после commit.
+
+Фактический поток доставки первого вертикального среза:
+
+1. `DoctrineEmailOutbox` сохраняет durable intent с зашифрованным payload в
+   транзакции регистрации.
+2. `RelayEmailOutboxCommand` вызывает `OutboxRelay`, который блокирует готовую
+   запись, повторно проверяет актуальность action token и публикует только
+   `deliveryId` в RabbitMQ через Symfony Messenger.
+3. `SendUserActionEmailHandler` блокирует outbox, ещё раз проверяет token,
+   расшифровывает payload и синхронно передаёт письмо `TransportInterface`.
+4. Успешная отправка переводит запись в `SENT` и очищает payload. Ошибка SMTP
+   повторяется по нормативному расписанию; после исчерпания попыток
+   `FinalDeliveryFailureSubscriber` переводит запись в `FAILED` и очищает секрет.
+5. Compose worker последовательно запускает relay и короткоживущий
+   `messenger:consume async`; publish confirms и failure transport задаются в
+   `config/packages/messenger.yaml`.
+
+`EmailDeliveryFlowTest` проверяет успешную публикацию и доставку, повтор relay
+после отказа публикации, SMTP retry, истёкший token, terminal failure, очистку
+payload и допустимый повтор при неопределённом результате SMTP.
 
 Фактические таблицы, поля и ограничения описаны в
 [реализованной начальной схеме](data-model/implemented-initial-schema.md).
