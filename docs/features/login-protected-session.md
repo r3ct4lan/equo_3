@@ -3,13 +3,19 @@
 | Поле | Значение |
 |---|---|
 | Название | Login и защищённая browser-сессия |
-| Статус | Implemented and verified / Ready to merge |
+| Статус | Implemented, verified and merged |
 | Дата аудита | 2026-08-10 |
+| Дата merge | 2026-08-10 |
+| Merge-коммит | `94055d2 merge(auth): login and protected session` |
 | Связанный сценарий | `MVP-SC-002` |
 | Диапазон задач | `DR-E1-001—053` |
 | Feature-ветка | `feature/login-protected-session` |
 
 ## 1. Пользовательский результат
+
+Итог: фича включена в локальную `main`, этап 1
+[`docs/development-roadmap.md`](../development-roadmap.md) закрыт, финальный
+`make check-full` проходит.
 
 Активный пользователь входит по нормализованному email и паролю, получает
 короткоживущий JWT access token, а browser получает защищённую refresh-сессию в

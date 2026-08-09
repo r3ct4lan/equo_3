@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 1 |
-| Дата актуальности | 2026-08-08 |
+| Версия | 2 |
+| Дата актуальности | 2026-08-10 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
 
@@ -132,14 +132,15 @@ Feature считается завершённой, когда:
 - [ ] `DR-B-009` — повторный запрос ссылки активации; входит в этап 6;
 - [ ] `DR-B-010` — physical retention cleanup; входит в этап 7.
 
-Текущая реализация не содержит production-аутентификацию, `UserSession`,
-финансовые сущности или protected endpoints.
+Текущая реализация содержит production-аутентификацию, `UserSession`, login,
+refresh rotation, Bearer `/me` и защищённую browser-сессию. Финансовые сущности
+и финансовые protected endpoints ещё не реализованы.
 
 ## 4. Сводная карта семи этапов
 
 | Этап | Результат | Сценарии | Зависит от | Статус |
 |---:|---|---|---|---|
-| 1 | Login, refresh и защищённая browser-сессия | `MVP-SC-002`, часть `020` | исходный срез | `[ ]` |
+| 1 | Login, refresh и защищённая browser-сессия | `MVP-SC-002`, часть `020` | исходный срез | `[x]` |
 | 2 | Два пользователя создают постоянный `Connect` по приглашению | `MVP-SC-008`, часть `009/020/021` | этап 1 | `[ ]` |
 | 3 | Общий расход создаёт доли, историю и объяснимый баланс | `MVP-SC-009/011/012/015`, части `020/021` | этапы 1—2 | `[ ]` |
 | 4 | Ручной трансфер изменяет баланс | `MVP-SC-016`, части `020/021` | этап 3 | `[ ]` |
@@ -157,7 +158,7 @@ production-сессии и `Connect` сначала строится финан�
 | Область | Готово | Всего | Текущее состояние |
 |---|---:|---:|---|
 | Реализованный baseline | 8 | 10 | Первый ограниченный срез работает |
-| Этап 1 | 0 | 53 | Не начат |
+| Этап 1 | 53 | 53 | Завершён |
 | Этап 2 | 0 | 45 | Не начат |
 | Этап 3 | 0 | 70 | Не начат |
 | Этап 4 | 0 | 28 | Не начат |
@@ -202,121 +203,121 @@ access token и защищённую refresh-сессию, может перез
 
 ### 5.3. Data и migration
 
-- [ ] `DR-E1-001` — выполнить contract audit `UserSession`, ADR-006/014/017/018
+- [x] `DR-E1-001` — выполнить contract audit `UserSession`, ADR-006/014/017/018
   и HTTP 8.4—8.5/10.1.
-- [ ] `DR-E1-002` — добавить таблицу `user_session`:
+- [x] `DR-E1-002` — добавить таблицу `user_session`:
   `id`, `user_id`, `refresh_token_hash`, `created_at`, `expires_at`,
   `revoked_at`.
-- [ ] `DR-E1-003` — добавить PK, FK `user_id → app_user.id` с `RESTRICT`,
+- [x] `DR-E1-003` — добавить PK, FK `user_id → app_user.id` с `RESTRICT`,
   unique index для `refresh_token_hash` и индексы очистки/поиска.
-- [ ] `DR-E1-004` — добавить CHECK для времён и terminal state согласно
+- [x] `DR-E1-004` — добавить CHECK для времён и terminal state согласно
   ER-модели.
-- [ ] `DR-E1-005` — реализовать Doctrine record/mapping и доказать
+- [x] `DR-E1-005` — реализовать Doctrine record/mapping и доказать
   schema/mapping parity.
-- [ ] `DR-E1-006` — хранить только криптографический хэш refresh token;
+- [x] `DR-E1-006` — хранить только криптографический хэш refresh token;
   открытый token существует только в момент выдачи клиенту.
 
 ### 5.4. Backend Domain/Application
 
-- [ ] `DR-E1-007` — определить session lifecycle: create, rotate, expire,
+- [x] `DR-E1-007` — определить session lifecycle: create, rotate, expire,
   revoke и reject replay.
-- [ ] `DR-E1-008` — реализовать проверку нормализованного email и password
+- [x] `DR-E1-008` — реализовать проверку нормализованного email и password
   через существующий PasswordHasher adapter.
-- [ ] `DR-E1-009` — запретить login для `User.isActive = false` без
+- [x] `DR-E1-009` — запретить login для `User.isActive = false` без
   различающей утечки лишних сведений.
-- [ ] `DR-E1-010` — реализовать атомарное создание refresh-сессии при login.
-- [ ] `DR-E1-011` — реализовать refresh с pessimistic lock строки сессии и
+- [x] `DR-E1-010` — реализовать атомарное создание refresh-сессии при login.
+- [x] `DR-E1-011` — реализовать refresh с pessimistic lock строки сессии и
   атомарной заменой хэша.
-- [ ] `DR-E1-012` — отклонять истёкшую, отозванную или уже ротированную
+- [x] `DR-E1-012` — отклонять истёкшую, отозванную или уже ротированную
   refresh-сессию.
-- [ ] `DR-E1-013` — решить нормативное поведение при replay старого refresh
+- [x] `DR-E1-013` — решить нормативное поведение при replay старого refresh
   token строго по ADR/контракту; не добавлять silent fallback.
-- [ ] `DR-E1-014` — реализовать current-user query, который возвращает только
+- [x] `DR-E1-014` — реализовать current-user query, который возвращает только
   `id`, `name`, `email`, `isActive` и `createdAt`.
-- [ ] `DR-E1-015` — проверять актуальный `isActive` для protected commands,
+- [x] `DR-E1-015` — проверять актуальный `isActive` для protected commands,
   не полагаясь только на claim JWT.
 
 ### 5.5. Security adapters
 
-- [ ] `DR-E1-016` — реализовать RS256 JWT signer/verifier с
+- [x] `DR-E1-016` — реализовать RS256 JWT signer/verifier с
   `typ=at+jwt`, versioned `kid` и claims
   `iss/aud/sub/iat/exp/jti`.
-- [ ] `DR-E1-017` — зафиксировать access TTL 15 минут и clock skew не более
+- [x] `DR-E1-017` — зафиксировать access TTL 15 минут и clock skew не более
   30 секунд.
-- [ ] `DR-E1-018` — загрузить signing/verification key ring только из
+- [x] `DR-E1-018` — загрузить signing/verification key ring только из
   окружения; секреты и private key не коммитить.
-- [ ] `DR-E1-019` — создать Symfony authenticator/current-user boundary без
+- [x] `DR-E1-019` — создать Symfony authenticator/current-user boundary без
   передачи Doctrine record в controller.
-- [ ] `DR-E1-020` — выдавать refresh token только в `HttpOnly`,
+- [x] `DR-E1-020` — выдавать refresh token только в `HttpOnly`,
   `Secure` production-cookie с нормативными `SameSite`, `Path` и сроком.
-- [ ] `DR-E1-021` — реализовать session-bound signed double-submit CSRF token
+- [x] `DR-E1-021` — реализовать session-bound signed double-submit CSRF token
   для refresh.
-- [ ] `DR-E1-022` — реализовать точную same-origin проверку; не использовать
+- [x] `DR-E1-022` — реализовать точную same-origin проверку; не использовать
   wildcard CORS с credentials.
-- [ ] `DR-E1-023` — применить login rate limits по email+IP и IP.
-- [ ] `DR-E1-024` — исключить password, refresh token, cookie, CSRF secret,
+- [x] `DR-E1-023` — применить login rate limits по email+IP и IP.
+- [x] `DR-E1-024` — исключить password, refresh token, cookie, CSRF secret,
   JWT и их хэши из logs и serialization.
 
 ### 5.6. HTTP
 
-- [ ] `DR-E1-025` — реализовать `POST /api/v1/auth/login` с точными
+- [x] `DR-E1-025` — реализовать `POST /api/v1/auth/login` с точными
   request/response/error contract.
-- [ ] `DR-E1-026` — реализовать `POST /api/v1/auth/refresh` и rotation cookie.
-- [ ] `DR-E1-027` — реализовать `GET /api/v1/me` как первый protected
+- [x] `DR-E1-026` — реализовать `POST /api/v1/auth/refresh` и rotation cookie.
+- [x] `DR-E1-027` — реализовать `GET /api/v1/me` как первый protected
   endpoint.
-- [ ] `DR-E1-028` — возвращать `AUTHENTICATION_REQUIRED` для отсутствующего
+- [x] `DR-E1-028` — возвращать `AUTHENTICATION_REQUIRED` для отсутствующего
   или недействительного access token.
-- [ ] `DR-E1-029` — сохранить единый error envelope и `X-Request-Id` во всех
+- [x] `DR-E1-029` — сохранить единый error envelope и `X-Request-Id` во всех
   auth ветках.
-- [ ] `DR-E1-030` — проверить отсутствие account enumeration в
+- [x] `DR-E1-030` — проверить отсутствие account enumeration в
   `INVALID_CREDENTIALS` и rate-limit responses.
 
 ### 5.7. Frontend
 
-- [ ] `DR-E1-031` — добавить страницу `/login` с pending, validation,
+- [x] `DR-E1-031` — добавить страницу `/login` с pending, validation,
   invalid credentials, inactive account и technical retry states.
-- [ ] `DR-E1-032` — реализовать in-memory access-token holder без
+- [x] `DR-E1-032` — реализовать in-memory access-token holder без
   `localStorage/sessionStorage`.
-- [ ] `DR-E1-033` — реализовать client-side bootstrap
+- [x] `DR-E1-033` — реализовать client-side bootstrap
   `refresh → /me` после загрузки приложения.
-- [ ] `DR-E1-034` — сериализовать одновременные refresh внутри вкладки.
-- [ ] `DR-E1-035` — определить межвкладочную координацию строго по ADR-018.
-- [ ] `DR-E1-036` — научить API client один раз обновлять access token после
+- [x] `DR-E1-034` — сериализовать одновременные refresh внутри вкладки.
+- [x] `DR-E1-035` — определить межвкладочную координацию строго по ADR-018.
+- [x] `DR-E1-036` — научить API client один раз обновлять access token после
   допустимого `401` без бесконечного retry loop.
-- [ ] `DR-E1-037` — добавить protected route middleware, ожидающий завершения
+- [x] `DR-E1-037` — добавить protected route middleware, ожидающий завершения
   bootstrap.
-- [ ] `DR-E1-038` — добавить минимальную защищённую страницу профиля/оболочку
+- [x] `DR-E1-038` — добавить минимальную защищённую страницу профиля/оболочку
   для доказательства сессии; не добавлять функции этапов 2—6.
-- [ ] `DR-E1-039` — исключить token/cookie/CSRF значения из Nuxt state,
+- [x] `DR-E1-039` — исключить token/cookie/CSRF значения из Nuxt state,
   rendered HTML, URL и browser logs.
-- [ ] `DR-E1-040` — обеспечить доступные loading/error/empty/focus states.
+- [x] `DR-E1-040` — обеспечить доступные loading/error/empty/focus states.
 
 ### 5.8. Tests
 
-- [ ] `DR-E1-041` — unit tests session lifecycle и JWT claims/validation.
-- [ ] `DR-E1-042` — integration tests login, hash storage, refresh rotation,
+- [x] `DR-E1-041` — unit tests session lifecycle и JWT claims/validation.
+- [x] `DR-E1-042` — integration tests login, hash storage, refresh rotation,
   expiry, revoke и inactive user.
-- [ ] `DR-E1-043` — concurrency test двух одновременных refresh: успешна ровно
+- [x] `DR-E1-043` — concurrency test двух одновременных refresh: успешна ровно
   одна нормативная ветка, старый token не оживает.
-- [ ] `DR-E1-044` — HTTP tests cookie attributes, CSRF, Origin, 401, rate
+- [x] `DR-E1-044` — HTTP tests cookie attributes, CSRF, Origin, 401, rate
   limits и safe errors.
-- [ ] `DR-E1-045` — component tests login и bootstrap states.
-- [ ] `DR-E1-046` — browser E2E:
+- [x] `DR-E1-045` — component tests login и bootstrap states.
+- [x] `DR-E1-046` — browser E2E:
   `register → activate → login → reload → authenticated /me`.
-- [ ] `DR-E1-047` — security regression: секреты отсутствуют в response body,
+- [x] `DR-E1-047` — security regression: секреты отсутствуют в response body,
   logs, URL и browser storage.
 
 ### 5.9. Документация и exit criteria
 
-- [ ] `DR-E1-048` — обновить реализованную схему, backend structure,
+- [x] `DR-E1-048` — обновить реализованную схему, backend structure,
   access model, frontend foundation и HTTP implementation.
-- [ ] `DR-E1-049` — добавить env-переменные и безопасные development defaults
+- [x] `DR-E1-049` — добавить env-переменные и безопасные development defaults
   в `.env.example`/README без production secrets.
-- [ ] `DR-E1-050` — `make check` и расширенный browser E2E проходят.
-- [ ] `DR-E1-051` — активный пользователь сохраняет сессию после reload.
-- [ ] `DR-E1-052` — неактивный пользователь и злоумышленник с неверным token
+- [x] `DR-E1-050` — `make check` и расширенный browser E2E проходят.
+- [x] `DR-E1-051` — активный пользователь сохраняет сессию после reload.
+- [x] `DR-E1-052` — неактивный пользователь и злоумышленник с неверным token
   не получают protected data.
-- [ ] `DR-E1-053` — этап 1 закрыт и строка сводной карты отмечена `[x]`.
+- [x] `DR-E1-053` — этап 1 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
 
@@ -1157,7 +1158,7 @@ Definition of Ready.
 | Сценарий | Категория | Где реализуется/хранится | Статус |
 |---|---|---|---|
 | `MVP-SC-001` | Must | baseline + этап 6 | `[ ]` частично |
-| `MVP-SC-002` | Must | этап 1 | `[ ]` |
+| `MVP-SC-002` | Must | этап 1 | `[x]` |
 | `MVP-SC-003` | Must | этап 6 | `[ ]` |
 | `MVP-SC-004` | Must | этап 6 | `[ ]` |
 | `MVP-SC-005` | Must | этап 6 | `[ ]` |
@@ -1204,4 +1205,5 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 2 | 2026-08-10 | Этап 1 завершён: login, refresh, protected browser session и `/me`; `MVP-SC-002` закрыт |
 | 1 | 2026-08-08 | Создана подробная дорожная карта семи обязательных этапов, post-MVP backlog и traceability всех 29 сценариев |
