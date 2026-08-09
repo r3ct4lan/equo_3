@@ -2,31 +2,31 @@ framework:
     rate_limiter:
         registration_ip:
             policy: sliding_window
-            limit: 5
+            limit: '%env(int:EQUO_REGISTRATION_IP_LIMIT)%'
             interval: '1 hour'
             cache_pool: cache.rate_limiter
         registration_email:
             policy: sliding_window
-            limit: 3
+            limit: '%env(int:EQUO_REGISTRATION_EMAIL_LIMIT)%'
             interval: '24 hours'
             cache_pool: cache.rate_limiter
         activation_ip:
             policy: sliding_window
-            limit: 10
+            limit: '%env(int:EQUO_ACTIVATION_IP_LIMIT)%'
             interval: '15 minutes'
             cache_pool: cache.rate_limiter
         activation_token:
             policy: sliding_window
-            limit: 5
+            limit: '%env(int:EQUO_ACTIVATION_TOKEN_LIMIT)%'
             interval: '15 minutes'
             cache_pool: cache.rate_limiter
         login_ip:
             policy: sliding_window
-            limit: 30
+            limit: '%env(int:EQUO_LOGIN_IP_LIMIT)%'
             interval: '15 minutes'
             cache_pool: cache.rate_limiter
         login_email_ip:
             policy: sliding_window
-            limit: 5
+            limit: '%env(int:EQUO_LOGIN_EMAIL_IP_LIMIT)%'
             interval: '15 minutes'
             cache_pool: cache.rate_limiter

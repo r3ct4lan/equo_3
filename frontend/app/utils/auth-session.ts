@@ -319,20 +319,15 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
 
     await locks.request(AUTH_REFRESH_LOCK, async () => {
       const csrfToken = readCsrfCookie(dependencies.document)
-      if (!csrfToken) {
-        throw new ApiClientError({
-          kind: 'api',
-          status: 401,
-          code: 'AUTHENTICATION_REQUIRED',
-          message: 'Authentication is required.'
-        })
-      }
-
       const response = await dependencies.api<RefreshResponse>(REFRESH_ENDPOINT, {
         method: 'POST',
-        headers: {
-          'X-CSRF-Token': csrfToken
-        }
+        ...(csrfToken
+          ? {
+              headers: {
+                'X-CSRF-Token': csrfToken
+              }
+            }
+          : {})
       })
       accessToken = response.accessToken
     })
