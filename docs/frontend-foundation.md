@@ -2,22 +2,24 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные экраны регистрации/активации |
+| Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth-экраны |
 | Статус | Implemented |
-| Версия | 5 |
-| Дата актуальности | 2026-08-03 |
+| Версия | 6 |
+| Дата актуальности | 2026-08-09 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v4; ADR-001/006/012/017/018; реализация HTTP-слоя; модель доступа; фактический frontend |
 
 ## 1. Граница реализации
 
-Frontend содержит общий фундамент и публичные экраны регистрации и активации. Nuxt
+Frontend содержит общий фундамент, публичные экраны регистрации и активации,
+login, browser session lifecycle и минимальную защищённую `/me`-страницу. Nuxt
 `error.vue` отвечает за безопасное состояние `404` и непредвиденную ошибку.
 
-Первый вертикальный срез публичен. Production JWT authenticator, refresh,
-`GET /api/v1/me` и `UserSession` ещё отсутствуют в backend согласно
-[модели доступа](security/access-model.md). Поэтому E1-11 не создаёт login page,
-protected page или route middleware и не имитирует их тестовым endpoint.
+Auth frontend следует ADR-018: access token хранится только в client-side
+closure текущей вкладки, bootstrap выполняет `refresh -> /me`, а protected
+route middleware является UX-границей поверх обязательной backend authorization.
+Logout, logout-all, reset/change password и browser E2E остаются вне этого
+слоя.
 
 ## 2. Фактическая структура
 
@@ -38,12 +40,13 @@ frontend/
 │   │   ├── useApiForm.ts
 │   │   └── useCurrentUser.ts
 │   ├── layouts/default.vue
-│   ├── pages/{index,register,activate}.vue
-│   ├── plugins/api.ts
+│   ├── middleware/auth.ts
+│   ├── pages/{index,register,activate,login,me}.vue
+│   ├── plugins/{api,auth.client}.ts
 │   ├── types/{api,session}.ts
 │   ├── types/nuxt.d.ts
-│   └── utils/{api-error,auth-flow}.ts
-├── tests/unit/{api-error,auth-flow}.test.mjs
+│   └── utils/{api-error,auth-flow,auth-session}.ts
+├── tests/unit/{api-error,auth-flow,auth-session}.test.mjs
 ├── Dockerfile
 ├── nuxt.config.ts
 └── package.json
@@ -55,32 +58,35 @@ frontend/
 - `layouts` задаёт application shell, но не предметную навигацию;
 - `components` содержит небольшие transport-agnostic UI-состояния;
 - `composables` координирует реактивное состояние и форму;
-- `plugins/api.ts` является единственной HTTP-границей приложения;
+- `plugins/api.ts` является единственной HTTP-transport границей приложения;
+- `plugins/auth.client.ts` владеет browser session lifecycle и предоставляет
+  `$auth`;
 - `types` повторяет только реально используемую часть публичного контракта;
 - `utils` содержит чистую нормализацию, которую можно тестировать без Nuxt.
 
-Первый небольшой feature не вводит отдельную иерархию каталогов: его страницы
-находятся в `pages`, transport-типы — в `types/api.ts`, а чистая validation,
-семантика ошибок и lifecycle idempotency attempt — в `utils/auth-flow.ts`.
+Первый auth-срез не вводит отдельную иерархию каталогов: страницы находятся в
+`pages`, transport-типы - в `types/api.ts`, чистая validation, семантика ошибок
+и lifecycle idempotency attempt регистрации - в `utils/auth-flow.ts`, а
+session lifecycle - в `utils/auth-session.ts`.
 
 ## 3. Application shell и маршруты
 
 `app.vue` использует стандартные `NuxtLayout` и `NuxtPage`. Default layout
 содержит skip link, семантические `header/nav/main/footer`, адаптивный контейнер
-и ссылки только на существующие Home и Register. Стартовая страница показывает нейтральное
-состояние приложения и после hydration выполняет реальный `GET /api/health`
+и ссылки Home, Login/Register либо My profile в зависимости от состояния
+сессии. Стартовая страница показывает нейтральное состояние приложения и после
+hydration выполняет реальный `GET /api/health`
 через `$api`. Проверка выполняется client-side, чтобы frontend healthcheck и
 SSR shell не образовывали циклическую зависимость от Nginx/API при старте.
 
 Неизвестный route обрабатывается `error.vue`: клиент не видит исходное exception
 message или внутренний stack trace.
 
-Route middleware отсутствует намеренно. Перед первым protected route необходимо:
-
-1. реализовать backend login/refresh/current-user;
-2. реализовать принятый ADR-018 session bootstrap;
-3. дождаться завершения bootstrap до решения redirect;
-4. считать frontend guard только UX-границей, не заменой backend authorization.
+`middleware/auth.ts` работает только в browser runtime: он ждёт `$auth.bootstrap`
+и перенаправляет только подтверждённо anonymous пользователя на `/login` с
+безопасным local `redirect`. Ошибка bootstrap остаётся в error state, чтобы UI
+мог предложить retry и не выдавал ложный anonymous redirect. Backend остаётся
+единственным источником authorization для защищённых данных.
 
 ## 4. Runtime-конфигурация API
 
@@ -117,7 +123,8 @@ component/composable
 - добавляет `Content-Type: application/json` только запросу с body;
 - принимает access token только явным параметром и нигде его не сохраняет;
 - использует `credentials: include` для будущей согласованной refresh cookie;
-- очищает состояние текущего пользователя при `401`, но не выполняет redirect;
+- не меняет состояние текущего пользователя на generic `401`; auth transitions
+  принадлежат `$auth`;
 - не показывает toast и не содержит предметных решений.
 
 ## 6. Ошибки API
@@ -160,12 +167,16 @@ network failure.
 token и cookie недоступны состоянию. Composable предоставляет переходы
 `setAuthenticated`, `setAnonymous`, `setError`, `reset`.
 
-Сетевой `check()` намеренно отсутствует: backend endpoint и production auth ещё
-не реализованы. Стратегия больше не является открытым вопросом: ADR-018 требует
-client-only in-memory access token, browser bootstrap `refresh → /me`,
-single-flight refresh и ожидание bootstrap перед protected redirect. Token не
-должен попадать в `useState` или SSR payload; текущий composable уже соблюдает
-эту границу, сохраняя только публичного пользователя и статус.
+Сетевой lifecycle реализован в `$auth`, а `useCurrentUser` остаётся только
+публичным сериализуемым состоянием. `$auth` хранит access token в private
+closure, выполняет browser bootstrap `refresh -> /me`, сериализует refresh
+через Web Locks и предоставляет `protectedRequest` с одним refresh и одним
+retry после access-token `401`. Token не попадает в `useState`, SSR payload,
+storage, URL или cross-tab messages.
+
+Refresh требует Web Locks API: если браузер не может скоординировать refresh,
+операция завершается безопасной ошибкой без отправки refresh request.
+`BroadcastChannel` используется только для token-free события `session-ended`.
 
 ## 8. Формы и общие UI-состояния
 
@@ -189,7 +200,7 @@ Backend остаётся источником бизнес-правил. Реа�
 CSS задаёт читаемую типографику, spacing/container, focus, базовые form/error
 стили и `prefers-reduced-motion`; branding и UI framework не вводились.
 
-## 9. Первый вертикальный сценарий
+## 9. Реализованные auth-сценарии
 
 `/register` принимает только `name`, `email`, `password`, выполняет лёгкую
 клиентскую validation для удобства и отправляет точный request через `$api` в
@@ -209,8 +220,20 @@ ID.
 сразу заменяет URL на `/activate` и вызывает `POST /api/v1/auth/activate`.
 Success `204`, invalid/expired/used/invalidated/rate и технический retry имеют
 отдельные состояния. Token не рендерится, не попадает в Nuxt state/storage и
-очищается после terminal result или ухода со страницы. Resend и login не
-имитируются, поскольку не входят в первый срез.
+очищается после terminal result или ухода со страницы. Resend не имитируется,
+поскольку не входит в текущий срез.
+
+`/login` принимает email и password, выполняет только лёгкую клиентскую
+validation обязательности и email syntax, затем вызывает `$auth.login`, который
+отправляет `POST /api/v1/auth/login`, сохраняет access token в private closure и
+переводит current user в authenticated state. Пароль очищается после успешного
+входа. Redirect принимается только как безопасный local path; внешние URL,
+protocol-relative paths и backslash paths заменяются на `/me`.
+
+`/me` защищён `middleware/auth.ts` и загружает профиль через
+`$auth.protectedRequest<CurrentUser>('/v1/me')`. Страница показывает только
+публичные поля пользователя и retryable error state; token, session id, refresh
+cookie и CSRF values не рендерятся.
 
 ## 10. Проверки
 
@@ -218,15 +241,18 @@ Success `204`, invalid/expired/used/invalidated/rate и технический r
 docker compose exec frontend npm ci
 docker compose exec frontend npm run lint
 docker compose exec frontend npm run test:unit
+docker compose exec frontend npm test
 docker compose exec frontend npm run typecheck
 docker compose exec frontend npm run build
+docker compose exec frontend npm audit --audit-level=moderate
 curl --fail http://localhost:${APP_PORT:-80}/
 curl --fail http://localhost:${APP_PORT:-80}/api/health
 ```
 
-`make check-frontend` запускает lock check, ESLint, typecheck, unit tests,
-production build и npm audit. `make check` добавляет backend, repository и smoke
-gate; полный состав описан в [quality gate E1-12](quality-gate.md).
+`make check-frontend` запускает lock check, ESLint, typecheck, unit/component
+tests, production build и npm audit. `make check` запускает repository,
+backend/frontend quality gate и smoke без browser E2E. Browser E2E вынесен в
+`make check-full`; полный состав описан в [quality gate E1-12](quality-gate.md).
 
 E1-11 не добавлял npm-пакетов. E1-12 добавляет только dev-only ESLint и
 официальный Nuxt flat config. Существующий direct `vue-router` выровнен
@@ -235,10 +261,9 @@ Nuxt Router и делал его Volar plugin недоступным для `vue
 
 ## 11. Сознательно отложено
 
-- login, refresh, logout и current-user network bootstrap;
-- реализация принятого ADR-018: in-memory token holder, session bootstrap,
-  межвкладочная сериализация refresh и signed double-submit CSRF;
-- protected route middleware;
+- logout, logout-all, reset/change password и изменение профиля;
+- browser E2E реального full-stack пути
+  `register -> activate -> login -> reload -> authenticated /me`;
 - Pinia, form/validation library, UI framework и OpenAPI generator;
 - окончательный branding, уведомления, аналитика и страницы будущих модулей.
 

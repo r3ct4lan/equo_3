@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Название | Login и защищённая browser-сессия |
-| Статус | Backend auth endpoints implemented / Ready for frontend session lifecycle |
+| Статус | Frontend session lifecycle implemented / Ready for browser E2E closure |
 | Дата аудита | 2026-08-08 |
 | Связанный сценарий | `MVP-SC-002` |
 | Диапазон задач | `DR-E1-001—053` |
@@ -18,7 +18,9 @@
 30-дневного срока сессии. Backend также поддерживает Bearer authentication и
 `GET /api/v1/me`: защищённый запрос проверяет RS256 JWT, перечитывает текущего
 пользователя из БД и блокирует inactive/unknown user единым `401
-AUTHENTICATION_REQUIRED`. Следующий шаг — frontend login/session lifecycle.
+AUTHENTICATION_REQUIRED`. Frontend реализует login/session lifecycle: вход,
+client-only bootstrap `refresh -> /me`, защищённый `/me` route и один refresh
+retry для защищённых API-запросов.
 
 В фичу не входят logout, logout-all, reset/change password, изменение профиля,
 деактивация и финансовые страницы. Минимальная защищённая `/me`-страница нужна
@@ -276,13 +278,13 @@ the account exists.
 
 ## 9. Frontend lifecycle
 
-Frontend session rules:
+Implemented frontend session rules:
 
 - access token lives only in client-side memory of the current tab;
 - no Web Storage, IndexedDB, persisted store, JS-readable token cookie, Nuxt
   `useState`, SSR payload, URL or browser logs may contain access/refresh/CSRF
   secrets;
-- after hydration bootstrap starts in `unknown`, performs single-flight
+- after hydration bootstrap starts from `unknown`, performs single-flight
   `POST /api/v1/auth/refresh`, stores access token in memory, then calls
   `GET /api/v1/me`;
 - final states are `unknown`, `authenticated`, `anonymous`, `error`;
@@ -292,20 +294,25 @@ Frontend session rules:
 - after `401` from protected API, client may perform at most one refresh and one
   retry of the original request;
 - no automatic refresh on `403`, transport error or unsuitable response;
-- minimal protected `/me` screen proves current session only.
+- minimal protected `/me` screen proves current session only;
+- login validates only required email/password and email syntax; password policy
+  remains registration-only and backend-authoritative;
+- login maps `INVALID_CREDENTIALS`, `ACCOUNT_INACTIVE`,
+  `RATE_LIMIT_EXCEEDED`, validation and technical failures to safe UI states.
 
-The current `frontend/app/plugins/api.ts` marks current user anonymous on any
-`401`. Implementation must replace this with auth-aware handling: bootstrap owns
-refresh `401`; protected request retry owns eligible access-token `401`; generic
-API errors must not bypass the single refresh/retry budget or collapse transport
-errors into anonymous state.
+`frontend/app/plugins/api.ts` no longer mutates current-user state on generic
+`401`. Auth-aware handling lives in `frontend/app/utils/auth-session.ts` and
+`frontend/app/plugins/auth.client.ts`: bootstrap owns refresh `401`; protected
+request retry owns eligible access-token `401`; generic API errors do not bypass
+the single refresh/retry budget or collapse transport errors into anonymous
+state.
 
-Chosen browser primitive for cross-tab refresh coordination: Web Locks API with
-a single origin-scoped lock name such as `equo:auth-refresh`. It serializes
-refresh calls across same-origin tabs without transferring access or refresh
-tokens. `BroadcastChannel` may be used only for token-free session events such as
-`session-ended` or `refresh-completed`; it must never carry access token,
-refresh token or CSRF token.
+Implemented browser primitive for cross-tab refresh coordination: Web Locks API
+with the origin-scoped lock name `equo:auth-refresh`. The CSRF cookie is read
+only after the lock is acquired. If Web Locks is unavailable, refresh fails
+safely without sending a refresh request. `BroadcastChannel` is used only for
+token-free `session-ended` events and never carries access token, refresh token
+or CSRF token.
 
 ## 10. Security primitives implementation progress
 
@@ -361,8 +368,25 @@ Implemented in the backend-authenticator stage:
 - `/me` HTTP, current-user persistence, public-regression, sensitive-data and
   architecture tests.
 
+Implemented in the frontend-session stage:
+
+- `$auth` Nuxt plugin with in-memory access token holder;
+- login page calling `POST /api/v1/auth/login` and redirecting only to safe
+  local paths;
+- client bootstrap `refresh -> /me` after hydration;
+- Web Locks based refresh serialization and intra-tab single-flight;
+- protected request helper with one refresh and one retry after access-token
+  `401`;
+- protected `/me` page using real `GET /api/v1/me`;
+- route middleware that waits for bootstrap before redirecting anonymous users
+  to login;
+- layout navigation reflecting `unknown`, `authenticated`, `anonymous` and
+  `error` states without logout UI;
+- unit and component regressions for validation, bootstrap states, retry budget,
+  no token persistence and token-free cross-tab events.
+
 Not implemented in this stage: logout, logout-all, family-wide revoke, rate
-limits beyond login and existing public operations, or frontend lifecycle.
+limits beyond login and existing public operations, or browser E2E.
 
 ## 11. Зависимости и конфигурация
 
@@ -433,8 +457,8 @@ material. No real keys or production secrets belong in the repository.
 | 3. Login | Login service, controller, rate limiters, cookie issuer | Credential branch decisions | Active/inactive users, transaction creates session | `200`, `INVALID_CREDENTIALS`, `ACCOUNT_INACTIVE`, `RATE_LIMIT_EXCEEDED` | — | — | — | Implemented for backend only; no account enumeration; cookies correct |
 | 4. Refresh | Refresh service, lock/rotation, CSRF/same-origin verifier | Lifecycle decisions | Rotation, expiry, revoked, inactive user | Cookie rotation, CSRF, Origin, errors | Two simultaneous refresh requests | Bootstrap refresh mock states | — | Old token never revives; no silent fallback |
 | 5. Authenticator и `/me` | SecurityBundle firewall, custom authenticator, current-user query, `/me` | JWT validation branches | Load current user after JWT validation | `GET /me` success/401/inactive | — | Protected route state hooks | — | Implemented; protected endpoint has real current user boundary |
-| 6. Frontend lifecycle | In-memory token holder, bootstrap, API retry, route middleware, `/me` page | Token holder and retry budget | — | — | Single-flight browser logic | `unknown/authenticated/anonymous/error`, no storage | — | Next; one refresh and one retry max; no token persistence |
-| 7. Browser E2E/security regression | Full stack auth path | — | — | — | Refresh race in process/browser where practical | — | `register → activate → login → reload → authenticated /me` | Secrets absent from body/logs/URL/storage |
+| 6. Frontend lifecycle | In-memory token holder, bootstrap, API retry, route middleware, `/me` page | Token holder and retry budget | — | — | Single-flight browser logic | `unknown/authenticated/anonymous/error`, no storage | — | Implemented; one refresh and one retry max; no token persistence |
+| 7. Browser E2E/security regression | Full stack auth path | — | — | — | Refresh race in process/browser where practical | — | `register → activate → login → reload → authenticated /me` | Next; secrets absent from body/logs/URL/storage |
 | 8. Docs и roadmap closure | Update implemented docs/env examples/roadmap after implementation | — | — | — | — | — | Full check | Actual docs match shipped code; roadmap only checked after merge-ready completion |
 
 ## 13. Решения и открытые вопросы
@@ -448,6 +472,8 @@ material. No real keys or production secrets belong in the repository.
   single refresh/retry budget, no token persistence.
 - Browser primitive for cross-tab serialization: Web Locks API; token-free
   events may use BroadcastChannel.
+- Frontend session lifecycle is implemented with `$auth`; `$api` stays a
+  stateless transport boundary and accepts an access token only explicitly.
 - JWT dependency: `lcobucci/jwt:^5.6`; Symfony auth dependency:
   `symfony/security-bundle:7.4.*`.
 
@@ -464,8 +490,7 @@ Resolved open questions:
 
 Next implementation stage:
 
-- refresh rotation with session row lock, current hash replacement,
-  same-origin/CSRF request checks and cookie rotation.
+- browser E2E/security regression for the real full-stack reload flow.
 
 Blockers:
 
