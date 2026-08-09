@@ -121,7 +121,7 @@ component/composable
 - отключает неявные retry; retry и `Idempotency-Key` задаёт конкретная операция;
 - добавляет `Content-Type: application/json` только запросу с body;
 - принимает access token только явным параметром и нигде его не сохраняет;
-- использует `credentials: include` для будущей согласованной refresh cookie;
+- использует `credentials: include` для согласованной refresh cookie;
 - не меняет состояние текущего пользователя на generic `401`; auth transitions
   принадлежат `$auth`;
 - не показывает toast и не содержит предметных решений.

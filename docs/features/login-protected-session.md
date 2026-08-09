@@ -332,7 +332,7 @@ Implemented in the session-persistence stage:
 - `UserSession` domain lifecycle;
 - `user_session` migration and Doctrine mapping;
 - application repository port and Doctrine adapter;
-- pessimistic lock lookup for future refresh rotation;
+- pessimistic lock lookup used by implemented refresh rotation;
 - hash-only storage, serializer protection, schema parity and rollback tests.
 
 Implemented in the backend-login stage:
@@ -491,7 +491,7 @@ material. No real keys or production secrets belong in the repository.
 
 Подтверждённые решения:
 
-- `MVP-SC-002` contract audit is complete and ready for implementation.
+- `MVP-SC-002` implementation is complete and verified on the feature branch.
 - JWT profile is ADR-017: RS256, `typ=at+jwt`, versioned `kid`, minimal claims,
   exact `iss/aud`, 900-second TTL, max 30-second skew.
 - Frontend profile is ADR-018: in-memory token, bootstrap `refresh → /me`,
