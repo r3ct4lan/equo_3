@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 9 |
+| Версия | 10 |
 | Дата актуальности | 2026-08-08 |
 | Владелец | Maksim Smolkov |
 | Источник | E1-07—E1-12, backend login stage, ADR-001, ADR-006, ADR-007, ADR-012—018 и фактическая реализация auth среза |
@@ -30,7 +30,7 @@ App\<Module>\Adapter
 В `App\IdentityAccess\` реализованы регистрация и активация, их Domain и
 Application use cases, persistence, прикладная activation access policy,
 password hashing, session security primitives, server-side session persistence
-и backend login/refresh endpoints.
+и backend login/refresh/`/me` endpoints.
 Модули `Connects`, `Debts`, `Transfers` и `Invitations` появятся только вместе с
 первым реальным компонентом соответствующего сценария.
 
@@ -38,8 +38,8 @@ password hashing, session security primitives, server-side session persistence
 
 | Модуль | Ответственность | Корневое пространство имён | Состояние |
 |---|---|---|---|
-| Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация, активация, login и refresh-сессия | `App\IdentityAccess\` | Реализованы Domain/Application auth среза, login и refresh endpoints, security primitives, session persistence, HTTP/security/persistence adapters и Doctrine records |
-| Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Реализованы HTTP infrastructure, идемпотентность, зашифрованный outbox, relay, Messenger consumer, Mailer integration и schema listener |
+| Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация, активация, login, refresh-сессия и current user | `App\IdentityAccess\` | Реализованы Domain/Application auth среза, login/refresh/`/me` endpoints, Bearer authenticator/principal, security primitives, session persistence, HTTP/security/persistence adapters и Doctrine records |
+| Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Реализованы HTTP infrastructure, Bearer JSON entry point, идемпотентность, зашифрованный outbox, relay, Messenger consumer, Mailer integration и schema listener |
 
 `IdempotencyRecord` по ADR-009 и `EmailDeliveryOutbox` по ADR-013 принадлежат
 `Infrastructure`. Они являются техническими Doctrine records и не требуют
@@ -65,12 +65,12 @@ backend/
 │   │   │   ├── Access/{UserActionToken,UserActionTokenPurpose,UserSession}.php
 │   │   │   └── User/{EmailAddress,PasswordPolicy,User}.php
 │   │   ├── Application/
-│   │   │   ├── {Activate,Login,Refresh,Register}/
+│   │   │   ├── {Activate,CurrentUser,Login,Refresh,Register}/
 │   │   │   ├── Api/
 │   │   │   ├── Authorization/
 │   │   │   └── Port/
 │   │   └── Adapter/
-│   │       ├── Http/{ActivateController,AuthCookieFactory,LoginController,RefreshController,RefreshRequestGuard,RegisterController}.php
+│   │       ├── Http/{ActivateController,AuthCookieFactory,LoginController,MeController,RefreshController,RefreshRequestGuard,RegisterController}.php
 │   │       ├── Persistence/Doctrine/
 │   │       │   ├── DoctrineIdentityRepository.php
 │   │       │   ├── DoctrineUserSessionRepository.php
@@ -97,6 +97,7 @@ backend/
 │   │   │   └── InitialSchemaForeignKeyListener.php
 │   │   └── Http/
 │   │       ├── ApiExceptionSubscriber.php
+│   │       ├── BearerAuthenticationEntryPoint.php
 │   │       ├── ApiJsonResponder.php
 │   │       ├── ApiResponseSubscriber.php
 │   │       ├── HealthController.php
@@ -253,10 +254,12 @@ ORM и отражаются в SchemaTool через технический sche
 | Компонент | Расположение |
 |---|---|
 | `User`, `UserActionToken` и их прикладные инварианты | `IdentityAccess\Domain` |
-| Register/activate/login/refresh use cases | `IdentityAccess\Application` |
+| Register/activate/login/refresh/current-user use cases | `IdentityAccess\Application` |
 | Порт постановки action email | `IdentityAccess\Application\Port` |
 | API проверки актуальности token для доставки | `IdentityAccess\Application\Api` |
-| Контроллеры `/auth/register`, `/auth/activate`, `/auth/login`, `/auth/refresh`, transport request DTO, refresh guard и auth cookie factory | `IdentityAccess\Adapter\Http` |
+| Контроллеры `/auth/register`, `/auth/activate`, `/auth/login`, `/auth/refresh`, `/me`, transport request DTO, refresh guard и auth cookie factory | `IdentityAccess\Adapter\Http` |
+| Bearer authenticator и principal | `IdentityAccess\Adapter\Security` |
+| Bearer authentication entry point | `Infrastructure\Http` |
 | Чистые application commands/response DTO | `IdentityAccess\Application` |
 | Реализованные Doctrine records пользователя/token/session | `IdentityAccess\Adapter\Persistence\Doctrine\Record` |
 | Реализованная activation object policy | `IdentityAccess\Application\Authorization` |

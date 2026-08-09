@@ -7,6 +7,7 @@ namespace App\IdentityAccess\Adapter\Persistence\Doctrine;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserActionTokenRecord;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserRecord;
 use App\IdentityAccess\Application\Api\TokenDeliveryState;
+use App\IdentityAccess\Application\Api\UserView;
 use App\IdentityAccess\Application\Authorization\ActivationTokenAccess;
 use App\IdentityAccess\Application\Port\CurrentUserState;
 use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
@@ -56,6 +57,23 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
         }
 
         return new CurrentUserState($record->id(), $record->isActive());
+    }
+
+    public function currentUserProfile(string $userId): ?UserView
+    {
+        $record = $this->entityManager->find(UserRecord::class, $userId);
+
+        if (!$record instanceof UserRecord) {
+            return null;
+        }
+
+        return new UserView(
+            $record->id(),
+            $record->name(),
+            $record->email(),
+            $record->isActive(),
+            $record->createdAt(),
+        );
     }
 
     public function addRegistration(User $user, UserActionToken $token): void

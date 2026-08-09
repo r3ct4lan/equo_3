@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth endpoints |
 | Статус | Accepted |
-| Версия | 5 |
+| Версия | 6 |
 | Дата актуальности | 2026-08-08 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
@@ -13,10 +13,10 @@
 
 Общий HTTP-слой реализует transport concerns и остаётся отделён от предметной
 логики. Реализованы production routes `/api/v1/auth/register`,
-`/api/v1/auth/activate`, `/api/v1/auth/login` и `/api/v1/auth/refresh`; их
-controllers используют общий error/response pipeline и вызывают application use
-case. JSON-body endpoints дополнительно используют DTO mapping. Также доступен
-`/api/health`.
+`/api/v1/auth/activate`, `/api/v1/auth/login`, `/api/v1/auth/refresh` и
+`/api/v1/me`; их controllers используют общий error/response pipeline и
+вызывают application use case. JSON-body endpoints дополнительно используют DTO
+mapping. Также доступен `/api/health`.
 Fixture routes с префиксом `/api/v1/_test/http` и их controller загружаются
 только при `APP_ENV=test`.
 
@@ -159,6 +159,53 @@ Guard выполняет проверки в фиксированном поря
 
 Failure responses `401`, `403` и technical `500` не устанавливают auth cookies.
 
+## 4.3. Реализованный Bearer authenticator и `/me`
+
+`GET /api/v1/me` защищён stateless Symfony firewall. Public routes
+`/api/health`, `/api/v1/auth/register`, `/api/v1/auth/activate`,
+`/api/v1/auth/login` и `/api/v1/auth/refresh` остаются public на уровне Bearer
+firewall; refresh продолжает использовать собственную cookie/CSRF/same-origin
+защиту.
+
+Bearer authenticator применяется к `/api/v1/me` и принимает только один
+`Authorization` header точного вида `Bearer <access-token>`. Token передаётся в
+`AccessTokenVerifierPort`; если verification возвращает `null`, дальнейшая
+причина не раскрывается. После successful JWT verification backend загружает
+текущий профиль пользователя из PostgreSQL через current-user query и проверяет
+`isActive = true`. Unknown user, inactive user, malformed header и любая JWT
+ошибка возвращают один публичный результат:
+
+```json
+{
+  "error": {
+    "code": "AUTHENTICATION_REQUIRED",
+    "message": "Authentication is required.",
+    "requestId": "<request-id>"
+  }
+}
+```
+
+Response имеет status `401`, `Content-Type: application/json`,
+`X-Request-Id` и `WWW-Authenticate: Bearer`. Raw `AuthenticationException`
+message, Authorization header, JWT validation detail, claims and token values не
+попадают в response или log context.
+
+Успешный `/me` response строится из текущего server-side `UserView`:
+
+```json
+{
+  "id": "<uuid>",
+  "name": "<name>",
+  "email": "<normalized-email>",
+  "isActive": true,
+  "createdAt": "2026-07-26T18:42:15Z"
+}
+```
+
+`/me` не устанавливает cookies, не читает refresh cookie, не ротирует
+`UserSession`, не выпускает новый access token и не принимает token из query
+string или cookie.
+
 ## 5. Поток ошибки
 
 ```text
@@ -194,6 +241,7 @@ connection details и secrets не передаются logger.
 | Неверные login credentials | 401 | `INVALID_CREDENTIALS` |
 | Refresh cookie отсутствует | 401 | `AUTHENTICATION_REQUIRED` |
 | Refresh token malformed/unknown/expired/revoked/replayed | 401 | `INVALID_REFRESH_TOKEN` |
+| Bearer token отсутствует, malformed, invalid, expired, unknown/inactive user | 401 | `AUTHENTICATION_REQUIRED` |
 | Неактивный аккаунт после верного пароля | 403 | `ACCOUNT_INACTIVE` |
 | Непредвиденная или неклассифицированная ошибка | 500 | `INTERNAL_SERVER_ERROR` |
 
@@ -258,7 +306,11 @@ cookies/session на failure. `RefreshHttpTest`,
 `RefreshSessionPersistenceTest` и `RefreshConcurrencyTest` проверяют production
 refresh route, отсутствие body/content-type requirement, same-origin/CSRF guard,
 cookie rotation, неизменный session expiry, rollback, replay rejection и ровно
-одну успешную ротацию при двух конкурентных refresh requests.
+одну успешную ротацию при двух конкурентных refresh requests. `MeHttpTest`,
+`CurrentUserPersistenceTest` и security unit tests проверяют Bearer parsing,
+единый auth failure envelope, fresh current-user lookup, inactive/unknown user
+rejection, отсутствие cookies/session rotation на `/me`, token-source discipline
+и public endpoint regressions после включения firewall.
 
 ## 11. Нормативные источники
 

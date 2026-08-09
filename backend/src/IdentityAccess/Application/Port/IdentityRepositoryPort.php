@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\IdentityAccess\Application\Port;
 
 use App\IdentityAccess\Application\Api\TokenDeliveryState;
+use App\IdentityAccess\Application\Api\UserView;
 use App\IdentityAccess\Domain\Access\UserActionToken;
 use App\IdentityAccess\Domain\User\User;
 use DateTimeImmutable;
@@ -16,6 +17,8 @@ interface IdentityRepositoryPort
     public function loginIdentityByEmail(string $normalizedEmail): ?StoredLoginIdentity;
 
     public function currentUserState(string $userId): ?CurrentUserState;
+
+    public function currentUserProfile(string $userId): ?UserView;
 
     public function addRegistration(User $user, UserActionToken $token): void;
 

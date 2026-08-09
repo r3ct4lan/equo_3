@@ -97,6 +97,7 @@ services:
             $encodedKeyRing: '%env(IDEMPOTENCY_FINGERPRINT_HMAC_KEYS)%'
 
     App\IdentityAccess\Adapter\Security\Rs256AccessTokenCodec:
+        lazy: true
         arguments:
             $activeKeyVersion: '%env(EQUO_JWT_SIGNING_KEY_VERSION)%'
             $encodedSigningPrivateKey: '%env(EQUO_JWT_SIGNING_PRIVATE_KEY)%'
@@ -114,6 +115,10 @@ services:
     App\IdentityAccess\Adapter\Http\RefreshRequestGuard:
         arguments:
             $applicationOrigin: '%env(EQUO_APPLICATION_ORIGIN)%'
+
+    App\IdentityAccess\Adapter\Security\BearerAccessTokenAuthenticator:
+        arguments:
+            $entryPoint: '@App\Infrastructure\Http\BearerAuthenticationEntryPoint'
 
     App\Infrastructure\EmailDelivery\Security\PayloadCipher:
         arguments:

@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Название | Login и защищённая browser-сессия |
-| Статус | Backend refresh rotation implemented / Ready for authenticator and `/me` |
+| Статус | Backend auth endpoints implemented / Ready for frontend session lifecycle |
 | Дата аудита | 2026-08-08 |
 | Связанный сценарий | `MVP-SC-002` |
 | Диапазон задач | `DR-E1-001—053` |
@@ -13,10 +13,12 @@
 
 Активный пользователь входит по нормализованному email и паролю, получает
 короткоживущий JWT access token, а browser получает защищённую refresh-сессию в
-`HttpOnly` cookie. Backend уже поддерживает refresh rotation: browser может
+`HttpOnly` cookie. Backend поддерживает refresh rotation: browser может
 предъявить refresh/CSRF cookies и получить новый access token без продления
-30-дневного срока сессии. Следующий backend-шаг — Bearer authenticator и `/me`,
-после чего frontend сможет выполнять полный reload-flow `refresh → /me`.
+30-дневного срока сессии. Backend также поддерживает Bearer authentication и
+`GET /api/v1/me`: защищённый запрос проверяет RS256 JWT, перечитывает текущего
+пользователя из БД и блокирует inactive/unknown user единым `401
+AUTHENTICATION_REQUIRED`. Следующий шаг — frontend login/session lifecycle.
 
 В фичу не входят logout, logout-all, reset/change password, изменение профиля,
 деактивация и финансовые страницы. Минимальная защищённая `/me`-страница нужна
@@ -30,7 +32,7 @@
 | Login проверяет нормализованный email, пароль и `isActive` | BR-USR-003/009, HTTP 8.4, ADR-006 | 008—010, 023, 025, 030 | Login application service, password hasher port, controller | HTTP tests для success, `INVALID_CREDENTIALS`, `ACCOUNT_INACTIVE`, rate limits и отсутствия enumeration |
 | Refresh rotation выполняется под lock и атомарно заменяет хэш | BR-SEC-002, `UserSession`, HTTP 8.5 | 007, 011—013, 026, 043 | Refresh application service, transaction boundary | Integration и concurrency tests: ровно один из двух конкурентных refresh успешен |
 | JWT соответствует принятому RS256 profile | BR-SEC-001, HTTP 2.3, ADR-017 | 016—018, 041 | JWT signer/verifier adapter | Unit tests claims, headers, key lookup, alg allow-list, issuer/audience и expiry |
-| Current user и `/me` загружают актуального пользователя | HTTP 10.1, access model, ADR-006/017 | 014, 015, 019, 027, 028 | Symfony authenticator, current-user boundary, `/me` controller | HTTP tests `200`, `401 AUTHENTICATION_REQUIRED`, inactive user rejection |
+| Current user и `/me` загружают актуального пользователя | HTTP 10.1, access model, ADR-006/017 | 014, 015, 019, 027, 028 | Symfony authenticator, current-user boundary, `/me` controller | HTTP tests `200`, единый `401 AUTHENTICATION_REQUIRED`, inactive/unknown user rejection |
 | Cookies имеют точные атрибуты | HTTP 2.3/8.4/8.5, ADR-018 | 020, 026, 044 | Cookie issuer/clearer | HTTP tests `Set-Cookie` для refresh и CSRF cookies |
 | CSRF и same-origin защищают cookie-authenticated refresh | HTTP 2.3/8.5, ADR-018 | 021, 022, 044 | Origin/Fetch Metadata/CSRF verifier | HTTP tests wrong/missing `Origin`, `Sec-Fetch-Site`, header/cookie mismatch и bad signature |
 | Login rate limits используют sliding window | BR-SEC-007, HTTP 17, ADR-014 | 023, 030, 044 | Symfony RateLimiter policies | HTTP tests квот email+IP и IP, точный `Retry-After`, no enumeration |
@@ -110,6 +112,9 @@ JWT access token:
   персональные/изменяемые данные;
 - после JWT validation backend загружает актуального `User` по `sub` и повторно
   проверяет `isActive`;
+- отсутствующий, malformed, expired или иначе invalid access token, unknown user
+  и inactive user на protected endpoint получают единый `401
+  AUTHENTICATION_REQUIRED`; `/me` не использует `403`;
 - собственная реализация JWT, RSA, ASN.1 или base64url запрещена.
 
 ## 6. HTTP contract
@@ -214,9 +219,9 @@ Success:
 }
 ```
 
-Errors: missing, malformed, expired or invalid access token returns
-`401 AUTHENTICATION_REQUIRED`; a valid token for an inactive current user is
-rejected before protected data is returned.
+Errors: missing, malformed, expired or invalid access token, unknown user and
+inactive current user return the same `401 AUTHENTICATION_REQUIRED`. The
+response does not reveal JWT validation details or account state.
 
 ## 7. Cookie и CSRF profile
 
@@ -336,10 +341,28 @@ Implemented in the backend-login stage:
 - exact refresh and CSRF cookies via a narrow HTTP cookie factory;
 - HTTP, integration, application and sensitive-data tests.
 
-Not implemented in this stage: refresh endpoint, refresh-cookie reading,
-rotation, Origin/Fetch Metadata guard, CSRF request verification, Symfony
-authenticator, `/me`, protected firewall, logout, rate limits beyond login and
-existing public operations, or frontend lifecycle.
+Implemented in the backend-refresh stage:
+
+- `POST /api/v1/auth/refresh` controller;
+- refresh-cookie reading, Origin/Fetch Metadata guard and double-submit CSRF
+  request verification;
+- session-bound CSRF verification inside the refresh application flow;
+- pessimistic-lock refresh rotation without extending session expiry;
+- replay, inactive-owner, rollback and concurrency tests.
+
+Implemented in the backend-authenticator stage:
+
+- stateless Symfony firewall with public auth routes and protected `/api/v1/me`;
+- custom Bearer authenticator accepting only `Authorization: Bearer <access-token>`;
+- current-user query returning `UserView` from the current PostgreSQL row;
+- small Symfony principal containing only public profile data;
+- JSON authentication entry point/failure response using the standard
+  `AUTHENTICATION_REQUIRED` envelope;
+- `/me` HTTP, current-user persistence, public-regression, sensitive-data and
+  architecture tests.
+
+Not implemented in this stage: logout, logout-all, family-wide revoke, rate
+limits beyond login and existing public operations, or frontend lifecycle.
 
 ## 11. Зависимости и конфигурация
 
@@ -351,7 +374,7 @@ Added dependencies:
 
 | Need | Dependency | Reason |
 |---|---|---|
-| Symfony production authenticator/firewall foundation | `symfony/security-bundle:7.4.*` | Installed now, but configured with `security: false` until the authenticator stage so current public endpoints stay unchanged. |
+| Symfony production authenticator/firewall foundation | `symfony/security-bundle:7.4.*` | Provides stateless Bearer authentication for `/api/v1/me` while auth/register/login/refresh routes remain public at firewall level. |
 | JWT/JWS generation and validation | `lcobucci/jwt:^5.6` | Provides RS256/JWS implementation; project code owns ADR-017 allow-list, exact issuer/audience and local key lookup. |
 
 `web-token/jwt-framework` was checked as an alternative. It is Symfony-bundle
@@ -409,8 +432,8 @@ material. No real keys or production secrets belong in the repository.
 | 2. Migration и session persistence | `user_session` migration, Doctrine record/mapping, repository | Lifecycle domain model | Schema/mapping parity, hash-only storage | — | DB lock smoke | — | — | Implemented in `Version20260808223000`; constraints match normative model: only `expires_at > created_at` CHECK for `UserSession` |
 | 3. Login | Login service, controller, rate limiters, cookie issuer | Credential branch decisions | Active/inactive users, transaction creates session | `200`, `INVALID_CREDENTIALS`, `ACCOUNT_INACTIVE`, `RATE_LIMIT_EXCEEDED` | — | — | — | Implemented for backend only; no account enumeration; cookies correct |
 | 4. Refresh | Refresh service, lock/rotation, CSRF/same-origin verifier | Lifecycle decisions | Rotation, expiry, revoked, inactive user | Cookie rotation, CSRF, Origin, errors | Two simultaneous refresh requests | Bootstrap refresh mock states | — | Old token never revives; no silent fallback |
-| 5. Authenticator и `/me` | SecurityBundle firewall, custom authenticator, current-user query, `/me` | JWT validation branches | Load current user after JWT validation | `GET /me` success/401/inactive | — | Protected route state hooks | — | Protected endpoint has real current user boundary |
-| 6. Frontend lifecycle | In-memory token holder, bootstrap, API retry, route middleware, `/me` page | Token holder and retry budget | — | — | Single-flight browser logic | `unknown/authenticated/anonymous/error`, no storage | — | One refresh and one retry max; no token persistence |
+| 5. Authenticator и `/me` | SecurityBundle firewall, custom authenticator, current-user query, `/me` | JWT validation branches | Load current user after JWT validation | `GET /me` success/401/inactive | — | Protected route state hooks | — | Implemented; protected endpoint has real current user boundary |
+| 6. Frontend lifecycle | In-memory token holder, bootstrap, API retry, route middleware, `/me` page | Token holder and retry budget | — | — | Single-flight browser logic | `unknown/authenticated/anonymous/error`, no storage | — | Next; one refresh and one retry max; no token persistence |
 | 7. Browser E2E/security regression | Full stack auth path | — | — | — | Refresh race in process/browser where practical | — | `register → activate → login → reload → authenticated /me` | Secrets absent from body/logs/URL/storage |
 | 8. Docs и roadmap closure | Update implemented docs/env examples/roadmap after implementation | — | — | — | — | — | Full check | Actual docs match shipped code; roadmap only checked after merge-ready completion |
 

@@ -2,9 +2,9 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать реализованную модель доступа регистрации, активации, backend login и refresh rotation |
+| Назначение | Описать реализованную модель доступа регистрации, активации, backend login, refresh rotation и `/me` |
 | Статус | Accepted |
-| Версия | 7 |
+| Версия | 8 |
 | Дата актуальности | 2026-08-08 |
 | Владелец | Maksim Smolkov |
 | Источник | BR-USR-001—003/009; BR-SEC-003—004; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
@@ -15,10 +15,10 @@
 `ACTIVATE_ACCOUNT`, backend login и refresh rotation. Login создаёт
 `UserSession`, выдаёт JWT access token в response body и устанавливает
 refresh/CSRF cookies. Refresh endpoint ротирует refresh token и выдаёт новый
-access token без продления срока сессии. JWT authenticator, `/me`, logout и
-финансовые protected endpoints явно исключены. Поэтому текущий этап не добавляет
-production firewall, authenticator, временный bearer header, hardcoded
-пользователя или фиктивную роль.
+access token без продления срока сессии. Stateless Bearer firewall защищает
+`GET /api/v1/me`. Logout и финансовые protected endpoints явно исключены.
+Текущий этап не добавляет временный bearer header, hardcoded пользователя,
+фиктивную роль или RBAC-модель.
 
 В срезе нет RBAC-ролей. Право активации является capability: его даёт только
 действующий purpose-bound token. Успешная активация не создаёт аутентификацию и
@@ -33,7 +33,8 @@ production firewall, authenticator, временный bearer header, hardcoded
 | Любой клиент с credentials | `POST /api/v1/auth/login` | `User` и новая `UserSession` | Публично; normalized email/password, login rate limits, `isActive = true` | `401 INVALID_CREDENTIALS`, `403 ACCOUNT_INACTIVE`, `429 RATE_LIMIT_EXCEEDED` |
 | Browser с refresh cookies | `POST /api/v1/auth/refresh` | Существующая `UserSession` | `equo_refresh`, exact `Origin`, allowed `Sec-Fetch-Site`, double-submit CSRF, signed CSRF bound to session, active session и active user | `401 AUTHENTICATION_REQUIRED`, `401 INVALID_REFRESH_TOKEN`, `403 FORBIDDEN`, `403 ACCOUNT_INACTIVE` |
 | Любой клиент | `GET /api/health` | Health state | Публично | — |
-| Authenticated user | Protected API | — | Ещё не реализовано | Реализуется на этапе authenticator и `/me` |
+| Authenticated user | `GET /api/v1/me` | Собственный public profile | Valid `Authorization: Bearer <access-token>`; verified JWT `sub`; current DB user exists and `isActive = true` | `401 AUTHENTICATION_REQUIRED` |
+| Authenticated user | Future protected API | — | Ещё не реализовано | Будущие policy/voter этапы |
 
 ## 3. Идентификация и аутентификация
 
@@ -46,9 +47,16 @@ Login реализует начало production-аутентификации: `
 15 минут, opaque refresh token в cookie и server-side `UserSession` на 30 дней.
 Обязательны
 `typ=at+jwt`, versioned `kid`, claims `iss/aud/sub/iat/exp/jti`, точная проверка
-issuer/audience и clock skew не более 30 секунд. JWT authenticator и current-user
-boundary ещё не реализованы, поэтому access token пока только выдаётся и
-проверяется тестами.
+issuer/audience и clock skew не более 30 секунд. JWT authenticator реализован
+как Symfony custom authenticator. Он принимает только Authorization Bearer,
+передаёт token в `AccessTokenVerifierPort` и берёт principal UUID только из
+полностью verified `sub`.
+
+После JWT validation backend всегда загружает текущего пользователя из
+PostgreSQL через current-user query. Principal содержит только UUID и public
+`UserView`; он не содержит JWT, refresh token, CSRF token, password hash,
+Doctrine record, `UserSession` или бизнес-роли. `getUserIdentifier()` возвращает
+UUID пользователя, не email.
 
 Refresh rotation реализует backend-часть ADR-018: cookie-authenticated refresh
 защищён точной same-origin проверкой, Fetch Metadata и подписанным
@@ -60,6 +68,11 @@ cookies. `expires_at` не сдвигается.
 Оставшаяся часть ADR-018 ещё впереди: access token должен жить только в памяти
 вкладки; reload запускает client-side `refresh → /me`; одновременные refresh во
 frontend сериализуются; protected navigation ждёт bootstrap.
+
+Для `/me` invalid/absent authentication, malformed Bearer header, invalid JWT,
+unknown user и inactive user возвращают единый `401 AUTHENTICATION_REQUIRED`.
+`403` и `ACCOUNT_INACTIVE` здесь не используются, чтобы protected data не
+подтверждала состояние аккаунта.
 
 ## 4. Object authorization activation token
 
@@ -103,16 +116,15 @@ hash и всегда возвращает `false`, поэтому Application н
 
 ## 6. Ответы 401, 403 и 404
 
-- `401 AUTHENTICATION_REQUIRED` применяется к будущему protected endpoint без
-  действительной аутентификации;
+- `401 AUTHENTICATION_REQUIRED` применяется к `/me` и future protected endpoint
+  без действительной аутентификации;
 - `403 FORBIDDEN` применяется к аутентифицированному субъекту, которому
   запрещён тип операции;
 - `404 RESOURCE_NOT_FOUND` может объединять отсутствующий и недоступный объект,
   чтобы не раскрывать его существование согласно BR-ACL-005/ADR-012.
 
-Эти статусы уже поддерживает общий error envelope E1-09, но в двух публичных
-операциях первого среза не возникают. Отсутствие права activation выражается
-`INVALID_TOKEN`/token lifecycle error, а не `401/403/404`.
+Эти статусы поддерживает общий error envelope E1-09. Отсутствие права activation
+выражается `INVALID_TOKEN`/token lifecycle error, а не `401/403/404`.
 
 ## 7. Размещение
 
@@ -124,8 +136,12 @@ hash и всегда возвращает `false`, поэтому Application н
 | Symfony PasswordHasher adapter | `IdentityAccess\Adapter\Security\SymfonyPasswordHasher` |
 | Login use case | `IdentityAccess\Application\Login\LoginUser` |
 | Refresh use case | `IdentityAccess\Application\Refresh\RefreshSession` |
+| Current-user query | `IdentityAccess\Application\CurrentUser\GetCurrentUser` |
 | Login controller/cookies | `IdentityAccess\Adapter\Http\LoginController`, `AuthCookieFactory` |
 | Refresh controller/guard/cookies | `IdentityAccess\Adapter\Http\RefreshController`, `RefreshRequestGuard`, `AuthCookieFactory` |
+| `/me` controller | `IdentityAccess\Adapter\Http\MeController` |
+| Bearer authenticator/principal | `IdentityAccess\Adapter\Security\BearerAccessTokenAuthenticator`, `AuthenticatedUser` |
+| Bearer JSON entry point | `Infrastructure\Http\BearerAuthenticationEntryPoint` |
 | Login credential lookup | `IdentityAccess\Application\Port\StoredLoginIdentity`, `DoctrineIdentityRepository` |
 | Current user lookup for refresh | `IdentityAccess\Application\Port\CurrentUserState`, `DoctrineIdentityRepository` |
 | DI binding и `auto` config | `backend/config/services.yaml` |
@@ -133,8 +149,6 @@ hash и всегда возвращает `false`, поэтому Application н
 
 ## 8. Сознательно отложено
 
-- current authenticated user и protected JWT authenticator;
-- production firewall/entry point/access-control для protected endpoints;
 - logout, logout-all, family-wide revoke и refresh revocation endpoints;
 - финансовые voters/policies и проверки Connect/Debt/Transfer;
 - оставшаяся frontend-реализация принятого ADR-018: in-memory token lifecycle,
@@ -152,8 +166,12 @@ hash-only session storage, cookie attributes, rate limits, rollback и отсу�
 secrets в response/serializer. Refresh tests покрывают same-origin/CSRF guard,
 session-bound CSRF, inactive owner, malformed/unknown/expired/revoked/replayed
 refresh tokens, hash-only rotation, неизменный expiry, rollback и конкурентный
-race, где успешен ровно один запрос. Общие HTTP tests продолжают проверять safe
-errors, request ID и публичный healthcheck.
+race, где успешен ровно один запрос. Bearer/current-user tests покрывают strict
+Authorization parsing, JWT failure collapse into `AUTHENTICATION_REQUIRED`,
+fresh DB profile lookup, inactive/unknown user rejection, отсутствие cookies и
+refresh rotation на `/me`, token-source discipline и public endpoint regression.
+Общие HTTP tests продолжают проверять safe errors, request ID и публичный
+healthcheck.
 
 ## 10. Нормативные источники
 
