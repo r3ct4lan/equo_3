@@ -13,7 +13,8 @@ export default defineConfig({
   reporter: [['line']],
   use: {
     ...devices['Desktop Chrome'],
-    baseURL: process.env.E2E_BASE_URL ?? 'http://nginx',
+    baseURL: process.env.E2E_BASE_URL ?? 'https://nginx',
+    ignoreHTTPSErrors: true,
     screenshot: 'only-on-failure',
     trace: 'off',
     video: 'off'

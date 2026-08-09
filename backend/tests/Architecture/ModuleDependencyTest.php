@@ -113,6 +113,47 @@ final class ModuleDependencyTest extends TestCase
         self::assertSame([], $violations, implode(PHP_EOL, $violations));
     }
 
+    public function testBearerPrincipalAndAuthenticatorKeepSecurityBoundaryNarrow(): void
+    {
+        $violations = [];
+        $checks = [
+            'IdentityAccess/Adapter/Security/AuthenticatedUser.php' => [
+                'Doctrine\\',
+                '\\Persistence\\Doctrine\\Record\\',
+                'refreshToken',
+                'csrfToken',
+                'passwordHash',
+            ],
+            'IdentityAccess/Adapter/Security/BearerAccessTokenAuthenticator.php' => [
+                '\\Persistence\\Doctrine\\Record\\',
+                'Lcobucci\\JWT\\',
+                'UserSession',
+                'RefreshToken',
+            ],
+            'IdentityAccess/Adapter/Http/MeController.php' => [
+                '\\Persistence\\Doctrine\\Record\\',
+                'AccessTokenVerifierPort',
+                'Authorization',
+                'Lcobucci\\JWT\\',
+            ],
+        ];
+
+        foreach ($checks as $relativePath => $forbiddenFragments) {
+            $path = $this->sourceRoot().'/'.$relativePath;
+            self::assertFileExists($path);
+            $contents = file_get_contents($path);
+            self::assertIsString($contents);
+
+            foreach ($forbiddenFragments as $fragment) {
+                if (str_contains($contents, $fragment)) {
+                    $violations[] = sprintf('%s must not contain %s.', $relativePath, $fragment);
+                }
+            }
+        }
+
+        self::assertSame([], $violations, implode(PHP_EOL, $violations));
+    }
+
     /** @return list<SplFileInfo> */
     private function sourceFiles(): array
     {

@@ -1,0 +1,18 @@
+security:
+    firewalls:
+        dev:
+            pattern: ^/(_profiler|_wdt|assets|build)/
+            security: false
+        main:
+            stateless: true
+            custom_authenticators:
+                - App\IdentityAccess\Adapter\Security\BearerAccessTokenAuthenticator
+            entry_point: App\Infrastructure\Http\BearerAuthenticationEntryPoint
+
+    access_control:
+        - { path: ^/api/health$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1/auth/register$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1/auth/activate$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1/auth/login$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1/auth/refresh$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1/me$, roles: IS_AUTHENTICATED_FULLY }

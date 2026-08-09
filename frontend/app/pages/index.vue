@@ -39,6 +39,10 @@ const apiError = computed(() => error.value ? toApiClientError(error.value) : nu
           class="button"
           to="/register"
         >Create an account</NuxtLink>
+        <NuxtLink
+          class="button button--secondary"
+          to="/login"
+        >Sign in</NuxtLink>
       </div>
     </section>
 

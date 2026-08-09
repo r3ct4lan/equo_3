@@ -11,13 +11,29 @@ x-backend-environment: &backend-environment
   MAILER_DSN: smtp://mailpit:1025
   MAILER_FROM: no-reply@equo.test
   TRUSTED_PROXIES: 127.0.0.1,172.16.0.0/12
-  DEFAULT_URI: http://nginx
-  FRONTEND_BASE_URL: http://nginx
+  DEFAULT_URI: https://nginx
+  FRONTEND_BASE_URL: https://nginx
+  EQUO_REGISTRATION_IP_LIMIT: '20'
+  EQUO_REGISTRATION_EMAIL_LIMIT: '3'
+  EQUO_ACTIVATION_IP_LIMIT: '30'
+  EQUO_ACTIVATION_TOKEN_LIMIT: '5'
+  EQUO_LOGIN_IP_LIMIT: '200'
+  EQUO_LOGIN_EMAIL_IP_LIMIT: '50'
   ACTION_TOKEN_ACTIVE_VERSION: v1
   ACTION_TOKEN_HMAC_KEYS: '{"v1":"YWN0aW9uLXRva2VuLWRldi1rZXktMzItYnl0ZXMhISE="}'
   IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION: v1
   IDEMPOTENCY_FINGERPRINT_HMAC_KEYS: '{"v1":"aWRlbXBvdGVuY3ktZmluZ2VycHJpbnQtZGV2LWtleS0zMiEh"}'
   EMAIL_PAYLOAD_KEY: ZW1haWwtcGF5bG9hZC1kZXYta2V5LTMyLWJ5dGVzISE=
+  EQUO_JWT_SIGNING_KEY_VERSION: v1
+  EQUO_JWT_SIGNING_PRIVATE_KEY: ${E2E_JWT_SIGNING_PRIVATE_KEY:?scripts/test-e2e.sh must generate E2E_JWT_SIGNING_PRIVATE_KEY}
+  EQUO_JWT_PUBLIC_KEY_RING: ${E2E_JWT_PUBLIC_KEY_RING:?scripts/test-e2e.sh must generate E2E_JWT_PUBLIC_KEY_RING}
+  EQUO_JWT_ISSUER: https://equo.test
+  EQUO_JWT_AUDIENCE: equo-api
+  EQUO_JWT_ACCESS_TTL_SECONDS: '900'
+  EQUO_JWT_CLOCK_SKEW_SECONDS: '30'
+  EQUO_CSRF_SIGNING_KEY_VERSION: v1
+  EQUO_CSRF_SIGNING_KEY_RING: ${E2E_CSRF_SIGNING_KEY_RING:?scripts/test-e2e.sh must generate E2E_CSRF_SIGNING_KEY_RING}
+  EQUO_APPLICATION_ORIGIN: https://nginx
 
 services:
   postgres:
@@ -134,13 +150,15 @@ services:
     volumes:
       - ./docker/nginx/e2e.conf:/etc/nginx/conf.d/default.conf:ro
       - ./backend/public:/var/www/backend/public:ro
+      - ${E2E_TLS_DIR:?scripts/test-e2e.sh must generate E2E_TLS_DIR}/nginx.crt:/etc/nginx/e2e/nginx.crt:ro
+      - ${E2E_TLS_DIR:?scripts/test-e2e.sh must generate E2E_TLS_DIR}/nginx.key:/etc/nginx/e2e/nginx.key:ro
     depends_on:
       backend:
         condition: service_healthy
       frontend:
         condition: service_healthy
     healthcheck:
-      test: [CMD-SHELL, wget -q -O /dev/null http://127.0.0.1/api/health]
+      test: [CMD-SHELL, wget --no-check-certificate -q -O /dev/null https://127.0.0.1/api/health]
       interval: 3s
       timeout: 3s
       retries: 20
@@ -153,7 +171,7 @@ services:
       dockerfile: docker/e2e/Dockerfile
     environment:
       CI: ${CI:-}
-      E2E_BASE_URL: http://nginx
+      E2E_BASE_URL: https://nginx
       E2E_MAILPIT_URL: http://mailpit:8025
     volumes:
       - ./frontend/test-results:/workspace/frontend/test-results
