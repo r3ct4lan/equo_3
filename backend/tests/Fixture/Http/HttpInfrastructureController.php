@@ -6,6 +6,10 @@ namespace App\Tests\Fixture\Http;
 
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserActionTokenRecord;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserRecord;
+use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserSessionRecord;
+use App\IdentityAccess\Application\Login\LoginResult;
+use App\IdentityAccess\Application\Login\LoginUserView;
+use App\IdentityAccess\Application\Port\StoredLoginIdentity;
 use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
 use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryOutboxRecord;
 use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryStatus;
@@ -41,7 +45,7 @@ final class HttpInfrastructureController
         throw new RuntimeException('SQLSTATE password=secret at /var/www/backend/src/Internal.php:42');
     }
 
-    /** @return array{user: UserRecord, token: UserActionTokenRecord, outbox: EmailDeliveryOutboxRecord} */
+    /** @return array{user: UserRecord, token: UserActionTokenRecord, session: UserSessionRecord, identity: StoredLoginIdentity, login: LoginResult, outbox: EmailDeliveryOutboxRecord} */
     public function sensitiveRecords(): array
     {
         $createdAt = new DateTimeImmutable('2026-07-31T12:00:00Z');
@@ -62,6 +66,28 @@ final class HttpInfrastructureController
             $createdAt,
             $createdAt->modify('+24 hours'),
         );
+        $session = new UserSessionRecord(
+            '550e8400-e29b-41d4-a716-446655440003',
+            $user,
+            'refresh-hash-must-not-leak',
+            $createdAt,
+            $createdAt->modify('+30 days'),
+        );
+        $identity = new StoredLoginIdentity(
+            $user->id(),
+            $user->name(),
+            $user->email(),
+            'login-password-hash-must-not-leak',
+            $user->isActive(),
+        );
+        $login = new LoginResult(
+            'access-token-public-body-field',
+            900,
+            new LoginUserView($user->id(), $user->name(), $user->email(), true),
+            'refresh-token-must-not-leak',
+            'csrf-token-must-not-leak',
+            $createdAt->modify('+30 days'),
+        );
         $outbox = new EmailDeliveryOutboxRecord(
             '550e8400-e29b-41d4-a716-446655440002',
             $token->id(),
@@ -78,6 +104,13 @@ final class HttpInfrastructureController
             null,
         );
 
-        return ['user' => $user, 'token' => $token, 'outbox' => $outbox];
+        return [
+            'user' => $user,
+            'token' => $token,
+            'session' => $session,
+            'identity' => $identity,
+            'login' => $login,
+            'outbox' => $outbox,
+        ];
     }
 }

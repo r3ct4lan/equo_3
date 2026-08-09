@@ -20,10 +20,31 @@
             class="nav-link"
             to="/"
           >Home</NuxtLink>
-          <NuxtLink
-            class="nav-link"
-            to="/register"
-          >Register</NuxtLink>
+          <template v-if="session.status === 'authenticated'">
+            <NuxtLink
+              class="nav-link"
+              to="/me"
+            >My profile</NuxtLink>
+          </template>
+          <template v-else-if="session.status === 'anonymous'">
+            <NuxtLink
+              class="nav-link"
+              to="/login"
+            >Login</NuxtLink>
+            <NuxtLink
+              class="nav-link"
+              to="/register"
+            >Register</NuxtLink>
+          </template>
+          <template v-else-if="session.status === 'unknown'">
+            <span class="nav-status">Checking session</span>
+          </template>
+          <template v-else>
+            <NuxtLink
+              class="nav-link"
+              to="/login"
+            >Login</NuxtLink>
+          </template>
         </nav>
       </div>
     </header>
@@ -43,3 +64,8 @@
     </footer>
   </div>
 </template>
+
+<script setup lang="ts">
+const { state } = useCurrentUser()
+const session = computed(() => state.value)
+</script>

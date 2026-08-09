@@ -4,19 +4,21 @@
 |---|---|
 | Назначение | Зафиксировать фактически реализованную часть модели данных текущего MVP |
 | Статус | Accepted |
-| Версия | 6 |
-| Дата актуальности | 2026-08-03 |
+| Версия | 8 |
+| Дата актуальности | 2026-08-10 |
 | Владелец | Maksim Smolkov |
 | Источник | Модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016, ADR-019; фактические migrations и mapping |
 
 ## 1. Граница реализации
 
-Для реализованных регистрации и активации аккаунта используются четыре записи:
+Для реализованных регистрации, активации аккаунта и защищённой browser-сессии
+используются пять записей:
 
 | ER-сущность | Таблица | Doctrine-класс | Владелец |
 |---|---|---|---|
 | `User` | `app_user` | `App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserRecord` | Identity and Access |
 | `UserActionToken` | `user_action_token` | `App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserActionTokenRecord` | Identity and Access |
+| `UserSession` | `user_session` | `App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserSessionRecord` | Identity and Access |
 | `IdempotencyRecord` | `idempotency_record` | `App\Infrastructure\Idempotency\Persistence\Doctrine\Record\IdempotencyRecord` | Infrastructure |
 | `EmailDeliveryOutbox` | `email_delivery_outbox` | `App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryOutboxRecord` | Infrastructure |
 
@@ -55,6 +57,20 @@ ER-тип `varchar` без заданной максимальной длины 
 | `used_at`, `invalidated_at` | `TIMESTAMPTZ` | да | Взаимоисключающие конечные события |
 
 В ORM связь token → user является `ManyToOne` внутри одного бизнес-модуля.
+
+### `user_session`
+
+| Колонка | PostgreSQL | NULL | Назначение |
+|---|---|---:|---|
+| `id` | `UUID` | нет | Первичный ключ refresh-сессии |
+| `user_id` | `UUID` | нет | FK на `app_user.id` |
+| `refresh_token_hash` | `VARCHAR(255)` | нет | Только storage hash текущего opaque refresh token |
+| `created_at`, `expires_at` | `TIMESTAMPTZ` | нет | Создание и 30-дневный срок refresh-сессии |
+| `revoked_at` | `TIMESTAMPTZ` | да | Время явного отзыва |
+
+В ORM связь session → user является `ManyToOne` внутри `IdentityAccess`.
+Открытый refresh token формата `rt.<base64url(32 random bytes)>` не хранится:
+в записи сохраняется только `sha256:<64 lowercase hex chars>`.
 
 ### `idempotency_record`
 
@@ -98,18 +114,19 @@ Doctrine SchemaTool, не создавая зависимости Infrastructure
 - PK для каждой таблицы;
 - уникальность нормализованного `app_user.email`;
 - уникальность `user_action_token.token_hash`;
+- уникальность `user_session.refresh_token_hash`;
 - не более одного незавершённого token на `(user_id, purpose)` частичным
   уникальным индексом;
 - уникальность `(scope, operation, idempotency_key)`;
 - не более одного outbox на `user_action_token_id`;
 - допустимые значения `purpose` и `status`;
 - непустые `User.name` и `User.email`;
-- `expires_at > created_at` для token и idempotency record;
+- `expires_at > created_at` для token, session и idempotency record;
 - взаимоисключающие `used_at`/`invalidated_at` и `sent_at`/`failed_at`;
 - `publish_attempts >= 0` и `available_at >= created_at`.
 
 Индексы созданы для FK и нормативных путей выборки: user, purpose, expiry и
-used token; user и expiry idempotency record; pending outbox по
+used token; user, expiry и revocation session; user и expiry idempotency record; pending outbox по
 `(available_at, created_at)`, status и временные метки завершения доставки.
 
 ## 4. Что реализовано в Application/Domain
@@ -120,10 +137,12 @@ PostgreSQL не дублирует контекстные правила. В App
 - PasswordHasher `auto` и ADR-016 для password/action token;
 - TTL token и idempotency record ровно 24 часа;
 - application policy purpose/lifecycle action token;
+- lifecycle `UserSession`: активна только пока `revokedAt IS NULL` и
+  `expiresAt > now`; ротация меняет только hash активной session;
 - согласованность activation payload, recipient/template и outbox lifecycle;
 - атомарная координация `User`, token, outbox и idempotency result;
-- сериализация конкурентных registration/activation через advisory lock,
-  уникальные ограничения и pessimistic row locks.
+- сериализация конкурентных registration/activation и refresh-rotation
+  через advisory lock, уникальные ограничения и pessimistic row locks.
 
 Остаётся отложенным физический retention cleanup по
 ADR-014. Выдача replacement token с блокировкой существующего `User` относится
@@ -133,25 +152,33 @@ token вместе с новой строкой `User`.
 ## 5. Сознательно отложенная ER-модель
 
 Не создавались `Connect`, `ConnectInvitation`, `Debt`, `DebtParticipant`,
-`Transfer` и `UserSession`: они не нужны для регистрации и активации и относятся
-к следующим вертикальным сценариям. Не создавались mapper-слой для полной
-ER-модели, fixtures и демонстрационные данные. Минимальные repositories, domain
-objects и application use cases регистрации/активации находятся в модуле
-`IdentityAccess`.
+`Transfer`: они не нужны для регистрации, активации и session persistence и
+относятся к следующим вертикальным сценариям. Logout, logout-all, password
+reset/change и финансовые protected endpoints пока не реализованы. Не
+создавались mapper-слой для полной ER-модели, fixtures и демонстрационные
+данные. Минимальные repositories, domain objects и application use cases
+auth-среза находятся в модуле `IdentityAccess`.
 Purpose enum и access policy описаны в
 [модели доступа](../security/access-model.md) и не меняют схему.
 
 ## 6. Миграция и автоматические проверки
 
-Схему создаёт новая миграция
+Начальную схему регистрации и активации создаёт миграция
 [`Version20260731153000`](../../backend/migrations/Version20260731153000.php).
-Предыдущая пустая стартовая миграция не изменялась. `down()` удаляет только четыре
-объекта этой миграции в обратном порядке; в рамках E1-08 откат не выполнялся.
+Session persistence добавляет миграция
+[`Version20260808223000`](../../backend/migrations/Version20260808223000.php).
+Предыдущая пустая стартовая миграция не изменялась. `down()` каждой миграции
+удаляет только свои объекты; в рамках текущего этапа откат в dev-базе не
+выполнялся.
 
 Интеграционный тест
 [`InitialSchemaTest`](../../backend/tests/Integration/Persistence/InitialSchemaTest.php)
 проверяет ORM round trip, `NOT NULL`, уникальность, FK, частичный уникальный индекс
-и ключевые `CHECK`. Каждый тест выполняется в транзакции с rollback. Команда
+и ключевые `CHECK`. Session persistence дополнительно проверяет
+[`UserSessionPersistenceTest`](../../backend/tests/Integration/IdentityAccess/UserSessionPersistenceTest.php):
+hash-only storage, serializer hiding, pessimistic lock, rotation persistence and
+rollback. Каждый тест выполняется в транзакции с rollback, кроме lock smoke с
+явной очисткой committed rows. Команда
 `make test-backend` поднимает отдельный PostgreSQL service `postgres-test` с
 `tmpfs`, применяет миграции к пустой базе с суффиксом `_test`, проверяет
 up-to-date status и синхронность mapping/schema, запускает PHPUnit и удаляет

@@ -11,12 +11,36 @@ services:
         alias: App\IdentityAccess\Application\Activate\ActivateAccount
         public: true
 
+    test.login_user:
+        alias: App\IdentityAccess\Application\Login\LoginUser
+        public: true
+
     App\IdentityAccess\Application\Port\ActionTokenCodecPort:
         alias: App\IdentityAccess\Adapter\Security\VersionedActionTokenCodec
         public: true
 
     App\IdentityAccess\Application\Port\RequestFingerprintPort:
         alias: App\IdentityAccess\Adapter\Security\VersionedRequestFingerprint
+        public: true
+
+    App\IdentityAccess\Application\Port\AccessTokenIssuerPort:
+        alias: App\IdentityAccess\Adapter\Security\Rs256AccessTokenCodec
+        public: true
+
+    App\IdentityAccess\Application\Port\AccessTokenVerifierPort:
+        alias: App\IdentityAccess\Adapter\Security\Rs256AccessTokenCodec
+        public: true
+
+    App\IdentityAccess\Application\Port\RefreshTokenCodecPort:
+        alias: App\IdentityAccess\Adapter\Security\RefreshTokenCodec
+        public: true
+
+    App\IdentityAccess\Application\Port\CsrfTokenCodecPort:
+        alias: App\IdentityAccess\Adapter\Security\VersionedCsrfTokenCodec
+        public: true
+
+    App\IdentityAccess\Application\Port\UserSessionRepositoryPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineUserSessionRepository
         public: true
 
     App\IdentityAccess\Application\Port\PasswordHashingPort:

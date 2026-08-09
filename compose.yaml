@@ -34,11 +34,26 @@ services:
       TRUSTED_PROXIES: "127.0.0.1,172.16.0.0/12"
       DEFAULT_URI: "${DEFAULT_URI:-http://localhost}"
       FRONTEND_BASE_URL: "${FRONTEND_BASE_URL:-http://localhost}"
+      EQUO_REGISTRATION_IP_LIMIT: "${EQUO_REGISTRATION_IP_LIMIT:-5}"
+      EQUO_REGISTRATION_EMAIL_LIMIT: "${EQUO_REGISTRATION_EMAIL_LIMIT:-3}"
+      EQUO_ACTIVATION_IP_LIMIT: "${EQUO_ACTIVATION_IP_LIMIT:-10}"
+      EQUO_ACTIVATION_TOKEN_LIMIT: "${EQUO_ACTIVATION_TOKEN_LIMIT:-5}"
+      EQUO_LOGIN_IP_LIMIT: "${EQUO_LOGIN_IP_LIMIT:-30}"
+      EQUO_LOGIN_EMAIL_IP_LIMIT: "${EQUO_LOGIN_EMAIL_IP_LIMIT:-5}"
       ACTION_TOKEN_ACTIVE_VERSION: "v1"
       ACTION_TOKEN_HMAC_KEYS: '{"v1":"YWN0aW9uLXRva2VuLWRldi1rZXktMzItYnl0ZXMhISE="}'
       IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION: "v1"
       IDEMPOTENCY_FINGERPRINT_HMAC_KEYS: '{"v1":"aWRlbXBvdGVuY3ktZmluZ2VycHJpbnQtZGV2LWtleS0zMiEh"}'
       EMAIL_PAYLOAD_KEY: "ZW1haWwtcGF5bG9hZC1kZXYta2V5LTMyLWJ5dGVzISE="
+      EQUO_JWT_SIGNING_KEY_VERSION: "v1"
+      EQUO_JWT_SIGNING_PRIVATE_KEY: "base64-encoded-rsa-private-key-placeholder"
+      EQUO_JWT_PUBLIC_KEY_RING: '{"v1":"base64-encoded-rsa-public-key-placeholder"}'
+      EQUO_JWT_ISSUER: "https://equo.local"
+      EQUO_JWT_AUDIENCE: "equo-api"
+      EQUO_JWT_ACCESS_TTL_SECONDS: "900"
+      EQUO_JWT_CLOCK_SKEW_SECONDS: "30"
+      EQUO_CSRF_SIGNING_KEY_VERSION: "v1"
+      EQUO_CSRF_SIGNING_KEY_RING: '{"v1":"base64-encoded-32-byte-csrf-key-placeholder"}'
     volumes: &backend-volumes
       - ./backend:/var/www/backend
       - backend_vendor:/var/www/backend/vendor

@@ -53,7 +53,7 @@ make install        # install exact backend/frontend lock files
 make check-fast     # run style/static/config/type checks
 make test           # run backend and frontend tests
 make check          # run the complete local quality gate
-make test-e2e       # run the isolated browser registration/activation journey
+make test-e2e       # run the isolated browser auth/session journey
 make check-full     # run the quality gate and browser E2E
 make lint           # check PHP and frontend style without changes
 make format         # explicitly fix PHP and frontend style
@@ -100,10 +100,12 @@ PHPStan, Symfony/Doctrine validation, migrations on an isolated empty database,
 PHPUnit, frontend lint/typecheck/tests/build, dependency audits, common secret
 patterns, generated changes and Nginx smoke checks.
 
-`make check-full` additionally executes the first vertical slice in Chromium
-against a disposable Compose project with tmpfs PostgreSQL/Redis/RabbitMQ and
-Mailpit. It neither connects to the development database nor creates/deletes
-named Docker volumes.
+`make check-full` additionally executes the auth/session browser journey in
+Chromium against a disposable HTTPS Compose project with tmpfs
+PostgreSQL/Redis/RabbitMQ and Mailpit. It covers registration, activation,
+login, refresh rotation, protected `/me`, reload, cookie/storage checks and
+safe error cases without touching the development database or named Docker
+volumes.
 
 The equivalent GitHub Actions workflow runs for pull requests and pushes to
 `main`. Detailed commands, audit thresholds and recommended required checks are

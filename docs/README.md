@@ -5,8 +5,8 @@
 | Название | Индекс проектной документации Equo |
 | Назначение | Обеспечить единый вход в комплект проектных артефактов и правила их актуализации |
 | Статус | Accepted |
-| Версия | 17 |
-| Дата актуальности | 2026-08-08 |
+| Версия | 20 |
+| Дата актуальности | 2026-08-10 |
 | Владелец | Maksim Smolkov |
 | Источник | Нормативная документация и фактическая реализация MVP |
 
@@ -26,8 +26,9 @@
 | [ER-диаграмма — PNG](data-model/er-diagram.png) | Растровая отображаемая версия | Финальная согласованная версия этапа проектирования | Изменился DOT-исходник |
 | [HTTP-контракты](api/http-contracts.md) | Маршруты, данные, ошибки, идемпотентность, конкурентность и пагинация публичного API v1 | Финальная согласованная версия этапа проектирования | Изменился публичный endpoint, данные, ошибка, заголовок, правило аутентификации или HTTP-поведение |
 | [Реализация HTTP-слоя](api/http-implementation.md) | Фактические Symfony-механизмы JSON, DTO validation, serialization, request ID и standard errors после E1-09 | Accepted | Изменились HTTP subscribers, Serializer/Validator config, error classification или правила response DTO |
-| [Модель доступа MVP](security/access-model.md) | Реализованные публичные субъекты, capability-based activation policy, password hashing и принятые token/JWT profiles | Accepted | Изменились правила доступа, token lifecycle, password hashing, authentication profile или security-конфигурация |
-| [Frontend-фундамент](frontend-foundation.md) | Фактическая Nuxt-структура, API client, error/session/form state и UI-правила после E1-11; принятый session profile ADR-018 | Accepted | Изменились frontend-каталоги, runtime API config, общие типы/состояния, маршрутизация или правила форм |
+| [Модель доступа MVP](security/access-model.md) | Реализованные публичные субъекты, capability-based activation policy, password hashing, refresh rotation, Bearer `/me` и принятые token/JWT profiles | Accepted | Изменились правила доступа, token lifecycle, password hashing, authentication profile или security-конфигурация |
+| [Frontend-фундамент](frontend-foundation.md) | Фактическая Nuxt-структура, API client, `$auth`, error/session/form state и UI-правила после frontend session lifecycle | Accepted | Изменились frontend-каталоги, runtime API config, общие типы/состояния, маршрутизация или правила форм |
+| [Login и защищённая сессия](features/login-protected-session.md) | Contract audit, технический дизайн и progress `MVP-SC-002` для login, refresh, JWT, browser session lifecycle и `/me` | Implemented and verified / Ready to merge | Изменились нормативные auth contracts, выбранные зависимости, session lifecycle или план реализации `DR-E1-001—053` |
 | [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, browser E2E, audits, smoke и GitHub Actions | Accepted | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
 | [Architecture Decision Records](adr/architecture-decisions.md) | Принятые ADR-001—ADR-019 | Accepted | Решение заменяется новым или выполнено условие его пересмотра; историю следует сохранять, добавляя новый ADR |
 | [Границы MVP](mvp-scope.md) | Цель, каталог `MVP-SC-*`, классификация, основной путь, зависимости и критерии запуска E1-04 | Accepted | Изменилась цель MVP, категория сценария, обязательный путь, критерий запуска или решение о границе |

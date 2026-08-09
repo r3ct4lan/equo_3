@@ -61,6 +61,27 @@ export interface ActivateRequest {
   token: string
 }
 
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+export interface LoginResponse {
+  accessToken: string
+  expiresIn: 900
+  user: {
+    id: Uuid
+    name: string
+    email: string
+    isActive: true
+  }
+}
+
+export interface RefreshResponse {
+  accessToken: string
+  expiresIn: 900
+}
+
 export interface ApiRequestOptions extends Omit<FetchOptions<'json'>, 'baseURL' | 'credentials'> {
   accessToken?: string | null
 }

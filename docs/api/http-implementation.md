@@ -2,19 +2,21 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных endpoint регистрации/активации |
+| Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth endpoints |
 | Статус | Accepted |
-| Версия | 3 |
-| Дата актуальности | 2026-08-03 |
+| Версия | 6 |
+| Дата актуальности | 2026-08-08 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
 
 ## 1. Граница реализации
 
 Общий HTTP-слой реализует transport concerns и остаётся отделён от предметной
-логики. Реализованы production routes `/api/v1/auth/register` и
-`/api/v1/auth/activate`; их controllers используют общий DTO/error/response
-pipeline и вызывают application use case. Также доступен `/api/health`.
+логики. Реализованы production routes `/api/v1/auth/register`,
+`/api/v1/auth/activate`, `/api/v1/auth/login`, `/api/v1/auth/refresh` и
+`/api/v1/me`; их controllers используют общий error/response pipeline и
+вызывают application use case. JSON-body endpoints дополнительно используют DTO
+mapping. Также доступен `/api/health`.
 Fixture routes с префиксом `/api/v1/_test/http` и их controller загружаются
 только при `APP_ENV=test`.
 
@@ -45,7 +47,7 @@ HTTP request
   → transport request DTO
   → Symfony Validator
   → controller
-  → application command/use case (в следующих задачах)
+  → application command/use case
 ```
 
 Future transport DTO располагается в `<Module>\Adapter\Http\Request`, потому что
@@ -103,6 +105,107 @@ Architecture test запрещает production controllers зависеть о�
 Успешный ответ без тела по-прежнему создаётся обычным Symfony `Response` со
 статусом `204` и не проходит object serialization.
 
+`LoginController` и `RefreshController` строят response body явно из allow-list
+полей. Refresh token и CSRF token остаются private internal values result DTO;
+controller получает их только через callback-метод с обязательным аргументом,
+который generic serializer не вызывает.
+
+## 4.1. Реализованный login endpoint
+
+`POST /api/v1/auth/login` принимает `email` и `password`, нормализует email в
+Application через `EmailAddress`, проверяет обе login-квоты и затем выполняет
+credential lookup. Для отсутствующего пользователя password adapter всё равно
+выполняет одну реальную verification по adapter-owned dummy hash; неверный
+пароль и неизвестный email возвращают одинаковый `401 INVALID_CREDENTIALS`.
+`ACCOUNT_INACTIVE` возвращается только после успешной проверки пароля.
+
+Успешный login в одной PostgreSQL-транзакции создаёт новую `UserSession`,
+выпускает access JWT, opaque refresh token и session-bound CSRF token. Каждый
+успешный login создаёт отдельную session; предыдущие sessions не переиспользуются
+и не отзываются.
+
+Cookies:
+
+- `equo_refresh`: `HttpOnly`, `Secure`, `SameSite=Lax`,
+  `Path=/api/v1/auth`, без `Domain`, expires соответствует session expiry;
+- `__Host-equo_csrf`: not `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`,
+  без `Domain`, expires соответствует session expiry.
+
+Failure responses `401`, `403`, `422`, `429` и technical `500` не устанавливают
+auth cookies.
+
+## 4.2. Реализованный refresh endpoint
+
+`POST /api/v1/auth/refresh` не принимает JSON body и не требует
+`Content-Type`. Controller вручную читает только cookies/headers через
+`RefreshRequestGuard`, затем вызывает application use case.
+
+Guard выполняет проверки в фиксированном порядке:
+
+- missing/empty `equo_refresh` cookie возвращает `401 AUTHENTICATION_REQUIRED`;
+- `Origin` должен точно совпасть с `EQUO_APPLICATION_ORIGIN`;
+- `Sec-Fetch-Site`, если присутствует, должен быть `same-origin` или `none`;
+- CSRF cookie `__Host-equo_csrf` и header `X-CSRF-Token` должны существовать и
+  совпасть;
+- application use case затем проверяет подпись CSRF token и его привязку к
+  найденной refresh-сессии.
+
+Успешный refresh в одной транзакции находит `UserSession` по digest
+предъявленного refresh token, берёт pessimistic write lock, проверяет lifecycle
+сессии и актуальное состояние пользователя, атомарно заменяет
+`refresh_token_hash`, выпускает новый access JWT и новые refresh/CSRF cookies.
+`created_at` и `expires_at` сессии не меняются, поэтому refresh не продлевает
+30-дневный срок.
+
+Failure responses `401`, `403` и technical `500` не устанавливают auth cookies.
+
+## 4.3. Реализованный Bearer authenticator и `/me`
+
+`GET /api/v1/me` защищён stateless Symfony firewall. Public routes
+`/api/health`, `/api/v1/auth/register`, `/api/v1/auth/activate`,
+`/api/v1/auth/login` и `/api/v1/auth/refresh` остаются public на уровне Bearer
+firewall; refresh продолжает использовать собственную cookie/CSRF/same-origin
+защиту.
+
+Bearer authenticator применяется к `/api/v1/me` и принимает только один
+`Authorization` header точного вида `Bearer <access-token>`. Token передаётся в
+`AccessTokenVerifierPort`; если verification возвращает `null`, дальнейшая
+причина не раскрывается. После successful JWT verification backend загружает
+текущий профиль пользователя из PostgreSQL через current-user query и проверяет
+`isActive = true`. Unknown user, inactive user, malformed header и любая JWT
+ошибка возвращают один публичный результат:
+
+```json
+{
+  "error": {
+    "code": "AUTHENTICATION_REQUIRED",
+    "message": "Authentication is required.",
+    "requestId": "<request-id>"
+  }
+}
+```
+
+Response имеет status `401`, `Content-Type: application/json`,
+`X-Request-Id` и `WWW-Authenticate: Bearer`. Raw `AuthenticationException`
+message, Authorization header, JWT validation detail, claims and token values не
+попадают в response или log context.
+
+Успешный `/me` response строится из текущего server-side `UserView`:
+
+```json
+{
+  "id": "<uuid>",
+  "name": "<name>",
+  "email": "<normalized-email>",
+  "isActive": true,
+  "createdAt": "2026-07-26T18:42:15Z"
+}
+```
+
+`/me` не устанавливает cookies, не читает refresh cookie, не ротирует
+`UserSession`, не выпускает новый access token и не принимает token из query
+string или cookie.
+
 ## 5. Поток ошибки
 
 ```text
@@ -135,6 +238,11 @@ connection details и secrets не передаются logger.
 | DTO/type/constraint validation | 422 | `VALIDATION_ERROR` |
 | Нет `If-Match` | 428 | `PRECONDITION_REQUIRED` |
 | Rate limit | 429 | `RATE_LIMIT_EXCEEDED` |
+| Неверные login credentials | 401 | `INVALID_CREDENTIALS` |
+| Refresh cookie отсутствует | 401 | `AUTHENTICATION_REQUIRED` |
+| Refresh token malformed/unknown/expired/revoked/replayed | 401 | `INVALID_REFRESH_TOKEN` |
+| Bearer token отсутствует, malformed, invalid, expired, unknown/inactive user | 401 | `AUTHENTICATION_REQUIRED` |
+| Неактивный аккаунт после верного пароля | 403 | `ACCOUNT_INACTIVE` |
 | Непредвиденная или неклассифицированная ошибка | 500 | `INTERNAL_SERVER_ERROR` |
 
 Business-specific `409`/`410`, password, rate-limit и точные
@@ -192,6 +300,17 @@ healthcheck.
 password policy, token lifecycle/capability, rate limits, отсутствие secrets и
 фактические изменения PostgreSQL. Процессные integration tests отдельно
 проверяют конкурентный replay, unique email и одноразовую активацию.
+`LoginHttpTest` проверяет production login route, точный body, JWT, cookies,
+validation, safe credential/inactive errors, login rate limits и отсутствие
+cookies/session на failure. `RefreshHttpTest`,
+`RefreshSessionPersistenceTest` и `RefreshConcurrencyTest` проверяют production
+refresh route, отсутствие body/content-type requirement, same-origin/CSRF guard,
+cookie rotation, неизменный session expiry, rollback, replay rejection и ровно
+одну успешную ротацию при двух конкурентных refresh requests. `MeHttpTest`,
+`CurrentUserPersistenceTest` и security unit tests проверяют Bearer parsing,
+единый auth failure envelope, fresh current-user lookup, inactive/unknown user
+rejection, отсутствие cookies/session rotation на `/me`, token-source discipline
+и public endpoint regressions после включения firewall.
 
 ## 11. Нормативные источники
 

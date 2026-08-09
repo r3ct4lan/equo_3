@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 6 |
-| Дата актуальности | 2026-08-03 |
+| Версия | 7 |
+| Дата актуальности | 2026-08-10 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
 
@@ -17,7 +17,7 @@
 make check
 ```
 
-Полный gate с реальным browser journey регистрации и активации:
+Полный gate с реальным browser journey auth-сессии:
 
 ```bash
 make check-full
@@ -47,12 +47,12 @@ smoke-проверки. Скрипт запоминает исходный `git 
 | Команда | Назначение | Изменяет source |
 |---|---|---:|
 | `make check` | Полный обязательный quality gate | Нет |
-| `make check-full` | `make check` и изолированный browser E2E первого среза | Нет |
+| `make check-full` | `make check` и изолированный browser E2E auth/session | Нет |
 | `make check-fast` | Repository checks, backend quality, frontend lint/typecheck | Нет |
 | `make check-backend` | Backend quality, пустая test-БД, PHPUnit и audit | Нет |
 | `make check-frontend` | Lock, ESLint, typecheck, tests, build и audit | Нет |
 | `make test` | Backend tests на изолированной БД и frontend unit/component tests | Нет |
-| `make test-e2e` | Chromium E2E регистрации, Mailpit email и активации | Нет |
+| `make test-e2e` | Chromium E2E регистрации, активации, login, refresh, reload и защищённого `/me` | Нет |
 | `make lint` | PHP и TypeScript/Vue style check | Нет |
 | `make format` | Исправить PHP и frontend style | **Да** |
 | `make audit` | Composer и npm dependency audit | Нет |
@@ -120,21 +120,36 @@ npm 11 по-разному проверяют optional transitive dependencies �
 Команда не выполняет `schema:update --force`, не очищает dev-таблицы и не
 удаляет Docker volumes.
 
-## 6. Browser E2E регистрации и активации
+## 6. Browser E2E auth/session
 
 `make test-e2e` поднимает отдельный Compose project `equo-3-e2e` и проверяет
-регистрацию и активацию в Chromium через тот же Nginx origin, который использует
-пользователь. PostgreSQL, Redis и RabbitMQ работают на `tmpfs`; Mailpit принимает
-реальное письмо. Dev-база, основной Compose stack и named volumes не затрагиваются.
+полный auth/session путь в Chromium через тот же HTTPS Nginx origin, который
+использует пользователь. PostgreSQL, Redis и RabbitMQ работают на `tmpfs`;
+Mailpit принимает реальное письмо. Dev-база, основной Compose stack и named
+volumes не затрагиваются.
 RabbitMQ запускается и достигает `healthy` до старта остальных временных
 зависимостей, чтобы исключить наблюдавшийся resource/startup race Docker Desktop.
 
-Сценарии проверяют полный happy path, client validation и исправление формы,
-защиту от двойного submit, unknown/used capability, отсутствие token/session в
-URL/cookie/storage после активации и безопасный retry с тем же
-`Idempotency-Key`. При падении сохраняются screenshot и redacted browser
-diagnostics; trace и video отключены, чтобы capability не попал в артефакты.
-Nginx E2E access log содержит только `$uri`, без query string.
+Сценарии проверяют полный happy path `register -> activate -> login -> reload
+-> authenticated /me`, client validation и исправление формы, защиту от
+двойного submit, unknown/used capability, safe redirect после login, login
+ошибки без enumeration, refresh координацию двух вкладок через Web Locks, один
+refresh/retry budget для protected request, отказ `/me` без valid Bearer token
+и отсутствие access/refresh/CSRF/password material в URL, body, storage,
+JS-readable cookies и browser diagnostics. При падении сохраняются screenshot и
+redacted browser diagnostics; trace и video отключены, чтобы capability или
+session material не попали в артефакты. Nginx E2E access log содержит только
+`$uri`, без query string.
+
+Скрипт генерирует для каждого запуска временные RSA JWT keys, CSRF signing key
+и self-signed TLS certificate в `mktemp` directory, передаёт их только через
+environment/mounts временного Compose project и удаляет при завершении. GitHub
+Actions не хранит реальные JWT/CSRF/TLS secrets для E2E.
+
+E2E Compose project использует увеличенные test-only login/registration quotas,
+чтобы полный browser journey не исчерпывал антибрутфорс-лимитер одного
+контейнерного IP. Production/default значения остаются `5/30` для login и
+проверяются backend HTTP tests.
 
 Скрипт всегда останавливает только свой Compose project через
 `down --remove-orphans`, проверяет отсутствие source drift и не вызывает
@@ -177,7 +192,7 @@ Workflow: [`.github/workflows/quality.yml`](../.github/workflows/quality.yml).
 | `Backend tests and migrations` | empty migration chain, schema, PHPUnit | PHP 8.4 + PostgreSQL 17 service |
 | `Frontend quality and build` | `npm ci`, `npm run check` | Node.js 22 |
 | `Dependency audit` | Composer и npm audit | PHP 8.4 + Node.js 22 |
-| `First vertical slice browser E2E` | реальная регистрация, доставка email, активация и recovery cases | Изолированный Compose + Chromium + Mailpit |
+| `Auth session browser E2E` | реальная регистрация, доставка email, активация, login, refresh/reload, `/me` и security regressions | Изолированный HTTPS Compose + Chromium + Mailpit |
 | `Application smoke` | full Compose build/start, Nginx `/` и `/api/health` | Изолированный CI Compose stack |
 
 CI вызывает те же Composer/npm/Make scripts, что local gate. Различаются только
@@ -192,8 +207,8 @@ CI/Compose передают полный runtime environment и
 repository npm `11.6.2` до `npm ci`.
 
 При падении E2E job публикует `frontend/test-results/` на 7 дней. В artifact
-попадают только screenshots и очищенная диагностика; raw activation token и
-password намеренно не записываются.
+попадают только screenshots и очищенная диагностика; raw activation token,
+JWT, refresh/CSRF token и password намеренно не записываются.
 
 ## 10. Типичные причины падения
 
@@ -219,7 +234,7 @@ run:
 - `Backend tests and migrations`;
 - `Frontend quality and build`;
 - `Dependency audit`;
-- `First vertical slice browser E2E`;
+- `Auth session browser E2E`;
 - `Application smoke`.
 
 ## 12. Сознательно отложено

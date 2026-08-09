@@ -19,6 +19,11 @@ final class SensitiveDataHttpTest extends WebTestCase
         self::assertStringNotContainsString('password-hash-must-not-leak', $content);
         self::assertStringNotContainsString('tokenHash', $content);
         self::assertStringNotContainsString('token-hash-must-not-leak', $content);
+        self::assertStringNotContainsString('refreshTokenHash', $content);
+        self::assertStringNotContainsString('refresh-hash-must-not-leak', $content);
+        self::assertStringNotContainsString('login-password-hash-must-not-leak', $content);
+        self::assertStringNotContainsString('refresh-token-must-not-leak', $content);
+        self::assertStringNotContainsString('csrf-token-must-not-leak', $content);
         self::assertStringNotContainsString('payload', $content);
         self::assertStringNotContainsString('payload-must-not-leak', $content);
         self::assertStringNotContainsString('encryptedPayload', $content);

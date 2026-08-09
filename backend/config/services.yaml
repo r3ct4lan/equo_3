@@ -50,6 +50,9 @@ services:
     App\IdentityAccess\Application\Port\IdentityRepositoryPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository
 
+    App\IdentityAccess\Application\Port\UserSessionRepositoryPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineUserSessionRepository
+
     App\IdentityAccess\Application\Port\TransactionPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineTransaction
 
@@ -58,6 +61,18 @@ services:
 
     App\IdentityAccess\Application\Port\RequestFingerprintPort:
         alias: App\IdentityAccess\Adapter\Security\VersionedRequestFingerprint
+
+    App\IdentityAccess\Application\Port\AccessTokenIssuerPort:
+        alias: App\IdentityAccess\Adapter\Security\Rs256AccessTokenCodec
+
+    App\IdentityAccess\Application\Port\AccessTokenVerifierPort:
+        alias: App\IdentityAccess\Adapter\Security\Rs256AccessTokenCodec
+
+    App\IdentityAccess\Application\Port\RefreshTokenCodecPort:
+        alias: App\IdentityAccess\Adapter\Security\RefreshTokenCodec
+
+    App\IdentityAccess\Application\Port\CsrfTokenCodecPort:
+        alias: App\IdentityAccess\Adapter\Security\VersionedCsrfTokenCodec
 
     App\IdentityAccess\Application\Port\EmailOutboxPort:
         alias: App\Infrastructure\EmailDelivery\Persistence\Doctrine\DoctrineEmailOutbox
@@ -81,6 +96,30 @@ services:
             $activeVersion: '%env(IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION)%'
             $encodedKeyRing: '%env(IDEMPOTENCY_FINGERPRINT_HMAC_KEYS)%'
 
+    App\IdentityAccess\Adapter\Security\Rs256AccessTokenCodec:
+        lazy: true
+        arguments:
+            $activeKeyVersion: '%env(EQUO_JWT_SIGNING_KEY_VERSION)%'
+            $encodedSigningPrivateKey: '%env(EQUO_JWT_SIGNING_PRIVATE_KEY)%'
+            $encodedPublicKeyRing: '%env(EQUO_JWT_PUBLIC_KEY_RING)%'
+            $issuer: '%env(EQUO_JWT_ISSUER)%'
+            $audience: '%env(EQUO_JWT_AUDIENCE)%'
+            $accessTtlSeconds: '%env(int:EQUO_JWT_ACCESS_TTL_SECONDS)%'
+            $clockSkewSeconds: '%env(int:EQUO_JWT_CLOCK_SKEW_SECONDS)%'
+
+    App\IdentityAccess\Adapter\Security\VersionedCsrfTokenCodec:
+        arguments:
+            $activeVersion: '%env(EQUO_CSRF_SIGNING_KEY_VERSION)%'
+            $encodedKeyRing: '%env(EQUO_CSRF_SIGNING_KEY_RING)%'
+
+    App\IdentityAccess\Adapter\Http\RefreshRequestGuard:
+        arguments:
+            $applicationOrigin: '%env(EQUO_APPLICATION_ORIGIN)%'
+
+    App\IdentityAccess\Adapter\Security\BearerAccessTokenAuthenticator:
+        arguments:
+            $entryPoint: '@App\Infrastructure\Http\BearerAuthenticationEntryPoint'
+
     App\Infrastructure\EmailDelivery\Security\PayloadCipher:
         arguments:
             $encodedKey: '%env(EMAIL_PAYLOAD_KEY)%'
@@ -91,6 +130,8 @@ services:
             $registrationEmailLimiter: '@limiter.registration_email'
             $activationIpLimiter: '@limiter.activation_ip'
             $activationTokenLimiter: '@limiter.activation_token'
+            $loginIpLimiter: '@limiter.login_ip'
+            $loginEmailIpLimiter: '@limiter.login_email_ip'
 
     App\Infrastructure\EmailDelivery\Messaging\SendUserActionEmailHandler:
         arguments:

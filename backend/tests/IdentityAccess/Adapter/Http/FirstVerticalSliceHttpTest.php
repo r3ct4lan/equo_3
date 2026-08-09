@@ -67,7 +67,7 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
         self::assertSame(1, $this->countRows('user_action_token'));
         self::assertSame(1, $this->countRows('email_delivery_outbox'));
         self::assertSame(1, $this->countRows('idempotency_record'));
-        self::assertNotContains('user_session', $this->connection->createSchemaManager()->listTableNames());
+        self::assertSame(0, $this->countRows('user_session'));
 
         $outbox = $this->entityManager->getRepository(EmailDeliveryOutboxRecord::class)->findOneBy([]);
         self::assertInstanceOf(EmailDeliveryOutboxRecord::class, $outbox);
