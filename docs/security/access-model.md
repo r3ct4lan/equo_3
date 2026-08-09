@@ -2,21 +2,25 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать реализованную модель доступа регистрации, активации, backend login, refresh rotation и `/me` |
+| Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle и `/me` |
 | Статус | Accepted |
-| Версия | 8 |
-| Дата актуальности | 2026-08-08 |
+| Версия | 9 |
+| Дата актуальности | 2026-08-10 |
 | Владелец | Maksim Smolkov |
 | Источник | BR-USR-001—003/009; BR-SEC-003—004; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
 
 ## 1. Граница реализации
 
 Текущая реализация содержит публичную регистрацию, применение
-`ACTIVATE_ACCOUNT`, backend login и refresh rotation. Login создаёт
-`UserSession`, выдаёт JWT access token в response body и устанавливает
-refresh/CSRF cookies. Refresh endpoint ротирует refresh token и выдаёт новый
-access token без продления срока сессии. Stateless Bearer firewall защищает
-`GET /api/v1/me`. Logout и финансовые protected endpoints явно исключены.
+`ACTIVATE_ACCOUNT`, login, refresh rotation, browser session lifecycle и
+минимальную защищённую `/me`-страницу. Login создаёт `UserSession`, выдаёт JWT
+access token в response body и устанавливает refresh/CSRF cookies. Frontend
+хранит access token только в памяти вкладки, после hydration выполняет
+`refresh -> /me`, сериализует refresh через Web Locks и делает один
+refresh/retry для подходящего `401` защищённого запроса. Refresh endpoint
+ротирует refresh token и выдаёт новый access token без продления срока сессии.
+Stateless Bearer firewall защищает `GET /api/v1/me`. Logout и финансовые
+protected endpoints явно исключены.
 Текущий этап не добавляет временный bearer header, hardcoded пользователя,
 фиктивную роль или RBAC-модель.
 
@@ -65,9 +69,9 @@ token под pessimistic lock, проверяет lifecycle и текущий `U
 заменяет только `refresh_token_hash` и выпускает новый access token плюс новые
 cookies. `expires_at` не сдвигается.
 
-Оставшаяся часть ADR-018 ещё впереди: access token должен жить только в памяти
-вкладки; reload запускает client-side `refresh → /me`; одновременные refresh во
-frontend сериализуются; protected navigation ждёт bootstrap.
+Frontend-часть ADR-018 реализована: access token живёт только в памяти вкладки;
+reload запускает client-side `refresh -> /me`; одновременные refresh во
+frontend сериализуются Web Locks; protected navigation ждёт bootstrap.
 
 Для `/me` invalid/absent authentication, malformed Bearer header, invalid JWT,
 unknown user и inactive user возвращают единый `401 AUTHENTICATION_REQUIRED`.
@@ -151,8 +155,7 @@ hash и всегда возвращает `false`, поэтому Application н
 
 - logout, logout-all, family-wide revoke и refresh revocation endpoints;
 - финансовые voters/policies и проверки Connect/Debt/Transfer;
-- оставшаяся frontend-реализация принятого ADR-018: in-memory token lifecycle,
-  session bootstrap и межвкладочная сериализация refresh.
+- расширение защищённых frontend-разделов за пределы минимальной `/me`-страницы.
 
 ## 9. Проверки безопасности
 
@@ -170,8 +173,11 @@ race, где успешен ровно один запрос. Bearer/current-use
 Authorization parsing, JWT failure collapse into `AUTHENTICATION_REQUIRED`,
 fresh DB profile lookup, inactive/unknown user rejection, отсутствие cookies и
 refresh rotation на `/me`, token-source discipline и public endpoint regression.
-Общие HTTP tests продолжают проверять safe errors, request ID и публичный
-healthcheck.
+Browser E2E дополнительно проверяет реальный HTTPS путь `register -> activate
+-> login -> reload -> authenticated /me`, cookie attributes, storage discipline,
+safe redirects, login errors, двухвкладочную refresh-координацию, retry budget и
+отказ `/me` без valid Bearer token. Общие HTTP tests продолжают проверять safe
+errors, request ID и публичный healthcheck.
 
 ## 10. Нормативные источники
 

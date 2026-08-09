@@ -5,7 +5,7 @@
 | Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth-экраны |
 | Статус | Implemented |
 | Версия | 6 |
-| Дата актуальности | 2026-08-09 |
+| Дата актуальности | 2026-08-10 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v4; ADR-001/006/012/017/018; реализация HTTP-слоя; модель доступа; фактический frontend |
 
@@ -18,8 +18,7 @@ login, browser session lifecycle и минимальную защищённую 
 Auth frontend следует ADR-018: access token хранится только в client-side
 closure текущей вкладки, bootstrap выполняет `refresh -> /me`, а protected
 route middleware является UX-границей поверх обязательной backend authorization.
-Logout, logout-all, reset/change password и browser E2E остаются вне этого
-слоя.
+Logout, logout-all и reset/change password остаются вне этого слоя.
 
 ## 2. Фактическая структура
 
@@ -251,8 +250,9 @@ curl --fail http://localhost:${APP_PORT:-80}/api/health
 
 `make check-frontend` запускает lock check, ESLint, typecheck, unit/component
 tests, production build и npm audit. `make check` запускает repository,
-backend/frontend quality gate и smoke без browser E2E. Browser E2E вынесен в
-`make check-full`; полный состав описан в [quality gate E1-12](quality-gate.md).
+backend/frontend quality gate и smoke без browser E2E. Полный auth/session
+browser E2E вынесен в `make check-full`; полный состав описан в
+[quality gate E1-12](quality-gate.md).
 
 E1-11 не добавлял npm-пакетов. E1-12 добавляет только dev-only ESLint и
 официальный Nuxt flat config. Существующий direct `vue-router` выровнен
@@ -262,8 +262,6 @@ Nuxt Router и делал его Volar plugin недоступным для `vue
 ## 11. Сознательно отложено
 
 - logout, logout-all, reset/change password и изменение профиля;
-- browser E2E реального full-stack пути
-  `register -> activate -> login -> reload -> authenticated /me`;
 - Pinia, form/validation library, UI framework и OpenAPI generator;
 - окончательный branding, уведомления, аналитика и страницы будущих модулей.
 

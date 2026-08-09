@@ -41,7 +41,10 @@ async function loadProfile(): Promise<void> {
   }
   catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error) {
-      currentUser.setError(error as Parameters<typeof currentUser.setError>[0])
+      const apiError = error as Parameters<typeof currentUser.setError>[0] & { status?: number | null }
+      if (apiError.status !== 401) {
+        currentUser.setError(apiError)
+      }
     }
   }
   finally {

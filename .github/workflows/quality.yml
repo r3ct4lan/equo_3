@@ -27,6 +27,12 @@ env:
   TRUSTED_PROXIES: 127.0.0.1
   DEFAULT_URI: http://localhost
   FRONTEND_BASE_URL: http://localhost
+  EQUO_REGISTRATION_IP_LIMIT: '5'
+  EQUO_REGISTRATION_EMAIL_LIMIT: '3'
+  EQUO_ACTIVATION_IP_LIMIT: '10'
+  EQUO_ACTIVATION_TOKEN_LIMIT: '5'
+  EQUO_LOGIN_IP_LIMIT: '30'
+  EQUO_LOGIN_EMAIL_IP_LIMIT: '5'
   ACTION_TOKEN_ACTIVE_VERSION: v1
   ACTION_TOKEN_HMAC_KEYS: '{"v1":"YWN0aW9uLXRva2VuLWNpLWtleS0zMi1ieXRlcyEhISE="}'
   IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION: v1
@@ -188,20 +194,20 @@ jobs:
         working-directory: frontend
         run: npm audit --audit-level=moderate
 
-  first-vertical-slice-e2e:
-    name: First vertical slice browser E2E
+  auth-session-e2e:
+    name: Auth session browser E2E
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Run the isolated registration and activation journey
+      - name: Run the isolated full auth session journey
         run: make test-e2e
       - name: Upload failure screenshots and diagnostics
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: first-vertical-slice-e2e-${{ github.run_attempt }}
+          name: auth-session-e2e-${{ github.run_attempt }}
           path: frontend/test-results/
           if-no-files-found: ignore
           retention-days: 7

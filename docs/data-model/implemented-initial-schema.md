@@ -4,15 +4,15 @@
 |---|---|
 | Назначение | Зафиксировать фактически реализованную часть модели данных текущего MVP |
 | Статус | Accepted |
-| Версия | 7 |
-| Дата актуальности | 2026-08-08 |
+| Версия | 8 |
+| Дата актуальности | 2026-08-10 |
 | Владелец | Maksim Smolkov |
 | Источник | Модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016, ADR-019; фактические migrations и mapping |
 
 ## 1. Граница реализации
 
-Для реализованных регистрации, активации аккаунта и серверного состояния будущей
-browser-сессии используются пять записей:
+Для реализованных регистрации, активации аккаунта и защищённой browser-сессии
+используются пять записей:
 
 | ER-сущность | Таблица | Doctrine-класс | Владелец |
 |---|---|---|---|
@@ -141,7 +141,7 @@ PostgreSQL не дублирует контекстные правила. В App
   `expiresAt > now`; ротация меняет только hash активной session;
 - согласованность activation payload, recipient/template и outbox lifecycle;
 - атомарная координация `User`, token, outbox и idempotency result;
-- сериализация конкурентных registration/activation и будущей refresh-rotation
+- сериализация конкурентных registration/activation и refresh-rotation
   через advisory lock, уникальные ограничения и pessimistic row locks.
 
 Остаётся отложенным физический retention cleanup по
@@ -153,11 +153,11 @@ token вместе с новой строкой `User`.
 
 Не создавались `Connect`, `ConnectInvitation`, `Debt`, `DebtParticipant`,
 `Transfer`: они не нужны для регистрации, активации и session persistence и
-относятся к следующим вертикальным сценариям. Login, refresh endpoint,
-authenticator, `/me`, cookies, rate limits и frontend bootstrap пока не
-реализованы. Не создавались mapper-слой для полной ER-модели, fixtures и
-демонстрационные данные. Минимальные repositories, domain objects и application
-use cases регистрации/активации находятся в модуле `IdentityAccess`.
+относятся к следующим вертикальным сценариям. Logout, logout-all, password
+reset/change и финансовые protected endpoints пока не реализованы. Не
+создавались mapper-слой для полной ER-модели, fixtures и демонстрационные
+данные. Минимальные repositories, domain objects и application use cases
+auth-среза находятся в модуле `IdentityAccess`.
 Purpose enum и access policy описаны в
 [модели доступа](../security/access-model.md) и не меняют схему.
 

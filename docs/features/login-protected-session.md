@@ -3,8 +3,8 @@
 | Поле | Значение |
 |---|---|
 | Название | Login и защищённая browser-сессия |
-| Статус | Frontend session lifecycle implemented / Ready for browser E2E closure |
-| Дата аудита | 2026-08-08 |
+| Статус | Implemented and verified / Ready to merge |
+| Дата аудита | 2026-08-10 |
 | Связанный сценарий | `MVP-SC-002` |
 | Диапазон задач | `DR-E1-001—053` |
 | Feature-ветка | `feature/login-protected-session` |
@@ -385,8 +385,28 @@ Implemented in the frontend-session stage:
 - unit and component regressions for validation, bootstrap states, retry budget,
   no token persistence and token-free cross-tab events.
 
+Verified in the browser E2E closure stage:
+
+- real HTTPS path `register -> activate -> login -> reload -> authenticated /me`;
+- safe activation URL handling with no capability persistence;
+- exact refresh and CSRF cookie attributes after login and reload;
+- no access token, refresh token, CSRF token or password in Web Storage,
+  IndexedDB metadata, SSR payload, URL, body text, JS-readable refresh cookie or
+  browser diagnostics;
+- anonymous protected navigation gets backend refresh `401` and redirects to a
+  safe local login redirect;
+- unsafe login redirect values are collapsed to `/me`;
+- login errors distinguish only the accepted public states and keep password
+  out of UI/storage;
+- duplicate login submit sends one request;
+- two tabs serialize refresh through Web Locks without token-bearing messages;
+- protected request handling performs at most one refresh and one retry after
+  eligible access-token `401`;
+- `/me` rejects missing and invalid Bearer tokens even when refresh cookies are
+  present.
+
 Not implemented in this stage: logout, logout-all, family-wide revoke, rate
-limits beyond login and existing public operations, or browser E2E.
+limits beyond login and existing public operations.
 
 ## 11. Зависимости и конфигурация
 
@@ -443,6 +463,12 @@ Environment variables:
 | `EQUO_CSRF_SIGNING_KEY_VERSION` | Active CSRF signing key version |
 | `EQUO_CSRF_SIGNING_KEY_RING` | JSON key ring of base64-encoded HMAC keys, each at least 256 bits |
 | `EQUO_APPLICATION_ORIGIN` | Exact same-origin/Origin comparison value |
+| `EQUO_REGISTRATION_IP_LIMIT` | Registration IP sliding-window quota, default `5` |
+| `EQUO_REGISTRATION_EMAIL_LIMIT` | Registration email sliding-window quota, default `3` |
+| `EQUO_ACTIVATION_IP_LIMIT` | Activation IP sliding-window quota, default `10` |
+| `EQUO_ACTIVATION_TOKEN_LIMIT` | Activation token sliding-window quota, default `5` |
+| `EQUO_LOGIN_IP_LIMIT` | Login IP sliding-window quota, default `30` |
+| `EQUO_LOGIN_EMAIL_IP_LIMIT` | Login email+IP sliding-window quota, default `5` |
 | `EQUO_REFRESH_TTL_DAYS` | Defaults to normative `30` if configurable |
 
 Tracked env examples use intentionally invalid placeholders for JWT/CSRF key
@@ -458,8 +484,8 @@ material. No real keys or production secrets belong in the repository.
 | 4. Refresh | Refresh service, lock/rotation, CSRF/same-origin verifier | Lifecycle decisions | Rotation, expiry, revoked, inactive user | Cookie rotation, CSRF, Origin, errors | Two simultaneous refresh requests | Bootstrap refresh mock states | — | Old token never revives; no silent fallback |
 | 5. Authenticator и `/me` | SecurityBundle firewall, custom authenticator, current-user query, `/me` | JWT validation branches | Load current user after JWT validation | `GET /me` success/401/inactive | — | Protected route state hooks | — | Implemented; protected endpoint has real current user boundary |
 | 6. Frontend lifecycle | In-memory token holder, bootstrap, API retry, route middleware, `/me` page | Token holder and retry budget | — | — | Single-flight browser logic | `unknown/authenticated/anonymous/error`, no storage | — | Implemented; one refresh and one retry max; no token persistence |
-| 7. Browser E2E/security regression | Full stack auth path | — | — | — | Refresh race in process/browser where practical | — | `register → activate → login → reload → authenticated /me` | Next; secrets absent from body/logs/URL/storage |
-| 8. Docs и roadmap closure | Update implemented docs/env examples/roadmap after implementation | — | — | — | — | — | Full check | Actual docs match shipped code; roadmap only checked after merge-ready completion |
+| 7. Browser E2E/security regression | Full stack auth path, HTTPS E2E nginx, ephemeral JWT/CSRF/TLS generation | — | — | — | Two-tab browser refresh coordination | — | `register -> activate -> login -> reload -> authenticated /me`; safe errors, redirects, storage/cookie/token regressions | Implemented; secrets absent from body/logs/URL/storage/artifacts; no source drift |
+| 8. Docs и roadmap closure | Update implemented docs/env examples after implementation | — | — | — | — | — | Full check | Implemented docs updated; roadmap checkboxes stay unchecked until merge |
 
 ## 13. Решения и открытые вопросы
 
@@ -472,8 +498,9 @@ material. No real keys or production secrets belong in the repository.
   single refresh/retry budget, no token persistence.
 - Browser primitive for cross-tab serialization: Web Locks API; token-free
   events may use BroadcastChannel.
-- Frontend session lifecycle is implemented with `$auth`; `$api` stays a
-  stateless transport boundary and accepts an access token only explicitly.
+- Frontend session lifecycle is implemented and browser-verified with `$auth`;
+  `$api` stays a stateless transport boundary and accepts an access token only
+  explicitly.
 - JWT dependency: `lcobucci/jwt:^5.6`; Symfony auth dependency:
   `symfony/security-bundle:7.4.*`.
 
@@ -488,9 +515,14 @@ Resolved open questions:
 - `OQ-020`: no additional `UserSession.revokedAt` DB CHECK is added; terminal
   state is a domain lifecycle rule.
 
-Next implementation stage:
+Final verification:
 
-- browser E2E/security regression for the real full-stack reload flow.
+- backend quality and tests cover security primitives, login, refresh,
+  authenticator, `/me`, sensitive-data and concurrency regressions;
+- frontend unit/component tests cover validation, bootstrap states, retry
+  budget, no token persistence and token-free cross-tab events;
+- browser E2E covers the real full-stack HTTPS auth/session flow;
+- `make check-full` is the merge gate for this feature.
 
 Blockers:
 
