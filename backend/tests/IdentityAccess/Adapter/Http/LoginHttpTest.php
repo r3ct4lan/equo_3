@@ -174,7 +174,7 @@ final class LoginHttpTest extends WebTestCase
         $this->assertNoCookiesOrSessions();
     }
 
-    public function testLoginRouteIsPublicRefreshExistsAndMeIsStillAbsent(): void
+    public function testLoginRouteIsPublicRefreshExistsAndMeIsProtected(): void
     {
         $this->jsonRequest([]);
         self::assertNotContains($this->client->getResponse()->getStatusCode(), [401, 403]);
@@ -184,7 +184,8 @@ final class LoginHttpTest extends WebTestCase
         self::assertSame('AUTHENTICATION_REQUIRED', $this->error($this->jsonBody())['code']);
 
         $this->client->request('GET', '/api/v1/me');
-        self::assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+        self::assertSame('AUTHENTICATION_REQUIRED', $this->error($this->jsonBody())['code']);
     }
 
     /** @return array<string, mixed> */
