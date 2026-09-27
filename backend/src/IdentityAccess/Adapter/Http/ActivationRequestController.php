@@ -8,6 +8,7 @@ use App\IdentityAccess\Adapter\Http\Request\ActivationRequest;
 use App\IdentityAccess\Application\ActivationRequest\ActivationRequestCommand;
 use App\IdentityAccess\Application\ActivationRequest\RequestActivation;
 use App\IdentityAccess\Application\Api\ActivationRequestResult;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -24,12 +25,14 @@ final readonly class ActivationRequestController
         methods: ['POST'],
     )]
     public function __invoke(
+        Request $request,
         #[MapRequestPayload(acceptFormat: 'json')]
         ActivationRequest $payload,
     ): ActivationRequestResult {
         return $this->requestActivation->handle(new ActivationRequestCommand(
             $payload->email ?? '',
             $payload->password ?? '',
+            $request->getClientIp() ?? 'unknown',
         ));
     }
 }

@@ -196,6 +196,11 @@ final class LoginUserPersistenceTest extends KernelTestCase
                 return null;
             }
 
+            public function activationRequestRetryAfter(string $ip, string $normalizedEmail): ?int
+            {
+                return null;
+            }
+
             public function activationRetryAfter(string $ip, string $tokenFingerprint): ?int
             {
                 return null;

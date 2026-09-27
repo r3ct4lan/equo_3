@@ -156,6 +156,27 @@ final class EmailDeliveryFlowTest extends KernelTestCase
         self::assertNull($outbox->encryptedPayload());
     }
 
+    public function testConsumerRejectsInvalidatedTokenWithoutCallingMailer(): void
+    {
+        $outbox = $this->fixture(EmailDeliveryStatus::Published, invalidated: true);
+        $transport = $this->createMock(TransportInterface::class);
+        $transport->expects(self::never())->method('send');
+        $handler = new SendUserActionEmailHandler(
+            $this->entityManager,
+            self::getContainer()->get(TokenDeliveryQuery::class),
+            new PayloadCipher(self::PAYLOAD_KEY),
+            $transport,
+            'http://localhost',
+            'no-reply@equo.local',
+        );
+
+        $handler(new SendUserActionEmail($outbox->id()));
+
+        self::assertSame(EmailDeliveryStatus::Failed, $outbox->status());
+        self::assertNull($outbox->encryptedPayload());
+        self::assertSame('Action token is no longer deliverable.', $outbox->lastError());
+    }
+
     public function testSmtpFailureRollsBackAndFinalFailureClearsSecret(): void
     {
         $outbox = $this->fixture(EmailDeliveryStatus::Published);
@@ -259,8 +280,11 @@ final class EmailDeliveryFlowTest extends KernelTestCase
         self::assertSame(1, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM email_delivery_outbox'));
     }
 
-    private function fixture(EmailDeliveryStatus $status, bool $expired = false): EmailDeliveryOutboxRecord
-    {
+    private function fixture(
+        EmailDeliveryStatus $status,
+        bool $expired = false,
+        bool $invalidated = false,
+    ): EmailDeliveryOutboxRecord {
         $now = new DateTimeImmutable('now');
         $suffix = bin2hex(random_bytes(6));
         $user = new UserRecord(
@@ -279,6 +303,8 @@ final class EmailDeliveryFlowTest extends KernelTestCase
             null,
             $now->modify('-2 hours'),
             $expired ? $now->modify('-1 hour') : $now->modify('+1 hour'),
+            null,
+            $invalidated ? $now->modify('-1 hour') : null,
         );
         $terminal = in_array($status, [EmailDeliveryStatus::Sent, EmailDeliveryStatus::Failed], true);
         $outbox = new EmailDeliveryOutboxRecord(

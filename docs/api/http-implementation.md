@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth endpoints |
 | Статус | Accepted |
-| Версия | 6 |
-| Дата актуальности | 2026-08-08 |
+| Версия | 7 |
+| Дата актуальности | 2026-09-27 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
 
@@ -13,10 +13,11 @@
 
 Общий HTTP-слой реализует transport concerns и остаётся отделён от предметной
 логики. Реализованы production routes `/api/v1/auth/register`,
-`/api/v1/auth/activate`, `/api/v1/auth/login`, `/api/v1/auth/refresh` и
-`/api/v1/me`; их controllers используют общий error/response pipeline и
-вызывают application use case. JSON-body endpoints дополнительно используют DTO
-mapping. Также доступен `/api/health`.
+`/api/v1/auth/activation-requests`, `/api/v1/auth/activate`,
+`/api/v1/auth/login`, `/api/v1/auth/refresh` и `/api/v1/me`; их controllers
+используют общий error/response pipeline и вызывают application use case.
+JSON-body endpoints дополнительно используют DTO mapping. Также доступен
+`/api/health`.
 Fixture routes с префиксом `/api/v1/_test/http` и их controller загружаются
 только при `APP_ENV=test`.
 
@@ -162,10 +163,10 @@ Failure responses `401`, `403` и technical `500` не устанавливаю�
 ## 4.3. Реализованный Bearer authenticator и `/me`
 
 `GET /api/v1/me` защищён stateless Symfony firewall. Public routes
-`/api/health`, `/api/v1/auth/register`, `/api/v1/auth/activate`,
-`/api/v1/auth/login` и `/api/v1/auth/refresh` остаются public на уровне Bearer
-firewall; refresh продолжает использовать собственную cookie/CSRF/same-origin
-защиту.
+`/api/health`, `/api/v1/auth/register`, `/api/v1/auth/activation-requests`,
+`/api/v1/auth/activate`, `/api/v1/auth/login` и `/api/v1/auth/refresh` остаются
+public на уровне Bearer firewall; refresh продолжает использовать собственную
+cookie/CSRF/same-origin защиту.
 
 Bearer authenticator применяется к `/api/v1/me` и принимает только один
 `Authorization` header точного вида `Bearer <access-token>`. Token передаётся в
@@ -205,6 +206,36 @@ message, Authorization header, JWT validation detail, claims and token values н
 `/me` не устанавливает cookies, не читает refresh cookie, не ротирует
 `UserSession`, не выпускает новый access token и не принимает token из query
 string или cookie.
+
+## 4.4. Реализованный повторный запрос активации
+
+`POST /api/v1/auth/activation-requests` принимает `email` и `password`.
+Application сначала нормализует email, затем до account lookup одновременно
+расходует две Symfony RateLimiter sliding-window квоты:
+
+- `activation_request_email`: ключ — SHA-256 от нормализованного email,
+  лимит `3` за `1 hour`;
+- `activation_request_ip`: ключ — SHA-256 от IP, полученного через
+  `Request::getClientIp()`, лимит `20` за `1 hour`.
+
+Email-key применяется одинаково к существующему и неизвестному аккаунту, поэтому
+выбор ключа не раскрывает наличие пользователя. IP учитывает forwarded headers
+только от `framework.trusted_proxies`; произвольный `X-Forwarded-For` от
+недоверенного клиента игнорируется. При исчерпании любой квоты application
+возвращает `429 RATE_LIMIT_EXCEEDED` до lookup и транзакции; `Retry-After`
+равен максимальному времени ожидания среди отклонённых квот.
+
+После успешной проверки лимитов use case блокирует найденный `User` через
+`SELECT FOR UPDATE`. Только неактивный пользователь с верным паролем получает
+replacement `ACTIVATE_ACCOUNT`: прежние незавершённые токены инвалидируются,
+новый token с TTL 24 часа и зашифрованный outbox intent сохраняются в одной
+PostgreSQL-транзакции. Unknown email, wrong password и active account ничего не
+изменяют, но имеют тот же `202 activation_email_scheduled`, body и публичные
+headers, что допустимый пользователь.
+
+Consumer перед SMTP повторно проверяет token state. Outbox старого replacement,
+чей token уже invalidated, переводится в `FAILED`, payload очищается, Mailer не
+вызывается.
 
 ## 5. Поток ошибки
 
@@ -311,6 +342,26 @@ cookie rotation, неизменный session expiry, rollback, replay rejection
 единый auth failure envelope, fresh current-user lookup, inactive/unknown user
 rejection, отсутствие cookies/session rotation на `/me`, token-source discipline
 и public endpoint regressions после включения firewall.
+
+`ActivationRequestHttpTest` проверяет единый публичный `202` для четырёх account
+веток, `422`, email/IP quotas `3/20`, нормализацию limiter key, недоверенный
+`X-Forwarded-For`, `429/Retry-After`, TTL, replacement и отсутствие открытых
+секретов. `FirstVerticalSliceTransactionTest` подтверждает rollback token и
+`invalidatedAt` при отказе outbox; `FirstVerticalSliceConcurrencyTest` запускает
+два процесса против PostgreSQL и проверяет единственный незавершённый token и
+полный набор outbox intents; `EmailDeliveryFlowTest` проверяет отказ от отправки
+по invalidated token.
+
+Узкий набор запускается командой:
+
+```bash
+php bin/phpunit \
+  tests/IdentityAccess/Application/ActivationRequest/RequestActivationTest.php \
+  tests/IdentityAccess/Adapter/Http/ActivationRequestHttpTest.php \
+  tests/Integration/IdentityAccess/FirstVerticalSliceTransactionTest.php \
+  tests/Integration/IdentityAccess/FirstVerticalSliceConcurrencyTest.php \
+  tests/Integration/EmailDelivery/EmailDeliveryFlowTest.php
+```
 
 ## 11. Нормативные источники
 

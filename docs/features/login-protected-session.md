@@ -471,6 +471,8 @@ Environment variables:
 | `EQUO_APPLICATION_ORIGIN` | Exact same-origin/Origin comparison value |
 | `EQUO_REGISTRATION_IP_LIMIT` | Registration IP sliding-window quota, default `5` |
 | `EQUO_REGISTRATION_EMAIL_LIMIT` | Registration email sliding-window quota, default `3` |
+| `EQUO_ACTIVATION_REQUEST_IP_LIMIT` | Activation-request IP sliding-window quota, default `20` |
+| `EQUO_ACTIVATION_REQUEST_EMAIL_LIMIT` | Activation-request normalized-email sliding-window quota, default `3` |
 | `EQUO_ACTIVATION_IP_LIMIT` | Activation IP sliding-window quota, default `10` |
 | `EQUO_ACTIVATION_TOKEN_LIMIT` | Activation token sliding-window quota, default `5` |
 | `EQUO_LOGIN_IP_LIMIT` | Login IP sliding-window quota, default `30` |

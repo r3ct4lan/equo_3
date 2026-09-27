@@ -6,6 +6,8 @@ namespace App\Tests\Integration\IdentityAccess;
 
 use App\IdentityAccess\Application\Activate\ActivateAccount;
 use App\IdentityAccess\Application\Activate\ActivateCommand;
+use App\IdentityAccess\Application\ActivationRequest\ActivationRequestCommand;
+use App\IdentityAccess\Application\ActivationRequest\RequestActivation;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Register\RegisterCommand;
 use App\IdentityAccess\Application\Register\RegisterUser;
@@ -135,6 +137,69 @@ final class FirstVerticalSliceConcurrencyTest extends KernelTestCase
         self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM user_action_token WHERE user_id = ?', [$result->user->id]));
     }
 
+    public function testConcurrentActivationRequestsLeaveOneCurrentTokenAndConsistentOutbox(): void
+    {
+        $email = $this->email('activation-request');
+        $key = $this->key('41000000');
+
+        self::bootKernel();
+        $container = self::getContainer();
+        $container->get('test.rate_limiter_cache')->clear();
+        $result = $container->get('test.register_user')->handle(new RegisterCommand(
+            'Concurrent Activation Request',
+            $email,
+            'A2345678901!',
+            $key,
+            '198.51.100.40',
+        ));
+        $userId = $result->user->id;
+        self::ensureKernelShutdown();
+
+        $results = $this->race([
+            fn (): array => $this->activationRequestOutcome(new ActivationRequestCommand(
+                $email,
+                'A2345678901!',
+                '198.51.100.41',
+            )),
+            fn (): array => $this->activationRequestOutcome(new ActivationRequestCommand(
+                '  '.mb_strtoupper($email).'  ',
+                'A2345678901!',
+                '198.51.100.42',
+            )),
+        ]);
+
+        self::assertSame(
+            ['activation_email_scheduled', 'activation_email_scheduled'],
+            array_column($results, 'outcome'),
+        );
+
+        self::bootKernel();
+        $connection = self::getContainer()->get(Connection::class);
+        self::assertSame(3, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM user_action_token WHERE user_id = ?',
+            [$userId],
+        ));
+        self::assertSame(1, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM user_action_token WHERE user_id = ? AND purpose = ? AND used_at IS NULL AND invalidated_at IS NULL',
+            [$userId, 'ACTIVATE_ACCOUNT'],
+        ));
+        self::assertSame(2, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM user_action_token WHERE user_id = ? AND purpose = ? AND invalidated_at IS NOT NULL',
+            [$userId, 'ACTIVATE_ACCOUNT'],
+        ));
+        self::assertSame(3, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM email_delivery_outbox WHERE user_action_token_id IN (SELECT id FROM user_action_token WHERE user_id = ?)',
+            [$userId],
+        ));
+        self::assertSame(0, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM email_delivery_outbox outbox LEFT JOIN user_action_token token ON token.id = outbox.user_action_token_id WHERE token.id IS NULL',
+        ));
+        self::assertSame(1, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM email_delivery_outbox outbox INNER JOIN user_action_token token ON token.id = outbox.user_action_token_id WHERE token.user_id = ? AND token.used_at IS NULL AND token.invalidated_at IS NULL',
+            [$userId],
+        ));
+    }
+
     /** @return array{outcome: string, body?: array<string, mixed>} */
     private function registrationOutcome(RegisterCommand $command): array
     {
@@ -158,6 +223,20 @@ final class FirstVerticalSliceConcurrencyTest extends KernelTestCase
             $handler->handle(new ActivateCommand($token, $ipAddress));
 
             return ['outcome' => 'activated'];
+        } catch (ApplicationFailure $failure) {
+            return ['outcome' => $failure->failureCode->value];
+        }
+    }
+
+    /** @return array{outcome: string} */
+    private function activationRequestOutcome(ActivationRequestCommand $command): array
+    {
+        try {
+            /** @var RequestActivation $handler */
+            $handler = self::getContainer()->get('test.request_activation');
+            $result = $handler->handle($command);
+
+            return ['outcome' => $result->status];
         } catch (ApplicationFailure $failure) {
             return ['outcome' => $failure->failureCode->value];
         }

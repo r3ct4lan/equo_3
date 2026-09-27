@@ -34,6 +34,7 @@ final class ActivationRequestHttpTest extends WebTestCase
         $this->entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $this->connection = $this->entityManager->getConnection();
         $this->connection->beginTransaction();
+        self::getContainer()->get('test.rate_limiter_cache')->clear();
     }
 
     protected function tearDown(): void
@@ -153,6 +154,99 @@ final class ActivationRequestHttpTest extends WebTestCase
         self::assertSame(0, $this->countRows('email_delivery_outbox'));
     }
 
+    public function testNormalizedEmailLimitAllowsThreeRequestsAndRejectsFourthWithoutWrites(): void
+    {
+        $user = $this->insertUser('email-limit@example.test', false);
+        $variants = [
+            'email-limit@example.test',
+            '  Email-Limit@Example.Test  ',
+            'EMAIL-LIMIT@EXAMPLE.TEST',
+        ];
+
+        foreach ($variants as $variant) {
+            $body = $this->requestActivation($variant, self::PASSWORD, '198.51.100.10');
+            self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
+            self::assertSame(['status' => 'activation_email_scheduled'], $body);
+        }
+
+        self::assertSame(3, $this->countRows('user_action_token'));
+        self::assertSame(3, $this->countRows('email_delivery_outbox'));
+        self::assertSame(1, (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM user_action_token WHERE user_id = ? AND used_at IS NULL AND invalidated_at IS NULL',
+            [$user->id()],
+        ));
+
+        $error = $this->requestActivation(' email-limit@example.test ', self::PASSWORD, '198.51.100.10');
+
+        $this->assertRateLimitError($error, 3_600);
+        self::assertSame(3, $this->countRows('user_action_token'));
+        self::assertSame(3, $this->countRows('email_delivery_outbox'));
+        self::assertStringNotContainsString(self::PASSWORD, (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testIpLimitAllowsTwentyUnknownEmailsAndRejectsNextWithoutWrites(): void
+    {
+        for ($attempt = 1; $attempt <= 20; ++$attempt) {
+            $body = $this->requestActivation(
+                sprintf('unknown-ip-limit-%02d@example.test', $attempt),
+                self::PASSWORD,
+                '198.51.100.20',
+                sprintf('203.0.113.%d', $attempt),
+            );
+            self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
+            self::assertSame(['status' => 'activation_email_scheduled'], $body);
+        }
+
+        $error = $this->requestActivation(
+            'unknown-ip-limit-21@example.test',
+            self::PASSWORD,
+            '198.51.100.20',
+            '203.0.113.21',
+        );
+
+        $this->assertRateLimitError($error, 3_600);
+        self::assertSame(0, $this->countRows('app_user'));
+        self::assertSame(0, $this->countRows('user_action_token'));
+        self::assertSame(0, $this->countRows('email_delivery_outbox'));
+    }
+
+    public function testAllAccountBranchesExposeTheSameSuccessContractAndHeaders(): void
+    {
+        $this->insertUser('privacy-wrong@example.test', false);
+        $this->insertUser('privacy-active@example.test', true);
+        $this->insertUser('privacy-eligible@example.test', false);
+        $cases = [
+            ['privacy-unknown@example.test', self::PASSWORD, '198.51.100.31'],
+            ['privacy-wrong@example.test', 'Wrong password!', '198.51.100.32'],
+            ['privacy-active@example.test', self::PASSWORD, '198.51.100.33'],
+            ['privacy-eligible@example.test', self::PASSWORD, '198.51.100.34'],
+        ];
+        $signatures = [];
+
+        foreach ($cases as [$email, $password, $ip]) {
+            $body = $this->requestActivation($email, $password, $ip);
+            $response = $this->client->getResponse();
+            $content = (string) $response->getContent();
+            self::assertStringNotContainsString('INVALID_CREDENTIALS', $content);
+            self::assertStringNotContainsString('ACCOUNT_ALREADY_ACTIVE', $content);
+            self::assertStringNotContainsString('token', strtolower($content));
+            self::assertStringNotContainsString('activate?', strtolower($content));
+            $signatures[] = [
+                'status' => $response->getStatusCode(),
+                'body' => $body,
+                'contentType' => $response->headers->get('Content-Type'),
+                'retryAfter' => $response->headers->get('Retry-After'),
+                'wwwAuthenticate' => $response->headers->get('WWW-Authenticate'),
+                'setCookie' => $response->headers->get('Set-Cookie'),
+                'hasRequestId' => $response->headers->has('X-Request-Id'),
+            ];
+        }
+
+        self::assertSame($signatures[0], $signatures[1]);
+        self::assertSame($signatures[0], $signatures[2]);
+        self::assertSame($signatures[0], $signatures[3]);
+    }
+
     private function insertUser(string $email, bool $active): UserRecord
     {
         $user = new UserRecord(
@@ -204,12 +298,21 @@ final class ActivationRequestHttpTest extends WebTestCase
     }
 
     /** @return array<string, mixed> */
-    private function requestActivation(string $email, string $password): array
-    {
+    private function requestActivation(
+        string $email,
+        string $password,
+        string $ip = '192.0.2.1',
+        ?string $forwardedFor = null,
+    ): array {
+        $server = ['CONTENT_TYPE' => 'application/json', 'REMOTE_ADDR' => $ip];
+        if (null !== $forwardedFor) {
+            $server['HTTP_X_FORWARDED_FOR'] = $forwardedFor;
+        }
+
         $this->client->request(
             'POST',
             '/api/v1/auth/activation-requests',
-            server: ['CONTENT_TYPE' => 'application/json'],
+            server: $server,
             content: json_encode(['email' => $email, 'password' => $password], JSON_THROW_ON_ERROR),
         );
 
@@ -237,5 +340,18 @@ final class ActivationRequestHttpTest extends WebTestCase
     private function countRows(string $table): int
     {
         return (int) $this->connection->fetchOne('SELECT COUNT(*) FROM '.$table);
+    }
+
+    /** @param array<string, mixed> $body */
+    private function assertRateLimitError(array $body, int $maximumRetryAfter): void
+    {
+        self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
+        self::assertSame('RATE_LIMIT_EXCEEDED', $body['error']['code']);
+        self::assertArrayNotHasKey('details', $body['error']);
+        $retryAfter = $this->client->getResponse()->headers->get('Retry-After');
+        self::assertNotNull($retryAfter);
+        self::assertMatchesRegularExpression('/\A\d+\z/', $retryAfter);
+        self::assertGreaterThanOrEqual(1, (int) $retryAfter);
+        self::assertLessThanOrEqual($maximumRetryAfter, (int) $retryAfter);
     }
 }

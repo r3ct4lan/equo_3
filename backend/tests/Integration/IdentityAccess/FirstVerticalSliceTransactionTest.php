@@ -9,6 +9,8 @@ use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineTransaction;
 use App\IdentityAccess\Adapter\Security\VersionedRequestFingerprint;
 use App\IdentityAccess\Adapter\System\SymfonyUuid;
 use App\IdentityAccess\Adapter\System\SystemClock;
+use App\IdentityAccess\Application\ActivationRequest\ActivationRequestCommand;
+use App\IdentityAccess\Application\ActivationRequest\RequestActivation;
 use App\IdentityAccess\Application\Port\ActionTokenCodecPort;
 use App\IdentityAccess\Application\Port\EmailOutboxPort;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
@@ -205,6 +207,92 @@ final class FirstVerticalSliceTransactionTest extends KernelTestCase
 
         $connection->delete('user_action_token', ['id' => $tokenId]);
         $connection->delete('app_user', ['id' => $userId]);
+    }
+
+    public function testActivationRequestOutboxFailureRollsBackReplacementAndInvalidation(): void
+    {
+        self::bootKernel();
+        $container = self::getContainer();
+        $entityManager = $container->get(EntityManagerInterface::class);
+        $connection = $entityManager->getConnection();
+        $uuid = new SymfonyUuid();
+        $userId = $uuid->generate();
+        $oldTokenId = $uuid->generate();
+        $email = 'rollback-activation-request-'.bin2hex(random_bytes(6)).'@example.test';
+        $password = 'Correct password!';
+        $now = new DateTimeImmutable('now');
+        $connection->insert('app_user', [
+            'id' => $userId,
+            'name' => 'Rollback Activation Request',
+            'email' => $email,
+            'password_hash' => $container->get(PasswordHashingPort::class)->hash($password),
+            'is_active' => 0,
+            'created_at' => $now->modify('-1 day')->format('Y-m-d H:i:sP'),
+        ]);
+        $connection->insert('user_action_token', [
+            'id' => $oldTokenId,
+            'user_id' => $userId,
+            'token_hash' => 'v1:rollback-request-'.bin2hex(random_bytes(16)),
+            'purpose' => 'ACTIVATE_ACCOUNT',
+            'payload' => null,
+            'created_at' => $now->modify('-1 hour')->format('Y-m-d H:i:sP'),
+            'expires_at' => $now->modify('+23 hours')->format('Y-m-d H:i:sP'),
+            'used_at' => null,
+            'invalidated_at' => null,
+        ]);
+        $failingOutbox = new class implements EmailOutboxPort {
+            public function enqueueActivation(
+                string $deliveryId,
+                string $tokenId,
+                string $recipientEmail,
+                string $encryptedPayload,
+                DateTimeImmutable $now,
+            ): void {
+                throw new RuntimeException('Controlled activation-request outbox failure.');
+            }
+        };
+        $rateLimit = $this->createStub(RateLimitPort::class);
+        $rateLimit->method('activationRequestRetryAfter')->willReturn(null);
+        $handler = new RequestActivation(
+            new DoctrineIdentityRepository($entityManager),
+            $container->get(PasswordHashingPort::class),
+            $container->get(ActionTokenCodecPort::class),
+            $container->get(PayloadCipher::class),
+            $failingOutbox,
+            $rateLimit,
+            new DoctrineTransaction($entityManager),
+            new SystemClock(),
+            $uuid,
+        );
+
+        try {
+            try {
+                $handler->handle(new ActivationRequestCommand($email, $password, '203.0.113.20'));
+                self::fail('The controlled outbox failure must roll back the activation request.');
+            } catch (RuntimeException $exception) {
+                self::assertSame('Controlled activation-request outbox failure.', $exception->getMessage());
+            }
+
+            self::assertSame(1, (int) $connection->fetchOne(
+                'SELECT COUNT(*) FROM user_action_token WHERE user_id = ?',
+                [$userId],
+            ));
+            self::assertNull($connection->fetchOne(
+                'SELECT invalidated_at FROM user_action_token WHERE id = ?',
+                [$oldTokenId],
+            ));
+            self::assertSame(0, (int) $connection->fetchOne(
+                'SELECT COUNT(*) FROM email_delivery_outbox WHERE user_action_token_id IN (SELECT id FROM user_action_token WHERE user_id = ?)',
+                [$userId],
+            ));
+        } finally {
+            $connection->executeStatement(
+                'DELETE FROM email_delivery_outbox WHERE user_action_token_id IN (SELECT id FROM user_action_token WHERE user_id = ?)',
+                [$userId],
+            );
+            $connection->delete('user_action_token', ['user_id' => $userId]);
+            $connection->delete('app_user', ['id' => $userId]);
+        }
     }
 
     private function requestFingerprint(): VersionedRequestFingerprint
