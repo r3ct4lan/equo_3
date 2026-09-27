@@ -9,18 +9,21 @@ use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserRecord;
 use App\IdentityAccess\Application\Api\TokenDeliveryState;
 use App\IdentityAccess\Application\Api\UserView;
 use App\IdentityAccess\Application\Authorization\ActivationTokenAccess;
+use App\IdentityAccess\Application\Port\ActivationRequestAccount;
+use App\IdentityAccess\Application\Port\ActivationRequestRepositoryPort;
 use App\IdentityAccess\Application\Port\CurrentUserState;
 use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
 use App\IdentityAccess\Application\Port\StoredActivationToken;
 use App\IdentityAccess\Application\Port\StoredLoginIdentity;
 use App\IdentityAccess\Domain\Access\UserActionToken;
+use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
 use App\IdentityAccess\Domain\User\User;
 use DateTimeImmutable;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
 
-final readonly class DoctrineIdentityRepository implements IdentityRepositoryPort
+final readonly class DoctrineIdentityRepository implements IdentityRepositoryPort, ActivationRequestRepositoryPort
 {
     public function __construct(private EntityManagerInterface $entityManager)
     {
@@ -42,6 +45,29 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
         return new StoredLoginIdentity(
             $record->id(),
             $record->name(),
+            $record->email(),
+            $record->passwordHash(),
+            $record->isActive(),
+        );
+    }
+
+    public function accountForUpdate(string $normalizedEmail): ?ActivationRequestAccount
+    {
+        $record = $this->entityManager->createQueryBuilder()
+            ->select('user')
+            ->from(UserRecord::class, 'user')
+            ->andWhere('user.email = :email')
+            ->setParameter('email', $normalizedEmail)
+            ->getQuery()
+            ->setLockMode(LockMode::PESSIMISTIC_WRITE)
+            ->getOneOrNullResult();
+
+        if (!$record instanceof UserRecord) {
+            return null;
+        }
+
+        return new ActivationRequestAccount(
+            $record->id(),
             $record->email(),
             $record->passwordHash(),
             $record->isActive(),
@@ -98,6 +124,38 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
 
         $this->entityManager->persist($record);
         $this->entityManager->persist($tokenRecord);
+    }
+
+    public function replaceActivationToken(UserActionToken $token, DateTimeImmutable $invalidatedAt): void
+    {
+        $user = $this->entityManager->find(UserRecord::class, $token->userId);
+
+        if (!$user instanceof UserRecord) {
+            throw new RuntimeException('Activation request persistence state is inconsistent.');
+        }
+
+        $this->entityManager->createQueryBuilder()
+            ->update(UserActionTokenRecord::class, 'token')
+            ->set('token.invalidatedAt', ':invalidatedAt')
+            ->andWhere('IDENTITY(token.user) = :userId')
+            ->andWhere('token.purpose = :purpose')
+            ->andWhere('token.usedAt IS NULL')
+            ->andWhere('token.invalidatedAt IS NULL')
+            ->setParameter('invalidatedAt', $invalidatedAt)
+            ->setParameter('userId', $token->userId)
+            ->setParameter('purpose', UserActionTokenPurpose::ActivateAccount->value)
+            ->getQuery()
+            ->execute();
+
+        $this->entityManager->persist(new UserActionTokenRecord(
+            $token->id,
+            $user,
+            $token->tokenHash,
+            $token->purpose,
+            null,
+            $token->createdAt,
+            $token->expiresAt,
+        ));
     }
 
     public function activationTokenForUpdate(string $tokenHash): ?StoredActivationToken
