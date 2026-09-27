@@ -61,6 +61,15 @@ export interface ActivateRequest {
   token: string
 }
 
+export interface ActivationRequestRequest {
+  email: string
+  password: string
+}
+
+export interface ActivationRequestResponse {
+  status: 'activation_email_scheduled'
+}
+
 export interface LoginRequest {
   email: string
   password: string

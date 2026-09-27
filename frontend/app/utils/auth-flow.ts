@@ -2,9 +2,15 @@ import type { FieldErrorMap } from './api-error'
 
 export const REGISTER_ENDPOINT = '/v1/auth/register'
 export const ACTIVATE_ENDPOINT = '/v1/auth/activate'
+export const ACTIVATION_REQUEST_ENDPOINT = '/v1/auth/activation-requests'
 
 export interface RegistrationValues extends Record<string, unknown> {
   name: string
+  email: string
+  password: string
+}
+
+export interface ActivationRequestValues extends Record<string, unknown> {
   email: string
   password: string
 }
@@ -54,6 +60,23 @@ export function validateRegistration(values: Readonly<RegistrationValues>): Fiel
     else if (!/\S/u.test(values.password)) {
       errors.password = ['Use at least one non-space character.']
     }
+  }
+
+  return errors
+}
+
+export function validateActivationRequest(values: Readonly<ActivationRequestValues>): FieldErrorMap {
+  const errors: Record<string, string[]> = {}
+
+  if (values.email.trim() === '') {
+    errors.email = ['Enter your email address.']
+  }
+  else if (!EMAIL_PATTERN.test(values.email.trim())) {
+    errors.email = ['Enter an email address in a valid format.']
+  }
+
+  if (values.password === '') {
+    errors.password = ['Enter your current password.']
   }
 
   return errors
@@ -219,6 +242,51 @@ export function activationErrorPresentation(error: SafeApiError): ErrorPresentat
       return {
         title: 'Activation could not be confirmed',
         message: 'Try this activation again. No new activation link is required.',
+        retryable: true
+      }
+  }
+}
+
+export function activationRequestErrorPresentation(error: SafeApiError): ErrorPresentation {
+  switch (error.code) {
+    case 'VALIDATION_ERROR':
+      return {
+        title: 'Check the form',
+        message: Object.keys(error.fieldErrors).length > 0
+          ? 'Correct the highlighted fields and submit again.'
+          : 'Check the entered values and submit again.',
+        retryable: false
+      }
+    case 'RATE_LIMIT_EXCEEDED':
+      return {
+        title: 'Please wait before trying again',
+        message: error.retryAfterSeconds !== null && error.retryAfterSeconds !== undefined
+          ? `Try again in ${error.retryAfterSeconds} seconds.`
+          : 'Try again a little later.',
+        retryable: false
+      }
+    case 'INVALID_CREDENTIALS':
+    case 'ACCOUNT_ALREADY_ACTIVE':
+    case 'AUTHENTICATION_REQUIRED':
+    case 'FORBIDDEN':
+    case 'RESOURCE_NOT_FOUND':
+      return {
+        title: 'Activation request is unavailable',
+        message: 'This activation request could not be completed.',
+        retryable: false
+      }
+    default:
+      if (error.status !== null && error.status < 500) {
+        return {
+          title: 'Activation request is unavailable',
+          message: 'This activation request could not be completed. Review the form before trying again.',
+          retryable: false
+        }
+      }
+
+      return {
+        title: 'We could not complete the request',
+        message: 'Your details are safe. Try the request again when you are ready.',
         retryable: true
       }
   }

@@ -96,59 +96,63 @@ onBeforeUnmount(() => {
       </p>
     </div>
 
-    <section class="panel stack">
-      <AppLoadingState
-        v-if="state === 'preparing' || state === 'loading'"
-        message="Activating your account…"
-      />
-
-      <div
-        v-else-if="state === 'success'"
-        ref="resultPanel"
-        class="status-card status-card--success"
-        role="status"
-        aria-live="polite"
-        tabindex="-1"
-      >
-        <span
-          class="status-card__marker"
-          aria-hidden="true"
+    <div class="stack">
+      <section class="panel stack">
+        <AppLoadingState
+          v-if="state === 'preparing' || state === 'loading'"
+          message="Activating your account…"
         />
-        <div>
-          <strong>Your account is active</strong>
-          <p>Activation is complete. Sign-in is a separate step and is not part of this screen yet.</p>
-        </div>
-      </div>
 
-      <div
-        v-else-if="state === 'missing'"
-        ref="resultPanel"
-        tabindex="-1"
-      >
-        <AppErrorState
-          title="Activation link is missing"
-          message="Open the complete one-time link from your activation email."
-        />
-      </div>
-
-      <div
-        v-else-if="state === 'error' && errorPresentation"
-        ref="resultPanel"
-        tabindex="-1"
-      >
-        <AppErrorState
-          :title="errorPresentation.title"
-          :message="errorPresentation.message"
-          :retry-label="errorPresentation.retryable ? 'Try activation again' : undefined"
-          @retry="activateAccount"
-        />
-        <p
-          v-if="activationError?.requestId"
-          class="support-reference"
+        <div
+          v-else-if="state === 'success'"
+          ref="resultPanel"
+          class="status-card status-card--success"
+          role="status"
+          aria-live="polite"
+          tabindex="-1"
         >
-          Support reference: <code>{{ activationError.requestId }}</code>
-        </p>
-      </div>
-    </section>
+          <span
+            class="status-card__marker"
+            aria-hidden="true"
+          />
+          <div>
+            <strong>Your account is active</strong>
+            <p>Activation is complete. Sign-in is a separate step and is not part of this screen yet.</p>
+          </div>
+        </div>
+
+        <div
+          v-else-if="state === 'missing'"
+          ref="resultPanel"
+          tabindex="-1"
+        >
+          <AppErrorState
+            title="Activation link is missing"
+            message="Open the complete one-time link from your activation email or request another link below."
+          />
+        </div>
+
+        <div
+          v-else-if="state === 'error' && errorPresentation"
+          ref="resultPanel"
+          tabindex="-1"
+        >
+          <AppErrorState
+            :title="errorPresentation.title"
+            :message="errorPresentation.message"
+            :retry-label="errorPresentation.retryable ? 'Try activation again' : undefined"
+            @retry="activateAccount"
+          />
+          <p
+            v-if="activationError?.requestId"
+            class="support-reference"
+          >
+            Support reference: <code>{{ activationError.requestId }}</code>
+          </p>
+        </div>
+      </section>
+
+      <ActivationRequestForm v-if="state === 'missing' || state === 'error'" />
+    </div>
   </section>
 </template>
