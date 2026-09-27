@@ -13,6 +13,8 @@ final readonly class SymfonyRateLimit implements RateLimitPort
     public function __construct(
         private RateLimiterFactory $registrationIpLimiter,
         private RateLimiterFactory $registrationEmailLimiter,
+        private RateLimiterFactory $activationRequestIpLimiter,
+        private RateLimiterFactory $activationRequestEmailLimiter,
         private RateLimiterFactory $activationIpLimiter,
         private RateLimiterFactory $activationTokenLimiter,
         private RateLimiterFactory $loginIpLimiter,
@@ -25,6 +27,14 @@ final readonly class SymfonyRateLimit implements RateLimitPort
         return $this->retryAfter([
             $this->registrationIpLimiter->create($this->key('ip', $ip))->consume(),
             $this->registrationEmailLimiter->create($this->key('email', $normalizedEmail))->consume(),
+        ]);
+    }
+
+    public function activationRequestRetryAfter(string $ip, string $normalizedEmail): ?int
+    {
+        return $this->retryAfter([
+            $this->activationRequestIpLimiter->create($this->key('ip', $ip))->consume(),
+            $this->activationRequestEmailLimiter->create($this->key('email', $normalizedEmail))->consume(),
         ]);
     }
 

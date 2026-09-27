@@ -131,6 +131,8 @@ services:
         arguments:
             $registrationIpLimiter: '@limiter.registration_ip'
             $registrationEmailLimiter: '@limiter.registration_email'
+            $activationRequestIpLimiter: '@limiter.activation_request_ip'
+            $activationRequestEmailLimiter: '@limiter.activation_request_email'
             $activationIpLimiter: '@limiter.activation_ip'
             $activationTokenLimiter: '@limiter.activation_token'
             $loginIpLimiter: '@limiter.login_ip'

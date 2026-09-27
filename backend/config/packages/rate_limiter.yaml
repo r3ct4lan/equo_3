@@ -10,6 +10,16 @@ framework:
             limit: '%env(int:EQUO_REGISTRATION_EMAIL_LIMIT)%'
             interval: '24 hours'
             cache_pool: cache.rate_limiter
+        activation_request_ip:
+            policy: sliding_window
+            limit: '%env(int:EQUO_ACTIVATION_REQUEST_IP_LIMIT)%'
+            interval: '1 hour'
+            cache_pool: cache.rate_limiter
+        activation_request_email:
+            policy: sliding_window
+            limit: '%env(int:EQUO_ACTIVATION_REQUEST_EMAIL_LIMIT)%'
+            interval: '1 hour'
+            cache_pool: cache.rate_limiter
         activation_ip:
             policy: sliding_window
             limit: '%env(int:EQUO_ACTIVATION_IP_LIMIT)%'

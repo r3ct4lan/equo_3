@@ -11,6 +11,10 @@ services:
         alias: App\IdentityAccess\Application\Activate\ActivateAccount
         public: true
 
+    test.request_activation:
+        alias: App\IdentityAccess\Application\ActivationRequest\RequestActivation
+        public: true
+
     test.login_user:
         alias: App\IdentityAccess\Application\Login\LoginUser
         public: true
