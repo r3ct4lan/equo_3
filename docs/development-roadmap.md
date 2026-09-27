@@ -792,8 +792,9 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 - [ ] `DR-E6-001` — выполнить contract audit `BR-USR-002/006`,
   `BR-SEC-003—007` и HTTP 8.2.
 - [ ] `DR-E6-002` — реализовать
-  `POST /api/v1/auth/activation-requests` с одинаковым `202` для существующего и
-  неизвестного email.
+  `POST /api/v1/auth/activation-requests` с одинаковым `202` для каждого
+  синтаксически корректного тела: неизвестный email, неверный пароль и активный
+  аккаунт не имеют отдельного публичного результата.
 - [ ] `DR-E6-003` — нормализовать email до rate-limit/account lookup.
 - [ ] `DR-E6-004` — не выдавать новый token активному аккаунту без
   нормативного основания реактивации.
@@ -803,7 +804,9 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
   delivery chain.
 - [ ] `DR-E6-007` — применить TTL 24 часа и rate limits email/user+IP.
 - [ ] `DR-E6-008` — гарантировать отсутствие account enumeration по body,
-  status, публичному error и доступной клиенту форме результата.
+  status, публичному error и доступной клиенту форме результата; новый token и
+  outbox создавать только для существующего неактивного пользователя с верным
+  паролем.
 - [ ] `DR-E6-009` — добавить resend action на activation state без token в
   URL/storage.
 
