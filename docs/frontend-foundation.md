@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth-экраны |
 | Статус | Implemented |
-| Версия | 6 |
-| Дата актуальности | 2026-08-10 |
+| Версия | 7 |
+| Дата актуальности | 2026-09-27 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v4; ADR-001/006/012/017/018; реализация HTTP-слоя; модель доступа; фактический frontend |
 
@@ -29,6 +29,7 @@ frontend/
 │   ├── error.vue
 │   ├── assets/css/main.css
 │   ├── components/
+│   │   ├── ActivationRequestForm.vue
 │   │   ├── AppEmptyState.vue
 │   │   ├── AppErrorState.vue
 │   │   ├── AppLoadingState.vue
@@ -36,6 +37,7 @@ frontend/
 │   │   ├── FormFieldError.vue
 │   │   └── FormSubmitButton.vue
 │   ├── composables/
+│   │   ├── useActivationRequest.ts
 │   │   ├── useApiForm.ts
 │   │   └── useCurrentUser.ts
 │   ├── layouts/default.vue
@@ -219,8 +221,25 @@ ID.
 сразу заменяет URL на `/activate` и вызывает `POST /api/v1/auth/activate`.
 Success `204`, invalid/expired/used/invalidated/rate и технический retry имеют
 отдельные состояния. Token не рендерится, не попадает в Nuxt state/storage и
-очищается после terminal result или ухода со страницы. Resend не имитируется,
-поскольку не входит в текущий срез.
+очищается после terminal result или ухода со страницы.
+
+Повторный запрос activation link встроен переиспользуемым
+`ActivationRequestForm` в activation-required state после регистрации и в
+существующий публичный `/activate` для missing/invalid/expired/replaced и
+технических состояний. Login содержит ссылку возврата на `/activate`; отдельный
+route и второй layout не создаются. `useActivationRequest` координирует
+`useApiForm`, единственный `$api`, pending/cancel lifecycle и очистку текущего
+пароля после `202` либо ухода со страницы.
+
+Форма отправляет только `email/password` в
+`POST /api/v1/auth/activation-requests`. Success всегда имеет нейтральную
+семантику: UI подтверждает принятие запроса, но не существование аккаунта,
+верность пароля, состояние аккаунта или фактическую отправку письма. Email
+остаётся только в локальном состоянии компонента, password после успеха
+очищается; session state, URL и browser storage не изменяются. `422` связывает
+violations с полями, `429` безопасно отображает `Retry-After` без таймера и
+автоповтора, а network/`5xx` предлагает только ручной retry. Отменённый при
+уходе запрос не представляется как сетевая ошибка.
 
 `/login` принимает email и password, выполняет только лёгкую клиентскую
 validation обязательности и email syntax, затем вызывает `$auth.login`, который
@@ -241,6 +260,7 @@ docker compose exec frontend npm ci
 docker compose exec frontend npm run lint
 docker compose exec frontend npm run test:unit
 docker compose exec frontend npm test
+docker compose exec frontend npm run test:component -- --run tests/component/activation-request-form.test.ts
 docker compose exec frontend npm run typecheck
 docker compose exec frontend npm run build
 docker compose exec frontend npm audit --audit-level=moderate

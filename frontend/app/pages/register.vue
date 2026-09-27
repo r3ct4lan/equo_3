@@ -91,25 +91,31 @@ async function submitRegistration(): Promise<void> {
       </p>
     </div>
 
-    <section
+    <div
       v-if="registration"
-      ref="successPanel"
-      class="panel stack"
-      role="status"
-      aria-live="polite"
-      tabindex="-1"
+      class="stack"
     >
-      <p class="eyebrow">
-        Activation required
-      </p>
-      <h2>Check your email</h2>
-      <p>
-        We created the account for <strong>{{ registration.user.email }}</strong>, but it is not active yet.
-      </p>
-      <p>
-        Open the activation email and follow its one-time link. Receiving the email does not sign you in.
-      </p>
-    </section>
+      <section
+        ref="successPanel"
+        class="panel stack"
+        role="status"
+        aria-live="polite"
+        tabindex="-1"
+      >
+        <p class="eyebrow">
+          Activation required
+        </p>
+        <h2>Check your email</h2>
+        <p>
+          We created the account for <strong>{{ registration.user.email }}</strong>, but it is not active yet.
+        </p>
+        <p>
+          Open the activation email and follow its one-time link. Receiving the email does not sign you in.
+        </p>
+      </section>
+
+      <ActivationRequestForm :initial-email="registration.user.email" />
+    </div>
 
     <form
       v-else

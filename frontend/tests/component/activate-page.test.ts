@@ -41,7 +41,7 @@ describe('activation page', () => {
     wrapper.unmount()
   })
 
-  it('renders a terminal capability error without an unavailable resend action', async () => {
+  it('renders a terminal capability error with the safe activation request action', async () => {
     apiMock.mockRejectedValue(new ApiClientError({
       kind: 'api',
       status: 400,
@@ -57,9 +57,9 @@ describe('activation page', () => {
     await vi.waitFor(() => {
       expect(wrapper.text()).toContain('Activation link is invalid')
     })
-    expect(wrapper.text()).not.toMatch(/resend/i)
     expect(wrapper.text()).not.toContain('invalid-test-capability')
-    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.get('h2#activation-request-title').text()).toBe('Request another activation link')
+    expect(wrapper.get('form[aria-labelledby="activation-request-title"]').exists()).toBe(true)
 
     wrapper.unmount()
   })
@@ -71,6 +71,7 @@ describe('activation page', () => {
     await vi.waitFor(() => {
       expect(apiMock).not.toHaveBeenCalled()
       expect(wrapper.text()).toContain('Activation link is missing')
+      expect(wrapper.text()).toContain('Request another activation link')
     })
 
     wrapper.unmount()

@@ -167,6 +167,12 @@ onMounted(async () => {
         >
           Try again
         </button>
+        <NuxtLink
+          class="button button--secondary"
+          to="/activate"
+        >
+          Need another activation link?
+        </NuxtLink>
       </div>
     </form>
   </section>

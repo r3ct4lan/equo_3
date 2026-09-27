@@ -79,6 +79,8 @@ describe('registration page', () => {
 
     expect(wrapper.get('[role="status"]').text()).toContain('Check your email')
     expect(wrapper.get('[role="status"]').text()).toContain('alex@example.test')
+    expect(wrapper.get('h2#activation-request-title').text()).toBe('Request another activation link')
+    expect(wrapper.get('input#activation-request-email').element).toHaveProperty('value', 'alex@example.test')
     expect(wrapper.text()).not.toContain('A2345678901!')
     expect(apiMock).toHaveBeenCalledWith('/v1/auth/register', expect.objectContaining({
       method: 'POST',

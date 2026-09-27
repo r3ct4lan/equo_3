@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  ACTIVATION_REQUEST_ENDPOINT,
   ACTIVATE_ENDPOINT,
   activationErrorPresentation,
+  activationRequestErrorPresentation,
   createRegistrationAttemptKeys,
   generateIdempotencyKey,
   REGISTER_ENDPOINT,
   registrationErrorPresentation,
+  validateActivationRequest,
   validateRegistration
 } from '../../app/utils/auth-flow.ts'
 
@@ -23,6 +26,18 @@ function apiError(code, overrides = {}) {
 test('uses the exact first-slice API endpoint paths', () => {
   assert.equal(REGISTER_ENDPOINT, '/v1/auth/register')
   assert.equal(ACTIVATE_ENDPOINT, '/v1/auth/activate')
+  assert.equal(ACTIVATION_REQUEST_ENDPOINT, '/v1/auth/activation-requests')
+})
+
+test('validates activation request syntax without applying registration password policy', () => {
+  assert.deepEqual(validateActivationRequest({ email: 'invalid', password: '' }), {
+    email: ['Enter an email address in a valid format.'],
+    password: ['Enter your current password.']
+  })
+  assert.deepEqual(validateActivationRequest({
+    email: ' user@example.test ',
+    password: 'x'
+  }), {})
 })
 
 test('validates every required registration field without echoing values', () => {
@@ -113,7 +128,7 @@ test('maps registration validation, business, rate and technical failures semant
   assert.equal(registrationErrorPresentation(apiError('NETWORK_ERROR')).retryable, true)
 })
 
-test('maps every activation token state and avoids an unavailable resend action', () => {
+test('maps every activation token state without exposing raw server text', () => {
   const expectedTitles = new Map([
     ['INVALID_TOKEN', 'Activation link is invalid'],
     ['TOKEN_EXPIRED', 'Activation link has expired'],
@@ -130,6 +145,32 @@ test('maps every activation token state and avoids an unavailable resend action'
   }
 
   assert.equal(activationErrorPresentation(apiError('INTERNAL_ERROR')).retryable, true)
+})
+
+test('maps activation request validation, rate limit and technical errors safely', () => {
+  assert.deepEqual(activationRequestErrorPresentation(apiError('VALIDATION_ERROR', {
+    fieldErrors: { email: ['Email has invalid format.'] }
+  })), {
+    title: 'Check the form',
+    message: 'Correct the highlighted fields and submit again.',
+    retryable: false
+  })
+
+  assert.deepEqual(activationRequestErrorPresentation(apiError('RATE_LIMIT_EXCEEDED', {
+    retryAfterSeconds: 47
+  })), {
+    title: 'Please wait before trying again',
+    message: 'Try again in 47 seconds.',
+    retryable: false
+  })
+  assert.equal(activationRequestErrorPresentation(apiError('NETWORK_ERROR')).retryable, true)
+  assert.equal(activationRequestErrorPresentation(apiError('INTERNAL_ERROR', { status: 500 })).retryable, true)
+
+  for (const code of ['INVALID_CREDENTIALS', 'ACCOUNT_ALREADY_ACTIVE']) {
+    const presentation = activationRequestErrorPresentation(apiError(code, { status: 409 }))
+    assert.equal(presentation.title, 'Activation request is unavailable')
+    assert.doesNotMatch(presentation.message, /credential|active|account exists/i)
+  }
 })
 
 test('handles unexpected 401, 403 and 404 responses without exposing server text', () => {
@@ -155,7 +196,8 @@ test('never includes raw secrets from arbitrary backend messages in presentation
 
   const messages = [
     registrationErrorPresentation(malicious).message,
-    activationErrorPresentation(malicious).message
+    activationErrorPresentation(malicious).message,
+    activationRequestErrorPresentation(malicious).message
   ]
 
   for (const message of messages) {
