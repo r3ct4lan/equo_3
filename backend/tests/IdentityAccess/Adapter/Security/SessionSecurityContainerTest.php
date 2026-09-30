@@ -31,11 +31,15 @@ final class SessionSecurityContainerTest extends WebTestCase
         $issuedAccessToken = $container->get(AccessTokenIssuerPort::class)->issue('952adfb3-c5f6-4bd9-87cb-405d456a2f9a');
         self::assertNotNull($container->get(AccessTokenVerifierPort::class)->verify($issuedAccessToken->accessToken));
 
-        $issuedRefreshToken = $container->get(RefreshTokenCodecPort::class)->issue();
-        self::assertSame($issuedRefreshToken->tokenHash, $container->get(RefreshTokenCodecPort::class)->digest($issuedRefreshToken->publicToken));
+        $sessionId = '952adfb3-c5f6-4bd9-87cb-405d456a2f9a';
+        $issuedRefreshToken = $container->get(RefreshTokenCodecPort::class)->issueForSession($sessionId);
+        $parsedRefreshToken = $container->get(RefreshTokenCodecPort::class)->parse($issuedRefreshToken->publicToken);
+        self::assertNotNull($parsedRefreshToken);
+        self::assertSame($sessionId, $parsedRefreshToken->sessionId);
+        self::assertSame($issuedRefreshToken->tokenHash, $parsedRefreshToken->tokenHash);
 
-        $csrfToken = $container->get(CsrfTokenCodecPort::class)->issue('952adfb3-c5f6-4bd9-87cb-405d456a2f9a');
-        self::assertTrue($container->get(CsrfTokenCodecPort::class)->verify('952adfb3-c5f6-4bd9-87cb-405d456a2f9a', $csrfToken));
+        $csrfToken = $container->get(CsrfTokenCodecPort::class)->issue($sessionId);
+        self::assertTrue($container->get(CsrfTokenCodecPort::class)->verify($sessionId, $csrfToken));
     }
 
     public function testExistingPublicRoutesAreNotProtectedBySecurityBundle(): void

@@ -14,6 +14,7 @@ use App\IdentityAccess\Application\Port\ClockPort;
 use App\IdentityAccess\Application\Port\CsrfTokenCodecPort;
 use App\IdentityAccess\Application\Port\IssuedAccessToken;
 use App\IdentityAccess\Application\Port\IssuedRefreshToken;
+use App\IdentityAccess\Application\Port\ParsedRefreshToken;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
 use App\IdentityAccess\Application\Port\RefreshTokenCodecPort;
 use App\IdentityAccess\Application\Refresh\RefreshCommand;
@@ -60,7 +61,7 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
         $this->insertUser($userId, true);
         $this->insertSession($sessionId, $userId, $this->hash('old'), $createdAt, $expiresAt);
 
-        $result = $this->refresh($createdAt->modify('+1 day'))->handle(new RefreshCommand('rt.old', 'csrf-ok'));
+        $result = $this->refresh($createdAt->modify('+1 day'), $sessionId)->handle(new RefreshCommand('rt.old', 'csrf-ok'));
 
         self::assertSame('access-for-'.$userId, $result->accessToken);
         self::assertSame(900, $result->expiresIn);
@@ -87,7 +88,7 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
             'expired' => ['84000000-0000-4000-8000-000000000011', '84000000-0000-4000-8000-000000000111', true, $this->hash('expired'), '2026-06-01 12:00:00+00', '2026-07-01 12:00:00+00', null, 'rt.expired', ApplicationFailureCode::InvalidRefreshToken],
             'revoked' => ['84000000-0000-4000-8000-000000000012', '84000000-0000-4000-8000-000000000112', true, $this->hash('revoked'), '2026-08-08 12:00:00+00', '2026-09-07 12:00:00+00', '2026-08-09 12:00:00+00', 'rt.revoked', ApplicationFailureCode::InvalidRefreshToken],
             'inactive' => ['84000000-0000-4000-8000-000000000013', '84000000-0000-4000-8000-000000000113', false, $this->hash('inactive'), '2026-08-08 12:00:00+00', '2026-09-07 12:00:00+00', null, 'rt.inactive', ApplicationFailureCode::AccountInactive],
-            'unknown' => ['84000000-0000-4000-8000-000000000014', '84000000-0000-4000-8000-000000000114', true, $this->hash('other'), '2026-08-08 12:00:00+00', '2026-09-07 12:00:00+00', null, 'rt.unknown', ApplicationFailureCode::InvalidRefreshToken],
+            'stale' => ['84000000-0000-4000-8000-000000000014', '84000000-0000-4000-8000-000000000114', true, $this->hash('other'), '2026-08-08 12:00:00+00', '2026-09-07 12:00:00+00', null, 'rt.stale', ApplicationFailureCode::InvalidRefreshToken],
         ];
 
         foreach ($cases as [$sessionId, $userId, $active, $storedHash, $createdAt, $expiresAt, $revokedAt, $publicToken, $expected]) {
@@ -102,7 +103,7 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
             );
 
             try {
-                $this->refresh(new DateTimeImmutable('2026-08-10T12:00:00Z'))->handle(new RefreshCommand($publicToken, 'csrf-ok'));
+                $this->refresh(new DateTimeImmutable('2026-08-10T12:00:00Z'), $sessionId)->handle(new RefreshCommand($publicToken, 'csrf-ok'));
                 self::fail('Refresh failure branch must throw.');
             } catch (ApplicationFailure $failure) {
                 self::assertSame($expected, $failure->failureCode);
@@ -120,7 +121,7 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
         $this->insertSession($sessionId, $userId, $this->hash('old'), new DateTimeImmutable('2026-08-08T12:00:00Z'), new DateTimeImmutable('2026-09-07T12:00:00Z'));
 
         try {
-            $this->refresh(new DateTimeImmutable('2026-08-09T12:00:00Z'), accessTokenIssuer: new class implements AccessTokenIssuerPort {
+            $this->refresh(new DateTimeImmutable('2026-08-09T12:00:00Z'), $sessionId, accessTokenIssuer: new class implements AccessTokenIssuerPort {
                 public function issue(string $userId): IssuedAccessToken
                 {
                     throw new RuntimeException('Controlled access failure.');
@@ -145,18 +146,18 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
         $this->insertSession($firstSession, $userId, $this->hash('old'), $createdAt, $expiresAt);
         $this->insertSession($secondSession, $userId, $this->hash('other'), $createdAt, $expiresAt);
 
-        $this->refresh($createdAt->modify('+1 day'))->handle(new RefreshCommand('rt.old', 'csrf-ok'));
+        $this->refresh($createdAt->modify('+1 day'), $firstSession)->handle(new RefreshCommand('rt.old', 'csrf-ok'));
 
         self::assertSame($this->hash('new'), $this->field('refresh_token_hash', $firstSession));
         self::assertSame($this->hash('other'), $this->field('refresh_token_hash', $secondSession));
     }
 
-    private function refresh(DateTimeImmutable $now, ?AccessTokenIssuerPort $accessTokenIssuer = null): RefreshSession
+    private function refresh(DateTimeImmutable $now, string $sessionId, ?AccessTokenIssuerPort $accessTokenIssuer = null): RefreshSession
     {
         return new RefreshSession(
             new DoctrineUserSessionRepository($this->entityManager),
             new DoctrineIdentityRepository($this->entityManager),
-            $this->refreshTokenCodec(),
+            $this->refreshTokenCodec($sessionId),
             $this->csrf(),
             $accessTokenIssuer ?? new class implements AccessTokenIssuerPort {
                 public function issue(string $userId): IssuedAccessToken
@@ -178,24 +179,30 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
         );
     }
 
-    private function refreshTokenCodec(): RefreshTokenCodecPort
+    private function refreshTokenCodec(string $sessionId): RefreshTokenCodecPort
     {
-        return new class implements RefreshTokenCodecPort {
-            public function issue(): IssuedRefreshToken
+        return new readonly class($sessionId) implements RefreshTokenCodecPort {
+            public function __construct(private string $sessionId)
             {
-                return new IssuedRefreshToken('rt.new', 'sha256:'.hash('sha256', 'new'));
             }
 
-            public function digest(string $publicToken): ?string
+            public function issueForSession(string $sessionId): IssuedRefreshToken
             {
-                return match ($publicToken) {
+                return new IssuedRefreshToken('rt.new', 'sha256:'.hash('sha256', 'new'), $sessionId);
+            }
+
+            public function parse(string $publicToken): ?ParsedRefreshToken
+            {
+                $hash = match ($publicToken) {
                     'rt.old' => 'sha256:'.hash('sha256', 'old'),
                     'rt.expired' => 'sha256:'.hash('sha256', 'expired'),
                     'rt.revoked' => 'sha256:'.hash('sha256', 'revoked'),
                     'rt.inactive' => 'sha256:'.hash('sha256', 'inactive'),
-                    'rt.unknown' => 'sha256:'.hash('sha256', 'unknown'),
+                    'rt.stale' => 'sha256:'.hash('sha256', 'stale'),
                     default => null,
                 };
+
+                return null === $hash ? null : new ParsedRefreshToken($this->sessionId, $hash);
             }
         };
     }

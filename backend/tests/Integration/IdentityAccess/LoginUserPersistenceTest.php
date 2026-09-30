@@ -14,6 +14,7 @@ use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
 use App\IdentityAccess\Application\Port\CsrfTokenCodecPort;
 use App\IdentityAccess\Application\Port\IssuedAccessToken;
 use App\IdentityAccess\Application\Port\IssuedRefreshToken;
+use App\IdentityAccess\Application\Port\ParsedRefreshToken;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
 use App\IdentityAccess\Application\Port\RateLimitPort;
 use App\IdentityAccess\Application\Port\RefreshTokenCodecPort;
@@ -64,14 +65,22 @@ final class LoginUserPersistenceTest extends KernelTestCase
         self::assertSame('login@example.test', $result->user->email);
         self::assertSame(1, $this->countSessions());
         self::assertSame($userId, $this->connection->fetchOne('SELECT user_id FROM user_session'));
-        self::assertSame('sha256:'.hash('sha256', 'refresh-1'), $this->connection->fetchOne('SELECT refresh_token_hash FROM user_session'));
+        $sessionId = $this->connection->fetchOne('SELECT id FROM user_session');
+        $storedHash = $this->connection->fetchOne('SELECT refresh_token_hash FROM user_session');
+        self::assertIsString($sessionId);
+        self::assertIsString($storedHash);
+        $publicToken = $result->withCookieSecrets(static fn (string $refreshToken): string => $refreshToken);
+        $parsed = $this->refreshTokenCodec()->parse($publicToken);
+        self::assertInstanceOf(ParsedRefreshToken::class, $parsed);
+        self::assertSame($sessionId, $parsed->sessionId);
+        self::assertSame($storedHash, $parsed->tokenHash);
         self::assertSame(0, (int) $this->connection->fetchOne(
             'SELECT COUNT(*) FROM user_session WHERE refresh_token_hash LIKE ?',
-            ['rt.%'],
+            ['rt2.%'],
         ));
         self::assertSame(0, (int) $this->connection->fetchOne(
             'SELECT COUNT(*) FROM user_session WHERE refresh_token_hash = ?',
-            ['rt.refresh-1'],
+            [$publicToken],
         ));
         self::assertSame(0, (int) $this->connection->fetchOne(
             'SELECT COUNT(*) FROM user_session WHERE refresh_token_hash = ?',
@@ -167,23 +176,26 @@ final class LoginUserPersistenceTest extends KernelTestCase
         return new class implements RefreshTokenCodecPort {
             private int $counter = 0;
 
-            public function issue(): IssuedRefreshToken
+            public function issueForSession(string $sessionId): IssuedRefreshToken
             {
                 ++$this->counter;
+                $random = rtrim(strtr(base64_encode(str_repeat(chr($this->counter), 32)), '+/', '-_'), '=');
+                $publicToken = 'rt2.'.$sessionId.'.'.$random;
 
                 return new IssuedRefreshToken(
-                    'rt.refresh-'.$this->counter,
-                    'sha256:'.hash('sha256', 'refresh-'.$this->counter),
+                    $publicToken,
+                    'sha256:'.hash('sha256', $publicToken),
+                    $sessionId,
                 );
             }
 
-            public function digest(string $publicToken): ?string
+            public function parse(string $publicToken): ?ParsedRefreshToken
             {
-                if ('' === $publicToken) {
+                if (1 !== preg_match('/\Art2\.([0-9a-f-]{36})\.[A-Za-z0-9_-]{43}\z/D', $publicToken, $matches)) {
                     return null;
                 }
 
-                return 'sha256:'.hash('sha256', $publicToken);
+                return new ParsedRefreshToken($matches[1], 'sha256:'.hash('sha256', $publicToken));
             }
         };
     }

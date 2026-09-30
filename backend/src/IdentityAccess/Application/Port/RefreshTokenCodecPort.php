@@ -6,7 +6,7 @@ namespace App\IdentityAccess\Application\Port;
 
 interface RefreshTokenCodecPort
 {
-    public function issue(): IssuedRefreshToken;
+    public function issueForSession(string $sessionId): IssuedRefreshToken;
 
-    public function digest(string $publicToken): ?string;
+    public function parse(string $publicToken): ?ParsedRefreshToken;
 }

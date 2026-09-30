@@ -55,6 +55,15 @@ final class LoginUserTest extends TestCase
         $accessTokenIssuer->expects(self::once())->method('issue')->with($identity->id)->willReturn(new IssuedAccessToken('access.jwt', 900));
         $csrf = $this->createMock(CsrfTokenCodecPort::class);
         $csrf->expects(self::once())->method('issue')->with('00000000-0000-4000-8000-000000000101')->willReturn('csrf-token');
+        $refresh = $this->createMock(RefreshTokenCodecPort::class);
+        $refresh->expects(self::once())
+            ->method('issueForSession')
+            ->with('00000000-0000-4000-8000-000000000101')
+            ->willReturn(new IssuedRefreshToken(
+                'rt2.00000000-0000-4000-8000-000000000101.public',
+                'sha256:'.hash('sha256', 'refresh'),
+                '00000000-0000-4000-8000-000000000101',
+            ));
 
         $result = $this->handler(
             repository: $repository,
@@ -62,6 +71,7 @@ final class LoginUserTest extends TestCase
             passwordHasher: $passwordHasher,
             accessTokenIssuer: $accessTokenIssuer,
             csrfTokenCodec: $csrf,
+            refreshTokenCodec: $refresh,
             now: $now,
         )->handle(new LoginCommand('  User@Example.Test  ', 'raw password', '192.0.2.1'));
 
@@ -69,7 +79,7 @@ final class LoginUserTest extends TestCase
         self::assertSame(900, $result->expiresIn);
         self::assertSame('user@example.test', $result->user->email);
         $result->withCookieSecrets(static function (string $refreshToken, string $csrfToken, DateTimeImmutable $expiresAt) use ($now): void {
-            self::assertSame('rt.public', $refreshToken);
+            self::assertSame('rt2.00000000-0000-4000-8000-000000000101.public', $refreshToken);
             self::assertSame('csrf-token', $csrfToken);
             self::assertEquals($now->modify('+30 days'), $expiresAt);
         });
@@ -179,6 +189,7 @@ final class LoginUserTest extends TestCase
         ?PasswordHashingPort $passwordHasher = null,
         ?AccessTokenIssuerPort $accessTokenIssuer = null,
         ?CsrfTokenCodecPort $csrfTokenCodec = null,
+        ?RefreshTokenCodecPort $refreshTokenCodec = null,
         ?RateLimitPort $rateLimit = null,
         ?DateTimeImmutable $now = null,
     ): LoginUser {
@@ -193,7 +204,7 @@ final class LoginUserTest extends TestCase
             $sessionRepository ?? $this->createStub(UserSessionRepositoryPort::class),
             $passwordHasher ?? $this->passwordHasher(true),
             $accessTokenIssuer ?? $this->accessTokenIssuer(),
-            $this->refreshTokenCodec(),
+            $refreshTokenCodec ?? $this->refreshTokenCodec(),
             $csrfTokenCodec ?? $this->csrfTokenCodec(),
             $rateLimit,
             $this->transaction(),
@@ -235,7 +246,13 @@ final class LoginUserTest extends TestCase
     private function refreshTokenCodec(): RefreshTokenCodecPort
     {
         $codec = $this->createStub(RefreshTokenCodecPort::class);
-        $codec->method('issue')->willReturn(new IssuedRefreshToken('rt.public', 'sha256:'.hash('sha256', 'refresh')));
+        $codec->method('issueForSession')->willReturnCallback(
+            static fn (string $sessionId): IssuedRefreshToken => new IssuedRefreshToken(
+                'rt2.'.$sessionId.'.public',
+                'sha256:'.hash('sha256', 'refresh'),
+                $sessionId,
+            ),
+        );
 
         return $codec;
     }

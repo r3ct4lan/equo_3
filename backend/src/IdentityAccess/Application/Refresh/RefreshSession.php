@@ -29,16 +29,20 @@ final readonly class RefreshSession
 
     public function handle(RefreshCommand $command): RefreshResult
     {
-        $refreshTokenHash = $this->refreshTokenCodec->digest($command->refreshToken);
+        $parsedRefreshToken = $this->refreshTokenCodec->parse($command->refreshToken);
 
-        if (null === $refreshTokenHash) {
+        if (null === $parsedRefreshToken) {
             throw new ApplicationFailure(ApplicationFailureCode::InvalidRefreshToken);
         }
 
-        return $this->transaction->run(function () use ($command, $refreshTokenHash): RefreshResult {
-            $session = $this->sessionRepository->findByRefreshTokenHashForUpdate($refreshTokenHash);
+        return $this->transaction->run(function () use ($command, $parsedRefreshToken): RefreshResult {
+            $session = $this->sessionRepository->findByIdForUpdate($parsedRefreshToken->sessionId);
 
             if (null === $session) {
+                throw new ApplicationFailure(ApplicationFailureCode::InvalidRefreshToken);
+            }
+
+            if (!hash_equals($session->refreshTokenHash(), $parsedRefreshToken->tokenHash)) {
                 throw new ApplicationFailure(ApplicationFailureCode::InvalidRefreshToken);
             }
 
@@ -60,7 +64,7 @@ final readonly class RefreshSession
                 throw new ApplicationFailure(ApplicationFailureCode::AccountInactive);
             }
 
-            $issuedRefreshToken = $this->refreshTokenCodec->issue();
+            $issuedRefreshToken = $this->refreshTokenCodec->issueForSession($session->id);
             $session->rotate($issuedRefreshToken->tokenHash, $now);
             $this->sessionRepository->save($session);
             $issuedAccessToken = $this->accessTokenIssuer->issue($session->userId);

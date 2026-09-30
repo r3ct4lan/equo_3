@@ -79,6 +79,24 @@ final class UserSessionTest extends TestCase
         }
     }
 
+    public function testRevokeIsIdempotentAndKeepsFirstTimestamp(): void
+    {
+        $createdAt = new DateTimeImmutable('2026-08-08T12:00:00Z');
+        $firstRevokedAt = $createdAt->modify('+1 hour');
+        $session = UserSession::create(
+            '00000000-0000-4000-8000-000000000025',
+            '00000000-0000-4000-8000-000000000026',
+            $this->hash('revoke'),
+            $createdAt,
+        );
+
+        $session->revoke($firstRevokedAt);
+        $session->revoke($createdAt->modify('+2 hours'));
+
+        self::assertSame($firstRevokedAt, $session->revokedAt());
+        self::assertFalse($session->isActive($createdAt->modify('+90 minutes')));
+    }
+
     public function testInvalidHashFormatIsRejectedWithoutEchoingTheSecret(): void
     {
         try {

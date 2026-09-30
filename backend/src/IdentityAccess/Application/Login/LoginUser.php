@@ -60,16 +60,17 @@ final readonly class LoginUser
                 throw new ApplicationFailure(ApplicationFailureCode::AccountInactive);
             }
 
-            $issuedRefreshToken = $this->refreshTokenCodec->issue();
+            $sessionId = $this->uuid->generate();
+            $issuedRefreshToken = $this->refreshTokenCodec->issueForSession($sessionId);
             $session = UserSession::create(
-                $this->uuid->generate(),
+                $sessionId,
                 $identity->id,
                 $issuedRefreshToken->tokenHash,
                 $now,
             );
             $this->sessionRepository->add($session);
             $issuedAccessToken = $this->accessTokenIssuer->issue($identity->id);
-            $csrfToken = $this->csrfTokenCodec->issue($session->id);
+            $csrfToken = $this->csrfTokenCodec->issue($sessionId);
 
             return new LoginResult(
                 $issuedAccessToken->accessToken,

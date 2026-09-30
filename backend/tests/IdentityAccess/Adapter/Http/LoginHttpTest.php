@@ -82,9 +82,14 @@ final class LoginHttpTest extends WebTestCase
         self::assertStringNotContainsString($csrfToken, $encoded);
 
         $storedHash = $this->connection->fetchOne('SELECT refresh_token_hash FROM user_session');
+        $sessionId = $this->connection->fetchOne('SELECT id FROM user_session');
         self::assertIsString($storedHash);
+        self::assertIsString($sessionId);
         self::assertStringStartsWith('sha256:', $storedHash);
-        self::assertSame($storedHash, self::getContainer()->get(RefreshTokenCodecPort::class)->digest($refreshToken));
+        $parsedRefreshToken = self::getContainer()->get(RefreshTokenCodecPort::class)->parse($refreshToken);
+        self::assertNotNull($parsedRefreshToken);
+        self::assertSame($sessionId, $parsedRefreshToken->sessionId);
+        self::assertSame($storedHash, $parsedRefreshToken->tokenHash);
         self::assertStringNotContainsString($refreshToken, $storedHash);
     }
 
