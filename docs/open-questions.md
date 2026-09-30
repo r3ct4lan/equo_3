@@ -5,15 +5,15 @@
 | Название | Единый журнал решений по вопросам Equo |
 | Назначение | Сохранять вопросы, основания, принятые решения и историю их объединения |
 | Статус | Accepted |
-| Версия | 13 |
-| Дата актуальности | 2026-09-27 |
+| Версия | 15 |
+| Дата актуальности | 2026-09-30 |
 | Владелец | Maksim Smolkov |
 | Источник | Нормативные документы проекта, принятые ADR и подтверждённые решения владельца |
 
 ## 1. Назначение журнала
 
-Документ является единым журналом вопросов и решений проекта. Все двадцать один
-вопросов разрешены; активных вопросов нет.
+Документ является единым журналом вопросов и решений проекта. Все двадцать
+четыре вопроса разрешены; активных вопросов нет.
 
 Идентификаторы `OQ-*` сохранены без перенумерации. Первоначальная формулировка, влияние, варианты и последствия остаются в подробных карточках.
 
@@ -32,10 +32,10 @@
 | Серьёзность | Всего | Resolved | Open |
 |---|---:|---:|---:|
 | Blocker | 0 | 0 | 0 |
-| High | 8 | 8 | 0 |
+| High | 11 | 11 | 0 |
 | Medium | 11 | 11 | 0 |
 | Low | 2 | 2 | 0 |
-| **Итого** | **21** | **21** | **0** |
+| **Итого** | **24** | **24** | **0** |
 
 ### По категории
 
@@ -46,7 +46,9 @@
 | `DEFERRED` | 4 | 4 | 0 |
 | `INFORMATIONAL` | 3 | 3 | 0 |
 | `BLOCKING_AUTH_IMPLEMENTATION` | 1 | 1 | 0 |
-| `BLOCKING_CONTRACT` | 1 | 1 | 0 |
+| `BLOCKING_CONTRACT` | 2 | 2 | 0 |
+| `BLOCKING_AUTH_CONCURRENCY` | 1 | 1 | 0 |
+| `BLOCKING_FRONTEND_CONTRACT` | 1 | 1 | 0 |
 
 ## 4. Автоматически принятые решения Block A
 
@@ -65,9 +67,9 @@
 
 ## 5. Блокеры
 
-Активных блокеров нет. OQ-016 закрыт ADR-016, OQ-017 — ADR-017, OQ-018 —
-ADR-018, OQ-019 — ADR-019, OQ-020 закрыт решением владельца в рамках
-`MVP-SC-002` contract audit.
+Активных блокеров нет. `OQ-022—024` закрыты решениями владельца от 2026-09-30:
+HTTP/cookie contract, stable-locator concurrency profile и frontend UX
+`MVP-SC-003` определены.
 
 ## 6. Активные, решённые и объединённые вопросы
 
@@ -100,6 +102,9 @@ ADR-018, OQ-019 — ADR-019, OQ-020 закрыт решением владель
 | [OQ-019](#oq-019) | [ADR-019](adr/architecture-decisions.md#adr-019-криптографический-профиль-idempotency-fingerprint-для-secret-bearing-команд) | High | 2026-08-02 | Maksim Smolkov | Resolved |
 | [OQ-020](#oq-020) | CONS-020 | Medium | 2026-08-08 | Maksim Smolkov | Resolved |
 | [OQ-021](#oq-021) | — | High | 2026-09-27 | Maksim Smolkov | Resolved |
+| [OQ-022](#oq-022) | — | High | 2026-09-30 | Maksim Smolkov | Resolved |
+| [OQ-023](#oq-023) | — | High | 2026-09-30 | Maksim Smolkov | Resolved |
+| [OQ-024](#oq-024) | — | High | 2026-09-30 | Maksim Smolkov | Resolved |
 
 ### Объединённые исторические записи
 
@@ -623,3 +628,167 @@ ADR-018, OQ-019 — ADR-019, OQ-020 закрыт решением владель
   `422` остаётся для синтаксической валидации, `429` — для rate limit.
 - **Дата и автор решения:** 2026-09-27, Maksim Smolkov; вариант 2 подтверждён
   пользователем.
+
+<a id="oq-022"></a>
+
+### OQ-022. Публичные ошибки и cookie clearing для logout
+
+- **Статус:** Resolved
+- **Категория влияния:** `BLOCKING_CONTRACT`
+- **Серьёзность:** High
+- **Формулировка вопроса:** какой public result должен возвращать current
+  logout при предъявленном malformed, unknown, rotated, expired либо
+  already-revoked refresh token; должны ли refresh/CSRF cookies очищаться при
+  `403 FORBIDDEN`; и должен ли Bearer-authenticated logout-all очищать auth
+  cookies текущего browser?
+- **Почему требуется решение:** HTTP 8.6 однозначно задаёт `204` без refresh
+  cookie, `403` для failed same-origin/CSRF и clear-cookie headers для success,
+  но не задаёт ветки unusable presented token или headers при `403`. HTTP 8.7
+  задаёт только `204` и revoke всех sessions без `Set-Cookie`. ADR-018 требует
+  очистить обе cookies для logout и завершить local session, но не устраняет
+  эти различия. Самостоятельный выбор изменит публичный security contract,
+  возможность повторного запроса и browser state.
+- **Затронутые правила или сценарии:** `MVP-SC-003`, HTTP 2.3/8.6—8.7,
+  ADR-018, current logout, logout-all, safe errors и browser E2E.
+- **Затронутые артефакты:** HTTP contracts, feature spec, backend controller,
+  request guard, cookie factory, frontend lifecycle и тесты.
+- **Источники:** [HTTP 8.6—8.7](api/http-contracts.md#86-выход-из-текущей-сессии),
+  [ADR-018](adr/architecture-decisions.md#adr-018-frontend-lifecycle-access-token-session-bootstrap-и-csrf),
+  [`MVP-SC-003`](mvp-scope.md#mvp-sc-003),
+  [logout feature audit](features/logout-session-revocation.md).
+- **Возможные варианты:**
+  1. после успешного request guard всегда отвечать `204` и очищать cookies,
+     включая unusable token; при `403` cookies не менять; logout-all очищает
+     cookies текущего browser;
+  2. unusable token возвращает `401 INVALID_REFRESH_TOKEN`, `403` не очищает
+     cookies, logout-all не управляет cookies;
+  3. разделить known terminal session (`204`) и malformed/unknown/rotated token
+     (`401`), отдельно определить clearing для каждой ошибки и logout-all.
+- **Рекомендуемый вариант для решения:** вариант 1 минимизирует раскрытие
+  session presence и делает user intent безопасно повторяемым, но должен быть
+  явно принят. Для failed CSRF cookies рекомендуется не менять, чтобы
+  forbidden request не создавал logout side effect; logout-all рекомендуется
+  очищать cookies текущего browser вместе с `204`.
+- **Владелец решения:** Maksim Smolkov; роль решения: владелец
+  security/архитектуры.
+- **Контрольная точка:** до `SC3-02/04` и HTTP/component test implementation.
+- **Последствия откладывания:** нельзя зафиксировать exact controller branches,
+  clear-cookie tests, retry behavior и browser reload result.
+- **Дата выявления:** 2026-09-30, `SC3-01` contract audit.
+- **Итоговое решение:** для unusable refresh credential принят вариант 1:
+  после request-level Origin/Fetch Metadata и header/cookie equality checks
+  current logout возвращает единый `204`, очищает обе cookies и не выполняет
+  DB mutation. Для найденной session signature и session binding CSRF остаются
+  обязательными. При любом `403 FORBIDDEN` cookies не изменяются. Успешный
+  logout-all возвращает `204` и сразу очищает refresh- и CSRF-cookies текущего
+  browser; Bearer authentication failure cookies не меняет.
+- **Дата и автор решения:** 2026-09-30, Maksim Smolkov; варианты подтверждены
+  пользователем.
+
+<a id="oq-023"></a>
+
+### OQ-023. Гарантия current logout при гонке с refresh rotation
+
+- **Статус:** Resolved
+- **Категория влияния:** `BLOCKING_AUTH_CONCURRENCY`
+- **Серьёзность:** High
+- **Формулировка вопроса:** какую серверную гарантию обязан давать current
+  logout, если refresh той же session первым блокирует строку и заменяет
+  `refreshTokenHash`, а concurrent logout уже предъявил старый token?
+- **Почему требуется решение:** текущая session находится только по mutable
+  refresh hash. Если refresh wins, повторный `SELECT ... WHERE old_hash FOR
+  UPDATE` может не найти row после re-evaluation, поэтому logout не может
+  отозвать уже rotated session. Web Locks предотвращает гонку для compliant
+  вкладок одного browser profile, но не является серверной гарантией и не
+  покрывает direct clients или response reordering. Документы требуют описать
+  refresh-vs-logout race, но не задают stable session locator или winner rule.
+- **Затронутые правила или сценарии:** `MVP-SC-003`, BR-SEC-002, HTTP 8.5—8.6,
+  ADR-018, session revocation и concurrency acceptance.
+- **Затронутые артефакты:** refresh token profile, application port,
+  `DoctrineUserSessionRepository`, frontend Web Lock flow и race tests.
+- **Источники:** [`UserSession`](data-model/entities.md#9-usersession),
+  [HTTP 8.5—8.6](api/http-contracts.md#85-обновление-сессии),
+  [ADR-018](adr/architecture-decisions.md#adr-018-frontend-lifecycle-access-token-session-bootstrap-и-csrf),
+  фактические `RefreshTokenCodec`, `RefreshSession` и session repository.
+- **Возможные варианты:**
+  1. считать Web Lock обязательной client guarantee: refresh winner допустим,
+     direct concurrent logout по старому token может стать no-op `204`;
+  2. ввести stable session locator в refresh credential/token profile и
+     блокировать row по нему до проверки текущего hash; оценить совместимость
+     уже выданных tokens, migration при этом может не требоваться;
+  3. хранить ограниченную историю предыдущего hash или иной server-side alias;
+     это расширяет модель, retention и attack surface;
+  4. определить bounded retry/coordination protocol, при котором logout после
+     refresh winner повторяется с новыми browser cookies; direct-client
+     гарантия остаётся ограниченной.
+- **Рекомендуемое временное решение:** production implementation current
+  logout не начинать до выбора. Независимо от варианта frontend должен брать
+  тот же Web Lock и читать cookies только после lock; JWT blacklist и global
+  session version не вводить.
+- **Владелец решения:** Maksim Smolkov; роль решения: владелец
+  security/архитектуры.
+- **Контрольная точка:** до `SC3-02` и `SC3-07`.
+- **Последствия откладывания:** невозможно написать честный concurrency test и
+  доказать, что успешный logout не оставляет usable rotated refresh session.
+- **Дата выявления:** 2026-09-30, `SC3-01` contract audit.
+- **Итоговое решение:** принят вариант 2. Новый versioned refresh credential
+  содержит stable `UserSession.id` locator и 32 random bytes; в БД хранится
+  только hash полного credential. Refresh блокирует row по locator и требует
+  exact current-hash match. Current logout блокирует ту же row по locator и при
+  valid session-bound CSRF отзывает её даже для stale rotated credential.
+  Production-сессий прежнего формата нет, поэтому legacy compatibility не
+  вводится; прежние local/test cookies становятся недействительными. Схема БД
+  уже содержит PK session, migration не требуется.
+- **Дата и автор решения:** 2026-09-30, Maksim Smolkov; вариант 2 подтверждён
+  пользователем.
+
+<a id="oq-024"></a>
+
+### OQ-024. Frontend UX для logout и logout-all
+
+- **Статус:** Resolved
+- **Категория влияния:** `BLOCKING_FRONTEND_CONTRACT`
+- **Серьёзность:** High
+- **Формулировка вопроса:** требуется ли confirmation для logout-all, куда
+  redirect-ить после success и safe error, и как показывать состояние, когда
+  local auth очищен, но server revoke не подтверждён из-за transport/`403`/`5xx`?
+- **Почему требуется решение:** ADR-018 однозначно требует очистить local token
+  и current user и рассылать событие только после успешного server logout, но
+  не определяет UI location, confirmation или recovery copy. Немедленный
+  redirect на существующую login page может вызвать bootstrap; при сохранённых
+  cookies это способно восстановить session после неуспешного logout и создать
+  противоречивый UX.
+- **Затронутые правила или сценарии:** `MVP-SC-003`, ADR-018, auth middleware,
+  login page bootstrap, межвкладочное завершение и accessibility.
+- **Затронутые артефакты:** `$auth` API, current-user state, protected page,
+  auth middleware, login page, component и browser E2E tests.
+- **Источники:** [ADR-018](adr/architecture-decisions.md#adr-018-frontend-lifecycle-access-token-session-bootstrap-и-csrf),
+  [frontend foundation](frontend-foundation.md#7-состояние-текущего-пользователя),
+  [logout feature audit](features/logout-session-revocation.md).
+- **Возможные варианты:**
+  1. current logout без confirmation, logout-all с confirmation; success
+     redirect на `/login` в explicit signed-out mode, error остаётся на
+     dedicated result state с явным retry и suppressed bootstrap;
+  2. обе команды без confirmation и всегда redirect на `/login`, расширив
+     login bootstrap guard для failed logout;
+  3. confirmation для обеих команд и inline result на защищённой странице до
+     явного перехода пользователя.
+- **Рекомендуемый вариант для решения:** вариант 1 различает обычный и
+  destructive mass logout, не маскирует server failure и предотвращает
+  automatic restoration/redirect loop. Реализация должна оставаться доступной
+  с клавиатуры и не передавать token в route/query/storage.
+- **Владелец решения:** Maksim Smolkov; роль решения: Product Owner совместно с
+  владельцем frontend/security.
+- **Контрольная точка:** до `SC3-05` и frontend acceptance tests.
+- **Последствия откладывания:** нельзя зафиксировать component states, redirect
+  assertions, confirmation copy и recovery behavior.
+- **Дата выявления:** 2026-09-30, `SC3-01` contract audit.
+- **Итоговое решение:** принят вариант 1. Current logout выполняется без
+  confirmation; logout-all требует явного confirmation. После подтверждённого
+  server `204` frontend очищает local auth state, рассылает token-free
+  `session-ended` и переходит на `/login` в explicit signed-out mode без
+  bootstrap. После transport/`403`/`5xx` local state очищается, success event
+  не рассылается, автоматический bootstrap запрещён, а dedicated safe-error
+  state сообщает, что server revoke не подтверждён, и предлагает явный retry.
+- **Дата и автор решения:** 2026-09-30, Maksim Smolkov; вариант 1 и
+  confirmation только для logout-all подтверждены пользователем.
