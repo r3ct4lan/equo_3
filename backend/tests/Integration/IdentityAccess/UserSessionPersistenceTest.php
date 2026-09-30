@@ -63,14 +63,14 @@ final class UserSessionPersistenceTest extends KernelTestCase
         });
         $this->entityManager->clear();
 
-        $stored = $this->transaction->run(fn (): ?UserSession => $this->repository->findByRefreshTokenHashForUpdate($this->hash('first')));
+        $stored = $this->transaction->run(fn (): ?UserSession => $this->repository->findByIdForUpdate($sessionId));
         self::assertInstanceOf(UserSession::class, $stored);
         self::assertSame($sessionId, $stored->id);
         self::assertSame($userId, $stored->userId);
         self::assertTrue($stored->isActive($createdAt));
 
-        $this->transaction->run(function () use ($createdAt): void {
-            $locked = $this->repository->findByRefreshTokenHashForUpdate($this->hash('first'));
+        $this->transaction->run(function () use ($createdAt, $sessionId): void {
+            $locked = $this->repository->findByIdForUpdate($sessionId);
             self::assertInstanceOf(UserSession::class, $locked);
             $locked->rotate($this->hash('second'), $createdAt->modify('+1 hour'));
             $locked->revoke($createdAt->modify('+2 hours'));
@@ -157,7 +157,7 @@ final class UserSessionPersistenceTest extends KernelTestCase
         );
     }
 
-    public function testLockedRefreshLookupBlocksCompetingWrite(): void
+    public function testLockedSessionIdLookupBlocksCompetingWrite(): void
     {
         $userId = '81000000-0000-4000-8000-000000000051';
         $sessionId = '81000000-0000-4000-8000-000000000052';
@@ -166,7 +166,7 @@ final class UserSessionPersistenceTest extends KernelTestCase
         $this->connection->commit();
 
         $this->transaction->run(function () use ($sessionId): void {
-            $locked = $this->repository->findByRefreshTokenHashForUpdate($this->hash('locked'));
+            $locked = $this->repository->findByIdForUpdate($sessionId);
             self::assertInstanceOf(UserSession::class, $locked);
 
             $secondConnection = DriverManager::getConnection(
@@ -216,8 +216,8 @@ final class UserSessionPersistenceTest extends KernelTestCase
         $failure = null;
 
         try {
-            $this->transaction->run(function () use ($createdAt): void {
-                $session = $this->repository->findByRefreshTokenHashForUpdate($this->hash('rollback-old'));
+            $this->transaction->run(function () use ($createdAt, $sessionId): void {
+                $session = $this->repository->findByIdForUpdate($sessionId);
                 self::assertInstanceOf(UserSession::class, $session);
                 $session->rotate($this->hash('rollback-new'), $createdAt->modify('+1 hour'));
                 $this->repository->save($session);

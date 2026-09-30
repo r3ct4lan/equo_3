@@ -7,6 +7,7 @@
 | Дата контрактного аудита | 2026-09-30 |
 | Связанный сценарий | `MVP-SC-003` |
 | Задача аудита | `SC3-01` |
+| Реализованный этап | `SC3-02` — 2026-09-30 |
 | Диапазон реализации | `SC3-02—SC3-08`; `DR-E6-011—018` |
 | Владелец | Maksim Smolkov |
 
@@ -53,10 +54,18 @@ current logout скрывает unusable credential за идемпотентн�
 - `UserSession` уже имеет `revokedAt`, `isActive()` и идемпотентный `revoke()`;
 - таблица `user_session` уже имеет `user_id`, `refresh_token_hash`,
   `expires_at`, `revoked_at`, unique hash и индексы по user/expiry/revocation;
-- repository уже умеет находить session по refresh hash под
-  `PESSIMISTIC_WRITE` и сохранять domain state;
-- refresh выполняется в PostgreSQL transaction, блокирует session row, проверяет
-  session-bound CSRF и ротирует только refresh hash;
+- refresh token codec выдаёт только
+  `rt2.<session-uuid>.<base64url(32 random bytes)>`, строго разбирает locator и
+  вычисляет digest полного credential без диагностического раскрытия token;
+- repository находит session по primary-key locator под `PESSIMISTIC_WRITE` и
+  сохраняет domain state; lookup по refresh hash удалён из application port;
+- refresh разбирает credential до transaction, блокирует session row по ID,
+  сверяет stored hash через `hash_equals`, проверяет session-bound CSRF и
+  ротирует credential с тем же locator;
+- application use case `LogoutCurrentSession` реализует idempotent no-op для
+  malformed/unknown credential и под row lock отзывает active session после
+  CSRF binding; stale rotated credential намеренно не сравнивается со stored
+  hash;
 - Bearer authenticator проверяет JWT, перечитывает актуального `User` и
   отклоняет unknown/inactive user единым `401 AUTHENTICATION_REQUIRED`, но пока
   поддерживает только `/api/v1/me`;
@@ -207,6 +216,11 @@ point. Controller не должен дублировать cryptographic CSRF ve
 
 ### 6.1. Current logout
 
+Состояние `SC3-02`: domain/application/persistence core реализован. В scope
+этапа вошли новый refresh credential profile, locator lookup под lock,
+адаптация login/refresh и `LogoutCurrentSession`. HTTP adapter, cookie clearing
+и frontend lifecycle остаются последующими этапами `SC3-04—SC3-05`.
+
 Минимальная структура:
 
 - input/command: raw refresh credential и CSRF token только после HTTP
@@ -270,7 +284,7 @@ Application не знает Request/Response/Cookie. Session-bound CSRF verifica
 |---|---|
 | `revokedAt` | Есть в domain, record и table |
 | Идемпотентный `revoke` | Уже реализован; повтор не меняет timestamp |
-| Lookup по refresh hash | Есть, но заменяется stable-locator lookup для refresh/logout race guarantee |
+| Lookup по refresh hash | Удалён из application repository port |
 | Pessimistic session lock | Есть |
 | Сохранение session | Есть |
 | Индекс `user_id` | Есть |
@@ -278,7 +292,7 @@ Application не знает Request/Response/Cookie. Session-bound CSRF verifica
 | Выборка/mass revoke unfinished sessions | Нет; нужен repository port method и Doctrine bulk update |
 | User lock для logout-all | Нет в текущем identity port; нужен узкий `FOR UPDATE` method |
 | Cookie clearing factory | Нет; нужен HTTP-only method, не schema change |
-| Stable locator lookup | Нужен `findByIdForUpdate`; существующего PK достаточно |
+| Stable locator lookup | Реализован `findByIdForUpdate` с `PESSIMISTIC_WRITE`; существующего PK достаточно |
 
 Bulk update не должен менять expired или already-revoked rows. Возвращаемый
 count нужен только для тестов/observability и не влияет на public `204`.
@@ -391,6 +405,13 @@ session ID, JWT, SQL, stack trace или различие unknown/foreign sessio
 | Browser E2E 3 | Two tabs same profile → success event clears both without transferring token and without redirect/bootstrap loop. |
 | Security regression | Cookies exact; secrets absent from response/logs/URL/storage/artifacts; CSRF failure precedes revoke; standard request ID/error envelope; public auth endpoints unchanged. |
 
+Покрытие `SC3-02` добавлено на codec, domain, login, refresh, current logout и
+Doctrine persistence. Оно включает strict/legacy parsing, hash-only storage,
+ID-based row lock, malformed/unknown no-op, CSRF failure, idempotent terminal
+states, stale-token revoke после rotation, refresh-after-logout failure и
+rollback без сохранённого `revokedAt`. HTTP logout/logout-all, mass revoke и
+frontend tests намеренно не входят в этот этап.
+
 ## 12. Границы фичи
 
 В `SC-003` не входят:
@@ -417,17 +438,18 @@ session ID, JWT, SQL, stack trace или различие unknown/foreign sessio
 
 ## 14. Декомпозиция `SC3-02—SC3-08`
 
-| Этап | Содержание | Входной gate | Выходной результат |
-|---|---|---|---|
-| `SC3-02` | Current logout domain/application/persistence | Stable-locator и unusable-token contracts приняты | Idempotent revoke service и repository semantics без HTTP |
-| `SC3-03` | Logout-all application/persistence | Подтверждённый User-first lock order | Atomic bulk revoke и active-user recheck |
-| `SC3-04` | Controllers, security route, guards, cookie clearing | HTTP/cookie branches приняты | Оба exact HTTP contracts и safe errors |
-| `SC3-05` | `$auth` actions, UI и cross-tab lifecycle | UX decision принят; backend contracts стабильны | Local cleanup, token-free event, no restore/redirect loop |
-| `SC3-06` | Unit/application/integration/HTTP/component tests | `SC3-02—05` | Матрица happy/error/security branches |
-| `SC3-07` | Process/DB concurrency tests | Stable-locator contract принят | Доказаны lock order, race outcomes и отсутствие deadlock |
-| `SC3-08` | Browser E2E, security regression, docs и quality gate | `SC3-06—07` | Три browser journeys, docs synced, full gate green |
+| Этап | Статус | Содержание | Входной gate | Выходной результат |
+|---|---|---|---|---|
+| `SC3-02` | Implemented 2026-09-30 | Current logout domain/application/persistence | Stable-locator и unusable-token contracts приняты | Idempotent revoke service и repository semantics без HTTP |
+| `SC3-03` | Planned | Logout-all application/persistence | Подтверждённый User-first lock order | Atomic bulk revoke и active-user recheck |
+| `SC3-04` | Planned | Controllers, security route, guards, cookie clearing | HTTP/cookie branches приняты | Оба exact HTTP contracts и safe errors |
+| `SC3-05` | Planned | `$auth` actions, UI и cross-tab lifecycle | UX decision принят; backend contracts стабильны | Local cleanup, token-free event, no restore/redirect loop |
+| `SC3-06` | Planned | Unit/application/integration/HTTP/component tests | `SC3-02—05` | Матрица happy/error/security branches |
+| `SC3-07` | Planned | Process/DB concurrency tests | Stable-locator contract принят | Доказаны lock order, race outcomes и отсутствие deadlock |
+| `SC3-08` | Planned | Browser E2E, security regression, docs и quality gate | `SC3-06—07` | Три browser journeys, docs synced, full gate green |
 
-Roadmap checkboxes не отмечаются выполненными этим audit-only изменением.
+Roadmap checkboxes не отмечаются на `SC3-02`: общий end-to-end slice ещё не
+завершён.
 
 ## 15. Exit criteria
 
@@ -444,5 +466,6 @@ Roadmap checkboxes не отмечаются выполненными этим a
   изменены;
 - commit, push, merge, rebase и pull request не выполнялись.
 
-Implementation stages `SC3-02—SC3-08` являются contract-ready; feature остаётся
-`Planned` до реализации и проверки production code.
+`SC3-02` реализован и проверен в своей domain/application/persistence границе.
+Этапы `SC3-03—SC3-08` остаются contract-ready, а feature — `Planned` до
+завершения всего end-to-end slice.

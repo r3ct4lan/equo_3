@@ -36,14 +36,14 @@ final readonly class DoctrineUserSessionRepository implements UserSessionReposit
         ));
     }
 
-    public function findByRefreshTokenHashForUpdate(string $refreshTokenHash): ?UserSession
+    public function findByIdForUpdate(string $sessionId): ?UserSession
     {
         $record = $this->entityManager->createQueryBuilder()
             ->select('session', 'user')
             ->from(UserSessionRecord::class, 'session')
             ->innerJoin('session.user', 'user')
-            ->andWhere('session.refreshTokenHash = :refreshTokenHash')
-            ->setParameter('refreshTokenHash', $refreshTokenHash)
+            ->andWhere('session.id = :sessionId')
+            ->setParameter('sessionId', $sessionId)
             ->getQuery()
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)
             ->getOneOrNullResult();

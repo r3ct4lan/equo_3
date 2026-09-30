@@ -115,7 +115,7 @@ final class RefreshHttpTest extends WebTestCase
     public static function invalidRefreshProvider(): iterable
     {
         yield 'malformed' => ['not-a-refresh-token', null];
-        yield 'unknown' => ['rt.'.str_repeat('a', 43), null];
+        yield 'unknown' => ['rt2.85000000-0000-4000-8000-000000000099.'.str_repeat('A', 43), null];
         yield 'expired' => ['', 'expired'];
         yield 'revoked' => ['', 'revoked'];
     }
@@ -265,7 +265,7 @@ final class RefreshHttpTest extends WebTestCase
     {
         $sessionId = '85000000-0000-4000-8000-'.sprintf('%012d', random_int(1, 999999999999));
         $userId = '85000000-0000-4000-8001-'.sprintf('%012d', random_int(1, 999999999999));
-        $issued = self::getContainer()->get(RefreshTokenCodecPort::class)->issue();
+        $issued = self::getContainer()->get(RefreshTokenCodecPort::class)->issueForSession($sessionId);
         $createdAt = 'expired' === $state ? new DateTimeImmutable('2026-06-01T12:00:00Z') : new DateTimeImmutable('2026-08-08T12:00:00Z');
         $expiresAt = 'expired' === $state ? new DateTimeImmutable('2026-07-01T12:00:00Z') : $createdAt->modify('+30 days');
         $revokedAt = 'revoked' === $state ? $createdAt->modify('+1 hour') : null;

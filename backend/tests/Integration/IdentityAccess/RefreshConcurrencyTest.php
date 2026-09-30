@@ -47,7 +47,7 @@ final class RefreshConcurrencyTest extends WebTestCase
         $userId = '86000000-0000-4000-8000-'.sprintf('%012d', random_int(1, 999999999999));
         $sessionId = '86000000-0000-4000-8001-'.sprintf('%012d', random_int(1, 999999999999));
         $this->userIds[] = $userId;
-        $issuedRefreshToken = $container->get(RefreshTokenCodecPort::class)->issue();
+        $issuedRefreshToken = $container->get(RefreshTokenCodecPort::class)->issueForSession($sessionId);
         $csrfToken = $container->get(CsrfTokenCodecPort::class)->issue($sessionId);
         $oldHash = $issuedRefreshToken->tokenHash;
         $createdAt = new DateTimeImmutable('-1 hour', new DateTimeZone('UTC'));
