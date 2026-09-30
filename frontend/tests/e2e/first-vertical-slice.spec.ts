@@ -1,4 +1,4 @@
-import type { APIRequestContext, Browser, BrowserContext, Cookie, Page, Route } from '@playwright/test'
+import type { APIRequestContext, APIResponse, Browser, BrowserContext, Cookie, Page, Route } from '@playwright/test'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from './fixtures'
 
@@ -9,6 +9,17 @@ interface MailpitSummary {
 
 interface MailpitMessage {
   HTML: string
+  testMessageId: string
+}
+
+interface ActivationAcceptanceState {
+  exists: boolean
+  active: boolean
+  tokenCount: number
+  unfinishedTokenCount: number
+  invalidatedTokenCount: number
+  usedTokenCount: number
+  outboxCount: number
 }
 
 const mailpitUrl = process.env.E2E_MAILPIT_URL ?? 'http://mailpit:8025'
@@ -63,7 +74,11 @@ async function registration(page: Page, email: string): Promise<void> {
   await page.getByLabel('Password').fill(testPassword)
 }
 
-async function waitForMail(request: APIRequestContext, recipient: string): Promise<MailpitMessage> {
+async function waitForMail(
+  request: APIRequestContext,
+  recipient: string,
+  excludedMessageIds: ReadonlySet<string> = new Set()
+): Promise<MailpitMessage> {
   let messageId: string | null = null
 
   await expect.poll(async () => {
@@ -73,7 +88,8 @@ async function waitForMail(request: APIRequestContext, recipient: string): Promi
     }
 
     const body = await response.json() as { messages: MailpitSummary[] }
-    messageId = body.messages.find(message => message.To.some(to => to.Address === recipient))?.ID ?? null
+    messageId = body.messages.find(message => !excludedMessageIds.has(message.ID)
+      && message.To.some(to => to.Address === recipient))?.ID ?? null
 
     return messageId !== null
   }, {
@@ -84,7 +100,12 @@ async function waitForMail(request: APIRequestContext, recipient: string): Promi
   const response = await request.get(`${mailpitUrl}/api/v1/message/${messageId}`)
   expect(response.ok()).toBe(true)
 
-  return await response.json() as MailpitMessage
+  const message = await response.json() as Omit<MailpitMessage, 'testMessageId'>
+
+  return {
+    ...message,
+    testMessageId: messageId ?? ''
+  }
 }
 
 function activationUrlFrom(message: MailpitMessage): string {
@@ -137,6 +158,35 @@ async function registerInactiveUser(request: APIRequestContext, email = uniqueEm
   expect(response.status()).toBe(201)
 
   return email
+}
+
+async function activationAcceptanceState(
+  request: APIRequestContext,
+  email: string
+): Promise<ActivationAcceptanceState> {
+  const response = await request.post(`${baseUrl}/api/v1/_test/acceptance/activation-resend-state`, {
+    data: { email }
+  })
+
+  expect(response.ok(), 'e2e-only acceptance probe must be available').toBe(true)
+
+  return await response.json() as ActivationAcceptanceState
+}
+
+async function submitActivationRequest(
+  page: Page,
+  email: string,
+  password: string
+): Promise<APIResponse> {
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Current password').fill(password)
+
+  const responsePromise = page.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/v1/auth/activation-requests'
+  )
+  await page.getByRole('button', { name: 'Request activation link' }).click()
+
+  return await responsePromise
 }
 
 async function ensureActiveUser(page: Page, request: APIRequestContext): Promise<string> {
@@ -739,4 +789,208 @@ test('E2E-09 rejects missing and invalid Bearer tokens even with refresh cookies
     invalidStatus: 401,
     invalidCode: 'AUTHENTICATION_REQUIRED'
   })
+})
+
+test('E2E-10 replaces an activation link and completes activation, login and reload', async ({ page, request }) => {
+  const email = uniqueEmail('activation-resend')
+  const consoleMessages: string[] = []
+  page.on('console', message => consoleMessages.push(message.text()))
+
+  await registration(page, email)
+  const registrationResponsePromise = page.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/v1/auth/register'
+  )
+  await page.getByRole('button', { name: 'Create account' }).click()
+  expect((await registrationResponsePromise).status()).toBe(201)
+  await expect(page.getByRole('status')).toContainText('Check your email')
+
+  const firstEmail = await waitForMail(request, email)
+  const firstActivationUrl = activationUrlFrom(firstEmail)
+  const firstToken = new URL(firstActivationUrl).searchParams.get('token') ?? ''
+  expect(firstToken).not.toBe('')
+  expect(await activationAcceptanceState(request, email)).toEqual({
+    exists: true,
+    active: false,
+    tokenCount: 1,
+    unfinishedTokenCount: 1,
+    invalidatedTokenCount: 0,
+    usedTokenCount: 0,
+    outboxCount: 1
+  })
+
+  const resendResponse = await submitActivationRequest(page, email, testPassword)
+  expect(resendResponse.status()).toBe(202)
+  expect(await resendResponse.json()).toEqual({ status: 'activation_email_scheduled' })
+  const resendStatus = page.getByRole('status').filter({ hasText: 'Request received' })
+  await expect(resendStatus).toContainText('If the details can be used for activation')
+  await expect(resendStatus).not.toContainText(/account exists|password is correct|email was sent/iu)
+  await expectNoSessionOrStoredCapability(page)
+
+  const afterReplacement = await activationAcceptanceState(request, email)
+  expect(afterReplacement).toEqual({
+    exists: true,
+    active: false,
+    tokenCount: 2,
+    unfinishedTokenCount: 1,
+    invalidatedTokenCount: 1,
+    usedTokenCount: 0,
+    outboxCount: 2
+  })
+
+  const secondEmail = await waitForMail(request, email, new Set([firstEmail.testMessageId]))
+  const secondActivationUrl = activationUrlFrom(secondEmail)
+  const secondToken = new URL(secondActivationUrl).searchParams.get('token') ?? ''
+  expect(secondToken).not.toBe('')
+  expect(secondToken === firstToken, 'replacement activation token must be new').toBe(false)
+
+  const oldActivationResponsePromise = page.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/v1/auth/activate'
+  )
+  await followSecretUrl(page, firstActivationUrl)
+  const oldActivationResponse = await oldActivationResponsePromise
+  expect(oldActivationResponse.status()).toBe(410)
+  expect((await oldActivationResponse.json() as { error: { code: string } }).error.code).toBe('TOKEN_INVALIDATED')
+  await expect(page).toHaveURL(/\/activate$/u)
+  await expect(page.getByText('Activation link was replaced')).toBeVisible()
+  expect(await activationAcceptanceState(request, email)).toEqual(afterReplacement)
+
+  await page.goto('/login')
+  await waitForNuxtHydration(page)
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill(testPassword)
+  await routeNextLoginFromUniqueIp(page)
+  const inactiveLoginResponsePromise = page.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/v1/auth/login'
+  )
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  const inactiveLoginResponse = await inactiveLoginResponsePromise
+  expect(inactiveLoginResponse.status()).toBe(403)
+  await expect(page.getByText('Account is not active')).toBeVisible()
+  expect(await activationAcceptanceState(request, email)).toEqual(afterReplacement)
+
+  const newActivationResponsePromise = page.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/v1/auth/activate'
+  )
+  await followSecretUrl(page, secondActivationUrl)
+  const newActivationResponse = await newActivationResponsePromise
+  expect(newActivationResponse.status()).toBe(204)
+  await expect(page).toHaveURL(/\/activate$/u)
+  await expect(page.getByRole('status')).toContainText('Your account is active')
+
+  expect(await activationAcceptanceState(request, email)).toEqual({
+    exists: true,
+    active: true,
+    tokenCount: 2,
+    unfinishedTokenCount: 0,
+    invalidatedTokenCount: 1,
+    usedTokenCount: 1,
+    outboxCount: 2
+  })
+
+  const accessToken = await login(page, email)
+  const cookies = await sessionCookies(page.context())
+  await expectNoPersistentSecrets(page, [
+    firstToken,
+    secondToken,
+    accessToken,
+    cookies.refresh.value,
+    cookies.csrf.value,
+    testPassword
+  ])
+  await expect(page).toHaveURL(/\/me$/u)
+  await expect(page.getByText(email)).toBeVisible()
+
+  await page.reload()
+  await expect(page).toHaveURL(/\/me$/u)
+  await expect(page.getByText(email)).toBeVisible()
+
+  for (const secret of [firstToken, secondToken, testPassword]) {
+    expect(consoleMessages.some(message => message.includes(secret)), 'browser console must not contain secrets').toBe(false)
+  }
+})
+
+test('E2E-11 renders the same neutral result for unknown and active accounts without writes', async ({ page, request }) => {
+  const unknownEmail = uniqueEmail('unknown-activation-resend')
+  const unknownBefore = await activationAcceptanceState(request, unknownEmail)
+  await page.goto('/activate')
+  await waitForNuxtHydration(page)
+
+  const unknownResponse = await submitActivationRequest(page, unknownEmail, wrongPassword)
+  expect(unknownResponse.status()).toBe(202)
+  expect(await unknownResponse.json()).toEqual({ status: 'activation_email_scheduled' })
+  const unknownStatus = await page.getByRole('status').innerText()
+  expect(unknownStatus).toContain('If the details can be used for activation')
+  expect(await activationAcceptanceState(request, unknownEmail)).toEqual(unknownBefore)
+  await expectNoSessionOrStoredCapability(page)
+
+  const activeEmail = await registerAndActivate(page, request, uniqueEmail('active-activation-resend'))
+  const activeBefore = await activationAcceptanceState(request, activeEmail)
+  expect(activeBefore.active).toBe(true)
+  await page.goto('/activate')
+  await waitForNuxtHydration(page)
+
+  const activeResponse = await submitActivationRequest(page, activeEmail, testPassword)
+  expect(activeResponse.status()).toBe(202)
+  expect(await activeResponse.json()).toEqual({ status: 'activation_email_scheduled' })
+  const activeStatus = await page.getByRole('status').innerText()
+  expect(activeStatus).toBe(unknownStatus)
+  expect(await activationAcceptanceState(request, activeEmail)).toEqual(activeBefore)
+  await expectNoSessionOrStoredCapability(page)
+})
+
+test('E2E-12 presents activation request rate limiting without retry or persistence writes', async ({ page, request }) => {
+  const email = await registerInactiveUser(request, uniqueEmail('limited-activation-resend'))
+  const initialState = await activationAcceptanceState(request, email)
+  expect(initialState).toEqual({
+    exists: true,
+    active: false,
+    tokenCount: 1,
+    unfinishedTokenCount: 1,
+    invalidatedTokenCount: 0,
+    usedTokenCount: 0,
+    outboxCount: 1
+  })
+
+  let activationRequests = 0
+  page.on('request', (browserRequest) => {
+    if (new URL(browserRequest.url()).pathname === '/api/v1/auth/activation-requests') {
+      ++activationRequests
+    }
+  })
+  await page.goto('/activate')
+  await waitForNuxtHydration(page)
+
+  for (let requestNumber = 1; requestNumber <= 3; ++requestNumber) {
+    const response = await submitActivationRequest(page, email, testPassword)
+    expect(response.status()).toBe(202)
+    await expect(page.getByRole('status')).toContainText('If the details can be used for activation')
+
+    if (requestNumber < 3) {
+      await page.getByRole('button', { name: 'Request another link' }).click()
+    }
+  }
+
+  const stateAtLimit = await activationAcceptanceState(request, email)
+  expect(stateAtLimit).toEqual({
+    exists: true,
+    active: false,
+    tokenCount: 4,
+    unfinishedTokenCount: 1,
+    invalidatedTokenCount: 3,
+    usedTokenCount: 0,
+    outboxCount: 4
+  })
+
+  await page.getByRole('button', { name: 'Request another link' }).click()
+  const rejectedResponse = await submitActivationRequest(page, email, testPassword)
+  expect(rejectedResponse.status()).toBe(429)
+  const rejectedBody = await rejectedResponse.json() as { error: { code: string } }
+  expect(rejectedBody.error.code).toBe('RATE_LIMIT_EXCEEDED')
+  const retryAfter = rejectedResponse.headers()['retry-after']
+  expect(retryAfter).toMatch(/^\d+$/u)
+  await expect(page.getByRole('alert').filter({ hasText: 'Please wait before trying again' }))
+    .toContainText(`Try again in ${retryAfter} seconds.`)
+
+  expect(activationRequests).toBe(4)
+  expect(await activationAcceptanceState(request, email)).toEqual(stateAtLimit)
 })

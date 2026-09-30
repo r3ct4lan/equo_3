@@ -7,6 +7,8 @@ namespace App\Tests\Integration\IdentityAccess;
 use App\IdentityAccess\Application\Port\CsrfTokenCodecPort;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
 use App\IdentityAccess\Application\Port\RefreshTokenCodecPort;
+use DateTimeImmutable;
+use DateTimeZone;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
@@ -48,20 +50,22 @@ final class RefreshConcurrencyTest extends WebTestCase
         $issuedRefreshToken = $container->get(RefreshTokenCodecPort::class)->issue();
         $csrfToken = $container->get(CsrfTokenCodecPort::class)->issue($sessionId);
         $oldHash = $issuedRefreshToken->tokenHash;
+        $createdAt = new DateTimeImmutable('-1 hour', new DateTimeZone('UTC'));
+        $expiresAt = $createdAt->modify('+30 days');
         $connection->insert('app_user', [
             'id' => $userId,
             'name' => 'Concurrent Refresh',
             'email' => $userId.'@example.test',
             'password_hash' => $container->get(PasswordHashingPort::class)->hash('Correct password!'),
             'is_active' => 1,
-            'created_at' => '2026-08-08 12:00:00+00',
+            'created_at' => $createdAt->format('Y-m-d H:i:sP'),
         ]);
         $connection->insert('user_session', [
             'id' => $sessionId,
             'user_id' => $userId,
             'refresh_token_hash' => $oldHash,
-            'created_at' => '2026-08-08 12:00:00+00',
-            'expires_at' => '2026-09-07 12:00:00+00',
+            'created_at' => $createdAt->format('Y-m-d H:i:sP'),
+            'expires_at' => $expiresAt->format('Y-m-d H:i:sP'),
             'revoked_at' => null,
         ]);
         self::ensureKernelShutdown();

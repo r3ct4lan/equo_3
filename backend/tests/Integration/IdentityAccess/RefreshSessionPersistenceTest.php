@@ -7,10 +7,10 @@ namespace App\Tests\Integration\IdentityAccess;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineTransaction;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineUserSessionRepository;
-use App\IdentityAccess\Adapter\System\SystemClock;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
+use App\IdentityAccess\Application\Port\ClockPort;
 use App\IdentityAccess\Application\Port\CsrfTokenCodecPort;
 use App\IdentityAccess\Application\Port\IssuedAccessToken;
 use App\IdentityAccess\Application\Port\IssuedRefreshToken;
@@ -60,7 +60,7 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
         $this->insertUser($userId, true);
         $this->insertSession($sessionId, $userId, $this->hash('old'), $createdAt, $expiresAt);
 
-        $result = $this->refresh()->handle(new RefreshCommand('rt.old', 'csrf-ok'));
+        $result = $this->refresh($createdAt->modify('+1 day'))->handle(new RefreshCommand('rt.old', 'csrf-ok'));
 
         self::assertSame('access-for-'.$userId, $result->accessToken);
         self::assertSame(900, $result->expiresIn);
@@ -102,7 +102,7 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
             );
 
             try {
-                $this->refresh()->handle(new RefreshCommand($publicToken, 'csrf-ok'));
+                $this->refresh(new DateTimeImmutable('2026-08-10T12:00:00Z'))->handle(new RefreshCommand($publicToken, 'csrf-ok'));
                 self::fail('Refresh failure branch must throw.');
             } catch (ApplicationFailure $failure) {
                 self::assertSame($expected, $failure->failureCode);
@@ -120,7 +120,7 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
         $this->insertSession($sessionId, $userId, $this->hash('old'), new DateTimeImmutable('2026-08-08T12:00:00Z'), new DateTimeImmutable('2026-09-07T12:00:00Z'));
 
         try {
-            $this->refresh(accessTokenIssuer: new class implements AccessTokenIssuerPort {
+            $this->refresh(new DateTimeImmutable('2026-08-09T12:00:00Z'), accessTokenIssuer: new class implements AccessTokenIssuerPort {
                 public function issue(string $userId): IssuedAccessToken
                 {
                     throw new RuntimeException('Controlled access failure.');
@@ -145,13 +145,13 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
         $this->insertSession($firstSession, $userId, $this->hash('old'), $createdAt, $expiresAt);
         $this->insertSession($secondSession, $userId, $this->hash('other'), $createdAt, $expiresAt);
 
-        $this->refresh()->handle(new RefreshCommand('rt.old', 'csrf-ok'));
+        $this->refresh($createdAt->modify('+1 day'))->handle(new RefreshCommand('rt.old', 'csrf-ok'));
 
         self::assertSame($this->hash('new'), $this->field('refresh_token_hash', $firstSession));
         self::assertSame($this->hash('other'), $this->field('refresh_token_hash', $secondSession));
     }
 
-    private function refresh(?AccessTokenIssuerPort $accessTokenIssuer = null): RefreshSession
+    private function refresh(DateTimeImmutable $now, ?AccessTokenIssuerPort $accessTokenIssuer = null): RefreshSession
     {
         return new RefreshSession(
             new DoctrineUserSessionRepository($this->entityManager),
@@ -165,7 +165,16 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
                 }
             },
             new DoctrineTransaction($this->entityManager),
-            new SystemClock(),
+            new readonly class($now) implements ClockPort {
+                public function __construct(private DateTimeImmutable $now)
+                {
+                }
+
+                public function now(): DateTimeImmutable
+                {
+                    return $this->now;
+                }
+            },
         );
     }
 

@@ -1,0 +1,4 @@
+e2e_activation_resend_state:
+    path: /api/v1/_test/acceptance/activation-resend-state
+    controller: App\Tests\Fixture\Acceptance\ActivationResendStateController
+    methods: [POST]

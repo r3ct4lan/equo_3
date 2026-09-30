@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 7 |
-| Дата актуальности | 2026-08-10 |
+| Версия | 9 |
+| Дата актуальности | 2026-09-30 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
 
@@ -131,7 +131,10 @@ RabbitMQ запускается и достигает `healthy` до старт�
 зависимостей, чтобы исключить наблюдавшийся resource/startup race Docker Desktop.
 
 Сценарии проверяют полный happy path `register -> activate -> login -> reload
--> authenticated /me`, client validation и исправление формы, защиту от
+-> authenticated /me`, повторный запрос активации с заменой старой capability,
+одинаковый neutral 202 без записей для unknown/active account и UI-поведение
+429 `Retry-After` без автоматического retry или persistence write. Также
+проверяются client validation и исправление формы, защита от
 двойного submit, unknown/used capability, safe redirect после login, login
 ошибки без enumeration, refresh координацию двух вкладок через Web Locks, один
 refresh/retry budget для protected request, отказ `/me` без valid Bearer token
@@ -146,10 +149,20 @@ session material не попали в артефакты. Nginx E2E access log �
 environment/mounts временного Compose project и удаляет при завершении. GitHub
 Actions не хранит реальные JWT/CSRF/TLS secrets для E2E.
 
+Playwright image переводит Debian package mirror на HTTPS до установки browser
+dependencies. Это исключает наблюдавшиеся HTTP proxy/403 ошибки при загрузке
+пакетов и не меняет runtime приложения.
+
 E2E Compose project использует увеличенные test-only login/registration quotas,
 чтобы полный browser journey не исчерпывал антибрутфорс-лимитер одного
-контейнерного IP. Production/default значения остаются `5/30` для login и
-проверяются backend HTTP tests.
+контейнерного IP. Activation-request email quota, напротив, равна нормативным
+трём запросам на окно и позволяет проверить четвёртый ответ 429. Production/
+default значения не изменяются и проверяются backend HTTP tests.
+
+Для доказательства persistence-инвариантов E2E environment добавляет read-only
+test endpoint, возвращающий только агрегаты token/outbox state. Endpoint не
+возвращает идентификаторы, hashes, payload или capability и не регистрируется в
+обычных `test`, `dev` или `prod` environments.
 
 Скрипт всегда останавливает только свой Compose project через
 `down --remove-orphans`, проверяет отсутствие source drift и не вызывает
