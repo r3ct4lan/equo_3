@@ -28,4 +28,6 @@ export interface AuthSession {
   retryBootstrap: () => Promise<void>
   login: (values: LoginValues, options?: LoginOptions) => Promise<void>
   protectedRequest: <T>(path: string, options?: ApiRequestOptions) => Promise<T>
+  logout: () => Promise<void>
+  logoutAll: () => Promise<void>
 }

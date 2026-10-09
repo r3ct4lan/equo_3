@@ -5,6 +5,11 @@ export default defineNuxtPlugin({
   dependsOn: ['api'],
   setup(nuxtApp) {
     const currentUser = useCurrentUser()
+    let storage: Storage | undefined
+    try {
+      storage = window.sessionStorage
+    }
+    catch { /* Session coordination also works when browser storage is unavailable. */ }
     const auth = createAuthSession({
       api: nuxtApp.$api,
       currentUser: {
@@ -16,6 +21,9 @@ export default defineNuxtPlugin({
       navigateTo,
       document,
       navigator,
+      sessionStorage: storage,
+      signedOut: new URL(window.location.href).searchParams.get('signedOut') === '1'
+        || window.location.pathname === '/logout',
       createBroadcastChannel: typeof BroadcastChannel === 'undefined'
         ? undefined
         : name => new BroadcastChannel(name)
