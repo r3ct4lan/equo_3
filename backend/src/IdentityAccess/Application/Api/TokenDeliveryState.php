@@ -20,7 +20,7 @@ final readonly class TokenDeliveryState
 
     public function isDeliverableAt(DateTimeImmutable $now): bool
     {
-        return UserActionTokenPurpose::ActivateAccount === $this->purpose
+        return in_array($this->purpose, [UserActionTokenPurpose::ActivateAccount, UserActionTokenPurpose::ResetPassword], true)
             && $this->current
             && null === $this->usedAt
             && null === $this->invalidatedAt
