@@ -194,6 +194,13 @@ safe redirects, login errors, двухвкладочную refresh-коорди�
 отказ `/me` без valid Bearer token. Общие HTTP tests продолжают проверять safe
 errors, request ID и публичный healthcheck.
 
+SC-003 дополнительно проверяет exact logout/clear-cookie contracts, owner
+recheck и atomic bulk revoke, terminal/stale credential branches, rollback,
+реальные DB/process races, local cleanup и signed-out lifecycle. Свежий набор:
+322 backend, 40 unit, 27 component и 16 browser E2E PASS; полный release gate
+блокирует dependency audit. [Акт проверки](../acceptance/logout-session-revocation.md)
+фиксирует доказательства и ограничения.
+
 ## 10. Нормативные источники
 
 - [Бизнес-правила](../business-rules/business-rules.md);

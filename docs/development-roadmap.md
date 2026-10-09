@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 2 |
-| Дата актуальности | 2026-08-10 |
+| Версия | 3 |
+| Дата актуальности | 2026-10-09 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
 
@@ -789,46 +789,56 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 
 ### 10.3. Feature 6A — повторный запрос активации
 
-- [ ] `DR-E6-001` — выполнить contract audit `BR-USR-002/006`,
+Реализовано ранее; [акт 2026-09-30](acceptance/activation-resend.md) и свежие
+backend/browser regression 2026-10-09 подтверждают задачи ниже. Повторная
+реализация не требуется.
+
+- [x] `DR-E6-001` — выполнить contract audit `BR-USR-002/006`,
   `BR-SEC-003—007` и HTTP 8.2.
-- [ ] `DR-E6-002` — реализовать
+- [x] `DR-E6-002` — реализовать
   `POST /api/v1/auth/activation-requests` с одинаковым `202` для каждого
   синтаксически корректного тела: неизвестный email, неверный пароль и активный
   аккаунт не имеют отдельного публичного результата.
-- [ ] `DR-E6-003` — нормализовать email до rate-limit/account lookup.
-- [ ] `DR-E6-004` — не выдавать новый token активному аккаунту без
+- [x] `DR-E6-003` — нормализовать email до rate-limit/account lookup.
+- [x] `DR-E6-004` — не выдавать новый token активному аккаунту без
   нормативного основания реактивации.
-- [ ] `DR-E6-005` — для допустимого пользователя заблокировать User,
+- [x] `DR-E6-005` — для допустимого пользователя заблокировать User,
   инвалидировать незавершённый `ACTIVATE_ACCOUNT` и создать replacement.
-- [ ] `DR-E6-006` — сохранить token и outbox атомарно, используя существующую
+- [x] `DR-E6-006` — сохранить token и outbox атомарно, используя существующую
   delivery chain.
-- [ ] `DR-E6-007` — применить TTL 24 часа и rate limits email/user+IP.
-- [ ] `DR-E6-008` — гарантировать отсутствие account enumeration по body,
+- [x] `DR-E6-007` — применить TTL 24 часа и rate limits email/user+IP.
+- [x] `DR-E6-008` — гарантировать отсутствие account enumeration по body,
   status, публичному error и доступной клиенту форме результата; новый token и
   outbox создавать только для существующего неактивного пользователя с верным
   паролем.
-- [ ] `DR-E6-009` — добавить resend action на activation state без token в
+- [x] `DR-E6-009` — добавить resend action на activation state без token в
   URL/storage.
 
 ### 10.4. Feature 6B — logout и logout-all
 
-- [ ] `DR-E6-010` — выполнить contract audit `MVP-SC-003`, ADR-006/018 и
+SC3-03—07 и browser scope SC3-08 реализованы и проверены 2026-10-09.
+[Акт проверки](acceptance/logout-session-revocation.md): 322 backend /
+40 unit / 27 component / 16 E2E PASS. Задачи ниже проверены; общий сценарий
+остаётся незакрытым, поскольку release gate блокируют два upstream advisories
+без patched version. Уже выполненные задачи повторять не нужно.
+
+- [x] `DR-E6-010` — выполнить contract audit `MVP-SC-003`, ADR-006/018 и
   HTTP 8.6—8.7.
-- [ ] `DR-E6-011` — реализовать `POST /api/v1/auth/logout` с refresh cookie,
+- [x] `DR-E6-011` — реализовать `POST /api/v1/auth/logout` с refresh cookie,
   CSRF и same-origin защитой.
-- [ ] `DR-E6-012` — блокировать текущую session и идемпотентно устанавливать
+- [x] `DR-E6-012` — блокировать текущую session и идемпотентно устанавливать
   `revokedAt`.
-- [ ] `DR-E6-013` — очистить refresh/CSRF cookies при успешном и повторном
+- [x] `DR-E6-013` — очистить refresh/CSRF cookies при успешном и повторном
   logout.
-- [ ] `DR-E6-014` — реализовать protected
+- [x] `DR-E6-014` — реализовать protected
   `POST /api/v1/auth/logout-all`.
-- [ ] `DR-E6-015` — блокировать User и атомарно отзывать все незавершённые
+- [x] `DR-E6-015` — блокировать User и атомарно отзывать все незавершённые
   sessions.
-- [ ] `DR-E6-016` — очистить frontend in-memory access/current-user state
+- [x] `DR-E6-016` — очистить frontend in-memory access/current-user state
   после logout.
-- [ ] `DR-E6-017` — явно учитывать, что уже выданный access token может жить
+- [x] `DR-E6-017` — явно учитывать, что уже выданный access token может жить
   до `exp`; не обещать мгновенный blacklist.
-- [ ] `DR-E6-018` — добавить UI current logout и logout-all с понятными
+- [x] `DR-E6-018` — добавить UI current logout и logout-all с понятными
   success/error states.
 
 ### 10.5. Feature 6C — восстановление пароля
@@ -1160,9 +1170,9 @@ Definition of Ready.
 
 | Сценарий | Категория | Где реализуется/хранится | Статус |
 |---|---|---|---|
-| `MVP-SC-001` | Must | baseline + этап 6 | `[ ]` частично |
+| `MVP-SC-001` | Must | baseline + этап 6 | `[x]` технически проверен 2026-09-30; регрессия 2026-10-09 |
 | `MVP-SC-002` | Must | этап 1 | `[x]` |
-| `MVP-SC-003` | Must | этап 6 | `[ ]` |
+| `MVP-SC-003` | Must | этап 6 | `[ ]` реализован; functional PASS; SC3-08 release audit blocked |
 | `MVP-SC-004` | Must | этап 6 | `[ ]` |
 | `MVP-SC-005` | Must | этап 6 | `[ ]` |
 | `MVP-SC-006` | Should | `SH-006` | `[ ]` |
@@ -1208,5 +1218,6 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 3 | 2026-10-09 | Сверены handoff, код, tests и Git; актуализированы SC-001 и SC-003; SC3-08 остаётся blocked по dependency audit |
 | 2 | 2026-08-10 | Этап 1 завершён: login, refresh, protected browser session и `/me`; `MVP-SC-002` закрыт |
 | 1 | 2026-08-08 | Создана подробная дорожная карта семи обязательных этапов, post-MVP backlog и traceability всех 29 сценариев |

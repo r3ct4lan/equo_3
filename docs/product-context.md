@@ -5,6 +5,11 @@
 кодом, тестами и Git репозитория. Пакет восстанавливает переписку и не заменяет
 принятые нормативные документы из [индекса](README.md).
 
+SHA-256 пакета:
+`01cd330c03853233471c8d11993179e0660884b87cdbfcfd5715ef0bb4cfdbaa`.
+Исходная сверенная main: `ee7df538a6dc104f837483ee3222cef76b56d8a8`;
+remote main на момент сверки совпадает с ней.
+
 Equo — учёт совместных расходов и взаиморасчётов. Основной путь: регистрация и
 активация → login/session → приглашение и Connect → групповой долг с равными
 долями → баланс и история → исправление долга или ручной Transfer. Transfer —
@@ -49,5 +54,12 @@ Equo — учёт совместных расходов и взаиморасч�
 в [AGENTS.md](../AGENTS.md).
 
 Текущий прогресс SC-003 ведётся в [feature specification](features/logout-session-revocation.md)
-и [roadmap](development-roadmap.md). Итоговые свежие проверки будут записаны
-в `acceptance/logout-session-revocation.md`; отчёты чата не являются PASS.
+и [roadmap](development-roadmap.md). Реализация началась с фактически
+незавершённого SC3-03; SC3-01/02 повторно не реализованы. SC3-03—07 и browser
+scope SC3-08 проверены: 322 backend, 40 unit, 27 component и 16 E2E PASS.
+Ветка: `codex/sc-003-logout-session-revocation`.
+Полный release gate блокируют два upstream dependency advisories без
+исправленных релизов, поэтому SC3-08 ещё не закрыт. Следующий шаг — устранить
+этот audit blocker либо получить явное решение владельца о временном исключении,
+а не снова реализовывать logout. [Акт проверки](acceptance/logout-session-revocation.md)
+содержит доказательства и ограничения; отчёты чата не являются PASS.

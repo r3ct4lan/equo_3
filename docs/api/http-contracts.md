@@ -7,10 +7,10 @@
 | Название | Equo — HTTP-контракты API v1 |
 | Назначение | Описать публичный HTTP API первой версии Equo |
 | Статус | Финальная согласованная версия этапа проектирования |
-| Версия | 5 |
-| Дата актуальности | 2026-09-27 |
+| Версия | 6 |
+| Дата актуальности | 2026-10-09 |
 | Владелец | Maksim Smolkov |
-| Источник | `equo-05-http-contracts.md` из приложенного архива `equo-artifacts-final.zip`; решения владельца, автономное закрытие Block A и OQ-015—018, OQ-021 |
+| Источник | `equo-05-http-contracts.md` из приложенного архива `equo-artifacts-final.zip`; решения владельца, автономное закрытие Block A и OQ-015—018, OQ-021—024 |
 
 ## 1. Назначение документа
 
@@ -700,7 +700,8 @@ X-CSRF-Token: <csrf-token>
 Cookie: equo_refresh=<token>; __Host-equo_csrf=<csrf-token>
 ```
 
-Требует refresh cookie. Access-токен необязателен.
+Идентифицирует session через refresh cookie; Bearer access token не используется.
+Body и `Content-Type` не требуются. Уточнения соответствуют принятым OQ-022—024.
 
 ### Результат
 
@@ -710,10 +711,17 @@ Set-Cookie: equo_refresh=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/api/
 Set-Cookie: __Host-equo_csrf=; Max-Age=0; Secure; SameSite=Lax; Path=/
 ```
 
-Повторный вызов без refresh cookie также возвращает `204` и не требует CSRF
-token. При наличии refresh cookie неверная same-origin или CSRF-проверка
-возвращает `403 FORBIDDEN`. Уже выданный access-токен может действовать до
-короткого `exp`.
+Без refresh cookie возвращает `204`, очищает обе cookies и не требует
+Origin/CSRF. При наличии cookie (включая пустую) обязательны exact Origin,
+допустимый Fetch Metadata и равенство CSRF header/cookie. После этих проверок
+malformed/unknown refresh credential даёт тот же `204` без DB mutation.
+Для найденной session обязательны подпись и session binding CSRF до lifecycle
+проверки. Stable locator `rt2.<session-uuid>.<random-secret>` позволяет отозвать
+ту же session старым rotated credential: stored hash требуется для refresh,
+но не для logout. Active row блокируется и отзывается идемпотентно; expired и
+already-revoked rows не переписываются. Неверный guard/signature/binding даёт
+`403 FORBIDDEN` без изменения cookies. Уже выданный access-токен может
+действовать до короткого `exp`.
 
 ---
 
@@ -730,7 +738,19 @@ Authorization: Bearer <access-token>
 204 No Content
 ```
 
-Все `UserSession` пользователя отзываются. Уже выданные access-токены могут действовать до короткого `exp`; новые access-токены получить нельзя.
+Команда требует strict valid Bearer JWT и актуального active User; CSRF не
+требуется. User ID берётся только из проверенного authentication context.
+Missing/malformed/invalid/expired JWT, unknown/inactive User дают единый
+`401 AUTHENTICATION_REQUIRED` с `WWW-Authenticate: Bearer`, без cookie mutation.
+
+В одной transaction сначала блокируется и повторно проверяется User, затем
+одним bulk update отзываются его незавершённые `UserSession`:
+`revokedAt IS NULL AND expiresAt > now`. Все получают одинаковый `revokedAt`;
+expired/already-revoked rows не переписываются, rollback исключает частичный
+отзыв. Нулевой набор также даёт `204`. Успех очищает обе cookies текущего
+browser теми же flags/paths, что current logout. Новые access-токены по
+отозванным sessions получить нельзя; уже выданные могут действовать до `exp`.
+Body и `Content-Type` не требуются; `204` не содержит body/JSON Content-Type.
 
 ---
 

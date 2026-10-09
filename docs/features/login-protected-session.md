@@ -15,7 +15,9 @@
 
 Итог: фича включена в локальную `main`, этап 1
 [`docs/development-roadmap.md`](../development-roadmap.md) закрыт, финальный
-`make check-full` проходит.
+`make check-full` на дату merge прошёл. Текущий общий release gate следует
+проверять по [последнему акту проверки](../acceptance/logout-session-revocation.md):
+исторический PASS не отменяет новых dependency advisories.
 
 Активный пользователь входит по нормализованному email и паролю, получает
 короткоживущий JWT access token, а browser получает защищённую refresh-сессию в
@@ -432,11 +434,16 @@ oriented and supports PHP `>=8.2` plus Symfony `^7.0|^8.0`, but it is broader
 JOSE/JWE infrastructure than needed for the current minimal RS256 access token.
 The implementation therefore uses `lcobucci/jwt`.
 
-Implemented refresh token format:
+Implemented refresh token format (updated by SC3-02 / OQ-023):
 
-- public token: `rt.<base64url(32 random bytes)>`;
+- public token: `rt2.<session-uuid>.<base64url(32 random bytes)>`;
 - storage hash: `sha256:<64 lowercase hex SHA-256 digest of the public token>`;
 - malformed public tokens return no digest.
+
+The earlier `rt.<secret>` format was replaced before production rollout.
+Refresh locks the located session and verifies the complete credential hash;
+current logout can revoke that session with a stale rotated credential and
+valid session-bound CSRF. No legacy compatibility or schema migration is needed.
 
 Implemented CSRF token/key-ring format:
 

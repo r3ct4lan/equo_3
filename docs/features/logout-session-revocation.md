@@ -3,17 +3,17 @@
 | Поле | Значение |
 |---|---|
 | Название | Выход и отзыв refresh-сессий |
-| Статус | Planned |
+| Статус | Implemented; functional checks passed; release gate blocked |
 | Дата контрактного аудита | 2026-09-30 |
 | Связанный сценарий | `MVP-SC-003` |
 | Задача аудита | `SC3-01` |
-| Реализованные этапы | `SC3-02` — 2026-09-30; `SC3-03—07` — 2026-10-09 |
+| Реализованные этапы | `SC3-02` — 2026-09-30; `SC3-03—07` и browser scope `SC3-08` — 2026-10-09 |
 | Диапазон реализации | `SC3-02—SC3-08`; `DR-E6-011—018` |
 | Владелец | Maksim Smolkov |
 
 ## 1. Пользовательский результат
 
-Пользователь сможет завершить текущую browser refresh-сессию либо атомарно
+Пользователь может завершить текущую browser refresh-сессию либо атомарно
 отозвать все свои незавершённые refresh-сессии. После успешной команды новые
 access tokens по отозванным сессиям не выдаются, текущая вкладка удаляет
 in-memory access token и public current-user state, а вкладки того же browser
@@ -67,7 +67,7 @@ current logout скрывает unusable credential за идемпотентн�
   CSRF binding; stale rotated credential намеренно не сравнивается со stored
   hash;
 - Bearer authenticator проверяет JWT, перечитывает актуального `User` и
-  отклоняет unknown/inactive user единым `401 AUTHENTICATION_REQUIRED`, но пока
+  отклоняет unknown/inactive user единым `401 AUTHENTICATION_REQUIRED` и
   поддерживает `/api/v1/me` и `/api/v1/auth/logout-all`;
 - `AuthCookieFactory` выдаёт и очищает обе cookies с одинаковыми paths/flags;
 - frontend `$auth` уже имеет private in-memory token, `useCurrentUser`, Web
@@ -309,8 +309,8 @@ count нужен только для тестов/observability и не влия
    cookie только после получения lock.
 3. Отправляется cookie-authenticated `POST /v1/auth/logout` без Bearer token и
    без automatic refresh/retry.
-4. Local access token и current user очищаются при завершении logout action в
-   соответствии с ADR-018, включая safe error outcome.
+4. Local access token и current user очищаются сразу при начале action;
+   generation guard отклоняет late responses, включая safe error outcome.
 5. Только подтверждённый server `204` публикует token-free
    `{ type: 'session-ended' }`; token/cookie/user data в message не входят.
 6. Другие вкладки очищают private token и current user, не вызывают logout
@@ -329,11 +329,12 @@ dedicated result state до retry или явной навигации поль�
 Подтверждённый технический flow:
 
 1. Отдельный UI action требует явного confirmation и вызывает
-   `$auth.logoutAll()` через protected request с текущим in-memory Bearer token.
-2. Если access token истёк, допускается ровно один существующий
-   refresh-and-retry budget; бесконечный retry запрещён.
-3. После `204` local token/current user очищаются и рассылается то же token-free
-   session-ended event.
+   `$auth.logoutAll()`. Action сохраняет текущий Bearer только в private local
+   variable для команды и сразу очищает public/local auth state.
+2. Под общим Web Lock отправляется Bearer-команда; при отсутствии/истечении
+   access token допускается один refresh и один retry. Полученный временный
+   Bearer не восстанавливает local auth; бесконечный retry запрещён.
+3. После `204` рассылается то же token-free session-ended event.
 4. Вкладки того же browser profile очищают локальные tokens. Другие devices не
    получают browser event: их текущие access tokens живут до `exp`, а следующий
    refresh не проходит.
@@ -434,7 +435,9 @@ frontend tests намеренно не входят в этот этап.
 | [`OQ-023`](../open-questions.md#oq-023) | Versioned refresh credential содержит stable session locator; production legacy sessions отсутствуют | Resolved 2026-09-30 |
 | [`OQ-024`](../open-questions.md#oq-024) | Current logout без confirmation, logout-all с confirmation; explicit signed-out success и dedicated safe-error state | Resolved 2026-09-30 |
 
-Активных вопросов или блокеров реализации `SC3-02—SC3-08` нет.
+Активных продуктовых вопросов нет. Код `SC3-02—07` и browser scope `SC3-08`
+реализован; завершение `SC3-08` блокирует dependency audit, описанный в
+[акте проверки](../acceptance/logout-session-revocation.md).
 
 ## 14. Декомпозиция `SC3-02—SC3-08`
 
@@ -446,10 +449,10 @@ frontend tests намеренно не входят в этот этап.
 | `SC3-05` | Implemented 2026-10-09 | `$auth` actions, UI и cross-tab lifecycle | UX decision принят; backend contracts стабильны | Local cleanup, token-free event, no restore/redirect loop |
 | `SC3-06` | Verified 2026-10-09 | Unit/application/integration/HTTP/component tests | `SC3-02—05` | Матрица happy/error/security branches |
 | `SC3-07` | Verified 2026-10-09 | Process/DB concurrency tests | Stable-locator contract принят | Доказаны lock order, race outcomes и отсутствие deadlock |
-| `SC3-08` | Planned | Browser E2E, security regression, docs и quality gate | `SC3-06—07` | Три browser journeys, docs synced, full gate green |
+| `SC3-08` | Browser PASS; release gate blocked 2026-10-09 | Browser E2E, security regression, docs и quality gate | `SC3-06—07` | 16 E2E PASS; docs synced; full gate blocked by upstream dependency advisories |
 
-Roadmap checkboxes не отмечаются на `SC3-02`: общий end-to-end slice ещё не
-завершён.
+Roadmap отмечает фактически проверенные задачи; общий `MVP-SC-003` остаётся
+незакрытым до green release gate. Уже реализованный код повторять не нужно.
 
 ### Проверка SC3-03 — 2026-10-09
 
@@ -519,11 +522,17 @@ rollback проверки входят в общий backend suite. Исправ
 - backend/frontend boundaries и полная test matrix определены;
 - все ранее недоопределённые обязательные решения приняты владельцем и
   зафиксированы в закрытых `OQ-022—024`;
-- `docs/README.md` ссылается на этот Planned artifact;
-- production code, tests, migrations, dependencies, CI и environment не
-  изменены;
-- commit, push, merge, rebase и pull request не выполнялись.
+- `docs/README.md` ссылается на этот artifact.
+
+Историческая граница SC3-01 ограничивалась документальным аудитом без изменения
+production code. Она не запрещает последующую реализацию/коммиты: текущий
+автономный договор владельца закреплён в [AGENTS.md](../../AGENTS.md).
 
 `SC3-02` реализован и проверен в своей domain/application/persistence границе.
-Этапы `SC3-03—07` реализованы и проверены; feature остаётся `Planned` до
-завершения browser/full gate `SC3-08`.
+Этапы `SC3-03—07` реализованы и проверены. Финальные проверки 2026-10-09:
+322 backend tests / 3362 assertions, 40 frontend unit, 27 component,
+16 browser E2E PASS; style/static analysis, lock/typecheck, build и smoke PASS.
+`make check-full` остановлен на npm audit: 11 high affected packages от двух
+корневых advisories без patched release. Исключения не применены.
+`SC3-08` не отмечен завершённым; полные доказательства, release blocker и
+остаточные ограничения находятся в [акте проверки](../acceptance/logout-session-revocation.md).

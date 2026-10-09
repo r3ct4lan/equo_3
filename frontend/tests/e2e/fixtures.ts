@@ -15,6 +15,7 @@ function redact(message: string): string {
     .replace(/https?:\/\/[^\s"'<>]+/giu, match => safePath(match))
     .replace(/([?&]token=)[^\s&"']+/giu, '$1[redacted]')
     .replace(/\brt\.[A-Za-z0-9_-]{20,}\b/gu, '[redacted refresh token]')
+    .replace(/\brt2\.[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}\b/gu, '[redacted refresh token]')
     .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/gu, '[redacted jwt]')
     .replace(/\bv\d+\.[A-Za-z0-9_-]{20,}(?:\.[A-Za-z0-9_-]{20,})?\b/gu, '[redacted token]')
     .replace(/(Authorization:\s*Bearer\s+)[^\s,;]+/giu, '$1[redacted]')

@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth endpoints |
 | Статус | Accepted |
-| Версия | 7 |
-| Дата актуальности | 2026-09-27 |
+| Версия | 8 |
+| Дата актуальности | 2026-10-09 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
 
@@ -14,7 +14,8 @@
 Общий HTTP-слой реализует transport concerns и остаётся отделён от предметной
 логики. Реализованы production routes `/api/v1/auth/register`,
 `/api/v1/auth/activation-requests`, `/api/v1/auth/activate`,
-`/api/v1/auth/login`, `/api/v1/auth/refresh` и `/api/v1/me`; их controllers
+`/api/v1/auth/login`, `/api/v1/auth/refresh`, `/api/v1/auth/logout`,
+`/api/v1/auth/logout-all` и `/api/v1/me`; их controllers
 используют общий error/response pipeline и вызывают application use case.
 JSON-body endpoints дополнительно используют DTO mapping. Также доступен
 `/api/health`.
@@ -151,8 +152,9 @@ Guard выполняет проверки в фиксированном поря
 - application use case затем проверяет подпись CSRF token и его привязку к
   найденной refresh-сессии.
 
-Успешный refresh в одной транзакции находит `UserSession` по digest
-предъявленного refresh token, берёт pessimistic write lock, проверяет lifecycle
+Успешный refresh в одной транзакции находит `UserSession` по stable locator
+строго разобранного rt2 credential, берёт pessimistic write lock только session
+row, сверяет digest полного token через `hash_equals`, проверяет lifecycle
 сессии и актуальное состояние пользователя, атомарно заменяет
 `refresh_token_hash`, выпускает новый access JWT и новые refresh/CSRF cookies.
 `created_at` и `expires_at` сессии не меняются, поэтому refresh не продлевает
@@ -160,15 +162,29 @@ Guard выполняет проверки в фиксированном поря
 
 Failure responses `401`, `403` и technical `500` не устанавливают auth cookies.
 
-## 4.3. Реализованный Bearer authenticator и `/me`
+## 4.3. Реализованные logout endpoints
+
+`LogoutController` переиспользует optional-cookie entry point
+`RefreshRequestGuard::validateForLogout`: absent refresh cookie пропускает
+guard, предъявленная пустая cookie проходит обязательные request checks.
+Application проверяет найденную session и её signed CSRF binding под row lock.
+`LogoutAllController` принимает ID из `AuthenticatedUser`; application повторно
+проверяет active User под User lock и атомарно отзывает unfinished sessions.
+Оба controllers возвращают обычный пустой `Response(204)` и прикрепляют
+`AuthCookieFactory::clearSessionCookies()` с исходными names/flags/paths.
+`403` current logout и `401` logout-all cookies не меняют. Подробная матрица —
+в [SC-003](../features/logout-session-revocation.md).
+
+## 4.4. Реализованный Bearer authenticator и `/me`
 
 `GET /api/v1/me` защищён stateless Symfony firewall. Public routes
 `/api/health`, `/api/v1/auth/register`, `/api/v1/auth/activation-requests`,
-`/api/v1/auth/activate`, `/api/v1/auth/login` и `/api/v1/auth/refresh` остаются
+`/api/v1/auth/activate`, `/api/v1/auth/login`, `/api/v1/auth/refresh` и
+`/api/v1/auth/logout` остаются
 public на уровне Bearer firewall; refresh продолжает использовать собственную
 cookie/CSRF/same-origin защиту.
 
-Bearer authenticator применяется к `/api/v1/me` и принимает только один
+Bearer authenticator применяется к `/api/v1/me` и `/api/v1/auth/logout-all` и принимает только один
 `Authorization` header точного вида `Bearer <access-token>`. Token передаётся в
 `AccessTokenVerifierPort`; если verification возвращает `null`, дальнейшая
 причина не раскрывается. После successful JWT verification backend загружает

@@ -306,7 +306,7 @@ async function expectStorageHasNoAuthMaterial(page: Page): Promise<void> {
     session: sessionStorage
   }))
   expect(storage, 'persistent storage must not contain JWT').not.toMatch(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/u)
-  expect(storage, 'persistent storage must not contain refresh token').not.toMatch(/\brt\.[A-Za-z0-9_-]{20,}\b/u)
+  expect(storage, 'persistent storage must not contain refresh token').not.toMatch(/\brt(?:2\.[0-9a-f-]{36})?\.[A-Za-z0-9_-]{20,}\b/u)
   expect(storage, 'persistent storage must not contain Authorization header').not.toMatch(/Authorization|Bearer/u)
 }
 
@@ -993,4 +993,124 @@ test('E2E-12 presents activation request rate limiting without retry or persiste
 
   expect(activationRequests).toBe(4)
   expect(await activationAcceptanceState(request, email)).toEqual(stateAtLimit)
+})
+
+test('current logout clears cookies and protected access stays signed out after reload', async ({ page, request }) => {
+  const email = await ensureActiveUser(page, request)
+  const access = await login(page, email)
+  const cookies = await sessionCookies(page.context())
+  const responsePromise = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/logout')
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+  const response = await responsePromise
+  expect(response.status()).toBe(204)
+  expect(response.headers()['content-type']).toBeUndefined()
+  expect(Boolean(response.headers()['x-request-id'])).toBe(true)
+  await expect(page).toHaveURL(/\/login\?signedOut=1$/u)
+  expect(await page.context().cookies()).toEqual([])
+  await expectNoPersistentSecrets(page, [access, cookies.refresh.value, cookies.csrf.value])
+  let refreshes = 0
+  page.on('request', (sent) => {
+    if (new URL(sent.url()).pathname === '/api/v1/auth/refresh') {
+      ++refreshes
+    }
+  })
+  await page.reload()
+  await waitForNuxtHydration(page)
+  await page.goto('/me')
+  await expect(page).toHaveURL(/\/login/u)
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  expect(refreshes).toBe(0)
+})
+
+test('logout-all revokes independent browser sessions while previously issued JWT lives until exp', async ({ browser, page, request }) => {
+  const email = await ensureActiveUser(page, request)
+  await login(page, email)
+  const other = await newSecureContext(browser)
+  try {
+    const otherPage = await other.newPage()
+    const otherAccess = await login(otherPage, email)
+    const otherCookies = await sessionCookies(other)
+    await page.getByRole('button', { name: 'Sign out on all devices', exact: true }).click()
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await expect(page).toHaveURL(/\/me$/u)
+    await page.getByRole('button', { name: 'Sign out on all devices', exact: true }).click()
+    const responsePromise = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/logout-all')
+    await page.getByRole('button', { name: 'Confirm sign out', exact: true }).click()
+    expect((await responsePromise).status()).toBe(204)
+    await expect(page).toHaveURL(/\/login\?signedOut=1$/u)
+    const me = await other.request.get('/api/v1/me', { headers: { Authorization: `Bearer ${otherAccess}` } })
+    expect(me.status(), 'logout-all does not blacklist an already issued JWT').toBe(200)
+    const refresh = await other.request.post('/api/v1/auth/refresh', {
+      headers: { 'Origin': baseUrl, 'Sec-Fetch-Site': 'same-origin', 'X-CSRF-Token': otherCookies.csrf.value }
+    })
+    expect(refresh.status()).toBe(401)
+    expect((await refresh.json() as { error: { code: string } }).error.code).toBe('INVALID_REFRESH_TOKEN')
+    await otherPage.reload()
+    await expect(otherPage).toHaveURL(/\/login/u)
+    await expect(otherPage.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  }
+  finally {
+    await other.close()
+  }
+})
+
+test('confirmed logout ends other tabs without an automatic refresh or repeated logout', async ({ page, request }) => {
+  const email = await ensureActiveUser(page, request)
+  await login(page, email)
+  const second = await page.context().newPage()
+  try {
+    await second.goto('/me')
+    await expect(second.getByText(email)).toBeVisible()
+    let refreshes = 0
+    let logouts = 0
+    second.on('request', (sent) => {
+      const path = new URL(sent.url()).pathname
+      if (path === '/api/v1/auth/refresh') {
+        ++refreshes
+      }
+      if (path === '/api/v1/auth/logout') {
+        ++logouts
+      }
+    })
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+    await expect(second).toHaveURL(/\/login\?signedOut=1$/u)
+    await second.reload()
+    await waitForNuxtHydration(second)
+    expect(refreshes).toBe(0)
+    expect(logouts).toBe(0)
+    await expectStorageHasNoAuthMaterial(second)
+  }
+  finally {
+    await second.close()
+  }
+})
+
+test('failed server logout stays locally signed out across reload and explicit retry confirms revoke', async ({ page, request }) => {
+  const email = await ensureActiveUser(page, request)
+  await login(page, email)
+  await page.route('**/api/v1/auth/logout', async (route) => {
+    await route.fulfill({
+      status: 403,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: { code: 'FORBIDDEN', message: 'Operation is forbidden.', requestId: 'e2e-safe-reference' } })
+    })
+  }, { times: 1 })
+  let refreshes = 0
+  page.on('request', (sent) => {
+    if (new URL(sent.url()).pathname === '/api/v1/auth/refresh') {
+      ++refreshes
+    }
+  })
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+  await expect(page).toHaveURL(/\/logout\?scope=current$/u)
+  await expect(page.getByRole('alert')).toContainText('could not confirm sign-out')
+  await page.reload()
+  await waitForNuxtHydration(page)
+  await expect(page.getByRole('heading', { name: 'You are signed out here' })).toBeVisible()
+  expect(refreshes).toBe(0)
+  const responsePromise = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/logout')
+  await page.getByRole('button', { name: 'Retry sign out' }).click()
+  expect((await responsePromise).status()).toBe(204)
+  await expect(page).toHaveURL(/\/login\?signedOut=1$/u)
+  expect(await page.context().cookies()).toEqual([])
 })

@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Зафиксировать фактически реализованную часть модели данных текущего MVP |
 | Статус | Accepted |
-| Версия | 8 |
-| Дата актуальности | 2026-08-10 |
+| Версия | 9 |
+| Дата актуальности | 2026-10-09 |
 | Владелец | Maksim Smolkov |
 | Источник | Модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016, ADR-019; фактические migrations и mapping |
 
@@ -69,8 +69,15 @@ ER-тип `varchar` без заданной максимальной длины 
 | `revoked_at` | `TIMESTAMPTZ` | да | Время явного отзыва |
 
 В ORM связь session → user является `ManyToOne` внутри `IdentityAccess`.
-Открытый refresh token формата `rt.<base64url(32 random bytes)>` не хранится:
-в записи сохраняется только `sha256:<64 lowercase hex chars>`.
+Открытый refresh token формата
+`rt2.<session-uuid>.<base64url(32 random bytes)>` не хранится: в записи
+сохраняется только `sha256:<64 lowercase hex chars>` полного credential.
+Stable locator использует существующий primary key; SC-003 не требует migration.
+Refresh/current logout блокируют только session row без locking JOIN User.
+Login и logout-all сначала блокируют User; массовый отзыв атомарно меняет
+только `revoked_at IS NULL AND expires_at > now`. Исторические timestamps
+expired/revoked rows сохраняются. ORM query обновляет cached state перед lock;
+схема и существующие индексы не меняются.
 
 ### `idempotency_record`
 
@@ -145,16 +152,18 @@ PostgreSQL не дублирует контекстные правила. В App
   через advisory lock, уникальные ограничения и pessimistic row locks.
 
 Остаётся отложенным физический retention cleanup по
-ADR-014. Выдача replacement token с блокировкой существующего `User` относится
-к исключённому resend/reactivation flow; первичная регистрация создаёт первый
-token вместе с новой строкой `User`.
+ADR-014. Повторный запрос активации реализован: под lock существующего `User`
+он заменяет незавершённый token и атомарно создаёт outbox. Первичная регистрация
+создаёт первый token вместе с новой строкой `User`. Реактивация остаётся
+отдельным отложенным сценарием.
 
 ## 5. Сознательно отложенная ER-модель
 
 Не создавались `Connect`, `ConnectInvitation`, `Debt`, `DebtParticipant`,
 `Transfer`: они не нужны для регистрации, активации и session persistence и
-относятся к следующим вертикальным сценариям. Logout, logout-all, password
-reset/change и финансовые protected endpoints пока не реализованы. Не
+относятся к следующим вертикальным сценариям. Logout и logout-all реализованы
+на существующей session-схеме; password reset/change и финансовые protected
+endpoints пока не реализованы. Не
 создавались mapper-слой для полной ER-модели, fixtures и демонстрационные
 данные. Минимальные repositories, domain objects и application use cases
 auth-среза находятся в модуле `IdentityAccess`.
