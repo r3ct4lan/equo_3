@@ -19,6 +19,7 @@ use App\Infrastructure\EmailDelivery\Security\PayloadCipher;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Mailer\Transport\TransportInterface;
@@ -27,6 +28,7 @@ use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
+use Symfony\Component\Mime\Email;
 
 final class EmailDeliveryFlowTest extends KernelTestCase
 {
@@ -280,10 +282,57 @@ final class EmailDeliveryFlowTest extends KernelTestCase
         self::assertSame(1, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM email_delivery_outbox'));
     }
 
+    public function testResetIntentRelaysDeliveryIdAndConsumerSendsMatchingResetLinkExactlyOnce(): void
+    {
+        $outbox = $this->fixture(EmailDeliveryStatus::Pending, purpose: UserActionTokenPurpose::ResetPassword, template: 'reset-password');
+        self::assertSame(1, self::getContainer()->get(OutboxRelay::class)->relayBatch());
+        $transport = $this->createMock(TransportInterface::class);
+        $transport->expects(self::once())->method('send')->willReturnCallback(static function ($message): null {
+            self::assertInstanceOf(Email::class, $message);
+            self::assertSame('Reset your Equo password', $message->getSubject());
+            self::assertStringContainsString('/password-reset?token=v1.public-token', (string) $message->getTextBody());
+            self::assertStringNotContainsString('/activate?', (string) $message->getHtmlBody());
+
+            return null;
+        });
+        $handler = new SendUserActionEmailHandler($this->entityManager, self::getContainer()->get(TokenDeliveryQuery::class), new PayloadCipher(self::PAYLOAD_KEY), $transport, 'https://equo.test', 'no-reply@equo.local');
+        $handler(new SendUserActionEmail($outbox->id()));
+        $handler(new SendUserActionEmail($outbox->id()));
+        self::assertSame(EmailDeliveryStatus::Sent, $outbox->status());
+        self::assertNull($outbox->encryptedPayload());
+        $queue = self::getContainer()->get('messenger.transport.async');
+        self::assertInstanceOf(InMemoryTransport::class, $queue);
+        self::assertSame(['deliveryId' => $outbox->id()], get_object_vars($queue->getSent()[0]->getMessage()));
+    }
+
+    #[DataProvider('resetDeliveryFailureProvider')]
+    public function testResetConsumerRejectsTerminalOrMismatchedPurposeWithoutSending(bool $expired, bool $invalidated, bool $used, string $template): void
+    {
+        $outbox = $this->fixture(EmailDeliveryStatus::Published, expired: $expired, invalidated: $invalidated, purpose: UserActionTokenPurpose::ResetPassword, template: $template, used: $used);
+        $transport = $this->createMock(TransportInterface::class);
+        $transport->expects(self::never())->method('send');
+        $handler = new SendUserActionEmailHandler($this->entityManager, self::getContainer()->get(TokenDeliveryQuery::class), new PayloadCipher(self::PAYLOAD_KEY), $transport, 'https://equo.test', 'no-reply@equo.local');
+        $handler(new SendUserActionEmail($outbox->id()));
+        self::assertSame(EmailDeliveryStatus::Failed, $outbox->status());
+        self::assertNull($outbox->encryptedPayload());
+    }
+
+    /** @return iterable<string, array{bool, bool, bool, string}> */
+    public static function resetDeliveryFailureProvider(): iterable
+    {
+        yield 'expired' => [true, false, false, 'reset-password'];
+        yield 'invalidated' => [false, true, false, 'reset-password'];
+        yield 'used' => [false, false, true, 'reset-password'];
+        yield 'wrong template' => [false, false, false, 'activate-account'];
+    }
+
     private function fixture(
         EmailDeliveryStatus $status,
         bool $expired = false,
         bool $invalidated = false,
+        UserActionTokenPurpose $purpose = UserActionTokenPurpose::ActivateAccount,
+        string $template = 'activate-account',
+        bool $used = false,
     ): EmailDeliveryOutboxRecord {
         $now = new DateTimeImmutable('now');
         $suffix = bin2hex(random_bytes(6));
@@ -299,11 +348,11 @@ final class EmailDeliveryFlowTest extends KernelTestCase
             sprintf('10000000-0000-4000-8000-%s', $suffix),
             $user,
             'v1:'.$suffix,
-            UserActionTokenPurpose::ActivateAccount,
+            $purpose,
             null,
             $now->modify('-2 hours'),
             $expired ? $now->modify('-1 hour') : $now->modify('+1 hour'),
-            null,
+            $used ? $now->modify('-1 hour') : null,
             $invalidated ? $now->modify('-1 hour') : null,
         );
         $terminal = in_array($status, [EmailDeliveryStatus::Sent, EmailDeliveryStatus::Failed], true);
@@ -311,7 +360,7 @@ final class EmailDeliveryFlowTest extends KernelTestCase
             sprintf('20000000-0000-4000-8000-%s', $suffix),
             $token->id(),
             $user->email(),
-            'activate-account',
+            $template,
             $terminal ? null : (new PayloadCipher(self::PAYLOAD_KEY))->encrypt(['token' => 'v1.public-token']),
             $status,
             $now,
