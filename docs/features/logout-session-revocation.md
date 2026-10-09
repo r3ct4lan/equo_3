@@ -7,7 +7,7 @@
 | Дата контрактного аудита | 2026-09-30 |
 | Связанный сценарий | `MVP-SC-003` |
 | Задача аудита | `SC3-01` |
-| Реализованные этапы | `SC3-02` — 2026-09-30; `SC3-03` — 2026-10-09 |
+| Реализованные этапы | `SC3-02` — 2026-09-30; `SC3-03—04` — 2026-10-09 |
 | Диапазон реализации | `SC3-02—SC3-08`; `DR-E6-011—018` |
 | Владелец | Maksim Smolkov |
 
@@ -68,8 +68,8 @@ current logout скрывает unusable credential за идемпотентн�
   hash;
 - Bearer authenticator проверяет JWT, перечитывает актуального `User` и
   отклоняет unknown/inactive user единым `401 AUTHENTICATION_REQUIRED`, но пока
-  поддерживает только `/api/v1/me`;
-- `AuthCookieFactory` умеет только выдавать cookies, метода очистки пока нет;
+  поддерживает `/api/v1/me` и `/api/v1/auth/logout-all`;
+- `AuthCookieFactory` выдаёт и очищает обе cookies с одинаковыми paths/flags;
 - frontend `$auth` уже имеет private in-memory token, `useCurrentUser`, Web
   Locks refresh coordination и token-free `BroadcastChannel` event
   `session-ended`, но публичных logout actions пока нет.
@@ -442,7 +442,7 @@ frontend tests намеренно не входят в этот этап.
 |---|---|---|---|---|
 | `SC3-02` | Implemented 2026-09-30 | Current logout domain/application/persistence | Stable-locator и unusable-token contracts приняты | Idempotent revoke service и repository semantics без HTTP |
 | `SC3-03` | Implemented 2026-10-09 | Logout-all application/persistence | Подтверждённый User-first lock order | Atomic bulk revoke и active-user recheck |
-| `SC3-04` | Planned | Controllers, security route, guards, cookie clearing | HTTP/cookie branches приняты | Оба exact HTTP contracts и safe errors |
+| `SC3-04` | Implemented 2026-10-09 | Controllers, security route, guards, cookie clearing | HTTP/cookie branches приняты | Оба exact HTTP contracts и safe errors |
 | `SC3-05` | Planned | `$auth` actions, UI и cross-tab lifecycle | UX decision принят; backend contracts стабильны | Local cleanup, token-free event, no restore/redirect loop |
 | `SC3-06` | Planned | Unit/application/integration/HTTP/component tests | `SC3-02—05` | Матрица happy/error/security branches |
 | `SC3-07` | Planned | Process/DB concurrency tests | Stable-locator contract принят | Доказаны lock order, race outcomes и отсутствие deadlock |
@@ -462,6 +462,18 @@ Login также берёт User lock перед созданием session. Ses
 после этапа: 289 tests / 2824 assertions PASS, schema/migrations PASS,
 style/static analysis PASS. HTTP, concurrency matrix и frontend проверяются
 следующими этапами. [Сверка нумерации передачи](../product-context.md).
+
+### Проверка SC3-04 — 2026-10-09
+
+Оба POST endpoints реализованы. Current logout переиспользует request guard с
+optional-cookie entry point; отсутствие cookie отличается от предъявленной
+пустой cookie. Успешные ветки дают пустой `204`, request ID и две exact clear
+cookies; `403` ничего не меняет. Logout-all использует strict Bearer и identity
+из authenticator, повторно проверяет User под lock, не требует CSRF и очищает
+cookies только при `204`. 310 backend tests / 3249 assertions PASS,
+schema/migrations/style/static analysis PASS. HTTP matrix включает lifecycle,
+stale credential, Origin/Fetch Metadata/CSRF, privacy, unknown/inactive Bearer,
+повторный mass revoke и сохранение действия ранее выданного JWT.
 
 ## 15. Exit criteria
 
