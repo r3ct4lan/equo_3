@@ -6,6 +6,7 @@ export const LOGIN_ENDPOINT = '/v1/auth/login'
 export const REFRESH_ENDPOINT = '/v1/auth/refresh'
 export const LOGOUT_ENDPOINT = '/v1/auth/logout'
 export const LOGOUT_ALL_ENDPOINT = '/v1/auth/logout-all'
+export const PASSWORD_RESET_ENDPOINT = '/v1/auth/password-reset'
 export const ME_ENDPOINT = '/v1/me'
 export const AUTH_REFRESH_LOCK = 'equo:auth-refresh'
 export const SESSION_ENDED_EVENT = 'session-ended'
@@ -166,6 +167,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   let refreshPromise: Promise<void> | null = null
   let bootstrapPromise: Promise<void> | null = null
   let logoutPromise: Promise<void> | null = null
+  let resetPromise: Promise<void> | null = null
   let generation = 0
   let signedOut = dependencies.signedOut === true
   try {
@@ -186,7 +188,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   })
 
   async function login(values: LoginValues, options: LoginOptions = {}): Promise<void> {
-    if (logoutPromise) {
+    if (logoutPromise || resetPromise) {
       throw authenticationRequired()
     }
     const started = ++generation
@@ -405,6 +407,36 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     return logoutAction(false)
   }
 
+  function resetPassword(token: string, newPassword: string): Promise<void> {
+    if (resetPromise) {
+      return resetPromise
+    }
+    const apply = async (): Promise<void> => {
+      await dependencies.api<undefined>(PASSWORD_RESET_ENDPOINT, {
+        method: 'POST',
+        body: { token, newPassword },
+        onResponse: ({ response }) => {
+          if (response.status >= 200 && response.status < 300 && response.status !== 204) {
+            throw new ApiClientError({ kind: 'unknown', code: 'PASSWORD_RESET_UNCONFIRMED', message: 'Password reset was not confirmed.' })
+          }
+        }
+      })
+      endLocalSession()
+      channel?.postMessage({ type: SESSION_ENDED_EVENT })
+      await dependencies.navigateTo?.('/login?signedOut=1')
+    }
+    // Serialize cookie clearing with refresh. Recovery also works without an existing session or Web Locks.
+    const coordinated = async (): Promise<void> => {
+      const locks = dependencies.navigator?.locks
+      if (locks) await locks.request(AUTH_REFRESH_LOCK, apply)
+      else await apply()
+    }
+    resetPromise = coordinated().finally(() => {
+      resetPromise = null
+    })
+    return resetPromise
+  }
+
   function logoutAll(): Promise<void> {
     return logoutAction(true)
   }
@@ -526,7 +558,8 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     login,
     protectedRequest,
     logout,
-    logoutAll
+    logoutAll,
+    resetPassword
   }
 }
 

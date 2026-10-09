@@ -31,6 +31,21 @@ export interface ErrorPresentation {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u
 
+export function emailValidationMessages(email: string): string[] {
+  if (email.trim() === '') return ['Enter your email address.']
+  if (!EMAIL_PATTERN.test(email.trim())) return ['Enter an email address in a valid format.']
+  return []
+}
+
+export function passwordValidationMessages(password: string): string[] {
+  if (password === '') return ['Enter a password.']
+  const length = Array.from(password).length
+  if (length < 12) return ['Use at least 12 characters.']
+  if (length > 128) return ['Use no more than 128 characters.']
+  if (!/\S/u.test(password)) return ['Use at least one non-space character.']
+  return []
+}
+
 export function validateRegistration(values: Readonly<RegistrationValues>): FieldErrorMap {
   const errors: Record<string, string[]> = {}
 
@@ -38,29 +53,10 @@ export function validateRegistration(values: Readonly<RegistrationValues>): Fiel
     errors.name = ['Enter your name.']
   }
 
-  if (values.email.trim() === '') {
-    errors.email = ['Enter your email address.']
-  }
-  else if (!EMAIL_PATTERN.test(values.email.trim())) {
-    errors.email = ['Enter an email address in a valid format.']
-  }
-
-  if (values.password === '') {
-    errors.password = ['Enter a password.']
-  }
-  else {
-    const passwordLength = Array.from(values.password).length
-
-    if (passwordLength < 12) {
-      errors.password = ['Use at least 12 characters.']
-    }
-    else if (passwordLength > 128) {
-      errors.password = ['Use no more than 128 characters.']
-    }
-    else if (!/\S/u.test(values.password)) {
-      errors.password = ['Use at least one non-space character.']
-    }
-  }
+  const emailErrors = emailValidationMessages(values.email)
+  const passwordErrors = passwordValidationMessages(values.password)
+  if (emailErrors.length) errors.email = emailErrors
+  if (passwordErrors.length) errors.password = passwordErrors
 
   return errors
 }

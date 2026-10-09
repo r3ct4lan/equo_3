@@ -30,4 +30,5 @@ export interface AuthSession {
   protectedRequest: <T>(path: string, options?: ApiRequestOptions) => Promise<T>
   logout: () => Promise<void>
   logoutAll: () => Promise<void>
+  resetPassword: (token: string, newPassword: string) => Promise<void>
 }
