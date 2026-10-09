@@ -66,7 +66,7 @@ outbox, relay/consumer, atomic session revoke и cookie factory уже реал�
 | SC4-02 | Verified | Request/apply application и persistence; User→token→sessions, login fresh credential recheck; backend 344 tests / 3525 assertions, migrations/schema и quality PASS |
 | SC4-03 | Verified | Два public endpoints, field password policy, shared token quotas, matching email template/purpose; HTTP + delivery 33 tests / 280 assertions, backend quality PASS |
 | SC4-04 | Verified | Request/reset UI, shared validation, private capability, coordinated cookie/auth cleanup; frontend quality, 45 unit + 35 component tests PASS |
-| SC4-05 | Planned | Real process/DB races reset/reissue/login/refresh; privacy и auth regressions |
+| SC4-05 | Verified | 8 real process/DB reset races + 9 logout race regressions: 17 tests / 184 assertions PASS; observed pg_blocking_pids barrier, no timing sleeps; backend quality PASS |
 | SC4-06 | Planned | Browser recovery journey, replaced link, old credentials/sessions rejected; docs/full gate |
 
 Каждый проверенный этап получает отдельный commit и обновление этого файла.

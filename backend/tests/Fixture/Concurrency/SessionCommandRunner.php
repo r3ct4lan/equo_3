@@ -10,6 +10,10 @@ use App\IdentityAccess\Application\Login\LoginUser;
 use App\IdentityAccess\Application\Logout\LogoutAllSessions;
 use App\IdentityAccess\Application\Logout\LogoutCurrentSession;
 use App\IdentityAccess\Application\Logout\LogoutCurrentSessionCommand;
+use App\IdentityAccess\Application\PasswordReset\PasswordResetRequestCommand;
+use App\IdentityAccess\Application\PasswordReset\RequestPasswordReset;
+use App\IdentityAccess\Application\PasswordReset\ResetPassword;
+use App\IdentityAccess\Application\PasswordReset\ResetPasswordCommand;
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
 use App\IdentityAccess\Application\Port\ClockPort;
 use App\IdentityAccess\Application\Port\CsrfTokenCodecPort;
@@ -31,7 +35,7 @@ use Throwable;
 
 final class SessionCommandRunner
 {
-    /** @param array{operation: string, user: string, refresh: string, csrf: string} $input */
+    /** @param array{operation: string, user: string, refresh: string, csrf: string, token?: string, newPassword?: string} $input */
     public static function perform(TestContainer $container, array $input): string
     {
         $identities = $container->get(IdentityRepositoryPort::class);
@@ -49,6 +53,12 @@ final class SessionCommandRunner
 
         try {
             switch ($input['operation']) {
+                case 'reset':
+                    $container->get(ResetPassword::class)->handle(new ResetPasswordCommand($input['token'] ?? '', $input['newPassword'] ?? 'New password!', '192.0.2.81'));
+                    break;
+                case 'request-reset':
+                    $container->get(RequestPasswordReset::class)->handle(new PasswordResetRequestCommand($input['user'].'@example.test', '192.0.2.82'));
+                    break;
                 case 'refresh':
                     (new RefreshSession($sessions, $identities, $codec, $csrf, $issuer, $transaction, $clock))
                         ->handle(new RefreshCommand($input['refresh'], $input['csrf']));
