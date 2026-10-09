@@ -486,3 +486,54 @@ test('repeated logout calls share the pending action', async () => {
   assert.equal(harness.calls.filter(call => call[1] === LOGOUT_ENDPOINT).length, 1)
   assert.deepEqual(harness.messages, [{ type: SESSION_ENDED_EVENT }])
 })
+
+test('current logout reads csrf inside the lock after another tab rotates cookies', async () => {
+  const document = { cookie: '__Host-equo_csrf=old' }
+  const harness = logoutHarness(async (_path, options) => {
+    assert.deepEqual(options.headers, { 'X-CSRF-Token': 'after-lock' })
+  }, {
+    document,
+    navigator: { locks: {
+      request: async (_name, callback) => {
+        document.cookie = '__Host-equo_csrf=after-lock'
+        return await callback()
+      }
+    } }
+  })
+  await harness.auth.logout()
+})
+
+test('logout-all never refreshes or broadcasts on transport, 403 or 500 failures', async () => {
+  for (const error of [new Error('offline'), apiError(403, 'FORBIDDEN'), apiError(500, 'INTERNAL_SERVER_ERROR')]) {
+    const harness = logoutHarness(async () => {
+      throw error
+    })
+    await harness.auth.login({ email: 'u@example.test', password: 'password' })
+    await assert.rejects(harness.auth.logoutAll(), { code: 'LOGOUT_UNCONFIRMED' })
+    assert.equal(harness.calls.filter(call => call[1] === LOGOUT_ALL_ENDPOINT).length, 1)
+    assert.equal(harness.calls.filter(call => call[1] === REFRESH_ENDPOINT).length, 0)
+    assert.deepEqual(harness.messages, [])
+  }
+})
+
+test('explicit retry of logout-all obtains one temporary Bearer without restoring local auth', async () => {
+  let first = true
+  const harness = logoutHarness(async (path, options) => {
+    if (path === REFRESH_ENDPOINT) {
+      assert.equal(harness.user.state.value.status, 'anonymous')
+      return { accessToken: 'access.retry', expiresIn: 900 }
+    }
+    assert.equal(path, LOGOUT_ALL_ENDPOINT)
+    if (first) {
+      first = false
+      throw apiError(500, 'INTERNAL_SERVER_ERROR')
+    }
+    assert.equal(options.accessToken, 'access.retry')
+    assert.equal(harness.user.state.value.status, 'anonymous')
+  })
+  await harness.auth.login({ email: 'u@example.test', password: 'password' })
+  await assert.rejects(harness.auth.logoutAll(), { code: 'LOGOUT_UNCONFIRMED' })
+  await harness.auth.logoutAll()
+  assert.equal(harness.calls.filter(call => call[1] === REFRESH_ENDPOINT).length, 1)
+  assert.deepEqual(harness.messages, [{ type: SESSION_ENDED_EVENT }])
+})

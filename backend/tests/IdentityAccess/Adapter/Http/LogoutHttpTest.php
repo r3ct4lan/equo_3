@@ -21,6 +21,7 @@ final class LogoutHttpTest extends WebTestCase
     private const string SESSION_ID = '89000000-0000-4000-8000-000000000002';
     private KernelBrowser $client;
     private Connection $connection;
+    private string $privateKey;
 
     protected function setUp(): void
     {
@@ -28,6 +29,7 @@ final class LogoutHttpTest extends WebTestCase
         $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
         self::assertNotFalse($key);
         self::assertTrue(openssl_pkey_export($key, $privatePem));
+        $this->privateKey = $privatePem;
         $details = openssl_pkey_get_details($key);
         self::assertIsArray($details);
         self::assertIsString($details['key']);
@@ -120,6 +122,8 @@ final class LogoutHttpTest extends WebTestCase
         } elseif ('empty-cookie' === $case) {
             $refresh = '';
             unset($server['HTTP_X_CSRF_TOKEN']);
+        } elseif ('missing-csrf-cookie' === $case) {
+            $csrf = '';
         } else {
             $csrf = 'binding' === $case
                 ? self::getContainer()->get(CsrfTokenCodecPort::class)->issue('89000000-0000-4000-8000-000000000099')
@@ -130,13 +134,15 @@ final class LogoutHttpTest extends WebTestCase
         $this->client->request('POST', '/api/v1/auth/logout', server: $server);
         $this->assertFailure(403, 'FORBIDDEN');
         self::assertNull($this->connection->fetchOne('SELECT revoked_at FROM user_session'));
-        self::assertStringNotContainsString($csrf, (string) $this->client->getResponse()->getContent());
+        if ('' !== $csrf) {
+            self::assertStringNotContainsString($csrf, (string) $this->client->getResponse()->getContent());
+        }
     }
 
     /** @return iterable<string, array{string}> */
     public static function guardCases(): iterable
     {
-        foreach (['origin', 'missing-origin', 'fetch-site', 'header', 'mismatch', 'signature', 'binding', 'empty-cookie'] as $case) {
+        foreach (['origin', 'missing-origin', 'fetch-site', 'header', 'mismatch', 'signature', 'binding', 'empty-cookie', 'missing-csrf-cookie'] as $case) {
             yield $case => [$case];
         }
     }
@@ -163,6 +169,16 @@ final class LogoutHttpTest extends WebTestCase
         if ('inactive' === $case) {
             $this->connection->executeStatement('UPDATE app_user SET is_active = false');
         }
+        if ('expired' === $case) {
+            $segments = explode('.', $access);
+            $payload = json_decode(base64_decode(strtr($segments[1], '-_', '+/')), true, flags: JSON_THROW_ON_ERROR);
+            $now = self::getContainer()->get(ClockPort::class)->now()->getTimestamp();
+            $payload['iat'] = $payload['nbf'] = $now - 3600;
+            $payload['exp'] = $now - 2700;
+            $input = $segments[0].'.'.rtrim(strtr(base64_encode(json_encode($payload, JSON_THROW_ON_ERROR)), '+/', '-_'), '=');
+            self::assertTrue(openssl_sign($input, $signature, $this->privateKey, OPENSSL_ALGO_SHA256));
+            $access = $input.'.'.rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+        }
         $server = match ($case) {
             'missing' => [],
             'malformed' => ['HTTP_AUTHORIZATION' => 'Basic invalid'],
@@ -179,9 +195,19 @@ final class LogoutHttpTest extends WebTestCase
     /** @return iterable<string, array{string}> */
     public static function bearerCases(): iterable
     {
-        foreach (['missing', 'malformed', 'invalid', 'unknown', 'inactive'] as $case) {
+        foreach (['missing', 'malformed', 'invalid', 'expired', 'unknown', 'inactive'] as $case) {
             yield $case => [$case];
         }
+    }
+
+    public function testLogoutAllWithNoSessionsReturns204AndClearsCookies(): void
+    {
+        $this->fixture();
+        $access = self::getContainer()->get(AccessTokenIssuerPort::class)->issue(self::USER_ID)->accessToken;
+        $this->connection->executeStatement('DELETE FROM user_session');
+        $this->client->request('POST', '/api/v1/auth/logout-all', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$access]);
+        $this->assertSuccess();
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM user_session'));
     }
 
     /** @return array{string, string} */
