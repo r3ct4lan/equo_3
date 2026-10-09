@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 9 |
-| Дата актуальности | 2026-09-30 |
+| Версия | 10 |
+| Дата актуальности | 2026-10-09 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
 
@@ -99,6 +99,12 @@ npm 11 по-разному проверяют optional transitive dependencies �
 4. Node unit tests и Nuxt component/composable tests в `happy-dom`;
 5. production Nuxt build.
 
+Security update 2026-10-09: Vue 3.5.43, simple-git override 4.0.2 и
+совместимые transitive updates закреплены lockfile. DevTools 3 использует
+удалённый default import simple-git; `postinstall` заменяет его документированной
+named factory. Patch идемпотентен и отказывает при неизвестной структуре upstream,
+как существующий Nitro/Archiver compatibility patch. Проверяется чистым `npm ci`.
+
 `.nuxt`, `.output`, `coverage` и `node_modules` исключены из lint.
 Автоматические исправления доступны только через `npm run lint:fix` или
 `make format-frontend`.
@@ -178,6 +184,16 @@ test endpoint, возвращающий только агрегаты token/outb
   владельцем и датой пересмотра;
 - недоступность registry/advisory service является видимой ошибкой gate, а не
   успешной проверкой.
+
+На 2026-10-09 после доступных обновлений остаются два корневых advisory:
+[braces GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+и [node-forge GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
+Registry latest 3.0.3 и 1.4.0 соответственно остаются уязвимыми; advisory не
+указывает patched version. Nitro 2.13.4 требует globby/fast-glob/micromatch/braces
+и listhen/node-forge; Nuxt 4.6.0 также требует Nitro ^2.13.4 и не удаляет эту
+цепочку. Audit сообщает 11 high affected packages, но два корневых дефекта,
+0 critical и 0 moderate. Исключения/понижение threshold не применены.
+Это видимый release blocker; технические проверки поведения выполняются отдельно.
 
 ## 8. Repository checks
 
