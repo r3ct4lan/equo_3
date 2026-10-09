@@ -179,6 +179,11 @@ final readonly class AuthenticatorRepository implements IdentityRepositoryPort
         throw new LogicException('Authenticator must load a public profile.');
     }
 
+    public function currentUserForUpdate(string $userId): ?CurrentUserState
+    {
+        throw new LogicException('Authentication is read-only.');
+    }
+
     public function addRegistration(User $user, UserActionToken $token): void
     {
         throw new LogicException('Authenticator is read-only.');

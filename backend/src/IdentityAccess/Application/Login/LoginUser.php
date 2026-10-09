@@ -60,6 +60,11 @@ final readonly class LoginUser
                 throw new ApplicationFailure(ApplicationFailureCode::AccountInactive);
             }
 
+            $currentUser = $this->identityRepository->currentUserForUpdate($identity->id);
+            if (null === $currentUser || !$currentUser->isActive) {
+                throw new ApplicationFailure(ApplicationFailureCode::AccountInactive);
+            }
+
             $sessionId = $this->uuid->generate();
             $issuedRefreshToken = $this->refreshTokenCodec->issueForSession($sessionId);
             $session = UserSession::create(

@@ -21,6 +21,7 @@ use App\IdentityAccess\Domain\User\User;
 use DateTimeImmutable;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query;
 use RuntimeException;
 
 final readonly class DoctrineIdentityRepository implements IdentityRepositoryPort, ActivationRequestRepositoryPort
@@ -76,13 +77,35 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
 
     public function currentUserState(string $userId): ?CurrentUserState
     {
-        $record = $this->entityManager->find(UserRecord::class, $userId);
+        $record = $this->entityManager->createQueryBuilder()
+            ->select('user')
+            ->from(UserRecord::class, 'user')
+            ->andWhere('user.id = :userId')
+            ->setParameter('userId', $userId)
+            ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true)
+            ->getOneOrNullResult();
 
         if (!$record instanceof UserRecord) {
             return null;
         }
 
         return new CurrentUserState($record->id(), $record->isActive());
+    }
+
+    public function currentUserForUpdate(string $userId): ?CurrentUserState
+    {
+        $record = $this->entityManager->createQueryBuilder()
+            ->select('user')
+            ->from(UserRecord::class, 'user')
+            ->andWhere('user.id = :userId')
+            ->setParameter('userId', $userId)
+            ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true)
+            ->setLockMode(LockMode::PESSIMISTIC_WRITE)
+            ->getOneOrNullResult();
+
+        return $record instanceof UserRecord ? new CurrentUserState($record->id(), $record->isActive()) : null;
     }
 
     public function currentUserProfile(string $userId): ?UserView

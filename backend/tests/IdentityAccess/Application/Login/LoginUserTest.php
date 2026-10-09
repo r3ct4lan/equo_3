@@ -11,6 +11,7 @@ use App\IdentityAccess\Application\Login\LoginUser;
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
 use App\IdentityAccess\Application\Port\ClockPort;
 use App\IdentityAccess\Application\Port\CsrfTokenCodecPort;
+use App\IdentityAccess\Application\Port\CurrentUserState;
 use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
 use App\IdentityAccess\Application\Port\IssuedAccessToken;
 use App\IdentityAccess\Application\Port\IssuedRefreshToken;
@@ -40,6 +41,7 @@ final class LoginUserTest extends TestCase
         );
         $repository = $this->createMock(IdentityRepositoryPort::class);
         $repository->expects(self::once())->method('loginIdentityByEmail')->with('user@example.test')->willReturn($identity);
+        $repository->expects(self::once())->method('currentUserForUpdate')->with($identity->id)->willReturn(new CurrentUserState($identity->id, true));
         $passwordHasher = $this->createMock(PasswordHashingPort::class);
         $passwordHasher->expects(self::once())->method('verify')->with('raw password', 'password-hash')->willReturn(true);
         $sessionRepository = $this->createMock(UserSessionRepositoryPort::class);
@@ -173,6 +175,7 @@ final class LoginUserTest extends TestCase
         $identity = new StoredLoginIdentity('00000000-0000-4000-8000-000000000001', 'Name', 'user@example.test', 'password-hash', true);
         $repository = $this->createStub(IdentityRepositoryPort::class);
         $repository->method('loginIdentityByEmail')->willReturn($identity);
+        $repository->method('currentUserForUpdate')->willReturn(new CurrentUserState($identity->id, true));
         $accessTokenIssuer = $this->createStub(AccessTokenIssuerPort::class);
         $accessTokenIssuer->method('issue')->willThrowException(new RuntimeException('Controlled token failure.'));
 
@@ -216,6 +219,7 @@ final class LoginUserTest extends TestCase
     private function identityRepository(): IdentityRepositoryPort
     {
         $repository = $this->createStub(IdentityRepositoryPort::class);
+        $repository->method('currentUserForUpdate')->willReturn(new CurrentUserState('00000000-0000-4000-8000-000000000001', true));
         $repository->method('loginIdentityByEmail')->willReturn(new StoredLoginIdentity(
             '00000000-0000-4000-8000-000000000001',
             'Alex Doe',

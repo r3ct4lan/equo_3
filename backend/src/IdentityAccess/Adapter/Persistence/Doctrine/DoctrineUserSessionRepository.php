@@ -8,8 +8,10 @@ use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserRecord;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserSessionRecord;
 use App\IdentityAccess\Application\Port\UserSessionRepositoryPort;
 use App\IdentityAccess\Domain\Access\UserSession;
+use DateTimeImmutable;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query;
 use RuntimeException;
 
 final readonly class DoctrineUserSessionRepository implements UserSessionRepositoryPort
@@ -39,12 +41,12 @@ final readonly class DoctrineUserSessionRepository implements UserSessionReposit
     public function findByIdForUpdate(string $sessionId): ?UserSession
     {
         $record = $this->entityManager->createQueryBuilder()
-            ->select('session', 'user')
+            ->select('session')
             ->from(UserSessionRecord::class, 'session')
-            ->innerJoin('session.user', 'user')
             ->andWhere('session.id = :sessionId')
             ->setParameter('sessionId', $sessionId)
             ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true)
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)
             ->getOneOrNullResult();
 
@@ -76,6 +78,14 @@ final readonly class DoctrineUserSessionRepository implements UserSessionReposit
             $record->createdAt(),
             $record->expiresAt(),
             $record->revokedAt(),
+        );
+    }
+
+    public function revokeAllUnfinishedForUser(string $userId, DateTimeImmutable $now): int
+    {
+        return (int) $this->entityManager->getConnection()->executeStatement(
+            'UPDATE user_session SET revoked_at = :now WHERE user_id = :userId AND revoked_at IS NULL AND expires_at > :now',
+            ['userId' => $userId, 'now' => $now->format('Y-m-d H:i:s.uP')],
         );
     }
 }
