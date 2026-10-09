@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth-экраны |
 | Статус | Implemented |
-| Версия | 7 |
-| Дата актуальности | 2026-09-27 |
+| Версия | 8 |
+| Дата актуальности | 2026-10-09 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v4; ADR-001/006/012/017/018; реализация HTTP-слоя; модель доступа; фактический frontend |
 
@@ -18,7 +18,8 @@ login, browser session lifecycle и минимальную защищённую 
 Auth frontend следует ADR-018: access token хранится только в client-side
 closure текущей вкладки, bootstrap выполняет `refresh -> /me`, а protected
 route middleware является UX-границей поверх обязательной backend authorization.
-Logout, logout-all и reset/change password остаются вне этого слоя.
+Current logout и logout-all реализованы в SC-003; reset/change password остаются
+следующими фичами.
 
 ## 2. Фактическая структура
 
@@ -179,6 +180,24 @@ Refresh требует Web Locks API: если браузер не может с
 операция завершается безопасной ошибкой без отправки refresh request.
 `BroadcastChannel` используется только для token-free события `session-ended`.
 
+`$auth.logout()` и `$auth.logoutAll()` используют тот же Web Lock. Action
+сразу очищает local token/user и запрещает automatic bootstrap; поздние
+refresh и protected responses отбрасываются по generation guard. Только
+server `204` публикует `session-ended` и открывает `/login?signedOut=1`.
+Получившая событие вкладка очищает память, открывает signed-out login и не
+делает повторный logout/refresh. Logout-all допускает один refresh и один retry.
+
+Network/`403`/`5xx` открывает `/logout?scope=current|all` с сообщением о
+неподтверждённом server revoke и ручным retry. Для reload-подавления bootstrap
+sessionStorage содержит только boolean marker `equo:signed-out`; credentials
+и user туда не попадают. Явный успешный login снимает marker. Если storage
+недоступно, остаются in-memory и URL guards.
+
+В профиле доступны current sign-out без confirmation и all-device sign-out с
+confirmation, keyboard cancel/focus return и disabled pending controls. Другие
+устройства могут продолжать использовать уже выданный JWT до `exp`. Подробная
+матрица — [SC-003](features/logout-session-revocation.md).
+
 ## 8. Формы и общие UI-состояния
 
 `useApiForm` предоставляет:
@@ -281,7 +300,7 @@ Nuxt Router и делал его Volar plugin недоступным для `vue
 
 ## 11. Сознательно отложено
 
-- logout, logout-all, reset/change password и изменение профиля;
+- reset/change password и изменение профиля;
 - Pinia, form/validation library, UI framework и OpenAPI generator;
 - окончательный branding, уведомления, аналитика и страницы будущих модулей.
 

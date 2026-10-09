@@ -7,7 +7,7 @@
 | Дата контрактного аудита | 2026-09-30 |
 | Связанный сценарий | `MVP-SC-003` |
 | Задача аудита | `SC3-01` |
-| Реализованные этапы | `SC3-02` — 2026-09-30; `SC3-03—05` — 2026-10-09 |
+| Реализованные этапы | `SC3-02` — 2026-09-30; `SC3-03—06` — 2026-10-09 |
 | Диапазон реализации | `SC3-02—SC3-08`; `DR-E6-011—018` |
 | Владелец | Maksim Smolkov |
 
@@ -219,7 +219,7 @@ point. Controller не должен дублировать cryptographic CSRF ve
 Состояние `SC3-02`: domain/application/persistence core реализован. В scope
 этапа вошли новый refresh credential profile, locator lookup под lock,
 адаптация login/refresh и `LogoutCurrentSession`. HTTP adapter, cookie clearing
-и frontend lifecycle остаются последующими этапами `SC3-04—SC3-05`.
+и frontend lifecycle реализованы последующими этапами `SC3-04—SC3-05`.
 
 Минимальная структура:
 
@@ -251,7 +251,7 @@ Application не знает Request/Response/Cookie. Session-bound CSRF verifica
 - identity repository operation: `currentUserForUpdate(userId)` с
   `PESSIMISTIC_WRITE` и актуальным `isActive`;
 - session repository operation:
-  `revokeAllUnfinishedForUser(userId, revokedAt, now): int`, где один bulk
+  `revokeAllUnfinishedForUser(userId, now): int`, где один bulk
   update меняет только `revokedAt IS NULL AND expiresAt > now`;
 - transaction boundary: lock/recheck User и bulk revoke в одной
   `TransactionPort::run`;
@@ -289,9 +289,9 @@ Application не знает Request/Response/Cookie. Session-bound CSRF verifica
 | Сохранение session | Есть |
 | Индекс `user_id` | Есть |
 | Transaction port/Doctrine transaction | Есть |
-| Выборка/mass revoke unfinished sessions | Нет; нужен repository port method и Doctrine bulk update |
-| User lock для logout-all | Нет в текущем identity port; нужен узкий `FOR UPDATE` method |
-| Cookie clearing factory | Нет; нужен HTTP-only method, не schema change |
+| Выборка/mass revoke unfinished sessions | Реализован `revokeAllUnfinishedForUser` одним atomic SQL update |
+| User lock для logout-all | Реализован `currentUserForUpdate`; login берёт тот же lock перед созданием session |
+| Cookie clearing factory | Реализован `clearSessionCookies`, схема не менялась |
 | Stable locator lookup | Реализован `findByIdForUpdate` с `PESSIMISTIC_WRITE`; существующего PK достаточно |
 
 Bulk update не должен менять expired или already-revoked rows. Возвращаемый
@@ -444,7 +444,7 @@ frontend tests намеренно не входят в этот этап.
 | `SC3-03` | Implemented 2026-10-09 | Logout-all application/persistence | Подтверждённый User-first lock order | Atomic bulk revoke и active-user recheck |
 | `SC3-04` | Implemented 2026-10-09 | Controllers, security route, guards, cookie clearing | HTTP/cookie branches приняты | Оба exact HTTP contracts и safe errors |
 | `SC3-05` | Implemented 2026-10-09 | `$auth` actions, UI и cross-tab lifecycle | UX decision принят; backend contracts стабильны | Local cleanup, token-free event, no restore/redirect loop |
-| `SC3-06` | Planned | Unit/application/integration/HTTP/component tests | `SC3-02—05` | Матрица happy/error/security branches |
+| `SC3-06` | Verified 2026-10-09 | Unit/application/integration/HTTP/component tests | `SC3-02—05` | Матрица happy/error/security branches |
 | `SC3-07` | Planned | Process/DB concurrency tests | Stable-locator contract принят | Доказаны lock order, race outcomes и отсутствие deadlock |
 | `SC3-08` | Planned | Browser E2E, security regression, docs и quality gate | `SC3-06—07` | Три browser journeys, docs synced, full gate green |
 
@@ -494,6 +494,13 @@ focus, pending блокирует повтор. Frontend quality (lockfile/lint/
 
 ## 15. Exit criteria
 
+SC3-06: 24 HTTP logout tests / 466 assertions PASS (включая expired JWT,
+missing CSRF и zero sessions); 40 frontend unit и 27 component tests PASS;
+style/static analysis, lockfile/lint/typecheck PASS. Application/domain и
+rollback проверки входят в общий backend suite. Исправление privacy assertion
+для отсутствующего CSRF исключает проверку пустой строки как секрета; HTTP
+поведение в этой ветке всегда давало требуемый `403` без mutation.
+
 `SC3-01` считается документально завершённым, когда:
 
 - подтверждённые контракты обоих endpoints, lifecycle, locks, transaction
@@ -508,5 +515,5 @@ focus, pending блокирует повтор. Frontend quality (lockfile/lint/
 - commit, push, merge, rebase и pull request не выполнялись.
 
 `SC3-02` реализован и проверен в своей domain/application/persistence границе.
-Этапы `SC3-03—SC3-08` остаются contract-ready, а feature — `Planned` до
-завершения всего end-to-end slice.
+Этапы `SC3-03—06` реализованы и проверены; feature остаётся `Planned` до
+завершения concurrency и browser/full gate `SC3-07—08`.

@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle и `/me` |
 | Статус | Accepted |
-| Версия | 9 |
-| Дата актуальности | 2026-08-10 |
+| Версия | 10 |
+| Дата актуальности | 2026-10-09 |
 | Владелец | Maksim Smolkov |
 | Источник | BR-USR-001—003/009; BR-SEC-003—004; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
 
@@ -19,8 +19,9 @@ access token в response body и устанавливает refresh/CSRF cookies
 `refresh -> /me`, сериализует refresh через Web Locks и делает один
 refresh/retry для подходящего `401` защищённого запроса. Refresh endpoint
 ротирует refresh token и выдаёт новый access token без продления срока сессии.
-Stateless Bearer firewall защищает `GET /api/v1/me`. Logout и финансовые
-protected endpoints явно исключены.
+Stateless Bearer firewall защищает `GET /api/v1/me` и
+`POST /api/v1/auth/logout-all`. Current logout использует optional refresh
+cookie с same-origin/CSRF guard. Финансовые protected endpoints ещё не реализованы.
 Текущий этап не добавляет временный bearer header, hardcoded пользователя,
 фиктивную роль или RBAC-модель.
 
@@ -38,6 +39,8 @@ protected endpoints явно исключены.
 | Browser с refresh cookies | `POST /api/v1/auth/refresh` | Существующая `UserSession` | `equo_refresh`, exact `Origin`, allowed `Sec-Fetch-Site`, double-submit CSRF, signed CSRF bound to session, active session и active user | `401 AUTHENTICATION_REQUIRED`, `401 INVALID_REFRESH_TOKEN`, `403 FORBIDDEN`, `403 ACCOUNT_INACTIVE` |
 | Любой клиент | `GET /api/health` | Health state | Публично | — |
 | Authenticated user | `GET /api/v1/me` | Собственный public profile | Valid `Authorization: Bearer <access-token>`; verified JWT `sub`; current DB user exists and `isActive = true` | `401 AUTHENTICATION_REQUIRED` |
+| Browser | `POST /api/v1/auth/logout` | Current refresh session | Без cookie: no-op; с cookie: request guards, stable locator lock и valid CSRF binding для known session; stale credential допускается | `403 FORBIDDEN` без cookie mutation; unusable после guard → `204` |
+| Authenticated user | `POST /api/v1/auth/logout-all` | Свои unfinished sessions | Strict Bearer, active User recheck под User lock, atomic bulk revoke; CSRF не нужен | `401 AUTHENTICATION_REQUIRED`, `WWW-Authenticate: Bearer`, cookies не меняются |
 | Authenticated user | Future protected API | — | Ещё не реализовано | Будущие policy/voter этапы |
 
 ## 3. Идентификация и аутентификация
@@ -64,8 +67,9 @@ UUID пользователя, не email.
 
 Refresh rotation реализует backend-часть ADR-018: cookie-authenticated refresh
 защищён точной same-origin проверкой, Fetch Metadata и подписанным
-session-bound double-submit CSRF token. Сервер находит сессию по digest refresh
-token под pessimistic lock, проверяет lifecycle и текущий `User.isActive`,
+session-bound double-submit CSRF token. Сервер строго разбирает
+`rt2.<session-uuid>.<base64url(32 random bytes)>`, блокирует только session по
+stable locator, сверяет current digest через `hash_equals`, проверяет lifecycle и текущий `User.isActive`,
 заменяет только `refresh_token_hash` и выпускает новый access token плюс новые
 cookies. `expires_at` не сдвигается.
 
@@ -73,10 +77,21 @@ Frontend-часть ADR-018 реализована: access token живёт то
 reload запускает client-side `refresh -> /me`; одновременные refresh во
 frontend сериализуются Web Locks; protected navigation ждёт bootstrap.
 
-Для `/me` invalid/absent authentication, malformed Bearer header, invalid JWT,
+Для `/me` и logout-all invalid/absent authentication, malformed Bearer header, invalid JWT,
 unknown user и inactive user возвращают единый `401 AUTHENTICATION_REQUIRED`.
 `403` и `ACCOUNT_INACTIVE` здесь не используются, чтобы protected data не
 подтверждала состояние аккаунта.
+
+Current logout не использует Bearer. Без refresh cookie возвращает `204` и
+очищает обе cookies; при cookie guard проверяет exact Origin, Fetch Metadata
+и CSRF equality, а application проверяет binding после session lock. Malformed/
+unknown credential после request guard получает `204`; known session требует
+valid binding, даже если terminal или credential stale. Logout-all блокирует
+User до sessions и атомарно отзывает только `revoked_at IS NULL AND expires_at > now`.
+Login также сериализуется по User перед созданием новой session. Повторные
+revoke сохраняют первый timestamp; rollback атомарен. Successful `204` очищает
+обе cookies, ошибки их не меняют. JWT blacklist отсутствует: выданный access
+token действует до `exp`. Полный контракт — [SC-003](../features/logout-session-revocation.md).
 
 ## 4. Object authorization activation token
 
@@ -153,7 +168,7 @@ hash и всегда возвращает `false`, поэтому Application н
 
 ## 8. Сознательно отложено
 
-- logout, logout-all, family-wide revoke и refresh revocation endpoints;
+- reset/change password и остальные security commands;
 - финансовые voters/policies и проверки Connect/Debt/Transfer;
 - расширение защищённых frontend-разделов за пределы минимальной `/me`-страницы.
 
