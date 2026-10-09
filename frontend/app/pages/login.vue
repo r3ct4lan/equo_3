@@ -158,6 +158,10 @@ onMounted(async () => {
       </p>
 
       <div class="form-actions">
+        <NuxtLink
+          class="button button--secondary"
+          to="/forgot-password"
+        >Forgot your password?</NuxtLink>
         <FormSubmitButton
           :pending="isSubmitting"
           pending-label="Signing in…"
