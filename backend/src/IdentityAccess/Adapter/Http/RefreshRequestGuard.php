@@ -26,6 +26,20 @@ final readonly class RefreshRequestGuard
             throw new ApplicationFailure(ApplicationFailureCode::AuthenticationRequired);
         }
 
+        return $this->validateCredentials($request, $refreshToken);
+    }
+
+    public function validateForLogout(Request $request): ?RefreshRequestCredentials
+    {
+        if (!$request->cookies->has('equo_refresh')) {
+            return null;
+        }
+
+        return $this->validateCredentials($request, $request->cookies->getString('equo_refresh'));
+    }
+
+    private function validateCredentials(Request $request, string $refreshToken): RefreshRequestCredentials
+    {
         if ($request->headers->get('Origin') !== $this->applicationOrigin) {
             throw new ApplicationFailure(ApplicationFailureCode::Forbidden);
         }

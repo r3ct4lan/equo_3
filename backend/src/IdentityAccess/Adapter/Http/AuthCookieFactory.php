@@ -22,6 +22,12 @@ final readonly class AuthCookieFactory
     }
 
     /** @return list<Cookie> */
+    public function clearSessionCookies(): array
+    {
+        return $this->sessionCookies('', '', new DateTimeImmutable('@1'));
+    }
+
+    /** @return list<Cookie> */
     private function sessionCookies(string $refreshToken, string $csrfToken, DateTimeImmutable $expiresAt): array
     {
         return [
