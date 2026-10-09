@@ -66,4 +66,9 @@ class UserRecord
     {
         $this->isActive = true;
     }
+
+    public function replacePasswordHash(string $passwordHash): void
+    {
+        $this->passwordHash = $passwordHash;
+    }
 }

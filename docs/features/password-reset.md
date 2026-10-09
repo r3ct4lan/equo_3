@@ -63,7 +63,7 @@ outbox, relay/consumer, atomic session revoke и cookie factory уже реал�
 | Этап | Статус | Результат / проверка |
 |---|---|---|
 | SC4-01 | Verified | Contract audit, выбранная feature, accepted SC-003 и декомпозиция |
-| SC4-02 | Planned | Request/apply application и persistence; unit, replacement, rollback, terminal/inactive tests |
+| SC4-02 | Verified | Request/apply application и persistence; User→token→sessions, login fresh credential recheck; backend 344 tests / 3525 assertions, migrations/schema и quality PASS |
 | SC4-03 | Planned | HTTP validation, limits, email template/delivery; exact HTTP and pipeline tests |
 | SC4-04 | Planned | Request/reset UI и local auth cleanup; unit/component/accessible error/pending/secret tests |
 | SC4-05 | Planned | Real process/DB races reset/reissue/login/refresh; privacy и auth regressions |

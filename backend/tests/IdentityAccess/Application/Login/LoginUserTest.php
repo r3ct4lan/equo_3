@@ -40,7 +40,7 @@ final class LoginUserTest extends TestCase
             true,
         );
         $repository = $this->createMock(IdentityRepositoryPort::class);
-        $repository->expects(self::once())->method('loginIdentityByEmail')->with('user@example.test')->willReturn($identity);
+        $repository->expects(self::exactly(2))->method('loginIdentityByEmail')->with('user@example.test')->willReturn($identity);
         $repository->expects(self::once())->method('currentUserForUpdate')->with($identity->id)->willReturn(new CurrentUserState($identity->id, true));
         $passwordHasher = $this->createMock(PasswordHashingPort::class);
         $passwordHasher->expects(self::once())->method('verify')->with('raw password', 'password-hash')->willReturn(true);

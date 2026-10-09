@@ -65,6 +65,14 @@ final readonly class LoginUser
                 throw new ApplicationFailure(ApplicationFailureCode::AccountInactive);
             }
 
+            // A password reset may have committed while this login waited for the owner lock.
+            $freshIdentity = $this->identityRepository->loginIdentityByEmail($email->value);
+            if (null === $freshIdentity || $freshIdentity->id !== $identity->id
+                || (!$identity->hasSameCredentialAs($freshIdentity) && !$freshIdentity->verifyPassword($this->passwordHasher, $command->password))) {
+                throw new ApplicationFailure(ApplicationFailureCode::InvalidCredentials);
+            }
+            $identity = $freshIdentity;
+
             $sessionId = $this->uuid->generate();
             $issuedRefreshToken = $this->refreshTokenCodec->issueForSession($sessionId);
             $session = UserSession::create(
