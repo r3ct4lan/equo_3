@@ -7,7 +7,7 @@
 | Дата контрактного аудита | 2026-09-30 |
 | Связанный сценарий | `MVP-SC-003` |
 | Задача аудита | `SC3-01` |
-| Реализованные этапы | `SC3-02` — 2026-09-30; `SC3-03—06` — 2026-10-09 |
+| Реализованные этапы | `SC3-02` — 2026-09-30; `SC3-03—07` — 2026-10-09 |
 | Диапазон реализации | `SC3-02—SC3-08`; `DR-E6-011—018` |
 | Владелец | Maksim Smolkov |
 
@@ -445,7 +445,7 @@ frontend tests намеренно не входят в этот этап.
 | `SC3-04` | Implemented 2026-10-09 | Controllers, security route, guards, cookie clearing | HTTP/cookie branches приняты | Оба exact HTTP contracts и safe errors |
 | `SC3-05` | Implemented 2026-10-09 | `$auth` actions, UI и cross-tab lifecycle | UX decision принят; backend contracts стабильны | Local cleanup, token-free event, no restore/redirect loop |
 | `SC3-06` | Verified 2026-10-09 | Unit/application/integration/HTTP/component tests | `SC3-02—05` | Матрица happy/error/security branches |
-| `SC3-07` | Planned | Process/DB concurrency tests | Stable-locator contract принят | Доказаны lock order, race outcomes и отсутствие deadlock |
+| `SC3-07` | Verified 2026-10-09 | Process/DB concurrency tests | Stable-locator contract принят | Доказаны lock order, race outcomes и отсутствие deadlock |
 | `SC3-08` | Planned | Browser E2E, security regression, docs и quality gate | `SC3-06—07` | Три browser journeys, docs synced, full gate green |
 
 Roadmap checkboxes не отмечаются на `SC3-02`: общий end-to-end slice ещё не
@@ -494,6 +494,16 @@ focus, pending блокирует повтор. Frontend quality (lockfile/lint/
 
 ## 15. Exit criteria
 
+SC3-07: `LogoutConcurrencyTest` выполняет 9 real PostgreSQL checks. Отдельный
+PHP process получает credentials только через stdin и возвращает только
+публичный outcome. Parent держит первую transaction; `pg_blocking_pids`
+подтверждает реальное ожидание второго process до commit, без sleeps для
+синхронизации. Покрыты оба порядка refresh/current, refresh/all, login/all,
+два current и два all; отдельная проверка берёт User lock другой connection,
+пока refresh держит session lock. Ни resurrection, ни deadlock/timeouts нет.
+Полный backend запуск с этими проверками: 319 tests / 3304 assertions PASS
+до добавления трёх финальных HTTP branches; финальная совокупность — SC3-08.
+
 SC3-06: 24 HTTP logout tests / 466 assertions PASS (включая expired JWT,
 missing CSRF и zero sessions); 40 frontend unit и 27 component tests PASS;
 style/static analysis, lockfile/lint/typecheck PASS. Application/domain и
@@ -515,5 +525,5 @@ rollback проверки входят в общий backend suite. Исправ
 - commit, push, merge, rebase и pull request не выполнялись.
 
 `SC3-02` реализован и проверен в своей domain/application/persistence границе.
-Этапы `SC3-03—06` реализованы и проверены; feature остаётся `Planned` до
-завершения concurrency и browser/full gate `SC3-07—08`.
+Этапы `SC3-03—07` реализованы и проверены; feature остаётся `Planned` до
+завершения browser/full gate `SC3-08`.
