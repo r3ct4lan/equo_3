@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Adapter\Security;
 
+use App\IdentityAccess\Application\Port\PasswordResetRateLimitPort;
 use App\IdentityAccess\Application\Port\RateLimitPort;
 use Symfony\Component\RateLimiter\RateLimit;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 
-final readonly class SymfonyRateLimit implements RateLimitPort
+final readonly class SymfonyRateLimit implements RateLimitPort, PasswordResetRateLimitPort
 {
     public function __construct(
         private RateLimiterFactory $registrationIpLimiter,
@@ -19,6 +20,8 @@ final readonly class SymfonyRateLimit implements RateLimitPort
         private RateLimiterFactory $activationTokenLimiter,
         private RateLimiterFactory $loginIpLimiter,
         private RateLimiterFactory $loginEmailIpLimiter,
+        private RateLimiterFactory $passwordResetRequestIpLimiter,
+        private RateLimiterFactory $passwordResetRequestEmailLimiter,
     ) {
     }
 
@@ -52,6 +55,19 @@ final readonly class SymfonyRateLimit implements RateLimitPort
             $this->loginIpLimiter->create($this->key('ip', $ip))->consume(),
             $this->loginEmailIpLimiter->create($this->key('email_ip', $normalizedEmail.chr(0).$ip))->consume(),
         ]);
+    }
+
+    public function passwordResetRequestRetryAfter(string $ip, string $normalizedEmail): ?int
+    {
+        return $this->retryAfter([
+            $this->passwordResetRequestIpLimiter->create($this->key('ip', $ip))->consume(),
+            $this->passwordResetRequestEmailLimiter->create($this->key('email', $normalizedEmail))->consume(),
+        ]);
+    }
+
+    public function passwordResetRetryAfter(string $ip, string $tokenFingerprint): ?int
+    {
+        return $this->activationRetryAfter($ip, $tokenFingerprint);
     }
 
     /** @param list<RateLimit> $limits */

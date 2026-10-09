@@ -19,4 +19,9 @@ final readonly class StoredLoginIdentity
     {
         return $passwordHasher->verify($plainPassword, $this->passwordHash);
     }
+
+    public function hasSameCredentialAs(self $other): bool
+    {
+        return $this->id === $other->id && hash_equals($this->passwordHash, $other->passwordHash);
+    }
 }

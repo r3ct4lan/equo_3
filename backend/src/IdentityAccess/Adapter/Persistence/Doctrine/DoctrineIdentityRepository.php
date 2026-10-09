@@ -37,7 +37,10 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
 
     public function loginIdentityByEmail(string $normalizedEmail): ?StoredLoginIdentity
     {
-        $record = $this->entityManager->getRepository(UserRecord::class)->findOneBy(['email' => $normalizedEmail]);
+        $record = $this->entityManager->createQueryBuilder()
+            ->select('user')->from(UserRecord::class, 'user')
+            ->where('user.email = :email')->setParameter('email', $normalizedEmail)
+            ->getQuery()->setHint(Query::HINT_REFRESH, true)->getOneOrNullResult();
 
         if (!$record instanceof UserRecord) {
             return null;
