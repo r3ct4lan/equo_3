@@ -7,7 +7,7 @@
 | Дата контрактного аудита | 2026-09-30 |
 | Связанный сценарий | `MVP-SC-003` |
 | Задача аудита | `SC3-01` |
-| Реализованные этапы | `SC3-02` — 2026-09-30; `SC3-03—04` — 2026-10-09 |
+| Реализованные этапы | `SC3-02` — 2026-09-30; `SC3-03—05` — 2026-10-09 |
 | Диапазон реализации | `SC3-02—SC3-08`; `DR-E6-011—018` |
 | Владелец | Maksim Smolkov |
 
@@ -72,7 +72,7 @@ current logout скрывает unusable credential за идемпотентн�
 - `AuthCookieFactory` выдаёт и очищает обе cookies с одинаковыми paths/flags;
 - frontend `$auth` уже имеет private in-memory token, `useCurrentUser`, Web
   Locks refresh coordination и token-free `BroadcastChannel` event
-  `session-ended`, но публичных logout actions пока нет.
+  `session-ended`, public logout actions и explicit signed-out lifecycle.
 
 ## 3. Подтверждённые HTTP-контракты
 
@@ -443,7 +443,7 @@ frontend tests намеренно не входят в этот этап.
 | `SC3-02` | Implemented 2026-09-30 | Current logout domain/application/persistence | Stable-locator и unusable-token contracts приняты | Idempotent revoke service и repository semantics без HTTP |
 | `SC3-03` | Implemented 2026-10-09 | Logout-all application/persistence | Подтверждённый User-first lock order | Atomic bulk revoke и active-user recheck |
 | `SC3-04` | Implemented 2026-10-09 | Controllers, security route, guards, cookie clearing | HTTP/cookie branches приняты | Оба exact HTTP contracts и safe errors |
-| `SC3-05` | Planned | `$auth` actions, UI и cross-tab lifecycle | UX decision принят; backend contracts стабильны | Local cleanup, token-free event, no restore/redirect loop |
+| `SC3-05` | Implemented 2026-10-09 | `$auth` actions, UI и cross-tab lifecycle | UX decision принят; backend contracts стабильны | Local cleanup, token-free event, no restore/redirect loop |
 | `SC3-06` | Planned | Unit/application/integration/HTTP/component tests | `SC3-02—05` | Матрица happy/error/security branches |
 | `SC3-07` | Planned | Process/DB concurrency tests | Stable-locator contract принят | Доказаны lock order, race outcomes и отсутствие deadlock |
 | `SC3-08` | Planned | Browser E2E, security regression, docs и quality gate | `SC3-06—07` | Три browser journeys, docs synced, full gate green |
@@ -474,6 +474,23 @@ cookies только при `204`. 310 backend tests / 3249 assertions PASS,
 schema/migrations/style/static analysis PASS. HTTP matrix включает lifecycle,
 stale credential, Origin/Fetch Metadata/CSRF, privacy, unknown/inactive Bearer,
 повторный mass revoke и сохранение действия ранее выданного JWT.
+
+### Проверка SC3-05 — 2026-10-09
+
+`$auth.logout/logoutAll` используют общий refresh Web Lock. Локальное состояние
+очищается сразу; generation guard отбрасывает поздние refresh/profile responses.
+После `204` публикуется только `{ type: 'session-ended' }` и открывается
+`/login?signedOut=1`. Ошибка открывает `/logout?scope=current|all` с явным retry,
+без success event или automatic bootstrap. Logout-all допускает один refresh
+и один retry, а explicit retry после очистки памяти получает временный Bearer
+внутри той же операции, не восстанавливая local state.
+
+Для reload после failed logout хранится только boolean marker `equo:signed-out`
+в sessionStorage. Token/user/cookies в storage не попадают; явный успешный login
+снимает marker. URL signed-out/result также подавляет bootstrap. Кнопки доступны
+в профиле; confirmation нужен только для all devices, Escape/cancel возвращает
+focus, pending блокирует повтор. Frontend quality (lockfile/lint/typecheck),
+37 unit и 27 component tests PASS. Сквозной browser gate остаётся SC3-08.
 
 ## 15. Exit criteria
 

@@ -116,5 +116,6 @@ onMounted(() => {
         </div>
       </dl>
     </section>
+    <LogoutActions />
   </section>
 </template>

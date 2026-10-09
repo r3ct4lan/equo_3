@@ -4,6 +4,8 @@ import { ApiClientError, type FieldErrorMap } from './api-error.ts'
 
 export const LOGIN_ENDPOINT = '/v1/auth/login'
 export const REFRESH_ENDPOINT = '/v1/auth/refresh'
+export const LOGOUT_ENDPOINT = '/v1/auth/logout'
+export const LOGOUT_ALL_ENDPOINT = '/v1/auth/logout-all'
 export const ME_ENDPOINT = '/v1/me'
 export const AUTH_REFRESH_LOCK = 'equo:auth-refresh'
 export const SESSION_ENDED_EVENT = 'session-ended'
@@ -11,6 +13,7 @@ export const AUTH_CHANNEL = 'equo:auth'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u
 const CSRF_COOKIE_NAME = '__Host-equo_csrf'
+const SIGNED_OUT_KEY = 'equo:signed-out'
 
 export interface LoginErrorPresentation {
   title: string
@@ -30,6 +33,8 @@ export interface AuthSessionDependencies {
   document?: Pick<Document, 'cookie'>
   navigator?: Pick<Navigator, 'locks'>
   createBroadcastChannel?: (name: string) => Pick<BroadcastChannel, 'postMessage' | 'close' | 'addEventListener'>
+  sessionStorage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
+  signedOut?: boolean
 }
 
 export function validateLogin(values: Readonly<LoginValues>): FieldErrorMap {
@@ -160,16 +165,31 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   let accessToken: string | null = null
   let refreshPromise: Promise<void> | null = null
   let bootstrapPromise: Promise<void> | null = null
+  let logoutPromise: Promise<void> | null = null
+  let generation = 0
+  let signedOut = dependencies.signedOut === true
+  try {
+    signedOut ||= dependencies.sessionStorage?.getItem(SIGNED_OUT_KEY) === 'true'
+  }
+  catch { /* Storage can be unavailable; the in-memory guard still applies. */ }
   const channel = dependencies.createBroadcastChannel?.(AUTH_CHANNEL)
+
+  if (signedOut) {
+    endLocalSession()
+  }
 
   channel?.addEventListener('message', (event: MessageEvent<unknown>) => {
     if (event.data === SESSION_ENDED_EVENT || (isRecord(event.data) && event.data.type === SESSION_ENDED_EVENT)) {
-      clearToken()
-      dependencies.currentUser.setAnonymous()
+      endLocalSession()
+      void dependencies.navigateTo?.('/login?signedOut=1')
     }
   })
 
   async function login(values: LoginValues, options: LoginOptions = {}): Promise<void> {
+    if (logoutPromise) {
+      throw authenticationRequired()
+    }
+    const started = ++generation
     const response = await dependencies.api<LoginResponse>(LOGIN_ENDPOINT, {
       method: 'POST',
       body: {
@@ -177,6 +197,15 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
         password: values.password
       } satisfies LoginRequest
     })
+
+    if (started !== generation) {
+      throw authenticationRequired()
+    }
+    signedOut = false
+    try {
+      dependencies.sessionStorage?.removeItem(SIGNED_OUT_KEY)
+    }
+    catch { /* No credential is stored. */ }
 
     accessToken = response.accessToken
     dependencies.currentUser.setAuthenticated({
@@ -191,6 +220,9 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   }
 
   async function bootstrap(): Promise<void> {
+    if (signedOut) {
+      return
+    }
     if (bootstrapPromise) {
       return bootstrapPromise
     }
@@ -200,17 +232,27 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   }
 
   async function retryBootstrap(): Promise<void> {
+    if (signedOut) {
+      return
+    }
     bootstrapPromise = null
     return bootstrap()
   }
 
   async function runBootstrap(): Promise<void> {
+    const started = generation
     try {
       await refresh()
       const user = await authenticatedMe()
+      if (started !== generation || signedOut) {
+        return
+      }
       dependencies.currentUser.setAuthenticated(user)
     }
     catch (error: unknown) {
+      if (started !== generation || signedOut) {
+        return
+      }
       const normalized = error instanceof ApiClientError
         ? error
         : new ApiClientError({
@@ -231,6 +273,10 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   }
 
   async function protectedRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+    if (signedOut) {
+      throw authenticationRequired()
+    }
+    const started = generation
     if (!accessToken) {
       await bootstrap()
     }
@@ -245,13 +291,21 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     }
 
     try {
-      return await dependencies.api<T>(path, { ...options, accessToken })
+      const result = await dependencies.api<T>(path, { ...options, accessToken })
+      if (started !== generation || signedOut) {
+        throw authenticationRequired()
+      }
+      return result
     }
     catch (error: unknown) {
       const normalized = error instanceof ApiClientError ? error : null
       if (normalized?.status !== 401) {
         throw error
       }
+    }
+
+    if (started !== generation || signedOut) {
+      throw authenticationRequired()
     }
 
     await refresh()
@@ -267,7 +321,11 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     }
 
     try {
-      return await dependencies.api<T>(path, { ...options, accessToken })
+      const result = await dependencies.api<T>(path, { ...options, accessToken })
+      if (started !== generation || signedOut) {
+        throw authenticationRequired()
+      }
+      return result
     }
     catch (error: unknown) {
       const normalized = error instanceof ApiClientError ? error : null
@@ -295,6 +353,9 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   }
 
   async function refresh(): Promise<void> {
+    if (signedOut) {
+      throw authenticationRequired()
+    }
     if (refreshPromise) {
       return refreshPromise
     }
@@ -307,6 +368,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   }
 
   async function coordinatedRefresh(): Promise<void> {
+    const started = generation
     const locks = dependencies.navigator?.locks
 
     if (!locks) {
@@ -318,6 +380,9 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     }
 
     await locks.request(AUTH_REFRESH_LOCK, async () => {
+      if (started !== generation || signedOut) {
+        throw authenticationRequired()
+      }
       const csrfToken = readCsrfCookie(dependencies.document)
       const response = await dependencies.api<RefreshResponse>(REFRESH_ENDPOINT, {
         method: 'POST',
@@ -329,14 +394,126 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
             }
           : {})
       })
+      if (started !== generation || signedOut) {
+        throw authenticationRequired()
+      }
       accessToken = response.accessToken
     })
   }
 
-  function endSession(): void {
-    clearToken()
-    dependencies.currentUser.setAnonymous()
+  function logout(): Promise<void> {
+    return logoutAction(false)
+  }
+
+  function logoutAll(): Promise<void> {
+    return logoutAction(true)
+  }
+
+  function logoutAction(all: boolean): Promise<void> {
+    if (logoutPromise) {
+      return logoutPromise
+    }
+    const token = accessToken
+    endLocalSession()
+    const started = generation
+    logoutPromise = performLogout(all, token, started).finally(() => {
+      logoutPromise = null
+    })
+    return logoutPromise
+  }
+
+  async function performLogout(all: boolean, token: string | null, started: number): Promise<void> {
+    try {
+      const locks = dependencies.navigator?.locks
+      if (!locks) {
+        throw authenticationRequired()
+      }
+      await locks.request(AUTH_REFRESH_LOCK, async () => {
+        if (started !== generation) {
+          throw authenticationRequired()
+        }
+        if (!all) {
+          const csrfToken = readCsrfCookie(dependencies.document)
+          await dependencies.api<undefined>(LOGOUT_ENDPOINT, {
+            method: 'POST',
+            onResponse: requireLogoutSuccess,
+            ...(csrfToken ? { headers: { 'X-CSRF-Token': csrfToken } } : {})
+          })
+          return
+        }
+
+        let bearer = token
+        let refreshed = false
+        if (!bearer) {
+          bearer = await logoutRefresh()
+          refreshed = true
+        }
+        if (started !== generation) {
+          throw authenticationRequired()
+        }
+        try {
+          await dependencies.api<undefined>(LOGOUT_ALL_ENDPOINT, { method: 'POST', accessToken: bearer, onResponse: requireLogoutSuccess })
+        }
+        catch (error: unknown) {
+          if (!(error instanceof ApiClientError) || error.status !== 401 || refreshed) {
+            throw error
+          }
+          if (started !== generation) {
+            throw authenticationRequired()
+          }
+          bearer = await logoutRefresh()
+          if (started !== generation) {
+            throw authenticationRequired()
+          }
+          await dependencies.api<undefined>(LOGOUT_ALL_ENDPOINT, { method: 'POST', accessToken: bearer, onResponse: requireLogoutSuccess })
+        }
+      })
+    }
+    catch {
+      await dependencies.navigateTo?.(`/logout?scope=${all ? 'all' : 'current'}`)
+      throw new ApiClientError({
+        kind: 'unknown',
+        code: 'LOGOUT_UNCONFIRMED',
+        message: 'You are signed out here. We could not confirm sign-out on the server.'
+      })
+    }
     channel?.postMessage({ type: SESSION_ENDED_EVENT })
+    await dependencies.navigateTo?.('/login?signedOut=1')
+  }
+
+  async function logoutRefresh(): Promise<string> {
+    const csrfToken = readCsrfCookie(dependencies.document)
+    const response = await dependencies.api<RefreshResponse>(REFRESH_ENDPOINT, {
+      method: 'POST',
+      ...(csrfToken ? { headers: { 'X-CSRF-Token': csrfToken } } : {})
+    })
+    return response.accessToken
+  }
+
+  function requireLogoutSuccess({ response }: { response: { status: number } }): void {
+    if (response.status >= 200 && response.status < 300 && response.status !== 204) {
+      throw new ApiClientError({ kind: 'unknown', code: 'LOGOUT_UNCONFIRMED', message: 'Server sign-out was not confirmed.' })
+    }
+  }
+
+  function endSession(): void {
+    endLocalSession()
+  }
+
+  function endLocalSession(): void {
+    ++generation
+    signedOut = true
+    clearToken()
+    bootstrapPromise = Promise.resolve()
+    dependencies.currentUser.setAnonymous()
+    try {
+      dependencies.sessionStorage?.setItem(SIGNED_OUT_KEY, 'true')
+    }
+    catch { /* This marker contains no token or user data. */ }
+  }
+
+  function authenticationRequired(): ApiClientError {
+    return new ApiClientError({ kind: 'api', status: 401, code: 'AUTHENTICATION_REQUIRED', message: 'Authentication is required.' })
   }
 
   function clearToken(): void {
@@ -347,7 +524,9 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     bootstrap,
     retryBootstrap,
     login,
-    protectedRequest
+    protectedRequest,
+    logout,
+    logoutAll
   }
 }
 

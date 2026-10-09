@@ -74,6 +74,12 @@ onMounted(async () => {
       <p class="hero__lede">
         Use your activated account to continue to your Equo profile.
       </p>
+      <p
+        v-if="route.query.signedOut === '1'"
+        role="status"
+      >
+        You are signed out.
+      </p>
     </div>
 
     <form
