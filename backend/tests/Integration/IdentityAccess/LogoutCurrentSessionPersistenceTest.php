@@ -139,6 +139,11 @@ final class LogoutCurrentSessionPersistenceTest extends KernelTestCase
 
                 throw new RuntimeException('Controlled persistence failure.');
             }
+
+            public function revokeAllUnfinishedForUser(string $userId, DateTimeImmutable $now): int
+            {
+                return $this->delegate->revokeAllUnfinishedForUser($userId, $now);
+            }
         };
         $now = new DateTimeImmutable('2026-08-09T12:00:00Z');
         $clock = new readonly class($now) implements ClockPort {

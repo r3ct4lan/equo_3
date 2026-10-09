@@ -7,7 +7,7 @@
 | Дата контрактного аудита | 2026-09-30 |
 | Связанный сценарий | `MVP-SC-003` |
 | Задача аудита | `SC3-01` |
-| Реализованный этап | `SC3-02` — 2026-09-30 |
+| Реализованные этапы | `SC3-02` — 2026-09-30; `SC3-03` — 2026-10-09 |
 | Диапазон реализации | `SC3-02—SC3-08`; `DR-E6-011—018` |
 | Владелец | Maksim Smolkov |
 
@@ -441,7 +441,7 @@ frontend tests намеренно не входят в этот этап.
 | Этап | Статус | Содержание | Входной gate | Выходной результат |
 |---|---|---|---|---|
 | `SC3-02` | Implemented 2026-09-30 | Current logout domain/application/persistence | Stable-locator и unusable-token contracts приняты | Idempotent revoke service и repository semantics без HTTP |
-| `SC3-03` | Planned | Logout-all application/persistence | Подтверждённый User-first lock order | Atomic bulk revoke и active-user recheck |
+| `SC3-03` | Implemented 2026-10-09 | Logout-all application/persistence | Подтверждённый User-first lock order | Atomic bulk revoke и active-user recheck |
 | `SC3-04` | Planned | Controllers, security route, guards, cookie clearing | HTTP/cookie branches приняты | Оба exact HTTP contracts и safe errors |
 | `SC3-05` | Planned | `$auth` actions, UI и cross-tab lifecycle | UX decision принят; backend contracts стабильны | Local cleanup, token-free event, no restore/redirect loop |
 | `SC3-06` | Planned | Unit/application/integration/HTTP/component tests | `SC3-02—05` | Матрица happy/error/security branches |
@@ -450,6 +450,18 @@ frontend tests намеренно не входят в этот этап.
 
 Roadmap checkboxes не отмечаются на `SC3-02`: общий end-to-end slice ещё не
 завершён.
+
+### Проверка SC3-03 — 2026-10-09
+
+`LogoutAllSessions` блокирует и перечитывает active User внутри transaction,
+затем одним SQL statement отзывает только `revoked_at IS NULL AND expires_at > now`.
+Login также берёт User lock перед созданием session. Session lookup больше не
+использует locking JOIN к User: current logout/refresh блокируют только session;
+повторные ORM reads перечитывают актуальное состояние после ожидания lock.
+Миграции не добавлены. Исходный backend: 284 tests / 2795 assertions PASS;
+после этапа: 289 tests / 2824 assertions PASS, schema/migrations PASS,
+style/static analysis PASS. HTTP, concurrency matrix и frontend проверяются
+следующими этапами. [Сверка нумерации передачи](../product-context.md).
 
 ## 15. Exit criteria
 

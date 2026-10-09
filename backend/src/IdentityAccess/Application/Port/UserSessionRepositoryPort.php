@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\IdentityAccess\Application\Port;
 
 use App\IdentityAccess\Domain\Access\UserSession;
+use DateTimeImmutable;
 
 interface UserSessionRepositoryPort
 {
@@ -16,4 +17,7 @@ interface UserSessionRepositoryPort
     public function findByIdForUpdate(string $sessionId): ?UserSession;
 
     public function save(UserSession $session): void;
+
+    /** Must run inside TransactionPort after locking the owner. */
+    public function revokeAllUnfinishedForUser(string $userId, DateTimeImmutable $now): int;
 }

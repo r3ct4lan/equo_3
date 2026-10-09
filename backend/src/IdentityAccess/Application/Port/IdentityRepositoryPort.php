@@ -18,6 +18,9 @@ interface IdentityRepositoryPort
 
     public function currentUserState(string $userId): ?CurrentUserState;
 
+    /** Must run inside TransactionPort, before taking any session locks. */
+    public function currentUserForUpdate(string $userId): ?CurrentUserState;
+
     public function currentUserProfile(string $userId): ?UserView;
 
     public function addRegistration(User $user, UserActionToken $token): void;

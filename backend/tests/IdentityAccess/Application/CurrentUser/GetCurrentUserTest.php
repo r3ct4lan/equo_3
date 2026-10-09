@@ -105,6 +105,11 @@ final readonly class CurrentUserRepository implements IdentityRepositoryPort
         throw new LogicException('Current-user query must read the public profile.');
     }
 
+    public function currentUserForUpdate(string $userId): ?CurrentUserState
+    {
+        throw new LogicException('Current-user query is read-only.');
+    }
+
     public function addRegistration(User $user, UserActionToken $token): void
     {
         throw new LogicException('Current-user query is read-only.');
