@@ -1243,3 +1243,129 @@ test('failed server logout stays locally signed out across reload and explicit r
   await expect(page).toHaveURL(/\/login\?signedOut=1$/u)
   expect(await page.context().cookies()).toEqual([])
 })
+
+test('password change revokes both browser sessions, ends sibling tabs and requires new login', async ({ page, browser, request }) => {
+  const email = await registerAndActivate(page, request, uniqueEmail('password-change'))
+  const access = await login(page, email)
+  const other = await newSecureContext(browser)
+  const sibling = await page.context().newPage()
+  try {
+    const otherPage = await other.newPage()
+    const otherAccess = await login(otherPage, email)
+    const otherCookies = await sessionCookies(other)
+    await sibling.goto('/me')
+    await expect(sibling.getByText(email)).toBeVisible()
+    const currentCookies = await sessionCookies(page.context())
+    await page.getByRole('link', { name: 'Change password', exact: true }).click()
+    await expect(page).toHaveURL(/\/account\/security$/u)
+    const newPassword = '  New account password 😀  '
+    await page.getByLabel('Current password', { exact: true }).fill(testPassword)
+    await page.getByLabel('New password', { exact: true }).fill(newPassword)
+    let commands = 0
+    let release: () => void = () => undefined
+    let arrived: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const started = new Promise<void>((resolve) => {
+      arrived = resolve
+    })
+    await page.route('**/api/v1/account/password-change', async (route) => {
+      ++commands
+      arrived()
+      await gate
+      await route.continue()
+    })
+    const changed = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/account/password-change')
+    await page.getByRole('button', { name: 'Save new password', exact: true }).click()
+    await started
+    await expect(page.getByRole('button', { name: 'Saving password…' })).toBeDisabled()
+    await page.locator('form').dispatchEvent('submit')
+    release()
+    expect((await changed).status()).toBe(204)
+    expect(commands).toBe(1)
+    await expect(page).toHaveURL(/\/login\?signedOut=1&passwordChanged=1$/u)
+    await expect(page.getByRole('status')).toContainText('Your password has been saved')
+    await expect(sibling).toHaveURL(/\/login\?signedOut=1$/u)
+    expect((await page.context().cookies()).length).toBe(0)
+    await expectNoPersistentSecrets(page, [newPassword, testPassword, access, currentCookies.refresh.value, currentCookies.csrf.value])
+    expect((await other.request.get('/api/v1/me', { headers: { Authorization: `Bearer ${otherAccess}` } })).status()).toBe(200)
+    const refresh = await other.request.post('/api/v1/auth/refresh', {
+      headers: { 'Origin': baseUrl, 'Sec-Fetch-Site': 'same-origin', 'X-CSRF-Token': otherCookies.csrf.value }
+    })
+    expect(refresh.status()).toBe(401)
+    expect((await refresh.json() as { error: { code: string } }).error.code).toBe('INVALID_REFRESH_TOKEN')
+    const currentRefresh = await request.post(`${baseUrl}/api/v1/auth/refresh`, {
+      headers: {
+        'Origin': baseUrl, 'Sec-Fetch-Site': 'same-origin', 'X-CSRF-Token': currentCookies.csrf.value,
+        'Cookie': `equo_refresh=${currentCookies.refresh.value}; __Host-equo_csrf=${currentCookies.csrf.value}`
+      }
+    })
+    expect(currentRefresh.status()).toBe(401)
+    let refreshes = 0
+    sibling.on('request', (sent) => {
+      if (new URL(sent.url()).pathname === '/api/v1/auth/refresh') ++refreshes
+    })
+    await sibling.reload()
+    await waitForNuxtHydration(sibling)
+    expect(refreshes).toBe(0)
+    await otherPage.reload()
+    await expect(otherPage).toHaveURL(/\/login/u)
+    await page.getByLabel('Email', { exact: true }).fill(email)
+    await page.getByLabel('Password', { exact: true }).fill(testPassword)
+    await routeNextLoginFromUniqueIp(page)
+    const oldLogin = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/login')
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    expect((await oldLogin).status()).toBe(401)
+    await expect(page.getByRole('alert')).toContainText('Email or password is incorrect')
+    await login(page, email, '/me', true, newPassword)
+    await expectNoPersistentSecrets(page, [newPassword, testPassword, otherAccess, otherCookies.refresh.value, otherCookies.csrf.value])
+  }
+  finally {
+    await sibling.close()
+    await other.close()
+  }
+})
+
+test('password change validation and credential or transport errors preserve auth without automatic retry', async ({ page, request }) => {
+  const email = await ensureActiveUser(page, request)
+  await login(page, email)
+  await page.getByRole('link', { name: 'Change password', exact: true }).click()
+  await expect(page).toHaveURL(/\/account\/security$/u)
+  let commands = 0
+  let refreshes = 0
+  page.on('request', (sent) => {
+    const path = new URL(sent.url()).pathname
+    if (path === '/api/v1/account/password-change') ++commands
+    if (path === '/api/v1/auth/refresh') ++refreshes
+  })
+  await page.getByRole('button', { name: 'Save new password', exact: true }).click()
+  await expect(page.getByLabel('Current password', { exact: true })).toHaveAttribute('aria-invalid', 'true')
+  expect(commands).toBe(0)
+  await page.getByLabel('Current password', { exact: true }).fill(wrongPassword)
+  await page.getByLabel('New password', { exact: true }).fill('short')
+  await page.getByRole('button', { name: 'Save new password', exact: true }).click()
+  await expect(page.getByLabel('New password', { exact: true })).toHaveAttribute('aria-invalid', 'true')
+  expect(commands).toBe(0)
+  await page.getByLabel('New password', { exact: true }).fill('A valid new password!')
+  const rejected = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/account/password-change')
+  await page.getByRole('button', { name: 'Save new password', exact: true }).click()
+  expect((await rejected).status()).toBe(401)
+  await expect(page.getByRole('alert')).toContainText('Current password is incorrect')
+  await expect.poll(async () => await page.getByLabel('Current password', { exact: true }).inputValue() === '').toBe(true)
+  await expect.poll(async () => await page.getByLabel('New password', { exact: true }).inputValue() === '').toBe(true)
+  expect(commands).toBe(1)
+  expect(refreshes).toBe(0)
+  await page.route('**/api/v1/account/password-change', safeRouteAbort, { times: 1 })
+  await page.getByLabel('Current password', { exact: true }).fill(testPassword)
+  await page.getByLabel('New password', { exact: true }).fill('A valid new password!')
+  await page.getByRole('button', { name: 'Save new password', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Password change could not be confirmed')
+  await expect.poll(async () => await page.getByLabel('Current password', { exact: true }).inputValue() === '').toBe(true)
+  await expect.poll(async () => await page.getByLabel('New password', { exact: true }).inputValue() === '').toBe(true)
+  expect(commands).toBe(2)
+  expect(refreshes).toBe(0)
+  await page.getByRole('link', { name: 'Back to profile' }).click()
+  await expect(page.getByText(email)).toBeVisible()
+  await expectNoPersistentSecrets(page, [wrongPassword, 'A valid new password!'])
+})
