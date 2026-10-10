@@ -148,10 +148,15 @@ final class PasswordResetPersistenceTest extends KernelTestCase
         $repository = new DoctrineIdentityRepository($this->em);
         $before = $repository->loginIdentityByEmail(self::USER.'@example.test');
         self::assertNotNull($before);
+        $hasher = $this->createStub(PasswordHashingPort::class);
+        $hasher->method('verify')->willReturnCallback(static fn (string $plain, string $hash): bool => $plain === $hash);
+        self::assertTrue($repository->accountForUpdate(self::USER.'@example.test')?->verifyPassword($hasher, 'original-hash'));
         $this->db->executeStatement('UPDATE app_user SET password_hash = ? WHERE id = ?', ['replacement-hash', self::USER]);
         $after = $repository->loginIdentityByEmail(self::USER.'@example.test');
         self::assertNotNull($after);
         self::assertFalse($before->hasSameCredentialAs($after));
+        $this->db->executeStatement('UPDATE app_user SET password_hash = ? WHERE id = ?', ['latest-hash', self::USER]);
+        self::assertTrue($repository->accountForUpdate(self::USER.'@example.test')?->verifyPassword($hasher, 'latest-hash'));
     }
 
     private function request(?PasswordResetOutboxPort $outbox = null): RequestPasswordReset

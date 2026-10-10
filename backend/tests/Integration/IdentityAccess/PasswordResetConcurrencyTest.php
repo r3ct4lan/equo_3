@@ -6,13 +6,17 @@ namespace App\Tests\Integration\IdentityAccess;
 
 use App\IdentityAccess\Application\PasswordReset\PasswordResetRequestCommand;
 use App\IdentityAccess\Application\PasswordReset\RequestPasswordReset;
+use App\IdentityAccess\Application\Port\ActionTokenCodecPort;
 use App\IdentityAccess\Application\Port\CsrfTokenCodecPort;
+use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
 use App\IdentityAccess\Application\Port\RefreshTokenCodecPort;
 use App\Infrastructure\EmailDelivery\Security\PayloadCipher;
 use App\Tests\Fixture\Concurrency\SessionCommandRunner;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Exception\DriverException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Bundle\FrameworkBundle\Test\TestContainer;
@@ -109,6 +113,48 @@ final class PasswordResetConcurrencyTest extends KernelTestCase
         yield 'waiting old password login is rejected' => ['reset', 'login', 'INVALID_CREDENTIALS', 1, 0, 0];
         yield 'refresh first is revoked' => ['refresh', 'reset', 'ok', 1, 0, 0];
         yield 'waiting refresh sees revoked session' => ['reset', 'refresh', 'INVALID_REFRESH_TOKEN', 1, 0, 0];
+        yield 'wrong-purpose activation waits for reset without deadlock' => ['reset', 'activate', 'INVALID_TOKEN', 1, 0, 0];
+    }
+
+    public function testActivationCannotLockResetTokenBeforeItsOwner(): void
+    {
+        $this->db->beginTransaction();
+        self::assertNotNull($this->container()->get(IdentityRepositoryPort::class)->currentUserForUpdate($this->credentials['user']));
+        $process = proc_open([PHP_BINARY, '-r', 'require "tests/bootstrap.php"; \\App\\Tests\\Fixture\\Concurrency\\SessionCommandRunner::main();'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, dirname(__DIR__, 3));
+        self::assertIsResource($process);
+        stream_set_timeout($pipes[1], 12);
+        try {
+            $pid = (int) fgets($pipes[1]);
+            fwrite($pipes[0], json_encode(['operation' => 'activate'] + $this->credentials, JSON_THROW_ON_ERROR)."\n");
+            fflush($pipes[0]);
+            $deadline = microtime(true) + 4;
+            do {
+                $blocked = (int) $this->db->fetchOne('SELECT cardinality(pg_blocking_pids(?))', [$pid]);
+            } while (0 === $blocked && microtime(true) < $deadline);
+            self::assertGreaterThan(0, $blocked);
+            $probe = DriverManager::getConnection($this->db->getParams());
+            $probe->beginTransaction();
+            $acquired = false;
+            try {
+                $digest = $this->container()->get(ActionTokenCodecPort::class)->digest($this->credentials['token']);
+                $probe->fetchOne('SELECT id FROM user_action_token WHERE token_hash = ? FOR UPDATE NOWAIT', [$digest]);
+                $acquired = true;
+            } catch (DriverException) {
+                // Keep SQL parameters and capability fingerprints out of test diagnostics.
+            } finally {
+                $probe->rollBack();
+                $probe->close();
+            }
+            $this->db->commit();
+            self::assertSame('INVALID_TOKEN', trim((string) fgets($pipes[1])));
+            self::assertTrue($acquired, 'An activation waiting for User must not already hold a reset token lock.');
+        } finally {
+            foreach ($pipes as $pipe) {
+                fclose($pipe);
+            }
+            proc_terminate($process);
+            proc_close($process);
+        }
     }
 
     private function container(): TestContainer

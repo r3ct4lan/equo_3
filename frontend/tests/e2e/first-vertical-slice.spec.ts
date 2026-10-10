@@ -93,7 +93,7 @@ async function waitForMail(
 
     return messageId !== null
   }, {
-    message: `activation email for ${recipient} was not handed to Mailpit`,
+    message: `action email for ${recipient} was not handed to Mailpit`,
     timeout: 30_000
   }).toBe(true)
 
@@ -199,11 +199,11 @@ async function ensureActiveUser(page: Page, request: APIRequestContext): Promise
   return sharedActiveEmail
 }
 
-async function login(page: Page, email: string, redirect = '/me', expectProfile = true): Promise<string> {
+async function login(page: Page, email: string, redirect = '/me', expectProfile = true, password = testPassword): Promise<string> {
   await page.goto(`/login?redirect=${encodeURIComponent(redirect)}`)
   await waitForNuxtHydration(page)
   await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill(testPassword)
+  await page.getByLabel('Password').fill(password)
   await routeNextLoginFromUniqueIp(page)
 
   const responsePromise = page.waitForResponse(response =>
@@ -226,6 +226,35 @@ async function followSecretUrl(page: Page, url: string): Promise<void> {
   await page.evaluate((target) => {
     window.location.assign(target)
   }, url)
+}
+
+async function requestRecovery(page: Page, request: APIRequestContext, email: string, excluded = new Set<string>()): Promise<MailpitMessage> {
+  await page.goto('/forgot-password')
+  await waitForNuxtHydration(page)
+  await page.getByLabel('Email', { exact: true }).fill(email)
+  const response = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/password-reset-requests')
+  await page.getByRole('button', { name: 'Send recovery link' }).click()
+  expect((await response).status()).toBe(202)
+  await expect(page.getByRole('status')).toContainText('If an account uses this address')
+  return await waitForMail(request, email, excluded)
+}
+
+function recoveryUrlFrom(message: MailpitMessage): string {
+  const match = message.HTML.match(/href=["']([^"']*\/password-reset\?token=[^"']+)["']/u)
+  if (!match?.[1]) throw new Error('Recovery email has no recovery link.')
+  const url = new URL(match[1].replaceAll('&amp;', '&'))
+  expect(url.pathname).toBe('/password-reset')
+  expect(/^v\d+\.[A-Za-z0-9_-]{43}$/u.test(url.searchParams.get('token') ?? '')).toBe(true)
+  return url.toString()
+}
+
+async function submitRecovery(page: Page, url: string, password: string): Promise<APIResponse> {
+  await followSecretUrl(page, url)
+  await expect(page).toHaveURL(/\/password-reset$/u)
+  await page.getByLabel('New password', { exact: true }).fill(password)
+  const response = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/password-reset')
+  await page.getByRole('button', { name: 'Save new password' }).click()
+  return await response
 }
 
 async function expectNoSessionOrStoredCapability(page: Page): Promise<void> {
@@ -1083,6 +1112,106 @@ test('confirmed logout ends other tabs without an automatic refresh or repeated 
   finally {
     await second.close()
   }
+})
+
+test('recovery resets credentials, revokes independent sessions and ends sibling tabs', async ({ page, browser, request }) => {
+  const email = await registerAndActivate(page, request, uniqueEmail('recovery'))
+  await login(page, email)
+  const other = await newSecureContext(browser)
+  const sibling = await page.context().newPage()
+  try {
+    const otherPage = await other.newPage()
+    const otherAccess = await login(otherPage, email)
+    const oldCookies = await sessionCookies(other)
+    await sibling.goto('/me')
+    await expect(sibling.getByText(email)).toBeVisible()
+    const activation = await waitForMail(request, email)
+    const mail = await requestRecovery(page, request, email, new Set([activation.testMessageId]))
+    const url = recoveryUrlFrom(mail)
+    const token = new URL(url).searchParams.get('token') ?? ''
+    const newPassword = '  New recovery password 😀  '
+    expect((await submitRecovery(page, url, newPassword)).status()).toBe(204)
+    await expect(page).toHaveURL(/\/login\?signedOut=1&passwordReset=1$/u)
+    await expect(page.getByRole('status')).toContainText('Your password has been saved')
+    await expect(sibling).toHaveURL(/\/login\?signedOut=1$/u)
+    expect(await page.context().cookies()).toEqual([])
+    await expectNoPersistentSecrets(page, [token, newPassword])
+    expect((await other.request.get('/api/v1/me', { headers: { Authorization: `Bearer ${otherAccess}` } })).status()).toBe(200)
+    const refresh = await other.request.post('/api/v1/auth/refresh', {
+      headers: { 'Origin': baseUrl, 'Sec-Fetch-Site': 'same-origin', 'X-CSRF-Token': oldCookies.csrf.value }
+    })
+    expect(refresh.status()).toBe(401)
+    expect((await refresh.json() as { error: { code: string } }).error.code).toBe('INVALID_REFRESH_TOKEN')
+    await page.getByLabel('Email', { exact: true }).fill(email)
+    await page.getByLabel('Password', { exact: true }).fill(testPassword)
+    await routeNextLoginFromUniqueIp(page)
+    const failedLogin = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/login')
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    expect((await failedLogin).status()).toBe(401)
+    await expect(page.getByRole('alert')).toContainText('Email or password is incorrect')
+    await login(page, email, '/me', true, newPassword)
+    expect((await submitRecovery(page, url, 'Another valid password!')).status()).toBe(410)
+    await expect(page.getByRole('alert')).toContainText('Recovery link was already used')
+    await expect(page.getByRole('link', { name: 'Request a new recovery link' })).toBeVisible()
+    await expectNoPersistentSecrets(page, [token, newPassword])
+  }
+  finally {
+    await sibling.close()
+    await other.close()
+  }
+})
+
+test('new recovery email replaces old reset link and inactive account remains inactive', async ({ page, request }) => {
+  const email = await registerInactiveUser(request, uniqueEmail('inactive-recovery'))
+  const activation = await waitForMail(request, email)
+  await page.goto('/forgot-password')
+  const firstMail = await requestRecovery(page, request, email, new Set([activation.testMessageId]))
+  const firstUrl = recoveryUrlFrom(firstMail)
+  const secondMail = await requestRecovery(page, request, email, new Set([activation.testMessageId, firstMail.testMessageId]))
+  const secondUrl = recoveryUrlFrom(secondMail)
+  expect((await submitRecovery(page, firstUrl, 'New recovery password!')).status()).toBe(410)
+  await expect(page.getByRole('alert')).toContainText('Recovery link was replaced')
+  const password = 'New recovery password!'
+  expect((await submitRecovery(page, secondUrl, password)).status()).toBe(204)
+  await expect(page).toHaveURL(/\/login\?signedOut=1&passwordReset=1$/u)
+  await page.getByLabel('Email', { exact: true }).fill(email)
+  await page.getByLabel('Password', { exact: true }).fill(password)
+  await routeNextLoginFromUniqueIp(page)
+  const inactiveLogin = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/login')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  expect((await inactiveLogin).status()).toBe(403)
+  await expect(page.getByRole('alert')).toContainText('Account is not active')
+  await followSecretUrl(page, activationUrlFrom(activation))
+  await expect(page.getByRole('status')).toContainText('Your account is active')
+  await login(page, email, '/me', true, password)
+})
+
+test('unknown recovery stays neutral and capability is absent from SSR URL and storage', async ({ page, request }) => {
+  await page.goto('/login')
+  await page.getByRole('link', { name: 'Forgot your password?' }).click()
+  await expect(page).toHaveURL(/\/forgot-password$/u)
+  await waitForNuxtHydration(page)
+  await page.getByLabel('Email', { exact: true }).fill(uniqueEmail('unknown-recovery'))
+  const accepted = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/password-reset-requests')
+  await page.getByRole('button', { name: 'Send recovery link' }).click()
+  expect((await accepted).status()).toBe(202)
+  await expect(page.getByRole('status')).toContainText('If an account uses this address')
+  const synthetic = 'v1.synthetic-recovery-capability'
+  const ssr = await request.get(`${baseUrl}/password-reset?token=${synthetic}`)
+  expect(ssr.status()).toBe(200)
+  expect((await ssr.text()).includes(synthetic), 'SSR must not serialize the capability').toBe(false)
+  const activationSsr = await request.get(`${baseUrl}/activate?token=${synthetic}`)
+  expect(activationSsr.status()).toBe(200)
+  expect((await activationSsr.text()).includes(synthetic), 'Activation SSR must also exclude the capability').toBe(false)
+  await followSecretUrl(page, `${baseUrl}/password-reset?token=${synthetic}`)
+  await expect(page).toHaveURL(/\/password-reset$/u)
+  await expectNoPersistentSecrets(page, [synthetic])
+  await page.getByLabel('New password', { exact: true }).fill('New password!')
+  await page.getByRole('button', { name: 'Save new password' }).click()
+  await expect(page.getByRole('alert')).toContainText('Recovery link is invalid')
+  await expect(page.locator('input[name="newPassword"]')).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole('alert')).toContainText('Recovery link is missing')
 })
 
 test('failed server logout stays locally signed out across reload and explicit retry confirms revoke', async ({ page, request }) => {

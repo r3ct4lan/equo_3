@@ -71,7 +71,7 @@ cd "$project_dir"
 git status --porcelain=v1 --untracked-files=all >"$before"
 generate_e2e_secrets
 
-$compose --profile e2e build --quiet backend frontend e2e
+$compose --profile e2e build --quiet backend worker frontend e2e
 $compose up -d --wait rabbitmq
 $compose up -d --wait postgres redis mailpit
 $compose run --rm -T backend php bin/console doctrine:migrations:migrate --no-interaction

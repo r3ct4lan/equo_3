@@ -6,7 +6,8 @@ import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 type ActivationState = 'preparing' | 'loading' | 'success' | 'missing' | 'error'
 
 useHead({
-  title: 'Activate your account · Equo'
+  title: 'Activate your account · Equo',
+  meta: [{ name: 'referrer', content: 'no-referrer' }]
 })
 
 const route = useRoute()

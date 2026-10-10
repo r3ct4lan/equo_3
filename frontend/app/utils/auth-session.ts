@@ -423,7 +423,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
       })
       endLocalSession()
       channel?.postMessage({ type: SESSION_ENDED_EVENT })
-      await dependencies.navigateTo?.('/login?signedOut=1')
+      await dependencies.navigateTo?.('/login?signedOut=1&passwordReset=1')
     }
     // Serialize cookie clearing with refresh. Recovery also works without an existing session or Web Locks.
     const coordinated = async (): Promise<void> => {
