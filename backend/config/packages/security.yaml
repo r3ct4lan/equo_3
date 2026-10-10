@@ -20,4 +20,5 @@ security:
         - { path: ^/api/v1/auth/refresh$, roles: PUBLIC_ACCESS }
         - { path: ^/api/v1/auth/logout$, roles: PUBLIC_ACCESS }
         - { path: ^/api/v1/auth/logout-all$, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api/v1/account/password-change$, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/me$, roles: IS_AUTHENTICATED_FULLY }
