@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 10 |
-| Дата актуальности | 2026-10-09 |
+| Версия | 11 |
+| Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
 
@@ -131,7 +131,7 @@ named factory. Patch идемпотентен и отказывает при н�
 `make test-e2e` поднимает отдельный Compose project `equo-3-e2e` и проверяет
 полный auth/session путь в Chromium через тот же HTTPS Nginx origin, который
 использует пользователь. PostgreSQL, Redis и RabbitMQ работают на `tmpfs`;
-Mailpit принимает реальное письмо. Dev-база, основной Compose stack и named
+Mailpit принимает реальное письмо. E2E build включает backend, worker, frontend и browser image: API и email consumer должны собираться из одной версии исходников. Dev-база, основной Compose stack и named
 volumes не затрагиваются.
 RabbitMQ запускается и достигает `healthy` до старта остальных временных
 зависимостей, чтобы исключить наблюдавшийся resource/startup race Docker Desktop.
@@ -185,12 +185,12 @@ test endpoint, возвращающий только агрегаты token/outb
 - недоступность registry/advisory service является видимой ошибкой gate, а не
   успешной проверкой.
 
-На 2026-10-09 после доступных обновлений остаются два корневых advisory:
+На 2026-10-10 после доступных обновлений остаются два корневых advisory:
 [braces GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
 и [node-forge GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
 Registry latest 3.0.3 и 1.4.0 соответственно остаются уязвимыми; advisory не
 указывает patched version. Nitro 2.13.4 требует globby/fast-glob/micromatch/braces
-и listhen/node-forge; Nuxt 4.6.0 также требует Nitro ^2.13.4 и не удаляет эту
+и listhen/node-forge; @nuxt/nitro-server 4.6.1 также требует Nitro ^2.13.4 и не удаляет эту
 цепочку. Audit сообщает 11 high affected packages, но два корневых дефекта,
 0 critical и 0 moderate. Исключения/понижение threshold не применены.
 Это видимый release blocker; технические проверки поведения выполняются отдельно.
@@ -277,3 +277,14 @@ run:
 - обновление pinned GitHub Actions с Node 20 runtime после отдельной проверки
   новых immutable commit SHA (текущие runs показывают deprecation warning, но
   это не причина падения jobs).
+
+## Дополнение SC-004
+
+Browser suite включает три recovery journeys: активный аккаунт (письмо → reset
+→ старый пароль и refresh отвергнуты → login новым паролем), inactive с replaced
+reset link и независимой activation, unknown/malformed capability с одинаковым
+202 и отсутствием секретов в SSR HTML/storage. Проверяется очистка query,
+повторное использование token, завершение другой вкладки и сохранение уже
+выданного stateless JWT до exp. Exact quotas проверяет backend HTTP suite.
+Текущие числа и результаты полного gate — [акт SC-004](acceptance/password-reset.md).
+Audit threshold и политика исключений не менялись.

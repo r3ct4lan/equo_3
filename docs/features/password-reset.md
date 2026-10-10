@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Сценарий | MVP-SC-004 |
-| Статус | In progress |
+| Статус | Implemented; functional PASS; release audit blocked |
 | Дата contract audit | 2026-10-09 |
 | Ветка | codex/sc-004-password-reset |
 | Base | 6d2617e; принятый функциональный результат SC-003, ещё не merged |
@@ -19,7 +19,7 @@
 Handoff содержит только сокращённый scope; нормативный комплект репозитория
 содержит необходимые детали, существенных противоречий не обнаружено.
 
-SC-004 отсутствует в коде: нет reset endpoints/pages, token issuance/apply и
+На момент contract audit SC-004 отсутствовала в коде: нет reset endpoints/pages, token issuance/apply и
 reset email template. Общие HMAC token codec, PasswordPolicy/hasher, encrypted
 outbox, relay/consumer, atomic session revoke и cookie factory уже реализованы.
 Схема поддерживает RESET_PASSWORD и нужные lifecycle fields; migration не нужна.
@@ -67,9 +67,28 @@ outbox, relay/consumer, atomic session revoke и cookie factory уже реал�
 | SC4-03 | Verified | Два public endpoints, field password policy, shared token quotas, matching email template/purpose; HTTP + delivery 33 tests / 280 assertions, backend quality PASS |
 | SC4-04 | Verified | Request/reset UI, shared validation, private capability, coordinated cookie/auth cleanup; frontend quality, 45 unit + 35 component tests PASS |
 | SC4-05 | Verified | 8 real process/DB reset races + 9 logout race regressions: 17 tests / 184 assertions PASS; observed pg_blocking_pids barrier, no timing sleeps; backend quality PASS |
-| SC4-06 | Planned | Browser recovery journey, replaced link, old credentials/sessions rejected; docs/full gate |
+| SC4-06 | Functional verified; release blocked | Реальные recovery journeys, SSR privacy, shared activation lock order, docs/full gate; 378 backend / 3912 assertions, 45 unit, 35 component, 19 browser E2E, smoke PASS; npm audit 11 high — blocker |
 
 Каждый проверенный этап получает отдельный commit и обновление этого файла.
 Окончательная матрица и фактические числа tests фиксируются в acceptance/.
 Известный audit blocker предыдущей фичи не скрывается и не означает функциональную
 невозможность SC-004; выпуск остаётся blocked до его устранения/отдельного решения.
+
+## Итог реализации
+
+Request/apply, purpose-specific email и оба UI-пути реализованы на существующей
+схеме без новой миграции. Login повторно проверяет изменившийся credential после
+User lock. Activation теперь также получает User lock до token lock: реальный
+трёхсоединительный regression воспроизвёл и устранил прежнюю инверсию блокировок.
+Activation-request credential обновляется из БД после ожидания.
+
+Nuxt автоматически записывал исходный query URL в SSR payload.path. Общий server
+plugin очищает его до pathname для reset и activation; private client capability
+продолжает читаться из исходного URL и удаляться при mount. E2E проверяет оба пути.
+После успешного 204 login показывает подтверждение сохранения пароля; другие
+вкладки получают только token-free session-ended. Изолированный E2E build включает
+worker, чтобы API и email consumer всегда использовали одну версию исходников.
+
+[Акт проверки](../acceptance/password-reset.md) отделяет функциональный результат
+от выпуска, merge и решения Product Owner. SC-004 владельцем пока не принята;
+функциональное принятие SC-003 не снимает dependency audit blocker.

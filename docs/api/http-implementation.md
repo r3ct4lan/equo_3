@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth endpoints |
 | Статус | Accepted |
-| Версия | 8 |
-| Дата актуальности | 2026-10-09 |
+| Версия | 9 |
+| Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
 
@@ -15,7 +15,8 @@
 логики. Реализованы production routes `/api/v1/auth/register`,
 `/api/v1/auth/activation-requests`, `/api/v1/auth/activate`,
 `/api/v1/auth/login`, `/api/v1/auth/refresh`, `/api/v1/auth/logout`,
-`/api/v1/auth/logout-all` и `/api/v1/me`; их controllers
+`/api/v1/auth/logout-all`, `/api/v1/auth/password-reset-requests`,
+`/api/v1/auth/password-reset` и `/api/v1/me`; их controllers
 используют общий error/response pipeline и вызывают application use case.
 JSON-body endpoints дополнительно используют DTO mapping. Также доступен
 `/api/health`.
@@ -384,3 +385,25 @@ php bin/phpunit \
 - [HTTP-контракты API v1](http-contracts.md);
 - [ADR-012 и ADR-015](../adr/architecture-decisions.md);
 - [OQ-015](../open-questions.md#oq-015).
+
+## Реализованные reset contracts (SC-004)
+
+POST `/api/v1/auth/password-reset-requests` принимает JSON `{email}` и возвращает
+одинаковый 202 `{status: "password_reset_email_scheduled"}` для любого корректного
+email в пределах quotas. POST `/api/v1/auth/password-reset` принимает
+`{token,newPassword}` и возвращает empty 204 с очисткой обеих auth cookies через
+AuthCookieFactory. Оба routes публичны и используют общий JSON/validation/request
+ID/error pipeline. Request quota — email 3/hour и trusted IP 20/hour; apply делит
+IP 10/15min и token hash 5/15min с activation. 429 включает Retry-After.
+
+Новая password policy возвращает 422 VALIDATION_ERROR с violation поля
+newPassword и кодом PASSWORD_POLICY_VIOLATION. Неверный/malformed/unknown purpose
+даёт 400 INVALID_TOKEN; invalidated/used/expired — соответствующий 410.
+Неправильный JSON, media type, DTO fields и неизвестные технические ошибки
+обрабатываются существующей safe error model. Failure не очищает cookies.
+
+Reset delivery использует существующий encrypted transactional outbox и relay;
+consumer допускает только соответствующие purpose/template пары и генерирует
+`/password-reset?token=...`. HTTP privacy tests проверяют отсутствие raw token,
+password/hash и внутренних диагностик; [акт SC-004](../acceptance/password-reset.md)
+фиксирует exact contracts и сквозную доставку.

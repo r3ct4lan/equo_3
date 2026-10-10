@@ -2,17 +2,17 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle и `/me` |
+| Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle, logout, password reset и `/me` |
 | Статус | Accepted |
-| Версия | 10 |
-| Дата актуальности | 2026-10-09 |
+| Версия | 11 |
+| Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
-| Источник | BR-USR-001—003/009; BR-SEC-003—004; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
+| Источник | BR-USR-001—003/007/009; BR-SEC-003—007; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
 
 ## 1. Граница реализации
 
 Текущая реализация содержит публичную регистрацию, применение
-`ACTIVATE_ACCOUNT`, login, refresh rotation, browser session lifecycle и
+`ACTIVATE_ACCOUNT`, password recovery, login, refresh rotation, logout и
 минимальную защищённую `/me`-страницу. Login создаёт `UserSession`, выдаёт JWT
 access token в response body и устанавливает refresh/CSRF cookies. Frontend
 хранит access token только в памяти вкладки, после hydration выполняет
@@ -41,6 +41,8 @@ cookie с same-origin/CSRF guard. Финансовые protected endpoints ещ�
 | Authenticated user | `GET /api/v1/me` | Собственный public profile | Valid `Authorization: Bearer <access-token>`; verified JWT `sub`; current DB user exists and `isActive = true` | `401 AUTHENTICATION_REQUIRED` |
 | Browser | `POST /api/v1/auth/logout` | Current refresh session | Без cookie: no-op; с cookie: request guards, stable locator lock и valid CSRF binding для known session; stale credential допускается | `403 FORBIDDEN` без cookie mutation; unusable после guard → `204` |
 | Authenticated user | `POST /api/v1/auth/logout-all` | Свои unfinished sessions | Strict Bearer, active User recheck под User lock, atomic bulk revoke; CSRF не нужен | `401 AUTHENTICATION_REQUIRED`, `WWW-Authenticate: Bearer`, cookies не меняются |
+| Любой клиент | `POST /api/v1/auth/password-reset-requests` | Запрос recovery | Public email validation и quotas; neutral 202 | `422 VALIDATION_ERROR`, `429 RATE_LIMIT_EXCEEDED` |
+| Предъявитель token | `POST /api/v1/auth/password-reset` | Password и sessions владельца | Purpose RESET_PASSWORD, current lifecycle; active/inactive допускаются | `400 INVALID_TOKEN`, соответствующий `410`, `422`, `429` |
 | Authenticated user | Future protected API | — | Ещё не реализовано | Будущие policy/voter этапы |
 
 ## 3. Идентификация и аутентификация
@@ -113,7 +115,7 @@ ADR-016 задаёт token как
 `tokenHash` как versioned HMAC-SHA-256 digest полного token. Key ring находится
 вне БД/репозитория, старый verification key хранится минимум 31 день. Реализация
 включает generation, digest lookup, purpose/lifecycle policy и атомарное
-применение в `RegisterUser`/`ActivateAccount`. Token и связанный User
+применение в `RegisterUser`/`ActivateAccount`. Связанный User, затем token
 блокируются в транзакции; `userId` всегда берётся из server-side token record.
 
 ## 5. Пароли
@@ -168,7 +170,7 @@ hash и всегда возвращает `false`, поэтому Application н
 
 ## 8. Сознательно отложено
 
-- reset/change password и остальные security commands;
+- change password и остальные security commands;
 - финансовые voters/policies и проверки Connect/Debt/Transfer;
 - расширение защищённых frontend-разделов за пределы минимальной `/me`-страницы.
 
@@ -207,3 +209,28 @@ recheck и atomic bulk revoke, terminal/stale credential branches, rollback,
 - [HTTP-контракты](../api/http-contracts.md);
 - [ADR-006, ADR-007, ADR-012 и ADR-014—ADR-018](../adr/architecture-decisions.md);
 - [Границы MVP](../mvp-scope.md).
+
+## Восстановление пароля (SC-004)
+
+Оба reset endpoints публичны. Authority apply — purpose-bound RESET_PASSWORD,
+не cookie/Bearer. Request нормализует email и ограничивает email/IP 3/20 в час;
+unknown/active/inactive получают одинаковый 202, unknown не создаёт token/outbox.
+Для существующего пользователя User lock сериализует replacement всех unfinished
+reset token (включая expired); новый HMAC token живёт 30 минут, raw capability
+хранится только в encrypted outbox до terminal delivery.
+
+Apply использует общие с активацией IP/hash quotas 10/5 на 15 минут, общую
+Unicode password policy и строгую lifecycle/purpose validation. Owner lookup
+выполняется без lock, затем User → token → sessions. Activation adapter использует
+тот же порядок, включая wrong-purpose token. Под lock обновляются ORM identity и
+lifecycle; login повторно сверяет изменившийся credential. Это исключает успешный
+login со старым паролем после reset и инверсию row locks с активацией.
+
+Password hash + token.usedAt + отзыв всех owned unfinished sessions атомарны;
+rollback сохраняет прежнее состояние. isActive не меняется, auto-login нет.
+Пустой 204 очищает обе cookies через общий AuthCookieFactory; ошибки cookies не
+меняют. Уже выданный stateless JWT действует до exp по ADR-018. Backend не
+раскрывает token/password/hash/SQL в public errors или logs. UI дополнительно
+очищает query/SSR payload/private secrets и local session после 204.
+[Матрица проверки](../acceptance/password-reset.md) включает реальные DB races,
+HTTP privacy и browser lifecycle; dependency audit остаётся release blocker.

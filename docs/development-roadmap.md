@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 3 |
-| Дата актуальности | 2026-10-09 |
+| Версия | 4 |
+| Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
 
@@ -163,7 +163,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 3 | 0 | 70 | Не начат |
 | Этап 4 | 0 | 28 | Не начат |
 | Этап 5 | 0 | 37 | Не начат |
-| Этап 6 | 0 | 53 | Не начат |
+| Этап 6 | 9 | 53 | SC-001 merged; SC-003/004 реализованы в ветках, release audit blocked; следующая SC-005 |
 | Этап 7 | 0 | 58 | Не начат |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
@@ -822,24 +822,26 @@ SC3-03—07 и browser scope SC3-08 реализованы и проверены
 остаётся незакрытым, поскольку release gate блокируют два upstream advisories
 без patched version. Уже выполненные задачи повторять не нужно.
 
-- [x] `DR-E6-010` — выполнить contract audit `MVP-SC-003`, ADR-006/018 и
+- [ ] `DR-E6-010` — выполнить contract audit `MVP-SC-003`, ADR-006/018 и
   HTTP 8.6—8.7.
-- [x] `DR-E6-011` — реализовать `POST /api/v1/auth/logout` с refresh cookie,
+- [ ] `DR-E6-011` — реализовать `POST /api/v1/auth/logout` с refresh cookie,
   CSRF и same-origin защитой.
-- [x] `DR-E6-012` — блокировать текущую session и идемпотентно устанавливать
+- [ ] `DR-E6-012` — блокировать текущую session и идемпотентно устанавливать
   `revokedAt`.
-- [x] `DR-E6-013` — очистить refresh/CSRF cookies при успешном и повторном
+- [ ] `DR-E6-013` — очистить refresh/CSRF cookies при успешном и повторном
   logout.
-- [x] `DR-E6-014` — реализовать protected
+- [ ] `DR-E6-014` — реализовать protected
   `POST /api/v1/auth/logout-all`.
-- [x] `DR-E6-015` — блокировать User и атомарно отзывать все незавершённые
+- [ ] `DR-E6-015` — блокировать User и атомарно отзывать все незавершённые
   sessions.
-- [x] `DR-E6-016` — очистить frontend in-memory access/current-user state
+- [ ] `DR-E6-016` — очистить frontend in-memory access/current-user state
   после logout.
-- [x] `DR-E6-017` — явно учитывать, что уже выданный access token может жить
+- [ ] `DR-E6-017` — явно учитывать, что уже выданный access token может жить
   до `exp`; не обещать мгновенный blacklist.
-- [x] `DR-E6-018` — добавить UI current logout и logout-all с понятными
+- [ ] `DR-E6-018` — добавить UI current logout и logout-all с понятными
   success/error states.
+
+SC-003 функционально принята владельцем 2026-10-09; реализована и проверена в ветке `codex/sc-003-logout-session-revocation`. Пункты DR-E6-010—018 возвращены в `[ ]` по правилу §2.1: ветка ещё не merged. Повторная реализация не требуется; доказательства — [акт SC-003](acceptance/logout-session-revocation.md).
 
 ### 10.5. Feature 6C — восстановление пароля
 
@@ -865,6 +867,8 @@ SC3-03—07 и browser scope SC3-08 реализованы и проверены
   terminal result.
 - [ ] `DR-E6-030` — добавить request/reset pages с unknown-safe request
   результатом и invalid/expired/used token states.
+
+DR-E6-019—030 реализованы и функционально проверены в `codex/sc-004-password-reset`; [декомпозиция](features/password-reset.md), [акт SC-004](acceptance/password-reset.md). Checkbox остаются `[ ]` до merge, release gate блокирует dependency audit. Применимая часть DR-E6-038—047 покрыта, общие пункты остаются открытыми до SC-005. Следующая незавершённая фича — SC-005; reset повторно не реализовывать.
 
 ### 10.6. Feature 6D — смена пароля
 
@@ -1172,8 +1176,8 @@ Definition of Ready.
 |---|---|---|---|
 | `MVP-SC-001` | Must | baseline + этап 6 | `[x]` технически проверен 2026-09-30; регрессия 2026-10-09 |
 | `MVP-SC-002` | Must | этап 1 | `[x]` |
-| `MVP-SC-003` | Must | этап 6 | `[ ]` реализован; functional PASS; SC3-08 release audit blocked |
-| `MVP-SC-004` | Must | этап 6 | `[ ]` |
+| `MVP-SC-003` | Must | этап 6 | `[ ]` функционально принят владельцем; не merged; SC3-08 release audit blocked |
+| `MVP-SC-004` | Must | этап 6 | `[ ]` реализован; functional PASS; не merged; release audit blocked |
 | `MVP-SC-005` | Must | этап 6 | `[ ]` |
 | `MVP-SC-006` | Should | `SH-006` | `[ ]` |
 | `MVP-SC-007` | Should | `SH-007` | `[ ]` |
@@ -1218,6 +1222,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 4 | 2026-10-10 | SC-004 реализована и функционально проверена; SC-003 принята владельцем; checkbox согласованы с требованием merge; SC-005 следующая |
 | 3 | 2026-10-09 | Сверены handoff, код, tests и Git; актуализированы SC-001 и SC-003; SC3-08 остаётся blocked по dependency audit |
 | 2 | 2026-08-10 | Этап 1 завершён: login, refresh, protected browser session и `/me`; `MVP-SC-002` закрыт |
 | 1 | 2026-08-08 | Создана подробная дорожная карта семи обязательных этапов, post-MVP backlog и traceability всех 29 сценариев |

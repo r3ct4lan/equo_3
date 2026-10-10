@@ -185,6 +185,27 @@ final class PasswordResetHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(415);
     }
 
+    public function testResetSecretsAndPersistenceDetailsNeverReachPublicResponsesOrApiLogs(): void
+    {
+        $this->user(true);
+        $logger = self::getContainer()->get('monolog.handler.api_test');
+        $logger->clear();
+        $this->post('/password-reset-requests', ['email' => 'recovery@example.test']);
+        $token = $this->capability();
+        $password = 'Private recovery password!';
+        $this->post('/password-reset', ['token' => $token, 'newPassword' => $password]);
+        self::assertResponseStatusCodeSame(204);
+        $storedHash = $this->db->fetchOne('SELECT password_hash FROM app_user');
+        self::assertIsString($storedHash);
+        $this->post('/password-reset', ['token' => $token, 'newPassword' => $password]);
+        $this->failure(410, 'TOKEN_USED');
+        $public = (string) $this->client->getResponse()->getContent();
+        foreach ([$token, $password, $storedHash, 'user_action_token', 'UPDATE app_user', 'trace'] as $secret) {
+            self::assertFalse(str_contains($public, $secret), 'The public response must not expose sensitive state.');
+        }
+        self::assertSame([], $logger->getRecords());
+    }
+
     /**
      * @param array<string, mixed>  $payload
      * @param array<string, string> $server

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Infrastructure\EmailDelivery\Messaging;
 
 use App\IdentityAccess\Application\Api\TokenDeliveryQuery;
-use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
 use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryOutboxRecord;
 use App\Infrastructure\EmailDelivery\Security\PayloadCipher;
 use DateTimeImmutable;
@@ -48,8 +47,8 @@ final readonly class SendUserActionEmailHandler
             $state = $this->tokenDelivery->state($outbox->userActionTokenId(), $now);
 
             $template = null === $state ? null : match (true) {
-                UserActionTokenPurpose::ActivateAccount === $state->purpose && 'activate-account' === $outbox->templateKey() => ['Activate your Equo account', '/activate', 'Activate account'],
-                UserActionTokenPurpose::ResetPassword === $state->purpose && 'reset-password' === $outbox->templateKey() => ['Reset your Equo password', '/password-reset', 'Choose a new password'],
+                'ACTIVATE_ACCOUNT' === $state->purpose->value && 'activate-account' === $outbox->templateKey() => ['Activate your Equo account', '/activate', 'Activate account'],
+                'RESET_PASSWORD' === $state->purpose->value && 'reset-password' === $outbox->templateKey() => ['Reset your Equo password', '/password-reset', 'Choose a new password'],
                 default => null,
             };
             if (null === $state || !$state->isDeliverableAt($now) || null === $template) {

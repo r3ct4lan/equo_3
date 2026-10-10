@@ -63,6 +63,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             ->andWhere('user.email = :email')
             ->setParameter('email', $normalizedEmail)
             ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true)
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)
             ->getOneOrNullResult();
 
@@ -186,21 +187,28 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
 
     public function activationTokenForUpdate(string $tokenHash): ?StoredActivationToken
     {
-        $record = $this->entityManager->createQueryBuilder()
-            ->select('token', 'user')
-            ->from(UserActionTokenRecord::class, 'token')
-            ->innerJoin('token.user', 'user')
-            ->andWhere('token.tokenHash = :tokenHash')
-            ->setParameter('tokenHash', $tokenHash)
-            ->getQuery()
-            ->setLockMode(LockMode::PESSIMISTIC_WRITE)
-            ->getOneOrNullResult();
+        $owner = $this->entityManager->getConnection()->fetchOne(
+            'SELECT user_id FROM user_action_token WHERE token_hash = ?',
+            [$tokenHash],
+        );
 
-        if (!$record instanceof UserActionTokenRecord) {
+        if (!is_string($owner) || null === $this->currentUserForUpdate($owner)) {
             return null;
         }
 
-        $this->entityManager->lock($record->user(), LockMode::PESSIMISTIC_WRITE);
+        $record = $this->entityManager->createQueryBuilder()
+            ->select('token')
+            ->from(UserActionTokenRecord::class, 'token')
+            ->andWhere('token.tokenHash = :tokenHash')
+            ->setParameter('tokenHash', $tokenHash)
+            ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true)
+            ->setLockMode(LockMode::PESSIMISTIC_WRITE)
+            ->getOneOrNullResult();
+
+        if (!$record instanceof UserActionTokenRecord || $record->user()->id() !== $owner) {
+            return null;
+        }
 
         return new StoredActivationToken(
             $record->id(),

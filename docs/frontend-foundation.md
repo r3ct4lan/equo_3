@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth-экраны |
 | Статус | Implemented |
-| Версия | 8 |
-| Дата актуальности | 2026-10-09 |
+| Версия | 9 |
+| Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v4; ADR-001/006/012/017/018; реализация HTTP-слоя; модель доступа; фактический frontend |
 
@@ -18,8 +18,8 @@ login, browser session lifecycle и минимальную защищённую 
 Auth frontend следует ADR-018: access token хранится только в client-side
 closure текущей вкладки, bootstrap выполняет `refresh -> /me`, а protected
 route middleware является UX-границей поверх обязательной backend authorization.
-Current logout и logout-all реализованы в SC-003; reset/change password остаются
-следующими фичами.
+Current logout и logout-all реализованы в SC-003, password reset — в SC-004; change password остаётся
+следующей фичей.
 
 ## 2. Фактическая структура
 
@@ -43,12 +43,12 @@ frontend/
 │   │   └── useCurrentUser.ts
 │   ├── layouts/default.vue
 │   ├── middleware/auth.ts
-│   ├── pages/{index,register,activate,login,me}.vue
-│   ├── plugins/{api,auth.client}.ts
+│   ├── pages/{index,register,activate,login,logout,me,forgot-password,password-reset}.vue
+│   ├── plugins/{api,auth.client,capability-payload.server}.ts
 │   ├── types/{api,session}.ts
 │   ├── types/nuxt.d.ts
-│   └── utils/{api-error,auth-flow,auth-session}.ts
-├── tests/unit/{api-error,auth-flow,auth-session}.test.mjs
+│   └── utils/{api-error,auth-flow,auth-session,password-reset}.ts
+├── tests/unit/{api-error,auth-flow,auth-session,password-reset}.test.mjs
 ├── Dockerfile
 ├── nuxt.config.ts
 └── package.json
@@ -300,7 +300,7 @@ Nuxt Router и делал его Volar plugin недоступным для `vue
 
 ## 11. Сознательно отложено
 
-- reset/change password и изменение профиля;
+- change password и изменение профиля;
 - Pinia, form/validation library, UI framework и OpenAPI generator;
 - окончательный branding, уведомления, аналитика и страницы будущих модулей.
 
@@ -312,3 +312,27 @@ Nuxt Router и делал его Volar plugin недоступным для `vue
 - [ADR-001, ADR-006, ADR-012, ADR-017 и ADR-018](adr/architecture-decisions.md);
 - [границы MVP](mvp-scope.md);
 - [решённый OQ-018](open-questions.md#oq-018).
+
+## Восстановление пароля (SC-004)
+
+`/forgot-password` принимает email, использует общий API client и показывает
+одинаковый результат для unknown/active/inactive. `/password-reset` читает
+capability только в client mount, удаляет query через history и хранит её в
+private closure. Обе страницы используют общую email/password validation;
+policy не обрезает и не нормализует пароль. Pending предотвращает двойную отправку,
+field/summary errors доступны через стандартные компоненты форм.
+
+`capability-payload.server.ts` удаляет query из автоматически создаваемого Nuxt
+payload.path для reset и activation. Token отсутствует в SSR HTML/state/storage;
+обе capability pages задают no-referrer. Пароль очищается после любого результата
+и при unmount, capability — при terminal result/unmount. Technical failure/429
+позволяет явный retry с повторным вводом пароля; reload очищенного URL требует
+новую ссылку. Disposal guard исключает поздний UI update после ухода со страницы.
+
+`$auth.resetPassword` выполняет public request без Bearer/CSRF, координирует
+cookie mutation с refresh через существующие Web Locks, когда они доступны, и
+принимает успех только с exact 204. После него очищает in-memory auth, публикует
+token-free session-ended и направляет к `/login?signedOut=1&passwordReset=1` с
+подтверждением сохранения пароля. Другие вкладки завершат local session обычным
+signed-out переходом. Inactive аккаунт отдельно проходит активацию. Доказательства
+и регрессии находятся в [акте SC-004](acceptance/password-reset.md).

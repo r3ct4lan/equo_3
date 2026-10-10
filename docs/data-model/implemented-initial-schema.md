@@ -4,14 +4,14 @@
 |---|---|
 | Назначение | Зафиксировать фактически реализованную часть модели данных текущего MVP |
 | Статус | Accepted |
-| Версия | 9 |
-| Дата актуальности | 2026-10-09 |
+| Версия | 10 |
+| Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | Модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016, ADR-019; фактические migrations и mapping |
 
 ## 1. Граница реализации
 
-Для реализованных регистрации, активации аккаунта и защищённой browser-сессии
+Для реализованных регистрации, активации, password recovery и защищённой browser-сессии
 используются пять записей:
 
 | ER-сущность | Таблица | Doctrine-класс | Владелец |
@@ -142,7 +142,7 @@ PostgreSQL не дублирует контекстные правила. В App
 
 - нормализация email перед сохранением и проверка уникальности;
 - PasswordHasher `auto` и ADR-016 для password/action token;
-- TTL token и idempotency record ровно 24 часа;
+- TTL activation token и idempotency record ровно 24 часа; reset token — 30 минут;
 - application policy purpose/lifecycle action token;
 - lifecycle `UserSession`: активна только пока `revokedAt IS NULL` и
   `expiresAt > now`; ротация меняет только hash активной session;
@@ -162,7 +162,7 @@ ADR-014. Повторный запрос активации реализован
 Не создавались `Connect`, `ConnectInvitation`, `Debt`, `DebtParticipant`,
 `Transfer`: они не нужны для регистрации, активации и session persistence и
 относятся к следующим вертикальным сценариям. Logout и logout-all реализованы
-на существующей session-схеме; password reset/change и финансовые protected
+на существующей session-схеме; password reset реализован на ней в SC-004. Change password и финансовые protected
 endpoints пока не реализованы. Не
 создавались mapper-слой для полной ER-модели, fixtures и демонстрационные
 данные. Минимальные repositories, domain objects и application use cases
@@ -203,3 +203,19 @@ up-to-date status и синхронность mapping/schema, запускает
 - [Бизнес-правила](../business-rules/business-rules.md);
 - [Границы MVP](../mvp-scope.md);
 - [ADR-001, ADR-006, ADR-007, ADR-009 и ADR-011—ADR-016](../adr/architecture-decisions.md).
+
+## Password reset на существующей схеме (SC-004)
+
+RESET_PASSWORD использует существующий UserActionToken: purpose, HMAC token_hash,
+null payload, createdAt/expiresAt с TTL 30 минут и terminal usedAt/invalidatedAt.
+Под User lock все unfinished tokens этого purpose, включая expired, инвалидируются;
+другие purposes сохраняются. Token и reset-password outbox создаются атомарно,
+raw capability остаётся только encrypted_payload, очередь содержит deliveryId.
+
+Apply обновляет app_user.password_hash, token.used_at и revoked_at только owned
+unfinished sessions одной транзакцией; is_active сохраняется. User → token →
+sessions lock order согласован с activation/login/refresh. Persistence tests
+проверяют purpose isolation, точный пароль без trim, active/inactive, TTL,
+replacement, encrypted payload и rollback обеих команд. Новых таблиц, индексов
+или миграций не добавлено; применённые миграции и dev volumes не изменялись.
+[Итоговая проверка](../acceptance/password-reset.md).

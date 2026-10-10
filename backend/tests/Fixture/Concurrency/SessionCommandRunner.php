@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Fixture\Concurrency;
 
+use App\IdentityAccess\Application\Activate\ActivateAccount;
+use App\IdentityAccess\Application\Activate\ActivateCommand;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Login\LoginCommand;
 use App\IdentityAccess\Application\Login\LoginUser;
@@ -53,6 +55,9 @@ final class SessionCommandRunner
 
         try {
             switch ($input['operation']) {
+                case 'activate':
+                    $container->get(ActivateAccount::class)->handle(new ActivateCommand($input['token'] ?? '', '192.0.2.83'));
+                    break;
                 case 'reset':
                     $container->get(ResetPassword::class)->handle(new ResetPasswordCommand($input['token'] ?? '', $input['newPassword'] ?? 'New password!', '192.0.2.81'));
                     break;

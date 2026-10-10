@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 10 |
-| Дата актуальности | 2026-08-08 |
+| Версия | 11 |
+| Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | E1-07—E1-12, backend login stage, ADR-001, ADR-006, ADR-007, ADR-012—018 и фактическая реализация auth среза |
 
@@ -30,7 +30,7 @@ App\<Module>\Adapter
 В `App\IdentityAccess\` реализованы регистрация и активация, их Domain и
 Application use cases, persistence, прикладная activation access policy,
 password hashing, session security primitives, server-side session persistence
-и backend login/refresh/`/me` endpoints.
+и backend login/refresh/`/me`, logout/logout-all, password reset endpoints.
 Модули `Connects`, `Debts`, `Transfers` и `Invitations` появятся только вместе с
 первым реальным компонентом соответствующего сценария.
 
@@ -332,3 +332,22 @@ payload и допустимый повтор при неопределённом
 Текущая граница реализации соответствует [границам MVP](mvp-scope.md),
 [бизнес-правилам](business-rules/business-rules.md) и
 [HTTP-контрактам](api/http-contracts.md).
+
+## Реализованное восстановление пароля (SC-004)
+
+`IdentityAccess\Application\PasswordReset` владеет RequestPasswordReset и
+ResetPassword, framework-independent commands и orchestration. Общая Domain
+PasswordPolicy, HMAC codec, hasher, transaction и revoke core переиспользованы.
+Новые узкие ports PasswordResetRepositoryPort, PasswordResetRateLimitPort и
+PasswordResetOutboxPort описывают операции фичи без расширения HTTP-зависимостей.
+DoctrinePasswordResetRepository реализует owner/token locks, replacement и hash
+update; UserRecord предоставляет явный setter hash. DoctrineIdentityRepository
+обновляет cached credential после lock и соблюдает User → token для activation.
+
+DTO/controllers находятся в `IdentityAccess\Adapter\Http`, Symfony limiter — в
+Adapter. Существующий DoctrineEmailOutbox реализует reset port; relay/consumer
+по-прежнему передают только deliveryId. Consumer сравнивает purpose/template из
+межмодульного `Application\Api\TokenDeliveryState`, не импортирует Domain другого
+модуля, проверяет current deliverability и очищает ciphertext при terminal state.
+Migration не нужна; изменение не вводит новые модули или универсальный mapper.
+[Декомпозиция](features/password-reset.md), [проверка](acceptance/password-reset.md).

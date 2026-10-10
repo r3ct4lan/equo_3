@@ -70,7 +70,7 @@ test('reset is coordinated, credential free locally, single flight, and ends aut
   complete()
   await pending
   assert.equal(count, 1)
-  assert.deepEqual(events, [AUTH_REFRESH_LOCK, 'anonymous', { type: SESSION_ENDED_EVENT }, '/login?signedOut=1'])
+  assert.deepEqual(events, [AUTH_REFRESH_LOCK, 'anonymous', { type: SESSION_ENDED_EVENT }, '/login?signedOut=1&passwordReset=1'])
   assert.deepEqual([...values], [['equo:signed-out', 'true']])
   await assert.rejects(auth.protectedRequest('/v1/me'), error => error.code === 'AUTHENTICATION_REQUIRED')
 })
@@ -90,5 +90,5 @@ test('reset failure or unexpected success cannot clear auth or publish a success
 test('public recovery is usable without web locks or a prior session', async () => {
   const { auth, events } = fixture(async (_path, options) => options.onResponse({ response: { status: 204 } }), false)
   await auth.resetPassword('synthetic', 'New password!')
-  assert.deepEqual(events, ['anonymous', { type: SESSION_ENDED_EVENT }, '/login?signedOut=1'])
+  assert.deepEqual(events, ['anonymous', { type: SESSION_ENDED_EVENT }, '/login?signedOut=1&passwordReset=1'])
 })
