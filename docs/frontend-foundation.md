@@ -336,3 +336,13 @@ token-free session-ended и направляет к `/login?signedOut=1&password
 подтверждением сохранения пароля. Другие вкладки завершат local session обычным
 signed-out переходом. Inactive аккаунт отдельно проходит активацию. Доказательства
 и регрессии находятся в [акте SC-004](acceptance/password-reset.md).
+## SC-005: account security
+
+Профиль ведёт на защищённую /account/security. PasswordChangeForm использует
+общий useApiForm и Unicode password policy; current/new password очищаются после
+server result и unmount. AuthSession.changePassword использует общий refresh
+Web Lock и single-flight; INVALID_CREDENTIALS остаётся ошибкой формы без refresh.
+Bearer denial допускает один refresh/retry внутри уже взятого lock. Только
+exact 204 очищает local auth и публикует token-free session-ended; login получает
+passwordChanged=1 и предлагает войти новым паролем. Пароли не записываются
+в useState, URL, storage или BroadcastChannel. [Дизайн SC-005](features/password-change.md).
