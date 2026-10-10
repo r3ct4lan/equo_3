@@ -10,7 +10,7 @@ BR-ACL-001/005/007, BR-SEC-005/007; ADR-004/008/014/015; HTTP 6, 11—12, 17;
 | ID | Объём | Проверка | Статус |
 |---|---|---|---|
 | SC8-01 | Contract audit, декомпозиция | Документы и Git | PASS |
-| SC8-02 | Чистая модель, новая миграция, mapping | Unit, миграции, schema parity | Pending |
+| SC8-02 | Чистая модель, новая миграция, mapping | Unit, миграции, schema parity | PASS |
 | SC8-03 | Get-or-create, HMAC/key compatibility, атомарное accept, read models | Integration, реальные конкурентные процессы | Pending |
 | SC8-04 | Пять endpoints, Bearer, privacy, пагинация, rate limits | HTTP, architecture gate | Pending |
 | SC8-05 | Создание/copy/share, public preview, login/accept, список/карточка | Component, lint/typecheck | Pending |

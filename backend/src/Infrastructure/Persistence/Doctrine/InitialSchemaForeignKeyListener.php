@@ -15,6 +15,20 @@ final class InitialSchemaForeignKeyListener
     {
         $schema = $event->getSchema();
 
+        foreach ([
+            ['connect', 'first_user_id', 'fk_connect_first_user'],
+            ['connect', 'second_user_id', 'fk_connect_second_user'],
+            ['connect_invitation', 'created_by_id', 'fk_connect_invitation_author'],
+            ['connect_invitation', 'accepted_by_id', 'fk_connect_invitation_acceptor'],
+        ] as [$tableName, $column, $name]) {
+            if ($schema->hasTable($tableName) && $schema->hasTable('app_user')) {
+                $table = $schema->getTable($tableName);
+                if (!$table->hasForeignKey($name)) {
+                    $table->addForeignKeyConstraint('app_user', [$column], ['id'], ['onUpdate' => 'NO ACTION', 'onDelete' => 'RESTRICT'], $name);
+                }
+            }
+        }
+
         if ($schema->hasTable('idempotency_record') && $schema->hasTable('app_user')) {
             $table = $schema->getTable('idempotency_record');
 
