@@ -46,8 +46,8 @@ SC-005 отсутствует; схема уже поддерживает сме
 | ID | Статус | Результат / проверки |
 |---|---|---|
 | SC5-01 | Verified | Contract audit, фактическая base, декомпозиция и lock/error design |
-| SC5-02 | Pending | Application/persistence, unit/integration/rollback, backend quality |
-| SC5-03 | Pending | Protected HTTP, validation/cookies/safe errors, HTTP/security regressions |
+| SC5-02 | Verified | Application/persistence; backend quality, migrations/schema, 387 tests / 3979 assertions PASS; 9 новых unit/integration, rollback после flush и fresh hydration |
+| SC5-03 | Verified | Protected HTTP/Bearer, JSON validation, cookies, errors/log privacy; backend quality PASS; PasswordChange suite 25 tests / 249 assertions, без notices |
 | SC5-04 | Pending | Account UI и coordinated lifecycle, unit/component/quality |
 | SC5-05 | Pending | Real process/DB races: change/change, login, refresh, reset, revoke |
 | SC5-06 | Pending | Browser two sessions, полный gate, документация и acceptance |
