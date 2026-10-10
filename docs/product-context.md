@@ -60,7 +60,7 @@ scope SC3-08 проверены: 322 backend, 40 unit, 27 component и 16 E2E PA
 Ветка: `codex/sc-003-logout-session-revocation`.
 Полный release gate блокируют два upstream dependency advisories без
 исправленных релизов, поэтому SC3-08 ещё не закрыт. Для выпуска требуется устранить
-этот audit blocker либо получить явное решение владельца о временном исключении,
+этот audit blocker либо получить явное решение владельца о временном исключении.
 Повторно реализовывать logout не требуется. [Акт проверки](acceptance/logout-session-revocation.md)
 содержит доказательства и ограничения; отчёты чата не являются PASS.
 
