@@ -187,3 +187,7 @@ services:
         arguments:
             $invitationIpLimiter: '@limiter.invitation_ip'
             $invitationIdLimiter: '@limiter.invitation_id'
+
+    App\Invitations\Adapter\Http\InvitationController:
+        arguments:
+            $applicationOrigin: '%env(EQUO_APPLICATION_ORIGIN)%'

@@ -12,7 +12,7 @@ BR-ACL-001/005/007, BR-SEC-005/007; ADR-004/008/014/015; HTTP 6, 11—12, 17;
 | SC8-01 | Contract audit, декомпозиция | Документы и Git | PASS |
 | SC8-02 | Чистая модель, новая миграция, mapping | Unit, миграции, schema parity | PASS |
 | SC8-03 | Get-or-create, HMAC/key compatibility, атомарное accept, read models | Integration, реальные конкурентные процессы | PASS |
-| SC8-04 | Пять endpoints, Bearer, privacy, пагинация, rate limits | HTTP, architecture gate | Pending |
+| SC8-04 | Пять endpoints, Bearer, privacy, пагинация, rate limits | HTTP, architecture gate | PASS |
 | SC8-05 | Создание/copy/share, public preview, login/accept, список/карточка | Component, lint/typecheck | Pending |
 | SC8-06 | Два пользователя и регрессии, документация | `make check-full`, browser E2E | Pending |
 
@@ -52,3 +52,8 @@ BR-ACL-001/005/007, BR-SEC-005/007; ADR-004/008/014/015; HTTP 6, 11—12, 17;
 SC8-02: 18 focused tests / 520 assertions PASS, новая миграция с нуля и schema parity PASS.
 SC8-03: 24 focused tests / 104 assertions PASS, четыре real-process PostgreSQL
 races (get-or-create, same/other acceptor, reciprocal invitations); backend quality PASS.
+
+SC8-04: 40 focused tests / 284 assertions PASS (application, crypto, HTTP,
+redaction). Nginx configuration syntax PASS. Capability upstream errors для
+путей приглашений подавлены; безопасная диагностика сохраняется в application
+logs через request ID. Остальные маршруты сохраняют штатный error log.
