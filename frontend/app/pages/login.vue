@@ -78,7 +78,7 @@ onMounted(async () => {
         v-if="route.query.signedOut === '1'"
         role="status"
       >
-        {{ route.query.passwordReset === '1' ? 'Your password has been saved. Sign in with your new password.' : 'You are signed out.' }}
+        {{ (route.query.passwordReset === '1' || route.query.passwordChanged === '1') ? 'Your password has been saved. Sign in with your new password.' : 'You are signed out.' }}
       </p>
     </div>
 

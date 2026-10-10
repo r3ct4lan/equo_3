@@ -7,6 +7,7 @@ export const REFRESH_ENDPOINT = '/v1/auth/refresh'
 export const LOGOUT_ENDPOINT = '/v1/auth/logout'
 export const LOGOUT_ALL_ENDPOINT = '/v1/auth/logout-all'
 export const PASSWORD_RESET_ENDPOINT = '/v1/auth/password-reset'
+export const PASSWORD_CHANGE_ENDPOINT = '/v1/account/password-change'
 export const ME_ENDPOINT = '/v1/me'
 export const AUTH_REFRESH_LOCK = 'equo:auth-refresh'
 export const SESSION_ENDED_EVENT = 'session-ended'
@@ -168,6 +169,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   let bootstrapPromise: Promise<void> | null = null
   let logoutPromise: Promise<void> | null = null
   let resetPromise: Promise<void> | null = null
+  let changePromise: Promise<void> | null = null
   let generation = 0
   let signedOut = dependencies.signedOut === true
   try {
@@ -188,7 +190,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   })
 
   async function login(values: LoginValues, options: LoginOptions = {}): Promise<void> {
-    if (logoutPromise || resetPromise) {
+    if (logoutPromise || resetPromise || changePromise) {
       throw authenticationRequired()
     }
     const started = ++generation
@@ -437,6 +439,63 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     return resetPromise
   }
 
+  function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    if (changePromise) return changePromise
+    const apply = async (): Promise<void> => {
+      if (signedOut || logoutPromise || resetPromise) throw authenticationRequired()
+      const started = generation
+      if (!accessToken) await bootstrap()
+      const locks = dependencies.navigator?.locks
+      if (!locks) {
+        throw new ApiClientError({ kind: 'unknown', code: 'WEB_LOCKS_UNAVAILABLE', message: 'Password change cannot be coordinated in this browser.' })
+      }
+      await locks.request(AUTH_REFRESH_LOCK, async () => {
+        if (started !== generation || signedOut || !accessToken) throw authenticationRequired()
+        const send = async (): Promise<void> => {
+          await dependencies.api<undefined>(PASSWORD_CHANGE_ENDPOINT, {
+            method: 'POST',
+            accessToken,
+            body: { currentPassword, newPassword },
+            onResponse: ({ response }) => {
+              if (response.status >= 200 && response.status < 300 && response.status !== 204) {
+                throw new ApiClientError({ kind: 'unknown', code: 'PASSWORD_CHANGE_UNCONFIRMED', message: 'Password change was not confirmed.' })
+              }
+            }
+          })
+        }
+        try {
+          await send()
+        }
+        catch (error: unknown) {
+          // A credential denial is a form error, with no refresh or command retry.
+          if (!(error instanceof ApiClientError) || error.status !== 401 || error.code !== 'AUTHENTICATION_REQUIRED') throw error
+          if (started !== generation || signedOut) throw authenticationRequired()
+          try {
+            // Already holding the common lock; do not enter coordinatedRefresh again.
+            const bearer = await logoutRefresh()
+            if (started !== generation || signedOut) throw authenticationRequired()
+            accessToken = bearer
+            await send()
+          }
+          catch (retryError: unknown) {
+            if (retryError instanceof ApiClientError && retryError.status === 401 && retryError.code !== 'INVALID_CREDENTIALS') {
+              endLocalSession()
+              await dependencies.navigateTo?.('/login?signedOut=1')
+            }
+            throw retryError
+          }
+        }
+        endLocalSession()
+        channel?.postMessage({ type: SESSION_ENDED_EVENT })
+        await dependencies.navigateTo?.('/login?signedOut=1&passwordChanged=1')
+      })
+    }
+    changePromise = apply().finally(() => {
+      changePromise = null
+    })
+    return changePromise
+  }
+
   function logoutAll(): Promise<void> {
     return logoutAction(true)
   }
@@ -559,7 +618,8 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     protectedRequest,
     logout,
     logoutAll,
-    resetPassword
+    resetPassword,
+    changePassword
   }
 }
 

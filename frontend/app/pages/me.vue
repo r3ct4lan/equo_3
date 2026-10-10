@@ -116,6 +116,11 @@ onMounted(() => {
         </div>
       </dl>
     </section>
+    <NuxtLink
+      v-if="user"
+      to="/account/security"
+      class="button button--secondary"
+    >Change password</NuxtLink>
     <LogoutActions />
   </section>
 </template>
