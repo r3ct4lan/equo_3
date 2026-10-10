@@ -50,3 +50,14 @@ framework:
             limit: '%env(int:EQUO_LOGIN_EMAIL_IP_LIMIT)%'
             interval: '15 minutes'
             cache_pool: cache.rate_limiter
+
+        invitation_ip:
+            policy: sliding_window
+            limit: 10
+            interval: '15 minutes'
+            cache_pool: cache.rate_limiter
+        invitation_id:
+            policy: sliding_window
+            limit: 5
+            interval: '15 minutes'
+            cache_pool: cache.rate_limiter

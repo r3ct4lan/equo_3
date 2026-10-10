@@ -20,5 +20,8 @@ enum ApplicationFailureCode: string
     case AccountInactive = 'ACCOUNT_INACTIVE';
     case AuthenticationRequired = 'AUTHENTICATION_REQUIRED';
     case InvalidRefreshToken = 'INVALID_REFRESH_TOKEN';
+    case ResourceNotFound = 'RESOURCE_NOT_FOUND';
+    case InactiveUser = 'INACTIVE_USER';
+    case ValidationError = 'VALIDATION_ERROR';
     case Forbidden = 'FORBIDDEN';
 }

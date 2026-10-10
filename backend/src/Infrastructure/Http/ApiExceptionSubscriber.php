@@ -100,6 +100,9 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
                 ApplicationFailureCode::AccountInactive => $this->definition(Response::HTTP_FORBIDDEN, 'ACCOUNT_INACTIVE', 'Account is inactive.'),
                 ApplicationFailureCode::AuthenticationRequired => $this->definition(Response::HTTP_UNAUTHORIZED, 'AUTHENTICATION_REQUIRED', 'Authentication is required.'),
                 ApplicationFailureCode::InvalidRefreshToken => $this->definition(Response::HTTP_UNAUTHORIZED, 'INVALID_REFRESH_TOKEN', 'Refresh token is invalid.'),
+                ApplicationFailureCode::ResourceNotFound => $this->definition(Response::HTTP_NOT_FOUND, 'RESOURCE_NOT_FOUND', 'Resource was not found.'),
+                ApplicationFailureCode::InactiveUser => $this->definition(Response::HTTP_CONFLICT, 'INACTIVE_USER', 'Both users must be active.'),
+                ApplicationFailureCode::ValidationError => $this->definition(Response::HTTP_UNPROCESSABLE_ENTITY, 'VALIDATION_ERROR', 'Request validation failed.'),
                 ApplicationFailureCode::Forbidden => $this->definition(Response::HTTP_FORBIDDEN, 'FORBIDDEN', 'Operation is forbidden.'),
             };
         }
