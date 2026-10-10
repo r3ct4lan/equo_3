@@ -53,6 +53,9 @@ services:
     App\IdentityAccess\Application\Port\ActivationRequestRepositoryPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository
 
+    App\IdentityAccess\Application\Port\PasswordChangeRepositoryPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrinePasswordChangeRepository
+
     App\IdentityAccess\Application\Port\PasswordResetRepositoryPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrinePasswordResetRepository
 
