@@ -13,7 +13,7 @@
 
 Источники: [MVP-SC-005](../mvp-scope.md#mvp-sc-005), BR-USR-007/009,
 HTTP 9.0/9.3/16—18, transaction boundaries модели, ADR-006/013/014/015,
-принятые OQ-014/018. Код reset/session lifecycle подтверждён на base 4cae6c8.
+принятые OQ-005/009/010/014/018. Код reset/session lifecycle подтверждён на base 4cae6c8.
 SC-005 отсутствует; схема уже поддерживает смену hash и bulk revoke, migration
 не нужна. Нормативных противоречий нет.
 
@@ -59,3 +59,8 @@ SC-005 отсутствует; схема уже поддерживает сме
 SC5-03: endpoint включён и в firewall access_control, и в supports общего Bearer
 authenticator. HTTP suite проверяет ошибки без изменения cookies, чужой subject
 field отвергается serializer, API logger не получает credentials или hashes.
+
+SC5-05: contender запускается отдельным PHP-процессом и действительно ожидает
+DB lock (наблюдаемый pg_blocking_pids), затем проверяется serial result. Покрыты
+оба порядка change с login, refresh, reset, logout-all и current logout; два
+change со старым currentPassword дают один успех и INVALID_CREDENTIALS второго.

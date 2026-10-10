@@ -12,6 +12,8 @@ use App\IdentityAccess\Application\Login\LoginUser;
 use App\IdentityAccess\Application\Logout\LogoutAllSessions;
 use App\IdentityAccess\Application\Logout\LogoutCurrentSession;
 use App\IdentityAccess\Application\Logout\LogoutCurrentSessionCommand;
+use App\IdentityAccess\Application\PasswordChange\ChangePassword;
+use App\IdentityAccess\Application\PasswordChange\ChangePasswordCommand;
 use App\IdentityAccess\Application\PasswordReset\PasswordResetRequestCommand;
 use App\IdentityAccess\Application\PasswordReset\RequestPasswordReset;
 use App\IdentityAccess\Application\PasswordReset\ResetPassword;
@@ -57,6 +59,9 @@ final class SessionCommandRunner
             switch ($input['operation']) {
                 case 'activate':
                     $container->get(ActivateAccount::class)->handle(new ActivateCommand($input['token'] ?? '', '192.0.2.83'));
+                    break;
+                case 'change':
+                    $container->get(ChangePassword::class)->handle(new ChangePasswordCommand($input['user'], 'Correct password!', $input['newPassword'] ?? 'New password!'));
                     break;
                 case 'reset':
                     $container->get(ResetPassword::class)->handle(new ResetPasswordCommand($input['token'] ?? '', $input['newPassword'] ?? 'New password!', '192.0.2.81'));
