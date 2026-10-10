@@ -20,6 +20,18 @@ doctrine:
                 dir: '%kernel.project_dir%/src/IdentityAccess/Adapter/Persistence/Doctrine/Record'
                 prefix: 'App\IdentityAccess\Adapter\Persistence\Doctrine\Record'
                 alias: IdentityAccess
+            Connects:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Connects/Adapter/Persistence/Doctrine/Record'
+                prefix: 'App\Connects\Adapter\Persistence\Doctrine\Record'
+                alias: Connects
+            Invitations:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Invitations/Adapter/Persistence/Doctrine/Record'
+                prefix: 'App\Invitations\Adapter\Persistence\Doctrine\Record'
+                alias: Invitations
             InfrastructureIdempotency:
                 type: attribute
                 is_bundle: false
