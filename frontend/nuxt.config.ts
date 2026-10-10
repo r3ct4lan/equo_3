@@ -7,6 +7,9 @@ export default defineNuxtConfig({
       apiBase: '/api'
     }
   },
+  routeRules: {
+    '/connect-invitations/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } }
+  },
   compatibilityDate: '2026-07-26',
   vite: {
     server: {

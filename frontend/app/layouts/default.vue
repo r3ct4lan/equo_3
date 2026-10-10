@@ -23,6 +23,10 @@
           <template v-if="session.status === 'authenticated'">
             <NuxtLink
               class="nav-link"
+              to="/connects"
+            >Connections</NuxtLink>
+            <NuxtLink
+              class="nav-link"
               to="/me"
             >My profile</NuxtLink>
           </template>
