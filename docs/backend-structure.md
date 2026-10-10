@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 11 |
+| Версия | 12 |
 | Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | E1-07—E1-12, backend login stage, ADR-001, ADR-006, ADR-007, ADR-012—018 и фактическая реализация auth среза |
@@ -351,3 +351,12 @@ Adapter. Существующий DoctrineEmailOutbox реализует reset p
 модуля, проверяет current deliverability и очищает ciphertext при terminal state.
 Migration не нужна; изменение не вводит новые модули или универсальный mapper.
 [Декомпозиция](features/password-reset.md), [проверка](acceptance/password-reset.md).
+## Реализованная смена пароля (SC-005)
+
+IdentityAccess\Application\PasswordChange владеет ChangePassword и command.
+Узкий PasswordChangeRepositoryPort предоставляет fresh credential под User lock
+и hash update, DoctrinePasswordChangeRepository реализует его с HINT_REFRESH.
+Используются общие PasswordPolicy/hasher, TransactionPort, ClockPort и session
+revoke core. HTTP DTO/controller и Bearer support остаются в Adapter; Domain
+не импортирует framework, Application не зависит от HTTP. Схема не менялась.
+[Этапы](features/password-change.md), [проверка](acceptance/password-change.md).

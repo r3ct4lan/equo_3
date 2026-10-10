@@ -2,9 +2,9 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle, logout, password reset и `/me` |
+| Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle, logout, password reset/change и `/me` |
 | Статус | Accepted |
-| Версия | 11 |
+| Версия | 12 |
 | Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | BR-USR-001—003/007/009; BR-SEC-003—007; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
@@ -20,7 +20,7 @@ access token в response body и устанавливает refresh/CSRF cookies
 refresh/retry для подходящего `401` защищённого запроса. Refresh endpoint
 ротирует refresh token и выдаёт новый access token без продления срока сессии.
 Stateless Bearer firewall защищает `GET /api/v1/me` и
-`POST /api/v1/auth/logout-all`. Current logout использует optional refresh
+`POST /api/v1/auth/logout-all` и `POST /api/v1/account/password-change`. Current logout использует optional refresh
 cookie с same-origin/CSRF guard. Финансовые protected endpoints ещё не реализованы.
 Текущий этап не добавляет временный bearer header, hardcoded пользователя,
 фиктивную роль или RBAC-модель.
@@ -43,6 +43,7 @@ cookie с same-origin/CSRF guard. Финансовые protected endpoints ещ�
 | Authenticated user | `POST /api/v1/auth/logout-all` | Свои unfinished sessions | Strict Bearer, active User recheck под User lock, atomic bulk revoke; CSRF не нужен | `401 AUTHENTICATION_REQUIRED`, `WWW-Authenticate: Bearer`, cookies не меняются |
 | Любой клиент | `POST /api/v1/auth/password-reset-requests` | Запрос recovery | Public email validation и quotas; neutral 202 | `422 VALIDATION_ERROR`, `429 RATE_LIMIT_EXCEEDED` |
 | Предъявитель token | `POST /api/v1/auth/password-reset` | Password и sessions владельца | Purpose RESET_PASSWORD, current lifecycle; active/inactive допускаются | `400 INVALID_TOKEN`, соответствующий `410`, `422`, `429` |
+| Authenticated user | `POST /api/v1/account/password-change` | Собственные password и sessions | Strict Bearer, fresh active User/currentPassword под User lock; общая новая policy | `401 AUTHENTICATION_REQUIRED` с Bearer challenge, `401 INVALID_CREDENTIALS`, `422 VALIDATION_ERROR`; cookies только на успехе |
 | Authenticated user | Future protected API | — | Ещё не реализовано | Будущие policy/voter этапы |
 
 ## 3. Идентификация и аутентификация
@@ -234,3 +235,11 @@ rollback сохраняет прежнее состояние. isActive не м�
 очищает query/SSR payload/private secrets и local session после 204.
 [Матрица проверки](../acceptance/password-reset.md) включает реальные DB races,
 HTTP privacy и browser lifecycle; dependency audit остаётся release blocker.
+## Реализованная смена пароля SC-005
+
+ChangePassword выполняет User → sessions: проверка fresh credentials, hash update
+и bulk revoke атомарны. Для cookie authority/CSRF endpoint не используется; новый
+rate profile не добавляется. Новый пароль проверяется общей Domain policy и HTTP
+DTO. Успешный empty 204 очищает обе cookies через общую factory; JWT до exp,
+frontend очищает auth и требует повторный login. Неверный currentPassword не
+вызывает refresh/retry или local logout. [Акт](../acceptance/password-change.md).

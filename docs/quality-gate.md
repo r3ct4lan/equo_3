@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 11 |
+| Версия | 12 |
 | Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
@@ -288,3 +288,13 @@ reset link и независимой activation, unknown/malformed capability с
 выданного stateless JWT до exp. Exact quotas проверяет backend HTTP suite.
 Текущие числа и результаты полного gate — [акт SC-004](acceptance/password-reset.md).
 Audit threshold и политика исключений не менялись.
+## Дополнение SC-005
+
+Browser suite включает два password change journeys: новая Unicode password,
+отзыв двух independent sessions, завершение sibling tab без refresh после reload,
+сохранение stateless JWT до exp, old login failure и new login success; отдельно
+client validation, wrong-current и transport failure без automatic retry/logout.
+Pending form защищает от double submit. Real DB concurrency проверяет 11 serial
+orders change/change, login, refresh, reset, logout-all и current logout через
+pg_blocking_pids barrier. Полный make check-full выполнялся и остановился на прежнем
+npm audit blocker; отдельные browser E2E и smoke PASS. [Акт SC-005](acceptance/password-change.md).

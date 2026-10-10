@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth endpoints |
 | Статус | Accepted |
-| Версия | 9 |
+| Версия | 10 |
 | Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
@@ -407,3 +407,14 @@ consumer допускает только соответствующие purpose/
 `/password-reset?token=...`. HTTP privacy tests проверяют отсутствие raw token,
 password/hash и внутренних диагностик; [акт SC-004](../acceptance/password-reset.md)
 фиксирует exact contracts и сквозную доставку.
+## SC-005: защищённая смена пароля
+
+POST /api/v1/account/password-change принимает JSON currentPassword/newPassword
+через MapRequestPayload и ChangePasswordRequest. Bearer проверяет active subject;
+handler повторно проверяет active и credential после User FOR UPDATE. Success —
+пустой 204 и clearSessionCookies; failure не меняет cookies. Missing/invalid/expired
+Bearer или unknown/inactive User дают 401 AUTHENTICATION_REQUIRED с challenge;
+wrong currentPassword — 401 INVALID_CREDENTIALS без challenge. Validation — 422
+с safe field violations; media/JSON/extra fields — общая HTTP error model.
+Новые request fingerprints, idempotency rows или email messages не создаются.
+[Contract audit](../features/password-change.md), [акт](../acceptance/password-change.md).

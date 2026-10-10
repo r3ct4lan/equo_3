@@ -869,6 +869,14 @@ Set-Cookie: __Host-equo_csrf=; Max-Age=0; Secure; SameSite=Lax; Path=/
 
 ---
 
+Для смены пароля текущий пользователь определяется только из Bearer subject.
+Под User lock повторно проверяются active state и текущий password; новая policy
+проверяется независимо от frontend. Неверный currentPassword возвращает существующий
+401 INVALID_CREDENTIALS без Bearer challenge и без изменения cookies или sessions.
+Missing/invalid/expired Bearer и unknown/inactive User дают 401
+AUTHENTICATION_REQUIRED с WWW-Authenticate: Bearer; ошибки полей —
+422 VALIDATION_ERROR по общей error model.
+
 ## 9.4. Запрос смены email
 
 ```http

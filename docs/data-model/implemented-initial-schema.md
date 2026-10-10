@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Зафиксировать фактически реализованную часть модели данных текущего MVP |
 | Статус | Accepted |
-| Версия | 10 |
+| Версия | 11 |
 | Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | Модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016, ADR-019; фактические migrations и mapping |
@@ -219,3 +219,10 @@ sessions lock order согласован с activation/login/refresh. Persistenc
 replacement, encrypted payload и rollback обеих команд. Новых таблиц, индексов
 или миграций не добавлено; применённые миграции и dev volumes не изменялись.
 [Итоговая проверка](../acceptance/password-reset.md).
+## SC-005: смена пароля на существующей схеме
+
+Новых таблиц, полей, индексов и миграций нет. Writer блокирует app_user,
+проверяет fresh password_hash/is_active, обновляет password_hash и отзывает все
+unfinished user_session владельца в одной transaction. Expired, previously
+revoked и чужие sessions сохраняются; UserActionToken и email outbox не меняются.
+[Доказательства атомарности и конкурентности](../acceptance/password-change.md).

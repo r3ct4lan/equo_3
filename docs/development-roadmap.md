@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 4 |
+| Версия | 5 |
 | Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -163,7 +163,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 3 | 0 | 70 | Не начат |
 | Этап 4 | 0 | 28 | Не начат |
 | Этап 5 | 0 | 37 | Не начат |
-| Этап 6 | 9 | 53 | SC-001 merged; SC-003/004 реализованы в ветках, release audit blocked; следующая SC-005 |
+| Этап 6 | 9 | 53 | SC-001 merged; SC-003/004/005 реализованы в ветках; release audit blocked |
 | Этап 7 | 0 | 58 | Не начат |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
@@ -868,7 +868,7 @@ SC-003 функционально принята владельцем 2026-10-09
 - [ ] `DR-E6-030` — добавить request/reset pages с unknown-safe request
   результатом и invalid/expired/used token states.
 
-DR-E6-019—030 реализованы и функционально проверены в `codex/sc-004-password-reset`; [декомпозиция](features/password-reset.md), [акт SC-004](acceptance/password-reset.md). Checkbox остаются `[ ]` до merge, release gate блокирует dependency audit. Применимая часть DR-E6-038—047 покрыта, общие пункты остаются открытыми до SC-005. Следующая незавершённая фича — SC-005; reset повторно не реализовывать.
+DR-E6-019—030 реализованы и функционально проверены в `codex/sc-004-password-reset`; [декомпозиция](features/password-reset.md), [акт SC-004](acceptance/password-reset.md). Checkbox остаются `[ ]` до merge, release gate блокирует dependency audit. Применимая часть DR-E6-038—047 покрыта, общие checkbox остаются открытыми до merge и полного release gate. SC-005 теперь также функционально проверена (см. Feature 6D); reset повторно не реализовывать.
 
 ### 10.6. Feature 6D — смена пароля
 
@@ -885,6 +885,12 @@ DR-E6-019—030 реализованы и функционально прове�
   auth state и направить на повторный login согласно контракту.
 - [ ] `DR-E6-037` — добавить account security form с autocomplete attributes,
   pending и safe errors.
+
+DR-E6-031—037 реализованы и функционально проверены в codex/sc-005-password-change;
+[декомпозиция](features/password-change.md), [акт SC-005](acceptance/password-change.md).
+Применимые DR-E6-038—047 проверены, включая browser change/logout-all
+с двумя sessions; документация DR-E6-048 и поведение DR-E6-050—052 подтверждены. Checkbox остаются открытыми до merge; DR-E6-049/053 и release
+блокирует npm dependency audit без исключений. Этап 6 не закрыт.
 
 ### 10.7. Tests
 
@@ -1222,6 +1228,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 5 | 2026-10-10 | SC-005 реализована и функционально проверена; этап 6/security lifecycle в ветках, merge и release audit остаются открытыми |
 | 4 | 2026-10-10 | SC-004 реализована и функционально проверена; SC-003 принята владельцем; checkbox согласованы с требованием merge; SC-005 следующая |
 | 3 | 2026-10-09 | Сверены handoff, код, tests и Git; актуализированы SC-001 и SC-003; SC3-08 остаётся blocked по dependency audit |
 | 2 | 2026-08-10 | Этап 1 завершён: login, refresh, protected browser session и `/me`; `MVP-SC-002` закрыт |

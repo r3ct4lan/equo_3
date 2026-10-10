@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Сценарий | MVP-SC-005 |
-| Статус | Contract audited; implementation in progress |
+| Статус | Implemented; functional PASS; release audit blocked |
 | Дата | 2026-10-10 |
 | Ветка | codex/sc-005-password-change |
 | Base | 4cae6c8; SC-004 и SC-003 ещё не merged |
@@ -50,7 +50,7 @@ SC-005 отсутствует; схема уже поддерживает сме
 | SC5-03 | Verified | Protected HTTP/Bearer, JSON validation, cookies, errors/log privacy; backend quality PASS; PasswordChange suite 25 tests / 249 assertions, без notices |
 | SC5-04 | Verified | Account security UI, coordinated lifecycle; quality/build, 53 unit + 41 component tests PASS |
 | SC5-05 | Verified | 11 real process/DB serial orders, pg_blocking_pids barrier; 165 assertions, backend quality PASS |
-| SC5-06 | Pending | Browser two sessions, полный gate, документация и acceptance |
+| SC5-06 | Functional verified; release blocked | 413 backend / 4340 assertions; 53 unit, 41 component, 21 E2E и smoke PASS; npm audit 11 high — blocker |
 
 Каждый проверенный этап получает отдельный commit. Checkbox roadmap остаются
 открытыми до merge. Известный npm audit blocker не скрывается; release,
@@ -64,3 +64,10 @@ SC5-05: contender запускается отдельным PHP-процессо
 DB lock (наблюдаемый pg_blocking_pids), затем проверяется serial result. Покрыты
 оба порядка change с login, refresh, reset, logout-all и current logout; два
 change со старым currentPassword дают один успех и INVALID_CREDENTIALS второго.
+
+## Итог
+
+Application, persistence, protected API и account UI реализованы. Проверки всех
+слоёв и browser journeys завершены; [акт SC-005](../acceptance/password-change.md)
+содержит свежие доказательства и ограничения. Product Owner acceptance и merge
+не выполнены; выпуск blocked upstream dependency audit без исключений.
