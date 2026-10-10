@@ -69,13 +69,13 @@ scope SC3-08 проверены: 322 backend, 40 unit, 27 component и 16 E2E PA
 остаётся отдельным ограничением и не считается разрешением на audit exemption.
 SC-004 не требует полного закрытия SC3-08; переиспользует проверенный revoke core.
 Ветка `codex/sc-004-password-reset` начинается от `6d2617e`, поскольку
-SC-003 ещё не merged в main. Текущая декомпозиция —
+на момент старта SC-004 SC-003 ещё не была merged в main. Декомпозиция —
 [password-reset.md](features/password-reset.md).
 
 SC-004 реализована и функционально проверена по SC4-01—06: запрос, email,
 одноразовый reset, отзыв сессий, UI и обязательный browser E2E. Итог —
 [акт SC-004](acceptance/password-reset.md). Ветка остаётся отдельной и включает
-SC-003; merge в main и продуктовая приёмка SC-004 не выполнены. Полный release
+SC-003; merge в main выполнен 2026-10-10, продуктовая приёмка SC-004 не подтверждена. Полный release
 gate остаётся blocked dependency audit без исключений. SC-005 (смена известного пароля) реализована и функционально проверена
 в отдельной ветке codex/sc-005-password-change от 4cae6c8.
 Checkbox roadmap отражают merge, а feature/acceptance — проверку веток.
@@ -84,5 +84,11 @@ SC-005: [этапы SC5-01—06](features/password-change.md),
 [акт проверки](acceptance/password-change.md). 413 backend, 53 unit, 41 component
 и 21 browser E2E PASS. Все refresh-сессии отзываются атомарно, UI требует новый
 login; неверный current password сохраняет сессию без refresh/retry. SC-003—005
-в main ещё не merged; npm audit (11 high, два advisory) остаётся release blocker.
+merged в main 2026-10-10 по поручению пользователя; npm audit (11 high, два advisory) остаётся release blocker.
 Продуктовая приёмка SC-005 и готовность MVP этим результатом не подтверждены.
+
+Merge выполнен последовательно fast-forward: SC-003 (6d2617e), SC-004 (4cae6c8),
+SC-005 (b24fb4f), без изменения проверенного application snapshot. Проверенные
+задачи roadmap включены в main; DR-E6-049/053 остаются открытыми из-за dependency
+audit. Следующая незавершённая область обязательного MVP — приглашение/Connect
+(SC-008; этап 2), с деталями и зависимостями в roadmap.

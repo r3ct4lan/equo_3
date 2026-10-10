@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 5 |
+| Версия | 6 |
 | Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -163,7 +163,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 3 | 0 | 70 | Не начат |
 | Этап 4 | 0 | 28 | Не начат |
 | Этап 5 | 0 | 37 | Не начат |
-| Этап 6 | 9 | 53 | SC-001 merged; SC-003/004/005 реализованы в ветках; release audit blocked |
+| Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
 | Этап 7 | 0 | 58 | Не начат |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
@@ -822,105 +822,105 @@ SC3-03—07 и browser scope SC3-08 реализованы и проверены
 остаётся незакрытым, поскольку release gate блокируют два upstream advisories
 без patched version. Уже выполненные задачи повторять не нужно.
 
-- [ ] `DR-E6-010` — выполнить contract audit `MVP-SC-003`, ADR-006/018 и
+- [x] `DR-E6-010` — выполнить contract audit `MVP-SC-003`, ADR-006/018 и
   HTTP 8.6—8.7.
-- [ ] `DR-E6-011` — реализовать `POST /api/v1/auth/logout` с refresh cookie,
+- [x] `DR-E6-011` — реализовать `POST /api/v1/auth/logout` с refresh cookie,
   CSRF и same-origin защитой.
-- [ ] `DR-E6-012` — блокировать текущую session и идемпотентно устанавливать
+- [x] `DR-E6-012` — блокировать текущую session и идемпотентно устанавливать
   `revokedAt`.
-- [ ] `DR-E6-013` — очистить refresh/CSRF cookies при успешном и повторном
+- [x] `DR-E6-013` — очистить refresh/CSRF cookies при успешном и повторном
   logout.
-- [ ] `DR-E6-014` — реализовать protected
+- [x] `DR-E6-014` — реализовать protected
   `POST /api/v1/auth/logout-all`.
-- [ ] `DR-E6-015` — блокировать User и атомарно отзывать все незавершённые
+- [x] `DR-E6-015` — блокировать User и атомарно отзывать все незавершённые
   sessions.
-- [ ] `DR-E6-016` — очистить frontend in-memory access/current-user state
+- [x] `DR-E6-016` — очистить frontend in-memory access/current-user state
   после logout.
-- [ ] `DR-E6-017` — явно учитывать, что уже выданный access token может жить
+- [x] `DR-E6-017` — явно учитывать, что уже выданный access token может жить
   до `exp`; не обещать мгновенный blacklist.
-- [ ] `DR-E6-018` — добавить UI current logout и logout-all с понятными
+- [x] `DR-E6-018` — добавить UI current logout и logout-all с понятными
   success/error states.
 
-SC-003 функционально принята владельцем 2026-10-09; реализована и проверена в ветке `codex/sc-003-logout-session-revocation`. Пункты DR-E6-010—018 возвращены в `[ ]` по правилу §2.1: ветка ещё не merged. Повторная реализация не требуется; доказательства — [акт SC-003](acceptance/logout-session-revocation.md).
+SC-003 функционально принята владельцем 2026-10-09 и merged в main 2026-10-10. DR-E6-010—018 отмечены после merge по §2.1; release gate остаётся blocked. Доказательства — [акт SC-003](acceptance/logout-session-revocation.md).
 
 ### 10.5. Feature 6C — восстановление пароля
 
-- [ ] `DR-E6-019` — выполнить contract audit `BR-USR-007/009`,
+- [x] `DR-E6-019` — выполнить contract audit `BR-USR-007/009`,
   `BR-SEC-003—007` и HTTP 9.0—9.2.
-- [ ] `DR-E6-020` — реализовать
+- [x] `DR-E6-020` — реализовать
   `POST /api/v1/auth/password-reset-requests` с неразличимым `202`.
-- [ ] `DR-E6-021` — выпустить `RESET_PASSWORD` на 30 минут, инвалидируя
+- [x] `DR-E6-021` — выпустить `RESET_PASSWORD` на 30 минут, инвалидируя
   предыдущий незавершённый token того же purpose.
-- [ ] `DR-E6-022` — создать reset token и outbox одной транзакцией.
-- [ ] `DR-E6-023` — применить email/IP rate limits без раскрытия аккаунта.
-- [ ] `DR-E6-024` — расширить email handler purpose-specific template и URL,
+- [x] `DR-E6-022` — создать reset token и outbox одной транзакцией.
+- [x] `DR-E6-023` — применить email/IP rate limits без раскрытия аккаунта.
+- [x] `DR-E6-024` — расширить email handler purpose-specific template и URL,
   не превращая queue message в носитель секрета.
-- [ ] `DR-E6-025` — реализовать
+- [x] `DR-E6-025` — реализовать
   `POST /api/v1/auth/password-reset`.
-- [ ] `DR-E6-026` — применить общую policy 12—128 Unicode code points и хотя
+- [x] `DR-E6-026` — применить общую policy 12—128 Unicode code points и хотя
   бы один non-space character.
-- [ ] `DR-E6-027` — блокировать User и token, проверить purpose/lifecycle,
+- [x] `DR-E6-027` — блокировать User и token, проверить purpose/lifecycle,
   обновить password hash, использовать token и отозвать все sessions одной
   транзакцией.
-- [ ] `DR-E6-028` — reset не активирует inactive account.
-- [ ] `DR-E6-029` — удалить открытый password/token из памяти frontend после
+- [x] `DR-E6-028` — reset не активирует inactive account.
+- [x] `DR-E6-029` — удалить открытый password/token из памяти frontend после
   terminal result.
-- [ ] `DR-E6-030` — добавить request/reset pages с unknown-safe request
+- [x] `DR-E6-030` — добавить request/reset pages с unknown-safe request
   результатом и invalid/expired/used token states.
 
-DR-E6-019—030 реализованы и функционально проверены в `codex/sc-004-password-reset`; [декомпозиция](features/password-reset.md), [акт SC-004](acceptance/password-reset.md). Checkbox остаются `[ ]` до merge, release gate блокирует dependency audit. Применимая часть DR-E6-038—047 покрыта, общие checkbox остаются открытыми до merge и полного release gate. SC-005 теперь также функционально проверена (см. Feature 6D); reset повторно не реализовывать.
+DR-E6-019—030 реализованы и функционально проверены в `codex/sc-004-password-reset`; [декомпозиция](features/password-reset.md), [акт SC-004](acceptance/password-reset.md). Merge в main выполнен 2026-10-10; проверенные DR-E6-019—030 отмечены. Общие tests DR-E6-038—047 проверены вместе с SC-005 и также merged; release gate блокирует dependency audit. SC-005 теперь также функционально проверена (см. Feature 6D); reset повторно не реализовывать.
 
 ### 10.6. Feature 6D — смена пароля
 
-- [ ] `DR-E6-031` — выполнить contract audit `MVP-SC-005` и HTTP 9.3.
-- [ ] `DR-E6-032` — реализовать protected
+- [x] `DR-E6-031` — выполнить contract audit `MVP-SC-005` и HTTP 9.3.
+- [x] `DR-E6-032` — реализовать protected
   `POST /api/v1/account/password-change`.
-- [ ] `DR-E6-033` — проверить active User, текущий password и общую policy
+- [x] `DR-E6-033` — проверить active User, текущий password и общую policy
   нового password.
-- [ ] `DR-E6-034` — заблокировать User, заменить hash и отозвать все sessions
+- [x] `DR-E6-034` — заблокировать User, заменить hash и отозвать все sessions
   одной транзакцией.
-- [ ] `DR-E6-035` — не сохранять и не журналировать current/new password,
+- [x] `DR-E6-035` — не сохранять и не журналировать current/new password,
   canonical request или raw fingerprint.
-- [ ] `DR-E6-036` — определить post-change frontend state: очистить local
+- [x] `DR-E6-036` — определить post-change frontend state: очистить local
   auth state и направить на повторный login согласно контракту.
-- [ ] `DR-E6-037` — добавить account security form с autocomplete attributes,
+- [x] `DR-E6-037` — добавить account security form с autocomplete attributes,
   pending и safe errors.
 
 DR-E6-031—037 реализованы и функционально проверены в codex/sc-005-password-change;
 [декомпозиция](features/password-change.md), [акт SC-005](acceptance/password-change.md).
 Применимые DR-E6-038—047 проверены, включая browser change/logout-all
-с двумя sessions; документация DR-E6-048 и поведение DR-E6-050—052 подтверждены. Checkbox остаются открытыми до merge; DR-E6-049/053 и release
+с двумя sessions; документация DR-E6-048 и поведение DR-E6-050—052 подтверждены. Merge в main выполнен 2026-10-10; проверенные задачи отмечены, DR-E6-049/053 и release
 блокирует npm dependency audit без исключений. Этап 6 не закрыт.
 
 ### 10.7. Tests
 
-- [ ] `DR-E6-038` — unit tests purpose policies и общей password policy.
-- [ ] `DR-E6-039` — integration tests replacement token, reset/change
+- [x] `DR-E6-038` — unit tests purpose policies и общей password policy.
+- [x] `DR-E6-039` — integration tests replacement token, reset/change
   password и массовый revoke sessions.
-- [ ] `DR-E6-040` — transaction rollback tests для каждого security writer.
-- [ ] `DR-E6-041` — concurrency tests двух activation requests, двух reset
+- [x] `DR-E6-040` — transaction rollback tests для каждого security writer.
+- [x] `DR-E6-041` — concurrency tests двух activation requests, двух reset
   applications и logout-all против refresh.
-- [ ] `DR-E6-042` — HTTP tests enumeration resistance, token lifecycle,
+- [x] `DR-E6-042` — HTTP tests enumeration resistance, token lifecycle,
   rate limits, CSRF/Origin, cookie clearing и exact errors.
-- [ ] `DR-E6-043` — email delivery tests для activation replacement и reset
+- [x] `DR-E6-043` — email delivery tests для activation replacement и reset
   templates.
-- [ ] `DR-E6-044` — component tests всех форм и terminal states.
-- [ ] `DR-E6-045` — browser E2E reset:
+- [x] `DR-E6-044` — component tests всех форм и terminal states.
+- [x] `DR-E6-045` — browser E2E reset:
   `request → email → set password → old login fails → new login succeeds`.
-- [ ] `DR-E6-046` — browser E2E password change/logout-all с двумя sessions.
-- [ ] `DR-E6-047` — sensitive-data regression для HTTP, logs, queue, HTML,
+- [x] `DR-E6-046` — browser E2E password change/logout-all с двумя sessions.
+- [x] `DR-E6-047` — sensitive-data regression для HTTP, logs, queue, HTML,
   URL и storage.
 
 ### 10.8. Документация и exit criteria
 
-- [ ] `DR-E6-048` — обновить фактическую схему/структуру/access/frontend/HTTP
+- [x] `DR-E6-048` — обновить фактическую схему/структуру/access/frontend/HTTP
   документы.
 - [ ] `DR-E6-049` — `make check` и security E2E проходят.
-- [ ] `DR-E6-050` — потерянный password восстанавливается без ручного
+- [x] `DR-E6-050` — потерянный password восстанавливается без ручного
   изменения БД.
-- [ ] `DR-E6-051` — logout и security changes прекращают долгоживущий refresh
+- [x] `DR-E6-051` — logout и security changes прекращают долгоживущий refresh
   access в предусмотренных границах.
-- [ ] `DR-E6-052` — public requests не подтверждают существование email.
+- [x] `DR-E6-052` — public requests не подтверждают существование email.
 - [ ] `DR-E6-053` — этап 6 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
@@ -1182,9 +1182,9 @@ Definition of Ready.
 |---|---|---|---|
 | `MVP-SC-001` | Must | baseline + этап 6 | `[x]` технически проверен 2026-09-30; регрессия 2026-10-09 |
 | `MVP-SC-002` | Must | этап 1 | `[x]` |
-| `MVP-SC-003` | Must | этап 6 | `[ ]` функционально принят владельцем; не merged; SC3-08 release audit blocked |
-| `MVP-SC-004` | Must | этап 6 | `[ ]` реализован; functional PASS; не merged; release audit blocked |
-| `MVP-SC-005` | Must | этап 6 | `[ ]` |
+| `MVP-SC-003` | Must | этап 6 | `[ ]` функционально принят владельцем; merged в main; SC3-08 release audit blocked |
+| `MVP-SC-004` | Must | этап 6 | `[ ]` реализован; functional PASS; merged в main; release audit blocked |
+| `MVP-SC-005` | Must | этап 6 | `[ ]` functional PASS; merged в main; release audit blocked |
 | `MVP-SC-006` | Should | `SH-006` | `[ ]` |
 | `MVP-SC-007` | Should | `SH-007` | `[ ]` |
 | `MVP-SC-008` | Must | этап 2 | `[ ]` |
@@ -1228,6 +1228,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 6 | 2026-10-10 | SC-003/004/005 последовательно merged в main; проверенные DR-E6-010—048/050—052 отмечены, полный gate и этап 6 blocked dependency audit |
 | 5 | 2026-10-10 | SC-005 реализована и функционально проверена; этап 6/security lifecycle в ветках, merge и release audit остаются открытыми |
 | 4 | 2026-10-10 | SC-004 реализована и функционально проверена; SC-003 принята владельцем; checkbox согласованы с требованием merge; SC-005 следующая |
 | 3 | 2026-10-09 | Сверены handoff, код, tests и Git; актуализированы SC-001 и SC-003; SC3-08 остаётся blocked по dependency audit |

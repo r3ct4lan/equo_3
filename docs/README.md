@@ -5,7 +5,7 @@
 | Название | Индекс проектной документации Equo |
 | Назначение | Обеспечить единый вход в комплект проектных артефактов и правила их актуализации |
 | Статус | Accepted |
-| Версия | 27 |
+| Версия | 28 |
 | Дата актуальности | 2026-10-10 |
 | Владелец | Maksim Smolkov |
 | Источник | Нормативная документация и фактическая реализация MVP |
@@ -33,11 +33,11 @@
 | [Модель доступа MVP](security/access-model.md) | Реализованные публичные субъекты, capability-based activation policy, password hashing, refresh rotation, Bearer `/me` и принятые token/JWT profiles | Accepted | Изменились правила доступа, token lifecycle, password hashing, authentication profile или security-конфигурация |
 | [Frontend-фундамент](frontend-foundation.md) | Фактическая Nuxt-структура, API client, `$auth`, error/session/form state и UI-правила после frontend session lifecycle | Accepted | Изменились frontend-каталоги, runtime API config, общие типы/состояния, маршрутизация или правила форм |
 | [Login и защищённая сессия](features/login-protected-session.md) | Contract audit, технический дизайн и progress `MVP-SC-002` для login, refresh, JWT, browser session lifecycle и `/me` | Implemented, verified and merged | Изменились нормативные auth contracts, выбранные зависимости, session lifecycle или план реализации `DR-E1-001—053` |
-| [Выход и отзыв сессий](features/logout-session-revocation.md) | Реализация и прогресс `MVP-SC-003`: endpoints, local cleanup, concurrency и E2E | Implemented; functional PASS; release audit blocked | Изменились contracts, lifecycle, OQ-022—024, этапы SC3-02—08 или устранён release blocker |
+| [Выход и отзыв сессий](features/logout-session-revocation.md) | Реализация и прогресс `MVP-SC-003`: endpoints, local cleanup, concurrency и E2E | Merged; functional PASS; release audit blocked | Изменились contracts, lifecycle, OQ-022—024, этапы SC3-02—08 или устранён release blocker |
 | [Приёмка выхода и отзыва сессий](acceptance/logout-session-revocation.md) | Свежая матрица доказательств SC-003, проверок и ограничений | Functional PASS; release BLOCKED | Повторены проверки, устранён audit blocker или принято решение владельца |
-| [Восстановление забытого пароля](features/password-reset.md) | Контракт, этапы SC4-01—06 и фактическая реализация MVP-SC-004 | Implemented; functional PASS; release audit blocked | Изменился reset lifecycle или результат проверки |
+| [Восстановление забытого пароля](features/password-reset.md) | Контракт, этапы SC4-01—06 и фактическая реализация MVP-SC-004 | Merged; functional PASS; release audit blocked | Изменился reset lifecycle или результат проверки |
 | [Приёмка восстановления пароля](acceptance/password-reset.md) | Доказательства SC-004, browser journeys, конкурентность и ограничения | Functional PASS; release BLOCKED | Повторены проверки или устранён blocker |
-| [Безопасная смена пароля](features/password-change.md) | Contract audit, этапы SC5-01—06 и реализация MVP-SC-005 | Implemented; functional PASS; release audit blocked | Изменились password change или результаты проверок |
+| [Безопасная смена пароля](features/password-change.md) | Contract audit, этапы SC5-01—06 и реализация MVP-SC-005 | Merged; functional PASS; release audit blocked | Изменились password change или результаты проверок |
 | [Приёмка смены пароля](acceptance/password-change.md) | Доказательства SC-005, две browser sessions, concurrency и ограничения | Functional PASS; release BLOCKED | Повторены проверки или устранён blocker |
 | [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, browser E2E, audits, smoke и GitHub Actions | Accepted | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
 | [Приёмка повторного запроса активации](acceptance/activation-resend.md) | Сквозное доказательство replacement semantics, neutral 202, rate limit и security regressions для `MVP-SC-001` | Passed | Повторена приёмка или Product Owner принял итоговое решение |

@@ -3,7 +3,7 @@
 | Поле | Значение |
 |---|---|
 | Название | Выход и отзыв refresh-сессий |
-| Статус | Implemented; functional checks passed; release gate blocked |
+| Статус | Implemented, merged in main; functional checks passed; release gate blocked |
 | Дата контрактного аудита | 2026-09-30 |
 | Связанный сценарий | `MVP-SC-003` |
 | Задача аудита | `SC3-01` |
@@ -536,3 +536,12 @@ production code. Она не запрещает последующую реал�
 корневых advisories без patched release. Исключения не применены.
 `SC3-08` не отмечен завершённым; полные доказательства, release blocker и
 остаточные ограничения находятся в [акте проверки](../acceptance/logout-session-revocation.md).
+
+## Включение в main — 2026-10-10
+
+По поручению пользователя SC-003, SC-004 и SC-005 последовательно включены
+в main через fast-forward до b24fb4f, без конфликтов и изменения проверенного
+application snapshot. Последняя общая проверка: 413 backend / 4340 assertions,
+53 unit, 41 component, 21 browser E2E и smoke PASS. Dependency audit по-прежнему
+блокирует полный release gate; разрешение на merge не является audit exemption
+или подтверждением выпуска и продуктовой приёмки.

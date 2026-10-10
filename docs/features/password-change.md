@@ -3,10 +3,10 @@
 | Поле | Значение |
 |---|---|
 | Сценарий | MVP-SC-005 |
-| Статус | Implemented; functional PASS; release audit blocked |
+| Статус | Implemented, merged in main; functional PASS; release audit blocked |
 | Дата | 2026-10-10 |
 | Ветка | codex/sc-005-password-change |
-| Base | 4cae6c8; SC-004 и SC-003 ещё не merged |
+| Base | 4cae6c8; SC-004 и SC-003 на момент старта ещё не merged |
 | Roadmap | DR-E6-031—037; применимые DR-E6-038—047 |
 
 ## Contract audit и дизайн
@@ -52,8 +52,8 @@ SC-005 отсутствует; схема уже поддерживает сме
 | SC5-05 | Verified | 11 real process/DB serial orders, pg_blocking_pids barrier; 165 assertions, backend quality PASS |
 | SC5-06 | Functional verified; release blocked | 413 backend / 4340 assertions; 53 unit, 41 component, 21 E2E и smoke PASS; npm audit 11 high — blocker |
 
-Каждый проверенный этап получает отдельный commit. Checkbox roadmap остаются
-открытыми до merge. Известный npm audit blocker не скрывается; release,
+Каждый проверенный этап получает отдельный commit. Проверенные checkbox roadmap отмечены после merge 2026-10-10;
+полный gate и этап 6 остаются открытыми. Известный npm audit blocker не скрывается; release,
 продуктовая приёмка и MVP completion отделяются от functional PASS.
 
 SC5-03: endpoint включён и в firewall access_control, и в supports общего Bearer
@@ -69,5 +69,14 @@ change со старым currentPassword дают один успех и INVALID
 
 Application, persistence, protected API и account UI реализованы. Проверки всех
 слоёв и browser journeys завершены; [акт SC-005](../acceptance/password-change.md)
-содержит свежие доказательства и ограничения. Product Owner acceptance и merge
-не выполнены; выпуск blocked upstream dependency audit без исключений.
+содержит свежие доказательства и ограничения. Merge выполнен 2026-10-10; Product Owner acceptance
+не подтверждена; выпуск blocked upstream dependency audit без исключений.
+
+## Включение в main — 2026-10-10
+
+По поручению пользователя SC-003, SC-004 и SC-005 последовательно включены
+в main через fast-forward до b24fb4f, без конфликтов и изменения проверенного
+application snapshot. Последняя общая проверка: 413 backend / 4340 assertions,
+53 unit, 41 component, 21 browser E2E и smoke PASS. Dependency audit по-прежнему
+блокирует полный release gate; разрешение на merge не является audit exemption
+или подтверждением выпуска и продуктовой приёмки.

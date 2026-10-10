@@ -106,3 +106,12 @@ audit policy. Следующий шаг — patched upstream releases/прове
 Уже выданный JWT остаётся пригодным до `exp` (15 минут плюс допустимый skew),
 как требует контракт. Browser проверен в Chromium с HTTPS/Web Locks; внешняя
 SMTP/staging/production проверка и решение Product Owner не подтверждены.
+
+## Обновление интеграции — 2026-10-10
+
+SC-003/004/005 последовательно merged в main по поручению пользователя,
+без конфликтов; snapshot b24fb4f совпадает с проверенной SC-005. Описания
+отсутствия merge выше относятся к дате исходного акта и заменены этой записью.
+Общая регрессия SC-005: 413 backend / 4340 assertions, 53 unit, 41 component,
+21 browser E2E и smoke PASS. Dependency audit остаётся BLOCKED; выпуск,
+исключение audit и продуктовая приёмка SC-004/005 этим merge не подтверждены.

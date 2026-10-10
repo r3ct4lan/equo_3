@@ -3,10 +3,10 @@
 | Поле | Значение |
 |---|---|
 | Сценарий | MVP-SC-004 |
-| Статус | Implemented; functional PASS; release audit blocked |
+| Статус | Implemented, merged in main; functional PASS; release audit blocked |
 | Дата contract audit | 2026-10-09 |
 | Ветка | codex/sc-004-password-reset |
-| Base | 6d2617e; принятый функциональный результат SC-003, ещё не merged |
+| Base | 6d2617e; принятый функциональный результат SC-003, на момент старта ещё не merged |
 | Roadmap | DR-E6-019—030; применимые tests DR-E6-038—047 |
 
 ## Требования и фактический старт
@@ -92,3 +92,11 @@ worker, чтобы API и email consumer всегда использовали �
 [Акт проверки](../acceptance/password-reset.md) отделяет функциональный результат
 от выпуска, merge и решения Product Owner. SC-004 владельцем пока не принята;
 функциональное принятие SC-003 не снимает dependency audit blocker.
+## Включение в main — 2026-10-10
+
+По поручению пользователя SC-003, SC-004 и SC-005 последовательно включены
+в main через fast-forward до b24fb4f, без конфликтов и изменения проверенного
+application snapshot. Последняя общая проверка: 413 backend / 4340 assertions,
+53 unit, 41 component, 21 browser E2E и smoke PASS. Dependency audit по-прежнему
+блокирует полный release gate; разрешение на merge не является audit exemption
+или подтверждением выпуска и продуктовой приёмки.
