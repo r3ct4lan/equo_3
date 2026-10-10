@@ -161,3 +161,29 @@ services:
     App\Infrastructure\Http\ApiExceptionSubscriber:
         arguments:
             $logger: '@monolog.logger.api'
+
+    App\IdentityAccess\Application\Api\AccountAccess:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineAccountAccess
+
+    App\Connects\Application\Api\ConnectAccess:
+        alias: App\Connects\Application\ConnectService
+    App\Connects\Application\Port\ConnectRepositoryPort:
+        alias: App\Connects\Adapter\Persistence\Doctrine\DoctrineConnectRepository
+    App\Connects\Application\Port\ConnectRuntimePort:
+        alias: App\Infrastructure\Persistence\Doctrine\ConnectRuntime
+    App\Invitations\Application\Port\InvitationRepositoryPort:
+        alias: App\Invitations\Adapter\Persistence\Doctrine\DoctrineInvitationRepository
+    App\Invitations\Application\Port\InvitationRuntimePort:
+        alias: App\Infrastructure\Persistence\Doctrine\ConnectRuntime
+    App\Invitations\Application\Port\InvitationTokenPort:
+        alias: App\Invitations\Adapter\Security\InvitationTokenCodec
+    App\Invitations\Application\Port\InvitationRateLimitPort:
+        alias: App\Invitations\Adapter\Security\InvitationRateLimit
+    App\Invitations\Adapter\Security\InvitationTokenCodec:
+        arguments:
+            $activeVersion: '%env(EQUO_INVITATION_SIGNING_VERSION)%'
+            $encodedKeyRing: '%env(EQUO_INVITATION_SIGNING_KEYS)%'
+    App\Invitations\Adapter\Security\InvitationRateLimit:
+        arguments:
+            $invitationIpLimiter: '@limiter.invitation_ip'
+            $invitationIdLimiter: '@limiter.invitation_id'
