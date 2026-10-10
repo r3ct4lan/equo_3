@@ -30,7 +30,7 @@ final class BearerAccessTokenAuthenticator extends AbstractAuthenticator
 
     public function supports(Request $request): bool
     {
-        return in_array($request->getPathInfo(), [self::PROTECTED_PATH, '/api/v1/auth/logout-all'], true);
+        return in_array($request->getPathInfo(), [self::PROTECTED_PATH, '/api/v1/auth/logout-all', '/api/v1/account/password-change'], true);
     }
 
     public function authenticate(Request $request): Passport

@@ -55,3 +55,7 @@ SC-005 отсутствует; схема уже поддерживает сме
 Каждый проверенный этап получает отдельный commit. Checkbox roadmap остаются
 открытыми до merge. Известный npm audit blocker не скрывается; release,
 продуктовая приёмка и MVP completion отделяются от functional PASS.
+
+SC5-03: endpoint включён и в firewall access_control, и в supports общего Bearer
+authenticator. HTTP suite проверяет ошибки без изменения cookies, чужой subject
+field отвергается serializer, API logger не получает credentials или hashes.
