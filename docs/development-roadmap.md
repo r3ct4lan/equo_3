@@ -630,7 +630,7 @@ access token и защищённую refresh-сессию, может перез
 
 ### 8.3. Backend/Data
 
-- [ ] `DR-E4-001` — выполнить contract audit `BR-TRF-004—005`,
+- [x] `DR-E4-001` — выполнить contract audit `BR-TRF-004—005`,
   `BR-IDEM-*`, ACL и HTTP 14.4.
 - [ ] `DR-E4-002` — реализовать MANUAL factory с
   `debtId/debtParticipantId=null` и `createdById=currentUser`.
