@@ -93,3 +93,6 @@ component, production build, Composer audit, smoke и Nginx syntax PASS.
 на прежнем npm audit (11 high); threshold/exceptions не менялись.
 Новые additive migrations применены локально: latest Version20261011120000,
 pending 0; прежние данные и volumes сохранены. [Матрица](../acceptance/create-debt.md).
+
+Проверенный snapshot 5b1d981 включён в main fast-forward 2026-10-11.
+Roadmap отражает 68/70 задач этапа 3; DR-E3-066/070 остаются открытыми.

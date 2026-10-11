@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 7 |
+| Версия | 8 |
 | Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -133,8 +133,9 @@ Feature считается завершённой, когда:
 - [ ] `DR-B-010` — physical retention cleanup; входит в этап 7.
 
 Текущая реализация содержит production-аутентификацию, `UserSession`, login,
-refresh rotation, Bearer `/me` и защищённую browser-сессию. Финансовые сущности
-и финансовые protected endpoints ещё не реализованы.
+refresh rotation, Bearer `/me`, защищённую browser-сессию, приглашения и Connect.
+SC-011 добавил финансовые сущности, atomic create, баланс, историю и protected
+read endpoints SC-009/012/015. MANUAL и исправление долга остаются следующими этапами.
 
 ## 4. Сводная карта семи этапов
 
@@ -160,7 +161,7 @@ production-сессии и `Connect` сначала строится финан�
 | Реализованный baseline | 8 | 10 | Первый ограниченный срез работает |
 | Этап 1 | 53 | 53 | Завершён |
 | Этап 2 | 43 | 45 | SC-008 merged; functional PASS; DR-E2-042/045 blocked dependency audit |
-| Этап 3 | 0 | 70 | Не начат |
+| Этап 3 | 68 | 70 | SC-011 merged; functional PASS; DR-E3-066/070 blocked dependency audit |
 | Этап 4 | 0 | 28 | Не начат |
 | Этап 5 | 0 | 37 | Не начат |
 | Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
@@ -466,146 +467,146 @@ access token и защищённую refresh-сессию, может перез
 
 ### 7.3. Инкремент 3A — схема и чистая модель
 
-- [ ] `DR-E3-001` — выполнить contract audit `BR-DEBT-*`,
+- [x] `DR-E3-001` — выполнить contract audit `BR-DEBT-*`,
   `BR-TRF-001—003/009`, `BR-ACL-*`, ADR-002/003/005/009—012 и HTTP 7/11/13/14.
-- [ ] `DR-E3-002` — добавить таблицу `debt` со всеми полями модели, EUR
+- [x] `DR-E3-002` — добавить таблицу `debt` со всеми полями модели, EUR
   amount в евроцентах, `is_deleted=false` и `version=1`.
-- [ ] `DR-E3-003` — добавить FK payer/author и CHECK
+- [x] `DR-E3-003` — добавить FK payer/author и CHECK
   `total_amount > 0`, `version >= 1`.
-- [ ] `DR-E3-004` — добавить `debt_participant` с постоянной unique парой
+- [x] `DR-E3-004` — добавить `debt_participant` с постоянной unique парой
   `(debt_id, user_id)`, включая исключённую запись.
-- [ ] `DR-E3-005` — добавить `transfer` с полями обоих типов, soft-delete,
+- [x] `DR-E3-005` — добавить `transfer` с полями обоих типов, soft-delete,
   version и nullable ссылками модели.
-- [ ] `DR-E3-006` — добавить FK Connect/sender/receiver/creator/debt/
+- [x] `DR-E3-006` — добавить FK Connect/sender/receiver/creator/debt/
   participant/related transfer и выбранные `RESTRICT/SET NULL` строго по ER.
-- [ ] `DR-E3-007` — реализовать локальные CHECK, различающие `DEBT_SHARE` и
+- [x] `DR-E3-007` — реализовать локальные CHECK, различающие `DEBT_SHARE` и
   `MANUAL`; не пытаться выразить межтабличные инварианты CHECK-ами.
-- [ ] `DR-E3-008` — обеспечить не более одного `DEBT_SHARE` на
+- [x] `DR-E3-008` — обеспечить не более одного `DEBT_SHARE` на
   `DebtParticipant`.
-- [ ] `DR-E3-009` — добавить индексы для debt list, access queries, Connect
+- [x] `DR-E3-009` — добавить индексы для debt list, access queries, Connect
   history, active balance и FK.
-- [ ] `DR-E3-010` — реализовать Doctrine records/mappers без межмодульных ORM
+- [x] `DR-E3-010` — реализовать Doctrine records/mappers без межмодульных ORM
   associations, нарушающих ADR-015.
-- [ ] `DR-E3-011` — доказать миграцию на пустой БД и mapping/schema parity.
+- [x] `DR-E3-011` — доказать миграцию на пустой БД и mapping/schema parity.
 
 ### 7.4. Инкремент 3B — агрегат Debt и расчёт долей
 
-- [ ] `DR-E3-012` — реализовать money value object: положительное целое число
+- [x] `DR-E3-012` — реализовать money value object: положительное целое число
   евроцентов без float.
-- [ ] `DR-E3-013` — реализовать Debt aggregate с неизменяемым payer,
+- [x] `DR-E3-013` — реализовать Debt aggregate с неизменяемым payer,
   author, participants и version.
-- [ ] `DR-E3-014` — валидировать минимум одного участника, отличного от
+- [x] `DR-E3-014` — валидировать минимум одного участника, отличного от
   плательщика.
-- [ ] `DR-E3-015` — разрешить author=payer; если author не payer, требовать
+- [x] `DR-E3-015` — разрешить author=payer; если author не payer, требовать
   участие автора в разделении.
-- [ ] `DR-E3-016` — поддержать флаг включения payer в participant count, не
+- [x] `DR-E3-016` — поддержать флаг включения payer в participant count, не
   создавая self-transfer.
-- [ ] `DR-E3-017` — рассчитывать одну долю как
+- [x] `DR-E3-017` — рассчитывать одну долю как
   `ceil(totalAmount / participantCount)`.
-- [ ] `DR-E3-018` — создавать ровно один `DEBT_SHARE` на каждого текущего
+- [x] `DR-E3-018` — создавать ровно один `DEBT_SHARE` на каждого текущего
   участника, кроме payer.
-- [ ] `DR-E3-019` — задавать направление `payer → participant`,
+- [x] `DR-E3-019` — задавать направление `payer → participant`,
   `createdById=null` и обязательные debt links.
-- [ ] `DR-E3-020` — документировать и тестировать допустимое превышение суммы
+- [x] `DR-E3-020` — документировать и тестировать допустимое превышение суммы
   математических долей максимум на `participantCount - 1` цент.
-- [ ] `DR-E3-021` — проверять доступность нового пользователя: self,
+- [x] `DR-E3-021` — проверять доступность нового пользователя: self,
   существующий Connect или текущий соучастник доступного долга.
-- [ ] `DR-E3-022` — требовать active payer и active новые participants.
-- [ ] `DR-E3-023` — автоматически get-or-create Connect между payer и каждым
+- [x] `DR-E3-022` — требовать active payer и active новые participants.
+- [x] `DR-E3-023` — автоматически get-or-create Connect между payer и каждым
   получателем доли в той же транзакции.
-- [ ] `DR-E3-024` — создать Debt, participants, Connect и transfers одной
+- [x] `DR-E3-024` — создать Debt, participants, Connect и transfers одной
   атомарной транзакцией.
-- [ ] `DR-E3-025` — применить `Idempotency-Key`: одинаковый retry возвращает
+- [x] `DR-E3-025` — применить `Idempotency-Key`: одинаковый retry возвращает
   исходный результат, другой body конфликтует.
 
 ### 7.5. Инкремент 3C — read models, ACL и баланс
 
-- [ ] `DR-E3-026` — реализовать server-side ACL активного Debt для author,
+- [x] `DR-E3-026` — реализовать server-side ACL активного Debt для author,
   payer и current participants.
-- [ ] `DR-E3-027` — исключённому participant не давать доступ к Debt, сохраняя
+- [x] `DR-E3-027` — исключённому participant не давать доступ к Debt, сохраняя
   доступ к его Transfer/Connect history.
-- [ ] `DR-E3-028` — возвращать `404` для отсутствующего и недоступного Debt
+- [x] `DR-E3-028` — возвращать `404` для отсутствующего и недоступного Debt
   там, где этого требует privacy model.
-- [ ] `DR-E3-029` — реализовать активный debt list без deleted debts.
-- [ ] `DR-E3-030` — реализовать полную карточку Debt с author, payer,
+- [x] `DR-E3-029` — реализовать активный debt list без deleted debts.
+- [x] `DR-E3-030` — реализовать полную карточку Debt с author, payer,
   participants, participant count, shares и version.
-- [ ] `DR-E3-031` — отдавать `ETag` карточки Debt уже сейчас, хотя writer
+- [x] `DR-E3-031` — отдавать `ETag` карточки Debt уже сейчас, хотя writer
   появится на этапе 5.
-- [ ] `DR-E3-032` — вычислять Connect balance только из
+- [x] `DR-E3-032` — вычислять Connect balance только из
   `Transfer.isDeleted=false`.
-- [ ] `DR-E3-033` — нормализовать знак/направление balance относительно
+- [x] `DR-E3-033` — нормализовать знак/направление balance относительно
   current user согласно HTTP 7.2.
-- [ ] `DR-E3-034` — не хранить отдельный mutable balance column/cache как
+- [x] `DR-E3-034` — не хранить отдельный mutable balance column/cache как
   источник истины.
-- [ ] `DR-E3-035` — реализовать историю Connect с пагинацией, стабильной
+- [x] `DR-E3-035` — реализовать историю Connect с пагинацией, стабильной
   сортировкой и активными/удалёнными transfers.
-- [ ] `DR-E3-036` — реализовать карточку Transfer и независимую проверку права
+- [x] `DR-E3-036` — реализовать карточку Transfer и независимую проверку права
   на Transfer.
-- [ ] `DR-E3-037` — при недоступном связанном Debt возвращать только
+- [x] `DR-E3-037` — при недоступном связанном Debt возвращать только
   контрактную безопасную ссылку `id + isAccessible=false`.
-- [ ] `DR-E3-038` — не возвращать email других пользователей в финансовых
+- [x] `DR-E3-038` — не возвращать email других пользователей в финансовых
   read models.
 
 ### 7.6. Инкремент 3D — HTTP и frontend
 
-- [ ] `DR-E3-039` — реализовать `POST /api/v1/debts`.
-- [ ] `DR-E3-040` — реализовать `GET /api/v1/debts` с нормативной
+- [x] `DR-E3-039` — реализовать `POST /api/v1/debts`.
+- [x] `DR-E3-040` — реализовать `GET /api/v1/debts` с нормативной
   пагинацией.
-- [ ] `DR-E3-041` — реализовать `GET /api/v1/debts/{debtId}` и `ETag`.
-- [ ] `DR-E3-042` — расширить `GET /connects` и `GET /connects/{id}`
+- [x] `DR-E3-041` — реализовать `GET /api/v1/debts/{debtId}` и `ETag`.
+- [x] `DR-E3-042` — расширить `GET /connects` и `GET /connects/{id}`
   реальным balance.
-- [ ] `DR-E3-043` — реализовать
+- [x] `DR-E3-043` — реализовать
   `GET /connects/{connectId}/transfers`.
-- [ ] `DR-E3-044` — реализовать `GET /transfers/{transferId}`.
-- [ ] `DR-E3-045` — возвращать точные validation/state/access/idempotency
+- [x] `DR-E3-044` — реализовать `GET /transfers/{transferId}`.
+- [x] `DR-E3-045` — возвращать точные validation/state/access/idempotency
   errors без частичного эффекта.
-- [ ] `DR-E3-046` — добавить debt create page с title, description, amount,
+- [x] `DR-E3-046` — добавить debt create page с title, description, amount,
   payer, participants и payer-in-split.
-- [ ] `DR-E3-047` — ввод amount преобразовывать в евроценты без float и
+- [x] `DR-E3-047` — ввод amount преобразовывать в евроценты без float и
   неоднозначной locale-конверсии.
-- [ ] `DR-E3-048` — показывать только доступных пользователей, полученных от
+- [x] `DR-E3-048` — показывать только доступных пользователей, полученных от
   сервера; не реализовывать общий поиск.
-- [ ] `DR-E3-049` — добавить debt list/card с ролями, составом и долями.
-- [ ] `DR-E3-050` — добавить Connect list/card с направлением и знаком
+- [x] `DR-E3-049` — добавить debt list/card с ролями, составом и долями.
+- [x] `DR-E3-050` — добавить Connect list/card с направлением и знаком
   balance.
-- [ ] `DR-E3-051` — добавить history и transfer details с визуальным
+- [x] `DR-E3-051` — добавить history и transfer details с визуальным
   различием active/deleted и `DEBT_SHARE/MANUAL`.
-- [ ] `DR-E3-052` — реализовать loading, empty, error, forbidden-as-not-found,
+- [x] `DR-E3-052` — реализовать loading, empty, error, forbidden-as-not-found,
   pagination и idempotent retry states.
-- [ ] `DR-E3-053` — не показывать edit/delete/pay controls до следующих
+- [x] `DR-E3-053` — не показывать edit/delete/pay controls до следующих
   этапов.
 
 ### 7.7. Tests
 
-- [ ] `DR-E3-054` — unit tests Money, participant rules и формулы округления
+- [x] `DR-E3-054` — unit tests Money, participant rules и формулы округления
   на граничных значениях.
-- [ ] `DR-E3-055` — aggregate tests author/payer combinations,
+- [x] `DR-E3-055` — aggregate tests author/payer combinations,
   payer-in-split и no-self-transfer.
-- [ ] `DR-E3-056` — integration tests DB constraints/FK/unique/check и
+- [x] `DR-E3-056` — integration tests DB constraints/FK/unique/check и
   persistence round trip трёх сущностей.
-- [ ] `DR-E3-057` — transaction rollback test на каждом контролируемом месте
+- [x] `DR-E3-057` — transaction rollback test на каждом контролируемом месте
   создания Debt/participants/Connect/transfers/idempotency result.
-- [ ] `DR-E3-058` — concurrency/idempotency tests двойного `POST /debts`.
-- [ ] `DR-E3-059` — balance property tests: порядок строк не влияет,
+- [x] `DR-E3-058` — concurrency/idempotency tests двойного `POST /debts`.
+- [x] `DR-E3-059` — balance property tests: порядок строк не влияет,
   deleted исключаются, знак сторон симметричен.
-- [ ] `DR-E3-060` — HTTP tests всех шести endpoint, pagination, ETag, ACL,
+- [x] `DR-E3-060` — HTTP tests всех шести endpoint, pagination, ETag, ACL,
   safe Debt link и error contracts.
-- [ ] `DR-E3-061` — component tests create/list/card/history.
-- [ ] `DR-E3-062` — browser E2E:
+- [x] `DR-E3-061` — component tests create/list/card/history.
+- [x] `DR-E3-062` — browser E2E:
   `A+B connected → A creates debt → A and B see share/history/balance`.
-- [ ] `DR-E3-063` — privacy E2E третьего пользователя без доступа.
+- [x] `DR-E3-063` — privacy E2E третьего пользователя без доступа.
 
 ### 7.8. Документация и exit criteria
 
-- [ ] `DR-E3-064` — обновить фактическую схему, backend structure, access
+- [x] `DR-E3-064` — обновить фактическую схему, backend structure, access
   model, frontend foundation и HTTP implementation.
-- [ ] `DR-E3-065` — обновить ER DOT/SVG/PNG только если реализация потребовала
+- [x] `DR-E3-065` — обновить ER DOT/SVG/PNG только если реализация потребовала
   принятого изменения нормативной модели.
 - [ ] `DR-E3-066` — `make check` и финансовый E2E проходят.
-- [ ] `DR-E3-067` — баланс полностью воспроизводится из active Transfer.
-- [ ] `DR-E3-068` — повтор/гонка не создаёт второй Debt, participant, Connect
+- [x] `DR-E3-067` — баланс полностью воспроизводится из active Transfer.
+- [x] `DR-E3-068` — повтор/гонка не создаёт второй Debt, participant, Connect
   или `DEBT_SHARE`.
-- [ ] `DR-E3-069` — недоступный пользователь не получает название, состав,
+- [x] `DR-E3-069` — недоступный пользователь не получает название, состав,
   email или историю чужого Debt.
 - [ ] `DR-E3-070` — этап 3 закрыт и строка сводной карты отмечена `[x]`.
 
@@ -1249,3 +1250,17 @@ DR-E2-006: единственность относится к действующ
 сохраняются до отдельного retention cleanup; срок/usedAt не переписываются.
 SC-009 покрыт только чтением Connect с нулевым балансом. Следующая функциональная
 область — этап 3 (долг, доли, баланс и история); gate этапа 2 ещё не закрыт.
+
+## Интеграция SC-011 — 2026-10-11
+
+SC11-01—06 fast-forward merged в main, проверенный application snapshot 5b1d981.
+Реализованы SC-011 и финансовые read models SC-009/012/015. 548 backend tests /
+7211 assertions, 57 unit, 67 component, 24 browser E2E, build, smoke и Composer
+audit PASS. make check-full blocked прежними 11 high npm advisories;
+DR-E3-066/070 и строка этапа 3 остаются открытыми. Проверенные application files
+при merge не менялись. [Доказательства](acceptance/create-debt.md).
+
+DR-E3-065 выполнен без изменения DOT/SVG/PNG: принятой нормативной модели
+не потребовались изменения. Остальные 68 задач этапа реализованы, проверены
+и включены в main. Merge не означает release exemption или продуктовую приёмку.
+Следующая функциональная область — этап 4, SC-016 (создание MANUAL Transfer).

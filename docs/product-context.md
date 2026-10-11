@@ -110,6 +110,6 @@ audit. SC-008 реализована, проверена и включена в 
 история и independent ACL. Проверены 548 backend / 7211 assertions,
 57 unit, 67 component и 24 browser E2E; build, smoke и Composer audit PASS.
 [Акт](acceptance/create-debt.md). Release gate blocked прежними npm advisories;
-продуктовая приёмка не подтверждена. Статус integration/checkbox отражается
-в roadmap после merge. Следующая функциональная область — этап 4, SC-016
+продуктовая приёмка не подтверждена. Snapshot 5b1d981 fast-forward merged
+в main; roadmap отмечает 68/70 задач этапа 3, DR-E3-066/070 остаются открытыми. Следующая функциональная область — этап 4, SC-016
 (MANUAL writer); общий audit blocker не закрыт.

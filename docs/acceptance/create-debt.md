@@ -92,3 +92,10 @@ UserSession/Connect/financial tables проверенными additive migration
 существующие app_user/outbox данные и volumes сохранены.
 ER DOT/SVG/PNG не менялись: принятый нормативный data model не менялся.
 Чужие .agents/ и skills-lock.json сохранены вне коммитов.
+
+## Интеграция — 2026-10-11
+
+Snapshot 5b1d981 fast-forward merged в main после функциональной проверки.
+Проверенные application files при merge не менялись; roadmap отмечает 68/70
+задач этапа 3. DR-E3-066/070 сохраняют общий audit blocker; продуктовая приёмка
+и готовность MVP не подтверждены.
