@@ -124,3 +124,8 @@ assertions, 59 unit, 76 component, 25 browser E2E, build и smoke PASS.
 DR-E4-026/028 и release blocked прежними 11 high npm advisories, без waiver.
 Продуктовая приёмка не подтверждена. Следующая функциональная область —
 этап 5, SC-013; audit blocker не закрыт.
+
+Application snapshot SC-016 b2a6307 fast-forward merged и pushed в main
+2026-10-11. Проверенные application files при интеграции не менялись;
+main содержит 26/28 задач этапа 4. Release blocker и решение Product Owner
+не закрыты этой интеграцией.

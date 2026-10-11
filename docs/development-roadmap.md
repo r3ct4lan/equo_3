@@ -1196,7 +1196,7 @@ Definition of Ready.
 | `MVP-SC-013` | Must | этап 5 | `[ ]` |
 | `MVP-SC-014` | Should | `SH-014` | `[ ]` |
 | `MVP-SC-015` | Must | этап 3 | `[ ]` |
-| `MVP-SC-016` | Must | этап 4 | `[ ]` functional PASS; release audit blocked |
+| `MVP-SC-016` | Must | этап 4 | `[ ]` merged в main; functional PASS; release audit blocked |
 | `MVP-SC-017` | Should | `SH-017` | `[ ]` |
 | `MVP-SC-018` | Later | `LT-018` | `[ ]` |
 | `MVP-SC-019` | Must | baseline + этапы 6—7 | `[ ]` частично |
@@ -1276,3 +1276,10 @@ mvp-scope.md проходит целиком, включая MANUAL и обе и
 из-за прежних npm advisories. Product Owner acceptance не подтверждена.
 [Доказательства](acceptance/manual-transfer.md). Следующая функциональная область
 — этап 5, SC-013 (исправление долга и полный перерасчёт).
+
+## Интеграция SC-016 — 2026-10-11
+
+Snapshot b2a6307 fast-forward merged и pushed в main. Проверенные application
+files при merge не менялись; feature branch сохранена. 26/28 задач этапа 4
+включены в main; DR-E4-026/028, npm audit blocker и продуктовая приёмка
+остаются открытыми. Следующая функциональная область — этап 5 / SC-013.

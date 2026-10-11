@@ -1,5 +1,5 @@
 # SC-016 — Ручной перевод
-Дата: 2026-10-11. Статус: functional PASS; release audit blocked. Ветка: codex/sc-016-manual-transfer.
+Дата: 2026-10-11. Статус: merged в main; functional PASS; release audit blocked. Ветка: codex/sc-016-manual-transfer.
 
 ## Требования и границы
 Основания: MVP-SC-016, DR-E4-001—028, BR-TRF-001/002/004/005,
@@ -38,7 +38,7 @@ UI явно показывает sender→receiver и предварительн
 | SC16-02 | Domain, atomic writer, persistence/idempotency/races | PASS: 24 tests / 113 assertions; 4 architecture tests / 614 assertions; backend quality |
 | SC16-03 | POST, validation, ACL и safe HTTP errors | PASS: 16 tests / 201 assertions; backend quality |
 | SC16-04 | Форма, preview, retry и server refresh; component tests | PASS: 59 unit, 76 component; frontend quality/build |
-| SC16-05 | Полный gate, browser/core path, акт и интеграция | Functional PASS; release BLOCKED; integration pending |
+| SC16-05 | Полный gate, browser/core path, акт и интеграция | Functional PASS; release BLOCKED; merged в main b2a6307 |
 
 Каждый этап фиксируется отдельным проверенным коммитом. Функциональные
 доказательства отделяются от полного release gate и решения Product Owner.
@@ -59,3 +59,6 @@ make check-full дважды blocked прежними npm advisories (11 high), 
 
 После style-only исправлений: 76 focused backend tests / 1350 assertions,
 повторная migration/schema parity и fresh PHP 8.4.26 backend quality PASS.
+
+Проверенный application snapshot b2a6307 fast-forward merged и pushed в main
+2026-10-11. Merge не менял application files и не закрывает release blocker.

@@ -1,5 +1,6 @@
 # Техническая проверка SC-016
 Дата: 2026-10-11. Ветка: codex/sc-016-manual-transfer от main 8c36eec.
+Application snapshot b2a6307 fast-forward merged в main и pushed 2026-10-11.
 Итог: functional PASS; release BLOCKED. Product Owner acceptance не подтверждена.
 
 ## Реализованный результат
