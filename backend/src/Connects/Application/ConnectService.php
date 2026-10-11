@@ -22,6 +22,24 @@ final readonly class ConnectService implements ConnectAccess
     {
     }
 
+    public function exists(string $firstUserId, string $secondUserId): bool
+    {
+        return $firstUserId !== $secondUserId && $this->repository->exists(new CanonicalPair($firstUserId, $secondUserId));
+    }
+
+    public function ensurePair(string $firstUserId, string $secondUserId): string
+    {
+        return $this->repository->getOrCreate(new Connect($this->runtime->newId(), new CanonicalPair($firstUserId, $secondUserId), $this->runtime->now()))['connect']->id;
+    }
+
+    public function isPair(string $connectId, string $firstUserId, string $secondUserId): bool
+    {
+        $c = $this->repository->find($connectId);
+        $pair = new CanonicalPair($firstUserId, $secondUserId);
+
+        return null !== $c && $c->pair->first === $pair->first && $c->pair->second === $pair->second;
+    }
+
     public function getOrCreate(string $firstUserId, string $secondUserId, string $viewerId): array
     {
         $result = $this->repository->getOrCreate(new Connect($this->runtime->newId(), new CanonicalPair($firstUserId, $secondUserId), $this->runtime->now()));

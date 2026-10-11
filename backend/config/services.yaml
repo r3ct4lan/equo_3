@@ -191,3 +191,16 @@ services:
     App\Invitations\Adapter\Http\InvitationController:
         arguments:
             $applicationOrigin: '%env(EQUO_APPLICATION_ORIGIN)%'
+
+    App\Debts\Application\Port\DebtRepositoryPort:
+        alias: App\Debts\Adapter\Persistence\Doctrine\DoctrineDebtRepository
+    App\Debts\Application\Port\DebtRuntimePort:
+        alias: App\Infrastructure\Persistence\Doctrine\ConnectRuntime
+    App\Debts\Application\Port\DebtIdempotencyPort:
+        alias: App\Infrastructure\Idempotency\Persistence\Doctrine\DebtIdempotency
+    App\Transfers\Application\Api\AutomaticShares:
+        alias: App\Transfers\Application\ShareService
+    App\Transfers\Application\Port\TransferRepositoryPort:
+        alias: App\Transfers\Adapter\Persistence\Doctrine\DoctrineTransferRepository
+    App\Transfers\Application\Port\TransferRuntimePort:
+        alias: App\Infrastructure\Persistence\Doctrine\ConnectRuntime

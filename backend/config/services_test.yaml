@@ -68,3 +68,13 @@ services:
     test.connect_service:
         alias: App\Connects\Application\ConnectService
         public: true
+
+    test.create_debt:
+        alias: App\Debts\Application\CreateDebt
+        public: true
+    test.debt_repository:
+        alias: App\Debts\Application\Port\DebtRepositoryPort
+        public: true
+    test.debt_views:
+        alias: App\Debts\Application\DebtViews
+        public: true
