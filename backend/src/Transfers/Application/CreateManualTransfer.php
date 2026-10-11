@@ -25,9 +25,6 @@ final readonly class CreateManualTransfer
         if (!$this->connects->isSide($command->connectId, $authorId)) {
             throw new ApplicationFailure(ApplicationFailureCode::ResourceNotFound);
         }
-        if (!$this->connects->isPair($command->connectId, $command->senderId, $command->receiverId) || !in_array($authorId, [$command->senderId, $command->receiverId], true)) {
-            throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
-        }
 
         return $this->runtime->run(function () use ($command, $authorId): array {
             $scope = 'user:'.$authorId;
@@ -40,6 +37,9 @@ final readonly class CreateManualTransfer
                 }
 
                 return $stored;
+            }
+            if (!$this->connects->isPair($command->connectId, $command->senderId, $command->receiverId) || !in_array($authorId, [$command->senderId, $command->receiverId], true)) {
+                throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
             }
             $ids = [$command->senderId, $command->receiverId];
             sort($ids, SORT_STRING);

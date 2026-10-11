@@ -149,7 +149,7 @@ final class PasswordChangeHttpTest extends WebTestCase
             $access = $input.'.'.rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
         }
         $this->post(['currentPassword' => 'Correct password!', 'newPassword' => 'New password!'], match ($case) {
-            'missing' => null, 'invalid' => 'invalid', default => $access
+            'missing' => null, 'invalid' => 'invalid', default => $access,
         });
         $this->failure(401, 'AUTHENTICATION_REQUIRED');
         self::assertResponseHeaderSame('WWW-Authenticate', 'Bearer');

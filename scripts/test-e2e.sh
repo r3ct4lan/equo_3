@@ -81,6 +81,11 @@ $compose up -d --wait backend frontend nginx
 $compose up -d worker
 $compose --profile e2e run --rm -T --no-deps e2e
 
+if $compose logs --no-color backend worker frontend nginx 2>/dev/null | grep -Eq '/(api/v1/)?connect-invitations/[A-Za-z0-9_-]{16,}'; then
+    echo 'Service access logs exposed an invitation capability path.' >&2
+    exit 1
+fi
+
 git status --porcelain=v1 --untracked-files=all >"$after"
 
 if ! cmp -s "$before" "$after"; then

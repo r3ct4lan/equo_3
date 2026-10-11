@@ -46,6 +46,6 @@ final class InvitationTokenCodecTest extends TestCase
     public function testShortKeyIsRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        new InvitationTokenCodec('v1','{"v1":"YQ=="}');
+        new InvitationTokenCodec('v1', '{"v1":"YQ=="}');
     }
 }
