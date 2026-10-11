@@ -11,6 +11,7 @@ const connect = ref<ConnectView | null>(null)
 let generation = 0
 const pending = ref(false)
 const error = ref<ApiClientError | null>(null)
+const recorded = ref(false)
 async function load(): Promise<void> {
   if (state.value.status !== 'authenticated') return
   const requestGeneration = ++generation
@@ -29,12 +30,20 @@ async function load(): Promise<void> {
     if (requestGeneration === generation) pending.value = false
   }
 }
+async function refreshAfterPayment(): Promise<void> {
+  recorded.value = true
+  await load()
+}
+onBeforeUnmount(() => {
+  ++generation
+})
 onMounted(() => {
   void load()
 })
 watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
   ++generation
   connect.value = null
+  recorded.value = false
   if (state.value.status === 'authenticated') void load()
 })
 </script>
@@ -47,6 +56,12 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
     <h1 id="connection-title">
       Connection
     </h1>
+    <p
+      v-if="recorded"
+      role="status"
+    >
+      Payment recorded.
+    </p>
     <AppLoadingState
       v-if="pending || state.status === 'unknown'"
       message="Loading connection…"
@@ -65,6 +80,12 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
         class="button"
         to="/debts/new"
       >New expense</NuxtLink>
+      <CreateManualTransferForm
+        v-if="connect.canCreateTransfer"
+        :connect="connect"
+        @created="refreshAfterPayment"
+        @reload="load"
+      />
       <TransferHistory :connect-id="connect.id" />
     </div>
     <AppErrorState

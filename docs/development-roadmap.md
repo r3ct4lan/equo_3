@@ -653,14 +653,14 @@ access token и защищённую refresh-сессию, может перез
 - [x] `DR-E4-012` — применять Connect ACL и скрывать чужой Connect.
 - [x] `DR-E4-013` — вернуть точные inactive side, validation,
   idempotency/access ошибки.
-- [ ] `DR-E4-014` — добавить форму MANUAL в карточку Connect.
-- [ ] `DR-E4-015` — явно показывать направление «кто передал кому», amount и
+- [x] `DR-E4-014` — добавить форму MANUAL в карточку Connect.
+- [x] `DR-E4-015` — явно показывать направление «кто передал кому», amount и
   прогнозируемый результат без трактовки как закрытия долга.
-- [ ] `DR-E4-016` — после успеха обновлять balance/history без локального
+- [x] `DR-E4-016` — после успеха обновлять balance/history без локального
   самостоятельного пересчёта как источника истины.
-- [ ] `DR-E4-017` — использовать стабильный Idempotency-Key для неизменённой
+- [x] `DR-E4-017` — использовать стабильный Idempotency-Key для неизменённой
   попытки и новый после редактирования формы.
-- [ ] `DR-E4-018` — не показывать related debt, edit или delete controls.
+- [x] `DR-E4-018` — не показывать related debt, edit или delete controls.
 
 ### 8.5. Tests и exit criteria
 
@@ -669,7 +669,7 @@ access token и защищённую refresh-сессию, может перез
 - [x] `DR-E4-021` — idempotency/concurrency tests двойной отправки.
 - [x] `DR-E4-022` — HTTP tests ACL, inactive side, both directions,
   overpayment и safe errors.
-- [ ] `DR-E4-023` — component tests формы и обновления read state.
+- [x] `DR-E4-023` — component tests формы и обновления read state.
 - [ ] `DR-E4-024` — browser E2E:
   `existing debt balance → MANUAL → changed balance/history у обеих сторон`.
 - [ ] `DR-E4-025` — обновить фактическую документацию.

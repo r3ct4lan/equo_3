@@ -396,3 +396,16 @@ coordination, не добавляя automatic financial retry. Debt/Transfer car
 roles, shares, inactive/deleted states; links на операции доступны только их сторонам.
 Edit/delete/pay controls отсутствуют до следующих этапов.
 [Проверки](acceptance/create-debt.md).
+
+## SC-016 — ручной перевод в карточке Connect
+
+CreateManualTransferForm принимает безопасный ConnectView и current user.
+Направление показывается явно; parseEuroCents сохраняет целые евроценты,
+preview допускает переплату и смену знака. Preview не является сохранённым
+балансом. Confirmed 201 вызывает повторное чтение Connect и новый history
+mount; при ошибке чтения success остаётся подтверждённым и доступен retry чтения.
+Network/5xx сохраняет immutable body/key и блокирует поля до explicit retry.
+Definitive rejection позволяет исправить форму с новым ключом. Pending исключает
+double submit; generation/session/Connect guards отбрасывают поздний ответ.
+INACTIVE_USER предлагает перечитать Connect; неактивная сторона скрывает
+writer, оставляя историю. Связи с долями, edit/delete controls не показаны.
