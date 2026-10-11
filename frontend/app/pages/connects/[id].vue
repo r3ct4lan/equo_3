@@ -56,14 +56,16 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
       class="panel stack"
     >
       <h2>{{ connect.otherUser.name }}</h2>
-      <p>Balance: €0.00</p>
+      <ConnectBalance :amount="connect.balanceAmount" />
       <p v-if="!connect.otherUser.isActive">
         This account is inactive. New expenses and transfers are unavailable until it is reactivated.
       </p>
-      <AppEmptyState
-        title="No shared expenses yet"
-        message="Your connection is ready."
-      />
+      <NuxtLink
+        v-if="connect.canCreateDebt"
+        class="button"
+        to="/debts/new"
+      >New expense</NuxtLink>
+      <TransferHistory :connect-id="connect.id" />
     </div>
     <AppErrorState
       v-if="error"
