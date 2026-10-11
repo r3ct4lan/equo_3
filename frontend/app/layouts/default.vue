@@ -27,6 +27,10 @@
             >Connections</NuxtLink>
             <NuxtLink
               class="nav-link"
+              to="/debts"
+            >Expenses</NuxtLink>
+            <NuxtLink
+              class="nav-link"
               to="/me"
             >My profile</NuxtLink>
           </template>

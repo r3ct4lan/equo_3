@@ -76,7 +76,7 @@ watch(() => [state.value.status, state.value.user?.id], () => {
           class="panel stack"
         >
           <NuxtLink :to="'/connects/' + connect.id">{{ connect.otherUser.name }}</NuxtLink>
-          <p>Balance: €0.00</p>
+          <ConnectBalance :amount="connect.balanceAmount" />
           <p v-if="!connect.otherUser.isActive">
             This account is inactive.
           </p>
