@@ -23,5 +23,8 @@ enum ApplicationFailureCode: string
     case ResourceNotFound = 'RESOURCE_NOT_FOUND';
     case InactiveUser = 'INACTIVE_USER';
     case ValidationError = 'VALIDATION_ERROR';
+    case InvalidParticipant = 'INVALID_PARTICIPANT';
+    case DebtNotAvailable = 'DEBT_NOT_AVAILABLE';
+    case TransferNotAvailable = 'TRANSFER_NOT_AVAILABLE';
     case Forbidden = 'FORBIDDEN';
 }
