@@ -115,6 +115,10 @@ final class ManualTransferHttpTest extends WebTestCase
         self::assertEquals($first, $this->body());
         self::assertResponseHeaderSame('Location', '/api/v1/transfers/'.$first['id']);
         self::assertResponseHeaderSame('ETag', '"1"');
+        $changedPair = $this->command();
+        $changedPair['senderId'] = $this->users[3];
+        $this->request('POST', $path, 0, $changedPair, $key);
+        $this->failure(409, 'IDEMPOTENCY_KEY_REUSED');
         $command = $this->command();
         $command['amount'] = 1001;
         $this->request('POST', $path, 0, $command, $key);

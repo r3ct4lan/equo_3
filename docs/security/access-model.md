@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle, logout, password reset/change и `/me` |
 | Статус | Accepted |
-| Версия | 14 |
+| Версия | 15 |
 | Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | BR-USR-001—003/007/009; BR-SEC-003—007; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
@@ -286,3 +286,15 @@ Backend validates activity/eligibility перед commit; replay возвращ�
 результат только active автору. UI ограничивает выбор server-returned brief users,
 очищает прежний account state и не показывает прежние balances во время нового load.
 [Матрица ACL/privacy](../acceptance/create-debt.md).
+
+## Ручной перевод SC-016
+
+POST /connects/{id}/transfers требует Bearer и active current user; отсутствующий
+и чужой Connect скрываются одинаковым 404 RESOURCE_NOT_FOUND. Sender/receiver
+должны совпадать с неизменяемой парой; fresh locks обеих User исключают запись
+после сериализованной деактивации. Idempotency scope user:<id>, operation
+transfer.create, canonical request содержит Connect ID. Replay сохраняет
+исходный 201 body и проверяет текущую активность автора; новая финансовая
+операция требует активности обеих сторон. Приватные identity поля не включены
+в Transfer. Capability URI исключён из PHP-FPM access format и контролируется
+в E2E diagnostics; JWT/refresh/CSRF pipeline переиспользуется без изменений.

@@ -1575,3 +1575,115 @@ test('financial expense survives a lost create response, updates both balances a
     await recipientContext.close()
   }
 })
+
+test('manual payment survives a lost response and refreshes both histories after an overpayment', async ({ page, browser, request }) => {
+  test.setTimeout(150_000)
+  const authorEmail = await registerAndActivate(page, request, uniqueEmail('manual-author'))
+  const authorAccess = await login(page, authorEmail)
+  const authorProfile = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + authorAccess } })
+  const authorId = (await authorProfile.json() as { id: string }).id
+  const otherContext = await browser.newContext({ ignoreHTTPSErrors: true })
+  try {
+    const other = await otherContext.newPage()
+    const otherEmail = await registerAndActivate(other, request, uniqueEmail('manual-other'))
+    const otherAccess = await login(other, otherEmail)
+    const otherProfile = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + otherAccess } })
+    const otherId = (await otherProfile.json() as { id: string }).id
+    await page.goto('/connects')
+    await waitForNuxtHydration(page)
+    const invited = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/connect-invitations')
+    await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
+    const invitation = await (await invited).json() as { url: string }
+    await followSecretUrl(other, invitation.url)
+    const accepted = other.waitForResponse(response => new URL(response.url()).pathname.endsWith('/accept'))
+    await other.getByRole('button', { name: 'Accept invitation', exact: true }).click()
+    const connectId = (await (await accepted).json() as { id: string }).id
+    await expect(other).toHaveURL(/\/connects\/[0-9a-f-]{36}$/u)
+    await page.goto('/debts/new')
+    await waitForNuxtHydration(page)
+    await expect(page.locator('input[value="' + otherId + '"]')).toBeEnabled()
+    const title = 'Payment dinner ' + Date.now()
+    await page.getByLabel('Title', { exact: true }).fill(title)
+    await page.getByLabel('Amount in EUR', { exact: true }).fill('10.01')
+    await page.locator('input[value="' + otherId + '"]').check()
+    const debtCreated = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/debts' && response.request().method() === 'POST')
+    await page.getByRole('button', { name: 'Create expense', exact: true }).click()
+    const debtResponse = await debtCreated
+    expect(debtResponse.status()).toBe(201)
+    const initialDebt = await debtResponse.json() as { id: string, version: number, participants: Array<{ debtParticipantId: string }> }
+    const debtId = initialDebt.id
+    await expect(page).toHaveURL(/\/debts\/[0-9a-f-]{36}$/u)
+    await page.goto('/connects/' + connectId)
+    await waitForNuxtHydration(page)
+    await expect(page.getByText('They owe you €5.01.', { exact: true })).toBeVisible()
+    await page.getByLabel('Who transferred money?', { exact: true }).selectOption('other')
+    await page.getByLabel('Payment amount in EUR', { exact: true }).fill('7.00')
+    await expect(page.getByText(/Expected balance: -€1.99/u)).toBeVisible()
+    const path = '/api/v1/connects/' + connectId + '/transfers'
+    let firstBody = ''
+    let firstKey = ''
+    let transferId = ''
+    let commands = 0
+    page.on('request', (sent) => {
+      if (sent.method() === 'POST' && new URL(sent.url()).pathname === path) ++commands
+    })
+    await page.route('**' + path, async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.continue()
+        return
+      }
+      firstBody = route.request().postData() ?? ''
+      firstKey = route.request().headers()['idempotency-key'] ?? ''
+      const response = await route.fetch()
+      expect(response.status()).toBe(201)
+      transferId = (await response.json() as { id: string }).id
+      await route.abort('failed')
+    }, { times: 1 })
+    await page.getByRole('button', { name: 'Record payment', exact: true }).click()
+    await expect(page.getByRole('alert')).toContainText('The result is not confirmed')
+    await expect(page.getByLabel('Payment amount in EUR', { exact: true })).toBeDisabled()
+    expect(commands).toBe(1)
+    const repeated = page.waitForResponse(response => new URL(response.url()).pathname === path && response.request().method() === 'POST')
+    await page.getByRole('button', { name: 'Retry same payment', exact: true }).click()
+    const replay = await repeated
+    expect(replay.status()).toBe(201)
+    expect(replay.request().postData() === firstBody).toBe(true)
+    expect(firstKey.length > 0 && replay.request().headers()['idempotency-key'] === firstKey).toBe(true)
+    const payment = await replay.json() as { id: string, sender: { id: string }, receiver: { id: string }, createdBy: { id: string }, debtReference: null }
+    expect(payment.id).toBe(transferId)
+    expect(payment.sender.id).toBe(otherId)
+    expect(payment.receiver.id).toBe(authorId)
+    expect(payment.createdBy.id).toBe(authorId)
+    expect(payment.debtReference).toBeNull()
+    expect(replay.headers()['location']).toBe('/api/v1/transfers/' + transferId)
+    expect(replay.headers()['etag']).toBe('"1"')
+    await expect(page.getByText('Payment recorded.', { exact: true })).toBeVisible()
+    await expect(page.getByText('You owe them €1.99.', { exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Payment · €7.00', exact: true })).toHaveCount(1)
+    expect(commands).toBe(2)
+    for (const [viewer, access, expected] of [[page, authorAccess, -199], [other, otherAccess, 199]] as const) {
+      await viewer.goto('/connects/' + connectId)
+      await expect(viewer.getByText(expected < 0 ? 'You owe them €1.99.' : 'They owe you €1.99.', { exact: true })).toBeVisible()
+      await expect(viewer.getByRole('link', { name: 'Expense share · €5.01', exact: true })).toBeVisible()
+      await viewer.getByRole('link', { name: 'Payment · €7.00', exact: true }).click()
+      await expect(viewer.getByRole('heading', { name: 'Payment · €7.00', exact: true })).toBeVisible()
+      await expect(viewer.getByText(/Recorded by/u)).toBeVisible()
+      await expect(viewer.getByRole('button', { name: /edit|delete/iu })).toHaveCount(0)
+      const history = await request.get(baseUrl + path, { headers: { Authorization: 'Bearer ' + access } })
+      const items = (await history.json() as { items: Array<{ type: string }> }).items
+      expect(items.length).toBe(2)
+      expect(items.filter(item => item.type === 'MANUAL').length).toBe(1)
+      const card = await request.get(baseUrl + '/api/v1/connects/' + connectId, { headers: { Authorization: 'Bearer ' + access } })
+      expect((await card.json() as { balanceAmount: number }).balanceAmount).toBe(expected)
+    }
+    const debt = await request.get(baseUrl + '/api/v1/debts/' + debtId, { headers: { Authorization: 'Bearer ' + authorAccess } })
+    const finalDebt = await debt.json() as typeof initialDebt
+    const normalize = (card: typeof initialDebt) => ({ ...card, participants: [...card.participants].sort((a, b) => a.debtParticipantId.localeCompare(b.debtParticipantId)) })
+    expect(normalize(finalDebt)).toEqual(normalize(initialDebt))
+    await expectNoPersistentSecrets(page, [authorAccess, otherAccess, testPassword])
+    await expectNoPersistentSecrets(other, [authorAccess, otherAccess, testPassword])
+  }
+  finally {
+    await otherContext.close()
+  }
+})

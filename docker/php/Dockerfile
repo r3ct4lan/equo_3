@@ -9,6 +9,8 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.l
     && docker-php-ext-enable redis amqp \
     && rm -rf /var/lib/apt/lists/* /tmp/pear
 
+COPY docker/php/zz-equo-access.conf /usr/local/etc/php-fpm.d/zz-equo-access.conf
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/backend
 

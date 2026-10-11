@@ -113,3 +113,14 @@ audit. SC-008 реализована, проверена и включена в 
 продуктовая приёмка не подтверждена. Snapshot 5b1d981 fast-forward merged
 в main; roadmap отмечает 68/70 задач этапа 3, DR-E3-066/070 остаются открытыми. Следующая функциональная область — этап 4, SC-016
 (MANUAL writer); общий audit blocker не закрыт.
+
+## Ручной перевод SC-016 — 2026-10-11
+
+SC16-01—05 функционально реализованы и проверены в
+codex/sc-016-manual-transfer от 8c36eec: атомарный MANUAL, оба направления,
+переплата, safe retry, server balance/history refresh. 588 backend / 7537
+assertions, 59 unit, 76 component, 25 browser E2E, build и smoke PASS.
+[Акт](acceptance/manual-transfer.md). 26/28 задач этапа 4 выполнены;
+DR-E4-026/028 и release blocked прежними 11 high npm advisories, без waiver.
+Продуктовая приёмка не подтверждена. Следующая функциональная область —
+этап 5, SC-013; audit blocker не закрыт.

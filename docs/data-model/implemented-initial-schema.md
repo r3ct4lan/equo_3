@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Зафиксировать фактически реализованную часть модели данных текущего MVP |
 | Статус | Accepted |
-| Версия | 13 |
+| Версия | 14 |
 | Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | Модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016, ADR-019; фактические migrations и mapping |
@@ -287,3 +287,12 @@ Connect history (connect_id,created_at,id), active balance (connect_id,is_delete
 Empty-chain migration, schema parity, round trip обоих типов Transfer,
 CHECK/UNIQUE/FK, rollback и real-process concurrency проверены изолированной
 test-БД. [Матрица](../acceptance/create-debt.md).
+
+## SC-016
+
+MANUAL writer использует существующую transfer и idempotency_record. Новых
+таблиц, колонок и миграций нет. Связи с Debt/participant/related null, author —
+одна из сторон, version=1. Ledger balance/history переиспользуются;
+MANUAL не меняет Debt или автоматические доли. После исправления только
+форматирования Version20261011120000 её 18 SQL statements/params подтверждены
+идентичными исходной версии; применённая схема и dev data не переписывались.

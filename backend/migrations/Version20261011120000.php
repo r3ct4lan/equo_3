@@ -89,7 +89,7 @@ SQL);
         $this->addSql('CREATE INDEX idx_transfer_balance ON transfer (connect_id, is_deleted)');
         foreach (['sender', 'receiver', 'author', 'debt', 'participant', 'related'] as $name) {
             $column = match ($name) {
-                'author' => 'created_by_id', 'participant' => 'debt_participant_id', 'related' => 'related_transfer_id', default => $name.'_id'
+                'author' => 'created_by_id', 'participant' => 'debt_participant_id', 'related' => 'related_transfer_id', default => $name.'_id',
             };
             $this->addSql('CREATE INDEX idx_transfer_'.$name.' ON transfer ('.$column.')');
         }

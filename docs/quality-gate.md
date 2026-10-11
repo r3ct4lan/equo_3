@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 13 |
+| Версия | 14 |
 | Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
@@ -333,3 +333,13 @@ shares/history и opposite balances → third-user denial. E2E прерывае�
 Audit policy/threshold не менялись. Полный gate остаётся blocked на прежних
 braces/node-forge advisories; отдельные financial/browser tests не заменяют
 release gate. [Текущие результаты](acceptance/create-debt.md).
+
+## Дополнение SC-016
+
+Обязательный browser suite: 25 сценариев, включая основной путь до MANUAL,
+реально committed/lost 201 и explicit same-key retry, переплату с противоположными
+балансами и неизменность Debt. Participants сравниваются по stable IDs.
+PHP-FPM logs содержат IP/date/method/status без URI; test-e2e.sh дополнительно
+проверяет service logs на invitation capabilities. Полные результаты и прежний
+npm audit blocker — [акт SC-016](acceptance/manual-transfer.md).
+Audit policy/threshold и отсутствие исключений сохраняются.

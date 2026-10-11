@@ -1,5 +1,5 @@
 # SC-016 — Ручной перевод
-Дата: 2026-10-11. Статус: реализация. Ветка: codex/sc-016-manual-transfer.
+Дата: 2026-10-11. Статус: functional PASS; release audit blocked. Ветка: codex/sc-016-manual-transfer.
 
 ## Требования и границы
 Основания: MVP-SC-016, DR-E4-001—028, BR-TRF-001/002/004/005,
@@ -36,10 +36,26 @@ UI явно показывает sender→receiver и предварительн
 |---|---|---|
 | SC16-01 | Contract audit, границы и декомпозиция | PASS |
 | SC16-02 | Domain, atomic writer, persistence/idempotency/races | PASS: 24 tests / 113 assertions; 4 architecture tests / 614 assertions; backend quality |
-| SC16-03 | POST, validation, ACL и safe HTTP errors | PASS: 16 tests / 198 assertions; backend quality |
+| SC16-03 | POST, validation, ACL и safe HTTP errors | PASS: 16 tests / 201 assertions; backend quality |
 | SC16-04 | Форма, preview, retry и server refresh; component tests | PASS: 59 unit, 76 component; frontend quality/build |
-| SC16-05 | Полный gate, browser/core path, акт и интеграция | Pending |
+| SC16-05 | Полный gate, browser/core path, акт и интеграция | Functional PASS; release BLOCKED; integration pending |
 
 Каждый этап фиксируется отдельным проверенным коммитом. Функциональные
 доказательства отделяются от полного release gate и решения Product Owner.
 Прежний npm audit blocker не считается исключением и проверяется повторно.
+
+## Итоговая проверка
+588 backend / 7537 assertions, 59 unit, 76 component и 25 browser E2E PASS.
+Build, repository/backend/frontend quality, Composer audit, migrations/schema
+parity, Nginx syntax и smoke PASS. E2E не изменил исходники.
+Новый writer проверяет pair внутри транзакции после idempotency lookup;
+изменённый запрос с прежним ключом, включая неверную пару, получает 409.
+PHP-FPM access format содержит только IP/date/method/status; E2E дополнительно
+проверяет отсутствие capability paths в service logs.
+После свежего PHP patch runtime исправлены только четыре замечания стиля;
+18 SQL statements и параметры существующей миграции идентичны до/после.
+make check-full дважды blocked прежними npm advisories (11 high), без waiver.
+[Матрица и ограничения](../acceptance/manual-transfer.md).
+
+После style-only исправлений: 76 focused backend tests / 1350 assertions,
+повторная migration/schema parity и fresh PHP 8.4.26 backend quality PASS.

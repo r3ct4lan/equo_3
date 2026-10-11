@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 14 |
+| Версия | 15 |
 | Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | E1-07—E1-12, backend login stage, ADR-001, ADR-006, ADR-007, ADR-012—018 и фактическая реализация auth среза |
@@ -404,3 +404,16 @@ schema listener отражает их FK при сравнении mapping. Keys
 узкие ports двух query modules. Controllers/Validator DTO живут в Adapter/Http.
 
 [План](features/create-debt.md), [доказательства](acceptance/create-debt.md).
+
+## MANUAL writer SC-016
+
+CreateManualTransfer принадлежит Transfers/Application, использует собственные
+repository/runtime/idempotency ports и AccountAccess/ConnectAccess через
+Application/Api. Точный pair проверяется внутри транзакции после lookup ключа;
+активность сторон — свежими sorted UUID User locks. Domain factory создаёт
+MANUAL с null debt/participant/related и проверяет локальные инварианты.
+Infrastructure DebtIdempotency реализует также TransferIdempotencyPort,
+переиспользуя общий DoctrineIdempotency, без второй таблицы или движка.
+TransferQueries формирует исходный безопасный representation для сохранённого
+201. Схема, ledger query и Connect balance API переиспользуются без новой
+миграции. PHP-FPM access log исключает URI, safe API routes остаются в Nginx.
