@@ -16,7 +16,7 @@ Debt/DebtParticipant/Transfer и ER constraints; ADR-002/003/005/009—012/015.
 | SC11-01 | Contract audit, план и границы | Документы и Git | PASS |
 | SC11-02 | Чистые Money/Debt/Transfer, новая миграция, records | Unit, DB constraints, mapping parity | PASS |
 | SC11-03 | Атомарное создание, допустимые пользователи, idempotency | Integration, rollback, real-process races | PASS |
-| SC11-04 | ACL, ledger balance, history, шесть endpoints | HTTP, property, privacy, pagination, ETag | Pending |
+| SC11-04 | ACL, ledger balance, history, шесть endpoints | HTTP, property, privacy, pagination, ETag | PASS |
 | SC11-05 | Create/list/card/history, server-derived выбор пользователей | Frontend unit/component, lint/typecheck | Pending |
 | SC11-06 | Полный gate, финансовый browser путь и третья сторона | make check-full, отдельный E2E при audit blocker | Pending |
 
@@ -72,3 +72,10 @@ rollback на INSERT Debt/participant/Connect/Transfer/idempotency result,
 co-participant без Connect. Пять real-process PostgreSQL races используют
 pg_blocking_pids barrier: same/changed key, different keys с одной новой парой,
 rollback первого writer и fresh inactivity после ожидания User lock.
+
+SC11-04: 87 financial tests / 2396 assertions, 4 architecture tests / 605
+assertions, backend quality и все пять migrations/schema parity PASS.
+HTTP доказал independent Transfer ACL, safe debtReference, excluded/deleted
+participants, perspective symmetry, BIGINT balance, keyset ties, 201 replay
+с Location/ETag, protected routes и strict money/bool JSON validation.
+PostgreSQL JSONB меняет порядок object keys; replay сохраняет значения и массивы.

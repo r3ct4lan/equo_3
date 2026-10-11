@@ -26,3 +26,5 @@ security:
         - { path: ^/api/v1/connect-invitations$, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/connect-invitations/[^/]+/accept$, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/connect-invitations/[^/]+$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/v1/debts(?:/|$), roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api/v1/transfers(?:/|$), roles: IS_AUTHENTICATED_FULLY }
