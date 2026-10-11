@@ -6,17 +6,40 @@ namespace App\Transfers\Adapter\Http;
 
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
+use App\Transfers\Adapter\Http\Request\CreateManualTransferRequest;
+use App\Transfers\Application\CreateManualTransfer;
+use App\Transfers\Application\CreateManualTransferCommand;
 use App\Transfers\Application\TransferQueries;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class TransferController
 {
-    public function __construct(private TransferQueries $queries, private Security $security)
+    public function __construct(private TransferQueries $queries, private Security $security, private CreateManualTransfer $createManualTransfer)
     {
+    }
+
+    #[Route('/api/v1/connects/{connectId}/transfers', name: 'api_v1_manual_transfer_create', methods: ['POST'])]
+    public function create(string $connectId, Request $request, #[MapRequestPayload(acceptFormat: 'json')] CreateManualTransferRequest $payload): JsonResponse
+    {
+        $key = $request->headers->get('Idempotency-Key');
+        if (null === $key || '' === trim($key)) {
+            throw new ApplicationFailure(ApplicationFailureCode::IdempotencyKeyRequired);
+        }
+        if (!CreateManualTransferCommand::isUuid($key)) {
+            throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
+        }
+        if (!CreateManualTransferCommand::isUuid($connectId)) {
+            throw new ApplicationFailure(ApplicationFailureCode::ResourceNotFound);
+        }
+        $result = $this->createManualTransfer->handle(new CreateManualTransferCommand($connectId, $payload->senderId ?? '', $payload->receiverId ?? '', is_int($payload->amount) ? $payload->amount : 0, $key), $this->userId());
+        $body = $result['body'];
+
+        return new JsonResponse($body, $result['status'], ['Cache-Control' => 'no-store', 'Location' => '/api/v1/transfers/'.$body['id'], 'ETag' => '"'.$body['version'].'"']);
     }
 
     #[Route('/api/v1/transfers/{transferId}', name: 'api_v1_transfer_detail', methods: ['GET'])]
