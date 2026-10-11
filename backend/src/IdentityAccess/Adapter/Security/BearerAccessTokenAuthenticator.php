@@ -33,7 +33,7 @@ final class BearerAccessTokenAuthenticator extends AbstractAuthenticator
         $path = $request->getPathInfo();
 
         return in_array($path, [self::PROTECTED_PATH, '/api/v1/auth/logout-all', '/api/v1/account/password-change'], true)
-            || 1 === preg_match('~^/api/v1/connects(?:/|$)~D', $path)
+            || 1 === preg_match('~^/api/v1/(?:connects|debts|transfers)(?:/|$)~D', $path)
             || ('POST' === $request->getMethod() && ('/api/v1/connect-invitations' === $path || 1 === preg_match('~^/api/v1/connect-invitations/[^/]+/accept$~D', $path)));
     }
 

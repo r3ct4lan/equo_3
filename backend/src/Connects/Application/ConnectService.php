@@ -12,14 +12,22 @@ use App\Connects\Domain\Connect;
 use App\IdentityAccess\Application\Api\AccountAccess;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
+use App\Transfers\Application\Api\BalanceQuery;
 use DateTimeImmutable;
 use DateTimeZone;
 use JsonException;
 
 final readonly class ConnectService implements ConnectAccess
 {
-    public function __construct(private ConnectRepositoryPort $repository, private ConnectRuntimePort $runtime, private AccountAccess $accounts)
+    public function __construct(private ConnectRepositoryPort $repository, private ConnectRuntimePort $runtime, private AccountAccess $accounts, private BalanceQuery $balances)
     {
+    }
+
+    public function isSide(string $connectId, string $viewerId): bool
+    {
+        $c = $this->repository->find($connectId);
+
+        return null !== $c && in_array($viewerId, [$c->pair->first, $c->pair->second], true);
     }
 
     public function exists(string $firstUserId, string $secondUserId): bool
@@ -108,7 +116,7 @@ final readonly class ConnectService implements ConnectAccess
         if (null === $other || null === $viewer) {
             throw new ApplicationFailure(ApplicationFailureCode::ResourceNotFound);
         }
-        $view = ['id' => $connect->id, 'otherUser' => ['id' => $other->id, 'name' => $other->name, 'isActive' => $other->isActive], 'balanceAmount' => 0, 'canCreateDebt' => $viewer->isActive && $other->isActive, 'canCreateTransfer' => $viewer->isActive && $other->isActive, 'createdAt' => self::date($connect->createdAt)];
+        $view = ['id' => $connect->id, 'otherUser' => ['id' => $other->id, 'name' => $other->name, 'isActive' => $other->isActive], 'balanceAmount' => $this->balances->balance($connect->id, $viewerId), 'canCreateDebt' => $viewer->isActive && $other->isActive, 'canCreateTransfer' => $viewer->isActive && $other->isActive, 'createdAt' => self::date($connect->createdAt)];
         if (!$other->isActive) {
             $view['restriction'] = ['code' => 'OTHER_USER_INACTIVE', 'message' => 'New financial operations are unavailable until the user reactivates the account.'];
         }

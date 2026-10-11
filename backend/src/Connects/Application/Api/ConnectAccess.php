@@ -6,6 +6,8 @@ namespace App\Connects\Application\Api;
 
 interface ConnectAccess
 {
+    public function isSide(string $connectId, string $viewerId): bool;
+
     public function exists(string $firstUserId, string $secondUserId): bool;
 
     public function ensurePair(string $firstUserId, string $secondUserId): string;

@@ -17,6 +17,27 @@ final readonly class DoctrineDebtRepository implements DebtRepositoryPort
     {
     }
 
+    public function page(string $viewerId, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array
+    {
+        $sql = 'SELECT d.id FROM debt d WHERE d.is_deleted=false AND (d.created_by_id=:user OR d.payer_id=:user OR EXISTS (SELECT 1 FROM debt_participant p WHERE p.debt_id=d.id AND p.user_id=:user AND p.is_deleted=false))';
+        $params = ['user' => $viewerId];
+        if (null !== $before) {
+            $sql .= ' AND (d.created_at,d.id) < (:before,:id)';
+            $params['before'] = $before->format('Y-m-d H:i:sP');
+            $params['id'] = $beforeId;
+        }
+        $sql .= ' ORDER BY d.created_at DESC,d.id DESC LIMIT '.(int) $limit;
+        $result = [];
+        foreach ($this->db->fetchFirstColumn($sql, $params) as $id) {
+            $debt = $this->find((string) $id);
+            if (null !== $debt) {
+                $result[] = $debt;
+            }
+        }
+
+        return $result;
+    }
+
     public function save(Debt $debt): void
     {
         $this->db->insert('debt', ['id' => $debt->id, 'title' => $debt->title, 'description' => $debt->description, 'total_amount' => $debt->totalAmount->cents, 'payer_id' => $debt->payerId, 'created_by_id' => $debt->createdById, 'created_at' => $debt->createdAt->format('Y-m-d H:i:sP'), 'is_deleted' => $debt->isDeleted, 'version' => $debt->version], ['is_deleted' => 'boolean']);

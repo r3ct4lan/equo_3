@@ -204,3 +204,12 @@ services:
         alias: App\Transfers\Adapter\Persistence\Doctrine\DoctrineTransferRepository
     App\Transfers\Application\Port\TransferRuntimePort:
         alias: App\Infrastructure\Persistence\Doctrine\ConnectRuntime
+
+    App\Debts\Application\Port\CursorPort:
+        alias: App\Infrastructure\Pagination\KeysetCursor
+    App\Transfers\Application\Port\CursorPort:
+        alias: App\Infrastructure\Pagination\KeysetCursor
+    App\Debts\Application\Api\DebtAccess:
+        alias: App\Debts\Application\DebtQueries
+    App\Transfers\Application\Api\BalanceQuery:
+        alias: App\Transfers\Application\BalanceService
