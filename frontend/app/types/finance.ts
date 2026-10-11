@@ -44,3 +44,9 @@ export interface TransferView {
   version: number
   createdAt: string
 }
+
+export interface CreateManualTransferBody {
+  senderId: string
+  receiverId: string
+  amount: number
+}
