@@ -32,6 +32,18 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Invitations/Adapter/Persistence/Doctrine/Record'
                 prefix: 'App\Invitations\Adapter\Persistence\Doctrine\Record'
                 alias: Invitations
+            Debts:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Debts/Adapter/Persistence/Doctrine/Record'
+                prefix: 'App\Debts\Adapter\Persistence\Doctrine\Record'
+                alias: Debts
+            Transfers:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Transfers/Adapter/Persistence/Doctrine/Record'
+                prefix: 'App\Transfers\Adapter\Persistence\Doctrine\Record'
+                alias: Transfers
             InfrastructureIdempotency:
                 type: attribute
                 is_bundle: false

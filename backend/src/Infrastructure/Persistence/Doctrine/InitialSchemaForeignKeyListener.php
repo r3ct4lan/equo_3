@@ -16,15 +16,26 @@ final class InitialSchemaForeignKeyListener
         $schema = $event->getSchema();
 
         foreach ([
-            ['connect', 'first_user_id', 'fk_connect_first_user'],
-            ['connect', 'second_user_id', 'fk_connect_second_user'],
-            ['connect_invitation', 'created_by_id', 'fk_connect_invitation_author'],
-            ['connect_invitation', 'accepted_by_id', 'fk_connect_invitation_acceptor'],
-        ] as [$tableName, $column, $name]) {
-            if ($schema->hasTable($tableName) && $schema->hasTable('app_user')) {
+            ['connect', 'first_user_id', 'fk_connect_first_user', 'app_user'],
+            ['connect', 'second_user_id', 'fk_connect_second_user', 'app_user'],
+            ['connect_invitation', 'created_by_id', 'fk_connect_invitation_author', 'app_user'],
+            ['connect_invitation', 'accepted_by_id', 'fk_connect_invitation_acceptor', 'app_user'],
+            ['debt', 'payer_id', 'fk_debt_payer', 'app_user'],
+            ['debt', 'created_by_id', 'fk_debt_author', 'app_user'],
+            ['debt_participant', 'debt_id', 'fk_debt_participant_debt', 'debt'],
+            ['debt_participant', 'user_id', 'fk_debt_participant_user', 'app_user'],
+            ['transfer', 'connect_id', 'fk_transfer_connect', 'connect'],
+            ['transfer', 'sender_id', 'fk_transfer_sender', 'app_user'],
+            ['transfer', 'receiver_id', 'fk_transfer_receiver', 'app_user'],
+            ['transfer', 'created_by_id', 'fk_transfer_author', 'app_user'],
+            ['transfer', 'debt_id', 'fk_transfer_debt', 'debt'],
+            ['transfer', 'debt_participant_id', 'fk_transfer_participant', 'debt_participant'],
+            ['transfer', 'related_transfer_id', 'fk_transfer_related', 'transfer'],
+        ] as [$tableName, $column, $name, $target]) {
+            if ($schema->hasTable($tableName) && $schema->hasTable($target)) {
                 $table = $schema->getTable($tableName);
                 if (!$table->hasForeignKey($name)) {
-                    $table->addForeignKeyConstraint('app_user', [$column], ['id'], ['onUpdate' => 'NO ACTION', 'onDelete' => 'RESTRICT'], $name);
+                    $table->addForeignKeyConstraint($target, [$column], ['id'], ['onUpdate' => 'NO ACTION', 'onDelete' => 'RESTRICT'], $name);
                 }
             }
         }
