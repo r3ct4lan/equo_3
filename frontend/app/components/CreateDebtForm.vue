@@ -51,7 +51,12 @@ async function loadPeople(): Promise<void> {
   users.value = []
   try {
     const result = await eligibleDebtUsers($auth, self, () => requestGeneration === generation && state.value.status === 'authenticated' && state.value.user?.id === self.id)
-    if (requestGeneration === generation && state.value.user?.id === self.id) users.value = result
+    if (requestGeneration === generation && state.value.user?.id === self.id) {
+      users.value = result
+      const available = new Set(result.map(user => user.id))
+      if (!available.has(values.payerId)) values.payerId = self.id
+      values.participantIds = values.participantIds.filter(id => available.has(id) && id !== values.payerId)
+    }
   }
   catch (failure) {
     if (requestGeneration === generation) optionsError.value = toApiClientError(failure)

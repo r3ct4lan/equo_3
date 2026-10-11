@@ -1438,6 +1438,9 @@ test('connect invitation joins two users and retries a lost accept response with
     expect(new URL(page.url()).pathname === '/connects/' + connectionId).toBe(true)
 
     const otherEmail = await ensureActiveUser(page, request)
+    await page.goto('/me')
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+    await expect(page).toHaveURL(/\/login\?signedOut=1$/u)
     const otherAccess = await login(page, otherEmail)
     const hidden = await request.get(baseUrl + '/api/v1/connects/' + connectionId, { headers: { Authorization: 'Bearer ' + otherAccess } })
     expect(hidden.status()).toBe(404)
@@ -1456,4 +1459,119 @@ test('invitation preview safely handles an unknown link without exposing the cap
   await expect(page.getByRole('alert')).toContainText('Invitation unavailable')
   await expect(page.getByRole('button', { name: 'Accept invitation', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0)
+})
+
+test('financial expense survives a lost create response, updates both balances and stays private to participants', async ({ page, browser, request }) => {
+  test.setTimeout(150_000)
+  const authorEmail = await registerAndActivate(page, request, uniqueEmail('debt-author'))
+  const authorAccess = await login(page, authorEmail)
+  const recipientContext = await browser.newContext({ ignoreHTTPSErrors: true })
+  try {
+    const recipient = await recipientContext.newPage()
+    const recipientEmail = await registerAndActivate(recipient, request, uniqueEmail('debt-recipient'))
+    const recipientAccess = await login(recipient, recipientEmail)
+    const recipientProfile = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + recipientAccess } })
+    const recipientId = (await recipientProfile.json() as { id: string }).id
+    await page.goto('/connects')
+    await waitForNuxtHydration(page)
+    const invited = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/connect-invitations')
+    await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
+    const invitation = await (await invited).json() as { url: string }
+    await followSecretUrl(recipient, invitation.url)
+    const accepted = recipient.waitForResponse(response => new URL(response.url()).pathname.endsWith('/accept'))
+    await recipient.getByRole('button', { name: 'Accept invitation', exact: true }).click()
+    const connectId = (await (await accepted).json() as { id: string }).id
+    await expect(recipient).toHaveURL(/\/connects\/[0-9a-f-]{36}$/u)
+    await page.goto('/debts/new')
+    await waitForNuxtHydration(page)
+    await expect(page.locator('input[value="' + recipientId + '"]')).toBeEnabled()
+    const title = 'Private dinner ' + Date.now()
+    await page.getByLabel('Title', { exact: true }).fill(title)
+    await page.getByLabel('Description (optional)', { exact: true }).fill('Shared restaurant bill')
+    await page.getByLabel('Amount in EUR', { exact: true }).fill('10.01')
+    await page.locator('input[value="' + recipientId + '"]').check()
+    await expect(page.getByText('Each share: €5.01. Shares round up to the next cent.', { exact: true })).toBeVisible()
+    let debtId = ''
+    let firstCommand = ''
+    let firstKey = ''
+    let commands = 0
+    page.on('request', (sent) => {
+      if (sent.method() === 'POST' && new URL(sent.url()).pathname === '/api/v1/debts') ++commands
+    })
+    await page.route('**/api/v1/debts', async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.continue()
+        return
+      }
+      firstCommand = route.request().postData() ?? ''
+      firstKey = route.request().headers()['idempotency-key'] ?? ''
+      const response = await route.fetch()
+      expect(response.status()).toBe(201)
+      expect(response.headers()['etag']).toBe('"1"')
+      debtId = (await response.json() as { id: string }).id
+      await route.abort('failed')
+    }, { times: 1 })
+    await page.getByRole('button', { name: 'Create expense', exact: true }).click()
+    await expect(page.getByRole('alert')).toContainText('The result is not confirmed')
+    await expect(page.getByLabel('Amount in EUR', { exact: true })).toBeDisabled()
+    expect(commands).toBe(1)
+    const retry = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/debts' && response.request().method() === 'POST')
+    await page.getByRole('button', { name: 'Retry same expense', exact: true }).click()
+    const replay = await retry
+    expect(replay.status()).toBe(201)
+    expect(replay.request().postData() === firstCommand).toBe(true)
+    expect(replay.request().headers()['idempotency-key'] === firstKey && firstKey.length > 0).toBe(true)
+    expect((await replay.json() as { id: string }).id === debtId).toBe(true)
+    expect(replay.headers()['location']).toBe('/api/v1/debts/' + debtId)
+    expect(replay.headers()['etag']).toBe('"1"')
+    await expect(page).toHaveURL(/\/debts\/[0-9a-f-]{36}$/u)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(title)
+    await expect(page.getByText('2 people · €5.01 each', { exact: true })).toBeVisible()
+    expect(commands).toBe(2)
+    await expect(page.getByRole('button', { name: /edit|delete|pay/iu })).toHaveCount(0)
+    const participantDebt = await request.get(baseUrl + '/api/v1/debts/' + debtId, { headers: { Authorization: 'Bearer ' + recipientAccess } })
+    expect(participantDebt.status()).toBe(200)
+    const body = await participantDebt.json() as { participants: Array<{ user: { id: string }, transferId: string | null }> }
+    const transferId = body.participants.find(p => p.user.id === recipientId)?.transferId
+    expect(typeof transferId === 'string').toBe(true)
+    await page.getByRole('link', { name: 'Expenses', exact: true }).click()
+    await expect(page.getByRole('link', { name: title, exact: true })).toHaveCount(1)
+    const list = await request.get(baseUrl + '/api/v1/debts', { headers: { Authorization: 'Bearer ' + authorAccess } })
+    expect((await list.json() as { items: unknown[] }).items.length).toBe(1)
+    const history = await request.get(baseUrl + '/api/v1/connects/' + connectId + '/transfers', { headers: { Authorization: 'Bearer ' + authorAccess } })
+    expect((await history.json() as { items: unknown[] }).items.length).toBe(1)
+    for (const [viewer, expected] of [[page, 'They owe you €5.01.'], [recipient, 'You owe them €5.01.']] as const) {
+      await viewer.goto('/connects/' + connectId)
+      await expect(viewer.getByText(expected, { exact: true })).toBeVisible()
+      await expect(viewer.getByRole('link', { name: title, exact: true })).toBeVisible()
+      await viewer.getByRole('link', { name: 'Expense share · €5.01', exact: true }).click()
+      await expect(viewer.getByRole('heading', { name: 'Expense share · €5.01', exact: true })).toBeVisible()
+      await viewer.getByRole('link', { name: title, exact: true }).click()
+      await expect(viewer.getByRole('heading', { level: 1 })).toHaveText(title)
+      expect((await viewer.locator('main').innerText()).includes(authorEmail) || (await viewer.locator('main').innerText()).includes(recipientEmail)).toBe(false)
+    }
+    const strangerEmail = await ensureActiveUser(page, request)
+    await page.goto('/me')
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+    await expect(page).toHaveURL(/\/login\?signedOut=1$/u)
+    const strangerAccess = await login(page, strangerEmail)
+    for (const [path, code] of [['/debts/' + debtId, 'DEBT_NOT_AVAILABLE'], ['/transfers/' + transferId, 'TRANSFER_NOT_AVAILABLE'], ['/connects/' + connectId + '/transfers', 'RESOURCE_NOT_FOUND']]) {
+      const response = await request.get(baseUrl + '/api/v1' + path, { headers: { Authorization: 'Bearer ' + strangerAccess } })
+      expect(response.status()).toBe(404)
+      const json = await response.json() as { error: { code: string } }
+      expect(json.error.code).toBe(code)
+      expect(JSON.stringify(json).includes(title) || JSON.stringify(json).includes(recipientEmail)).toBe(false)
+    }
+    await page.goto('/debts/' + debtId)
+    await expect(page.getByRole('alert')).toContainText('Expense unavailable')
+    expect((await page.locator('main').innerText()).includes(title)).toBe(false)
+    await page.goto('/transfers/' + transferId)
+    await expect(page.getByRole('alert')).toContainText('Operation unavailable')
+    await page.goto('/debts')
+    await expect(page.getByText('No expenses yet', { exact: true })).toBeVisible()
+    await expectNoPersistentSecrets(page, [authorAccess, recipientAccess, strangerAccess, testPassword])
+  }
+  finally {
+    await recipientContext.close()
+  }
 })

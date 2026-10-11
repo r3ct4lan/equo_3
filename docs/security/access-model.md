@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle, logout, password reset/change и `/me` |
 | Статус | Accepted |
-| Версия | 13 |
+| Версия | 14 |
 | Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | BR-USR-001—003/007/009; BR-SEC-003—007; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
@@ -264,3 +264,25 @@ Capability locations подавляют raw upstream error URLs; безопас�
 SQL/parameters и exception detail. Browser fixtures очищают invitation paths,
 trace/video отключены. Capability не сохраняется в SSR payload/storage; login
 continuation использует память вкладки. [Акт проверки](../acceptance/connect-invitations.md).
+
+## Финансовый доступ SC-011
+
+Financial endpoints требуют active Bearer. Create author — subject; выбираемые
+payer/participants заново проверяются под sorted User locks: self, собственный
+Connect либо текущий active co-participant доступного active Debt.
+Неактивный/недоступный выбор не даёт частичного эффекта; публичные UUID не дают права.
+
+Debt читают author/payer/current participants. Исключённый ordinary participant
+теряет Debt, но сохраняет свой Transfer/Connect history. Deleted Debt исключён
+из списка; по прямой ссылке доступен сохранённому составу. Debt flags учитывают
+author и activity payer/author, automatic Transfer flags всегда false.
+
+Transfer ACL проверяется отдельно по Connect membership. Если Debt недоступен,
+debtReference только id/isAccessible=false, без title/isDeleted/current состава.
+Email других участников не возвращается. Недоступные и отсутствующие ресурсы
+имеют одинаковые safe 404; общий subscriber исключает SQL/exception детали.
+
+Backend validates activity/eligibility перед commit; replay возвращает прежний
+результат только active автору. UI ограничивает выбор server-returned brief users,
+очищает прежний account state и не показывает прежние balances во время нового load.
+[Матрица ACL/privacy](../acceptance/create-debt.md).

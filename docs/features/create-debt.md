@@ -1,7 +1,7 @@
 # SC-011 — общий расход, доли, баланс и история
 
 Дата: 2026-10-11. Ветка: codex/sc-011-create-debt, base 4f62907.
-Статус: реализация. Scope — финансовый этап 3 roadmap (DR-E3-001—070):
+Статус: functional PASS; full release gate BLOCKED dependency audit. Scope — финансовый этап 3 roadmap (DR-E3-001—070):
 SC-011 с необходимыми read models SC-009/012/015. SC-002 и SC-008
 функционально проверены и merged; dependency audit остаётся release blocker.
 
@@ -18,7 +18,7 @@ Debt/DebtParticipant/Transfer и ER constraints; ADR-002/003/005/009—012/015.
 | SC11-03 | Атомарное создание, допустимые пользователи, idempotency | Integration, rollback, real-process races | PASS |
 | SC11-04 | ACL, ledger balance, history, шесть endpoints | HTTP, property, privacy, pagination, ETag | PASS |
 | SC11-05 | Create/list/card/history, server-derived выбор пользователей | Frontend unit/component, lint/typecheck | PASS |
-| SC11-06 | Полный gate, финансовый browser путь и третья сторона | make check-full, отдельный E2E при audit blocker | Pending |
+| SC11-06 | Полный gate, финансовый browser путь и третья сторона | make check-full, отдельный E2E при audit blocker | Functional PASS; gate BLOCKED |
 
 Стабильные ID DR-E3-001—070 сохраняются. Checkbox отмечаются только после
 проверки и включения в main. SC-013/014, MANUAL writer, общий поиск, pay/edit/delete
@@ -85,3 +85,11 @@ PASS. Проверены decimal parsing без float, author participation, д�
 server-derived users (включая все страницы и co-participants), preview rounding,
 pending duplicate guard, explicit retry с прежними key/body, смена аккаунта,
 list pagination, card roles/deleted/inactive, безопасная history и знак balance.
+
+SC11-06: полный PHPUnit 548 tests / 7211 assertions, frontend 57 unit / 67
+component, production build, Composer audit, smoke и Nginx syntax PASS.
+Финальный browser suite 24/24 PASS без source drift; fixtures явно завершают
+прежнюю сессию перед входом третьим пользователем. make check-full остановился
+на прежнем npm audit (11 high); threshold/exceptions не менялись.
+Новые additive migrations применены локально: latest Version20261011120000,
+pending 0; прежние данные и volumes сохранены. [Матрица](../acceptance/create-debt.md).

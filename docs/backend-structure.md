@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 13 |
+| Версия | 14 |
 | Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | E1-07—E1-12, backend login stage, ADR-001, ADR-006, ADR-007, ADR-012—018 и фактическая реализация auth среза |
@@ -32,7 +32,7 @@ Application use cases, persistence, прикладная activation access polic
 password hashing, session security primitives, server-side session persistence
 и backend login/refresh/`/me`, logout/logout-all, password reset endpoints.
 Модули `Connects` и `Invitations` реализованы в SC-008. `Debts` и `Transfers`
-появятся вместе с финансовым сценарием.
+реализованы в SC-011: создание расхода, ledger, финансовые read models и ACL.
 
 ## 2. Модули текущего этапа
 
@@ -41,6 +41,8 @@ password hashing, session security primitives, server-side session persistence
 | Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация, активация, login, refresh-сессия и current user | `App\IdentityAccess\` | Реализованы Domain/Application auth среза, login/refresh/`/me` endpoints, Bearer authenticator/principal, security primitives, session persistence, HTTP/security/persistence adapters и Doctrine records |
 | Connects | Постоянная каноническая пара, get-or-create, чтение и ACL | `App\Connects\` | Domain/Application/Adapter и отдельный Doctrine record |
 | Invitations | Подписанная ссылка, preview, атомарное принятие | `App\Invitations\` | Domain/Application/Adapter и отдельный Doctrine record |
+| Debts | Агрегат расхода, равные доли, создание и чтение с ACL | `App\Debts\` | Domain/Application/Adapter, Debt и DebtParticipant records |
+| Transfers | Источник баланса, автоматические доли, история и independent ACL | `App\Transfers\` | Domain/Application/Adapter и Transfer record |
 | Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Реализованы HTTP infrastructure, Bearer JSON entry point, идемпотентность, зашифрованный outbox, relay, Messenger consumer, Mailer integration и schema listener |
 
 `IdempotencyRecord` по ADR-009 и `EmailDeliveryOutbox` по ADR-013 принадлежат
@@ -376,3 +378,29 @@ Doctrine repositories, records, HTTP controllers и InvitationTokenCodec/RateLim
 регистрирует глобальный InvitationRedactionProcessor; он скрывает capability,
 token hashes, SQL/parameters и сообщения exceptions, сохраняя request ID.
 Application не зависит от HTTP; controllers получают subject через Symfony Security.
+
+## Финансовые модули SC-011
+
+Debts/Domain содержит Money, Debt и DebtParticipant; Transfers/Domain —
+Transfer с локальными правилами DEBT_SHARE/MANUAL. Domain не импортирует
+Symfony/Doctrine. Application commands и queries не зависят от HTTP.
+
+CreateDebt использует собственные repository/runtime/idempotency ports,
+AccountAccess и ConnectAccess, AutomaticShares. Порядок транзакции:
+central idempotency reservation → sorted UUID User locks → fresh eligibility
+и activity → Debt/participants → get-or-create пары → автоматические доли →
+сохранение исходного ответа. ConnectRuntime реализует новые runtime ports;
+DebtIdempotency adapter переиспользует central DoctrineIdempotency.
+
+DebtQueries/DebtViews владеют Debt ACL и safe references; TransferQueries —
+independent Connect membership и history. BalanceService суммирует ledger
+через собственный repository. Межмодульные зависимости идут только через
+Application/Api: ConnectAccess, AutomaticShares, BalanceQuery, DebtAccess,
+AccountAccess. ConnectService получает BalanceQuery без cycle в DI.
+
+Doctrine records используют UUID links без межмодульных ORM associations.
+Новая Version20261011120000 добавляет три financial tables, constraints и индексы;
+schema listener отражает их FK при сравнении mapping. KeysetCursor реализует
+узкие ports двух query modules. Controllers/Validator DTO живут в Adapter/Http.
+
+[План](features/create-debt.md), [доказательства](acceptance/create-debt.md).

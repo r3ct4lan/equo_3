@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Зафиксировать фактически реализованную часть модели данных текущего MVP |
 | Статус | Accepted |
-| Версия | 12 |
+| Версия | 13 |
 | Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | Модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016, ADR-019; фактические migrations и mapping |
@@ -12,7 +12,7 @@
 ## 1. Граница реализации
 
 Для регистрации, активации, password recovery, защищённой browser-сессии
-и приглашения/Connect используются семь записей:
+и приглашения/Connect, а также финансового сценария используются десять записей:
 
 | ER-сущность | Таблица | Doctrine-класс | Владелец |
 |---|---|---|---|
@@ -22,6 +22,9 @@
 | `IdempotencyRecord` | `idempotency_record` | `App\Infrastructure\Idempotency\Persistence\Doctrine\Record\IdempotencyRecord` | Infrastructure |
 | `Connect` | `connect` | `App\Connects\Adapter\Persistence\Doctrine\Record\ConnectRecord` | Connects |
 | `ConnectInvitation` | `connect_invitation` | `App\Invitations\Adapter\Persistence\Doctrine\Record\ConnectInvitationRecord` | Invitations |
+| `Debt` | `debt` | `App\Debts\Adapter\Persistence\Doctrine\Record\DebtRecord` | Debts |
+| `DebtParticipant` | `debt_participant` | `App\Debts\Adapter\Persistence\Doctrine\Record\DebtParticipantRecord` | Debts |
+| `Transfer` | `transfer` | `App\Transfers\Adapter\Persistence\Doctrine\Record\TransferRecord` | Transfers |
 | `EmailDeliveryOutbox` | `email_delivery_outbox` | `App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryOutboxRecord` | Infrastructure |
 
 Техническое имя `app_user` используется вместо специального SQL-идентификатора
@@ -159,12 +162,11 @@ ADR-014. Повторный запрос активации реализован
 создаёт первый token вместе с новой строкой `User`. Реактивация остаётся
 отдельным отложенным сценарием.
 
-## 5. Сознательно отложенная ER-модель
+## 5. Граница реализованной ER-модели
 
-Не создавались `Debt`, `DebtParticipant`, `Transfer`: они относятся к финансовому
-этапу 3. `Connect` и `ConnectInvitation` реализованы в SC-008. Logout и logout-all реализованы
+`Debt`, `DebtParticipant`, `Transfer` добавлены в SC-011 (этап 3). `Connect` и `ConnectInvitation` реализованы в SC-008. Logout и logout-all реализованы
 на существующей session-схеме; password reset реализован на ней в SC-004. Change password реализован в SC-005; финансовые protected
-endpoints пока не реализованы. Не
+create/read endpoints реализованы в SC-011. Не
 создавались mapper-слой для полной ER-модели, fixtures и демонстрационные
 данные. Минимальные repositories, domain objects и application use cases
 auth-среза находятся в модуле `IdentityAccess`.
@@ -251,3 +253,37 @@ expires и used поддерживают lookup/retention. TTL — семь дн
 истёкшие unused записи не переписываются. Accept блокирует пользователей в
 порядке UUID, затем invitation. INSERT ON CONFLICT для пары и использование
 приглашения находятся в одной транзакции. [Доказательства](../acceptance/connect-invitations.md).
+
+## Схема финансового этапа SC-011
+
+Version20261011120000 добавляет таблицы; прежние migrations не переписываются.
+ER-модель и DOT/SVG/PNG не менялись: реализация использует принятые поля,
+UUID links и RESTRICT для финансовых FK.
+
+| Таблица | Поля |
+|---|---|
+| debt | id UUID PK; title TEXT непустой после trim; description nullable TEXT; total_amount INTEGER > 0; payer_id/created_by_id UUID FK; created_at TIMESTAMPTZ(0); is_deleted=false; version INTEGER >= 1 |
+| debt_participant | id UUID PK; debt_id/user_id UUID FK; created_at TIMESTAMPTZ(0); is_deleted=false |
+| transfer | id UUID PK; connect_id/sender_id/receiver_id UUID FK; amount INTEGER > 0; type TEXT; nullable created_by_id/debt_id/debt_participant_id/related_transfer_id UUID FK; created_at TIMESTAMPTZ(0); is_deleted=false; version INTEGER >= 1 |
+
+Amount хранится целыми евроцентами в диапазоне PostgreSQL INTEGER
+1—2147483647; API валидирует storage range до SQL. Balance не хранится:
+SUM active Transfer агрегируется как BIGINT/numeric и возвращается точным PHP int.
+includePayerInSplit выражается наличием payer в текущем составе, отдельной колонки нет.
+
+Постоянная UNIQUE(debt_id,user_id) включает исключённые participants.
+Partial UNIQUE(debt_participant_id) WHERE type=DEBT_SHARE сохраняет единственную
+автоматическую запись, включая её soft-deleted историю. CHECK различает
+DEBT_SHARE (debt/participant links, null creator/related) и MANUAL
+(creator одна из сторон, null debt links); sender != receiver.
+Межтабличные инварианты проверяет Application/Domain, а не SQL CHECK.
+
+Индексы: author/payer active debt list с created_at/id, current participant access,
+Connect history (connect_id,created_at,id), active balance (connect_id,is_deleted),
+все FK и partial unique автоматических долей. FK выполняют ON DELETE RESTRICT;
+финансовая история защищена от удаления родителя.
+
+Все три records/mappers не имеют ORM associations с другими модулями.
+Empty-chain migration, schema parity, round trip обоих типов Transfer,
+CHECK/UNIQUE/FK, rollback и real-process concurrency проверены изолированной
+test-БД. [Матрица](../acceptance/create-debt.md).

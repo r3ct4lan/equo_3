@@ -102,3 +102,14 @@ audit. SC-008 реализована, проверена и включена в 
 Полный gate остаётся blocked npm audit; DR-E2-042/045 и продуктовая приёмка
 не закрыты. Следующая функциональная область — финансовый этап 3: SC-011
 и связанные SC-009/012/015, с зависимостями и декомпозицией в roadmap.
+
+## Финансовый этап SC-011 — 2026-10-11
+
+В codex/sc-011-create-debt от 4f62907 реализованы SC-011 и необходимые
+финансовые read models SC-009/012/015: общий расход, равные доли, ledger balance,
+история и independent ACL. Проверены 548 backend / 7211 assertions,
+57 unit, 67 component и 24 browser E2E; build, smoke и Composer audit PASS.
+[Акт](acceptance/create-debt.md). Release gate blocked прежними npm advisories;
+продуктовая приёмка не подтверждена. Статус integration/checkbox отражается
+в roadmap после merge. Следующая функциональная область — этап 4, SC-016
+(MANUAL writer); общий audit blocker не закрыт.

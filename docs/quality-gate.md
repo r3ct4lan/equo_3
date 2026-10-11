@@ -315,3 +315,21 @@ Audit threshold и политика исключений сохраняются.
 Изолированный backend test container получает COMPOSER_PROCESS_TIMEOUT=900,
 чтобы полный suite не прерывался стандартным лимитом Composer в 300 секунд.
 Runtime приложения и audit policy этим не меняются.
+
+## Дополнение SC-011
+
+Финансовые PHPUnit проверяют Money/aggregate, constraints/round trip,
+rollback на каждом шаге и пять real-process DB races с pg_blocking_pids barrier.
+HTTP suite покрывает шесть endpoint groups, ETag, 201 replay, pagination ties,
+independent Transfer ACL, safe Debt reference и integer balance properties.
+
+Browser suite расширен путём A+B connected → expense create → обе карточки,
+shares/history и opposite balances → third-user denial. E2E прерывает ответ
+после реального commit, затем explicit retry той же команды получает исходные
+201/Location/ETag; список и history содержат ровно одну запись.
+Фикстуры явно выходят из прежнего account перед входом третьей стороной,
+исключая гонку с автоматическим переходом signed-in login страницы.
+
+Audit policy/threshold не менялись. Полный gate остаётся blocked на прежних
+braces/node-forge advisories; отдельные financial/browser tests не заменяют
+release gate. [Текущие результаты](acceptance/create-debt.md).

@@ -2,9 +2,9 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth endpoints |
+| Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth/financial endpoints |
 | Статус | Accepted |
-| Версия | 11 |
+| Версия | 12 |
 | Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
@@ -19,7 +19,8 @@
 `/api/v1/auth/password-reset`, `/api/v1/account/password-change` и `/api/v1/me`; их controllers
 используют общий error/response pipeline и вызывают application use case.
 JSON-body endpoints дополнительно используют DTO mapping. Также доступен
-`/api/health`.
+`/api/health`. Финансовые create/read endpoints SC-011 перечислены в разделе
+«Финансовые endpoints SC-011» ниже; Connect теперь возвращает ledger balance.
 Fixture routes с префиксом `/api/v1/_test/http` и их controller загружаются
 только при `APP_ENV=test`.
 
@@ -433,7 +434,7 @@ POST endpoints требуют отсутствующее body. Ссылка ст
 EQUO_APPLICATION_ORIGIN. Cursor — Base64URL JSON createdAt/id, порядок
 createdAt DESC/id DESC, limit по умолчанию 20, максимум 100; invalid cursor/limit
 дают INVALID_REQUEST. Чужой/отсутствующий Connect — одинаковый 404.
-View содержит otherUser id/name/isActive без email, balanceAmount=0 до этапа 3,
+View содержит otherUser id/name/isActive без email, balanceAmount из active ledger (SC-011),
 capability flags активности и restriction неактивной стороны.
 
 Ошибки идут через общий envelope/request ID: own — 422 VALIDATION_ERROR,
@@ -441,3 +442,36 @@ inactive — 409 INACTIVE_USER, used/expired — 410 TOKEN_USED/TOKEN_EXPIRED,
 invalid/unknown capability — 404 RESOURCE_NOT_FOUND. Bearer denial и rate limits
 используют существующие 401/429 conventions. Invitation responses имеют
 no-store/no-referrer. Nginx exact collection location предотвращает slash redirect POST.
+
+## Финансовые endpoints SC-011
+
+| Endpoint | Доступ и результат |
+|---|---|
+| POST /api/v1/debts | Active Bearer; Idempotency-Key UUID; JSON title/description/totalAmount/payerId/participantIds/includePayerInSplit; 201 full Debt, Location и ETag версии 1 |
+| GET /api/v1/debts | Active Bearer; только active доступные Debt; limit/cursor |
+| GET /api/v1/debts/{debtId} | Author/payer/current participant; full Debt и ETag; deleted по прямой ссылке |
+| GET /api/v1/connects и /{connectId} | Membership; реальный balance из active Transfer |
+| GET /api/v1/connects/{connectId}/transfers | Membership; paginated active/deleted history |
+| GET /api/v1/transfers/{transferId} | Membership независимо от Debt ACL; full Transfer и ETag |
+
+Controllers используют общий JSON mapping, error envelope и request ID.
+Money и includePayerInSplit проверяются как integer/bool до coercion;
+decimal, numeric string, null, zero, overflow и malformed участники отклоняются.
+Extra JSON fields запрещены общим serializer context. CreateDebtCommand
+нормализует title, UUID и sorted participantIds; author берётся из Bearer.
+
+Idempotency scope user:<subject>, operation debt.create; same retry возвращает
+сохранённые status/body/Location/ETag, изменённая команда — 409
+IDEMPOTENCY_KEY_REUSED. JSONB может переставить object keys, значения и порядок
+массивов сохраняются. Logical TTL не зависит от физического retention cleanup.
+
+Debt inaccessible/missing — одинаковый 404 DEBT_NOT_AVAILABLE; Transfer —
+404 TRANSFER_NOT_AVAILABLE; чужая история Connect — 404 RESOURCE_NOT_FOUND.
+Invalid selection — 422 INVALID_PARTICIPANT; inactivity — 409 INACTIVE_USER.
+Никакие ошибки не оставляют часть финансовой команды в БД.
+
+Все financial responses no-store. Brief users содержат только id/name/isActive.
+Safe недоступная debtReference содержит только id/isAccessible=false.
+Пагинация createdAt DESC/id DESC, default 20/max 100, opaque Base64URL cursor.
+Edit/delete/MANUAL writers на этом этапе не опубликованы.
+[Доказательства](../acceptance/create-debt.md).

@@ -2,9 +2,9 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth-экраны |
+| Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth/financial экраны |
 | Статус | Implemented |
-| Версия | 11 |
+| Версия | 12 |
 | Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v4; ADR-001/006/012/017/018; реализация HTTP-слоя; модель доступа; фактический frontend |
@@ -19,7 +19,7 @@ Auth frontend следует ADR-018: access token хранится только
 closure текущей вкладки, bootstrap выполняет `refresh -> /me`, а protected
 route middleware является UX-границей поверх обязательной backend authorization.
 Current logout и logout-all реализованы в SC-003, password reset — в SC-004,
-change password — в SC-005. Приглашения и Connect реализованы в SC-008.
+change password — в SC-005. Приглашения и Connect реализованы в SC-008. Финансовые страницы — в SC-011.
 
 ## 2. Фактическая структура
 
@@ -351,8 +351,8 @@ passwordChanged=1 и предлагает войти новым паролем. 
 
 `/connects` и `/connects/[id]` защищены существующим auth middleware;
 `CreateInvitation` использует общий protectedRequest и предлагает copy/share.
-Список имеет empty/loading/error/pagination состояния, карточка — нулевой баланс
-и ограничение неактивной стороны. Финансовые actions пока не показываются.
+Список имеет empty/loading/error/pagination состояния, карточка — реальный ledger balance, история (SC-011)
+и ограничение неактивной стороны. Создание расхода доступно активным сторонам.
 
 `/connect-invitations/[token]` публично показывает безопасного автора и срок.
 `InvitationPreview` обрабатывает own, inactive, expired, used, unknown и network
@@ -366,3 +366,33 @@ passwordChanged=1 и предлагает войти новым паролем. 
 отображается текстом и не сохраняется в storage. SSR payload.path для
 динамической invitation страницы пустой: Nuxt использует window.location при
 hydration, не сериализуя capability. Страницы имеют no-store/no-referrer.
+
+## SC-011: расходы, баланс и операции
+
+Защищённые /debts, /debts/new, /debts/[id], /transfers/[id] используют
+существующие auth middleware и $auth.protectedRequest. Expenses добавлен в nav.
+Connect list/card показывает signed balance и объясняет, кто кому должен;
+история различает DEBT_SHARE/MANUAL, active/removed и safe недоступный Debt.
+
+CreateDebtForm содержит title, description, EUR amount, payer, participants и
+payer-in-split. Decimal string преобразуется через BigInt в cents без float;
+разрешены dot/comma, до двух знаков, storage range 1—2147483647. Preview использует
+целочисленное округление вверх. Author != payer требует участия автора.
+
+eligibleDebtUsers получает все страницы собственных Connect и доступных active
+Debt, затем brief current participants карточек; self включён, inactive исключены.
+Поиска по чужим UUID/email и нового options endpoint нет. При серверном отказе
+можно reload people; недоступный прежний выбор очищается.
+
+Pending guard запрещает двойную отправку. После потери ответа immutable body и
+тот же Idempotency-Key сохраняются в памяти страницы; поля заморожены, явный
+Retry same expense подтверждает прежнюю команду. После definitive rejection
+следующая исправленная команда получает новый key. Response прежнего account
+не открывает карточку; финансовые данные очищаются при switch/logout/unmount.
+
+useFinancialList/useFinancialDetail владеют loading/error/empty/pagination,
+generation guards и discard поздних ответов. Они переиспользуют общую session
+coordination, не добавляя automatic financial retry. Debt/Transfer cards показывают
+roles, shares, inactive/deleted states; links на операции доступны только их сторонам.
+Edit/delete/pay controls отсутствуют до следующих этапов.
+[Проверки](acceptance/create-debt.md).
