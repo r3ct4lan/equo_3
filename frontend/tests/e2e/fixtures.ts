@@ -3,7 +3,7 @@ import { test as base } from '@playwright/test'
 function safePath(rawUrl: string): string {
   try {
     const url = new URL(rawUrl)
-    return `${url.origin}${url.pathname}`
+    return `${url.origin}${url.pathname.replace(/[0-9a-f-]{36}\\.[A-Za-z0-9_-]{43}/giu, '[redacted]')}`
   }
   catch {
     return '[invalid URL]'
@@ -12,6 +12,7 @@ function safePath(rawUrl: string): string {
 
 function redact(message: string): string {
   return message
+    .replace(/[0-9a-f-]{36}\\.[A-Za-z0-9_-]{43}/giu, '[redacted invitation]')
     .replace(/https?:\/\/[^\s"'<>]+/giu, match => safePath(match))
     .replace(/([?&]token=)[^\s&"']+/giu, '$1[redacted]')
     .replace(/\brt\.[A-Za-z0-9_-]{20,}\b/gu, '[redacted refresh token]')

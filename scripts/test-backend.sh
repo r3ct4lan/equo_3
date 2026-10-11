@@ -16,6 +16,7 @@ cleanup
 $compose --profile quality up -d --wait postgres-test
 $compose run --rm -T --no-deps \
     -e APP_ENV=test \
+    -e COMPOSER_PROCESS_TIMEOUT=900 \
     -e APP_SECRET=equo_test_only_not_a_secret \
     -e DATABASE_URL="$database_url" \
     backend \
