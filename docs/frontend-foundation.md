@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth-экраны |
 | Статус | Implemented |
-| Версия | 10 |
-| Дата актуальности | 2026-10-10 |
+| Версия | 11 |
+| Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v4; ADR-001/006/012/017/018; реализация HTTP-слоя; модель доступа; фактический frontend |
 
@@ -18,8 +18,8 @@ login, browser session lifecycle и минимальную защищённую 
 Auth frontend следует ADR-018: access token хранится только в client-side
 closure текущей вкладки, bootstrap выполняет `refresh -> /me`, а protected
 route middleware является UX-границей поверх обязательной backend authorization.
-Current logout и logout-all реализованы в SC-003, password reset — в SC-004; change password остаётся
-следующей фичей.
+Current logout и logout-all реализованы в SC-003, password reset — в SC-004,
+change password — в SC-005. Приглашения и Connect реализованы в SC-008.
 
 ## 2. Фактическая структура
 
@@ -346,3 +346,23 @@ Bearer denial допускает один refresh/retry внутри уже вз
 exact 204 очищает local auth и публикует token-free session-ended; login получает
 passwordChanged=1 и предлагает войти новым паролем. Пароли не записываются
 в useState, URL, storage или BroadcastChannel. [Дизайн SC-005](features/password-change.md).
+
+## SC-008: приглашения и Connections
+
+`/connects` и `/connects/[id]` защищены существующим auth middleware;
+`CreateInvitation` использует общий protectedRequest и предлагает copy/share.
+Список имеет empty/loading/error/pagination состояния, карточка — нулевой баланс
+и ограничение неактивной стороны. Финансовые actions пока не показываются.
+
+`/connect-invitations/[token]` публично показывает безопасного автора и срок.
+`InvitationPreview` обрабатывает own, inactive, expired, used, unknown и network
+состояния. После login `/connect-invitations/continue` читает capability
+только из памяти вкладки; reload предлагает открыть исходную ссылку.
+Подтверждённый accept открывает Connect. Потерянный ответ допускает явный повтор
+того же приглашения, используя серверную идемпотентность.
+
+Общие `$api`/`$auth` сохраняют единый refresh/retry budget. Generation counters
+отбрасывают поздние ответы прежней ссылки или аккаунта. URL/capability не
+отображается текстом и не сохраняется в storage. SSR payload.path для
+динамической invitation страницы пустой: Nuxt использует window.location при
+hydration, не сериализуя capability. Страницы имеют no-store/no-referrer.

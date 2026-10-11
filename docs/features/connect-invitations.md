@@ -1,7 +1,7 @@
 # SC-008 — приглашение и постоянный Connect
 
-Дата: 2026-10-10. Ветка: `codex/sc-008-connect-invitations`.
-Статус: реализация. Нормативные источники: BR-CON-001—005, BR-INV-001—006,
+Дата: 2026-10-11. Ветка: `codex/sc-008-connect-invitations`.
+Статус: functional PASS; release audit BLOCKED. Нормативные источники: BR-CON-001—005, BR-INV-001—006,
 BR-ACL-001/005/007, BR-SEC-005/007; ADR-004/008/014/015; HTTP 6, 11—12, 17;
 модель Connect и ConnectInvitation. Зависимость SC-002 выполнена.
 
@@ -14,7 +14,7 @@ BR-ACL-001/005/007, BR-SEC-005/007; ADR-004/008/014/015; HTTP 6, 11—12, 17;
 | SC8-03 | Get-or-create, HMAC/key compatibility, атомарное accept, read models | Integration, реальные конкурентные процессы | PASS |
 | SC8-04 | Пять endpoints, Bearer, privacy, пагинация, rate limits | HTTP, architecture gate | PASS |
 | SC8-05 | Создание/copy/share, public preview, login/accept, список/карточка | Component, lint/typecheck | PASS |
-| SC8-06 | Два пользователя и регрессии, документация | `make check-full`, browser E2E | Pending |
+| SC8-06 | Два пользователя и регрессии, документация | `make check-full`, browser E2E | Functional PASS; audit BLOCKED |
 
 Этапы сохраняют ID задач DR-E2-001—045. Checkbox roadmap отмечаются после
 проверки и включения в main. SC-009 покрывается только в части чтения Connect;
@@ -61,3 +61,11 @@ logs через request ID. Остальные маршруты сохраняю
 SC8-05: frontend lint/typecheck PASS; 53 component tests PASS. Проверены
 copy, защищённый submit, login continuation только в памяти, terminal/retry
 states, пагинация и отказ принимать ответы прежней ссылки/прежнего аккаунта.
+
+SC8-06: 461 backend tests / 4711 assertions, 53 unit, 53 component,
+23 browser E2E, production build, smoke и Nginx syntax PASS. Полный
+make check-full остановился на прежних 11 high npm advisories; audit threshold
+и исключения не менялись. SSR hydration, collection POST slash redirect и
+логирование SQL parameters защищены регрессиями. Test Composer timeout
+увеличен до 900 секунд в изолированном test container.
+[Матрица доказательств и ограничения](../acceptance/connect-invitations.md).

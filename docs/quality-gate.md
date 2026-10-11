@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 12 |
-| Дата актуальности | 2026-10-10 |
+| Версия | 13 |
+| Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
 
@@ -298,3 +298,16 @@ Pending form защищает от double submit. Real DB concurrency прове
 orders change/change, login, refresh, reset, logout-all и current logout через
 pg_blocking_pids barrier. Полный make check-full выполнялся и остановился на прежнем
 npm audit blocker; отдельные browser E2E и smoke PASS. [Акт SC-005](acceptance/password-change.md).
+
+## Дополнение SC-008
+
+Browser suite включает двухпользовательский путь invite → preview → login →
+accept → одна пара у обеих сторон; повтор выдачи сохраняет ссылку и срок.
+После реального commit принятия E2E прерывает ответ, затем UI retry получает
+тот же Connect с 200. Проверяются чужой Connect/used invitation, safe unknown
+preview, copy, отсутствие capability в SSR/storage и no-store/no-referrer.
+
+Скрипт генерирует временный invitation signing key независимо от JWT/CSRF keys.
+Invitation paths в Nginx и browser diagnostics очищаются; trace/video отключены.
+Текущие результаты и ограничения — [акт SC-008](acceptance/connect-invitations.md).
+Audit threshold и политика исключений сохраняются.

@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth endpoints |
 | Статус | Accepted |
-| Версия | 10 |
-| Дата актуальности | 2026-10-10 |
+| Версия | 11 |
+| Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
 
@@ -16,7 +16,7 @@
 `/api/v1/auth/activation-requests`, `/api/v1/auth/activate`,
 `/api/v1/auth/login`, `/api/v1/auth/refresh`, `/api/v1/auth/logout`,
 `/api/v1/auth/logout-all`, `/api/v1/auth/password-reset-requests`,
-`/api/v1/auth/password-reset` и `/api/v1/me`; их controllers
+`/api/v1/auth/password-reset`, `/api/v1/account/password-change` и `/api/v1/me`; их controllers
 используют общий error/response pipeline и вызывают application use case.
 JSON-body endpoints дополнительно используют DTO mapping. Также доступен
 `/api/health`.
@@ -418,3 +418,26 @@ wrong currentPassword — 401 INVALID_CREDENTIALS без challenge. Validation �
 с safe field violations; media/JSON/extra fields — общая HTTP error model.
 Новые request fingerprints, idempotency rows или email messages не создаются.
 [Contract audit](../features/password-change.md), [акт](../acceptance/password-change.md).
+
+## SC-008: пять endpoints
+
+| Endpoint | Доступ | Успех |
+|---|---|---|
+| POST `/api/v1/connect-invitations` | Bearer | 200: token/url/expiresAt/created |
+| GET `/api/v1/connect-invitations/{token}` | Public capability | 200: inviter id/name, expiresAt, canAccept |
+| POST `/api/v1/connect-invitations/{token}/accept` | Bearer + capability | 201 новая пара, 200 существующая/повтор; Connect view |
+| GET `/api/v1/connects` | Bearer | 200: items и pagination |
+| GET `/api/v1/connects/{connectId}` | Bearer + membership | 200: Connect view |
+
+POST endpoints требуют отсутствующее body. Ссылка строится из настроенного
+EQUO_APPLICATION_ORIGIN. Cursor — Base64URL JSON createdAt/id, порядок
+createdAt DESC/id DESC, limit по умолчанию 20, максимум 100; invalid cursor/limit
+дают INVALID_REQUEST. Чужой/отсутствующий Connect — одинаковый 404.
+View содержит otherUser id/name/isActive без email, balanceAmount=0 до этапа 3,
+capability flags активности и restriction неактивной стороны.
+
+Ошибки идут через общий envelope/request ID: own — 422 VALIDATION_ERROR,
+inactive — 409 INACTIVE_USER, used/expired — 410 TOKEN_USED/TOKEN_EXPIRED,
+invalid/unknown capability — 404 RESOURCE_NOT_FOUND. Bearer denial и rate limits
+используют существующие 401/429 conventions. Invitation responses имеют
+no-store/no-referrer. Nginx exact collection location предотвращает slash redirect POST.

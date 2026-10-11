@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 12 |
-| Дата актуальности | 2026-10-10 |
+| Версия | 13 |
+| Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | E1-07—E1-12, backend login stage, ADR-001, ADR-006, ADR-007, ADR-012—018 и фактическая реализация auth среза |
 
@@ -31,14 +31,16 @@ App\<Module>\Adapter
 Application use cases, persistence, прикладная activation access policy,
 password hashing, session security primitives, server-side session persistence
 и backend login/refresh/`/me`, logout/logout-all, password reset endpoints.
-Модули `Connects`, `Debts`, `Transfers` и `Invitations` появятся только вместе с
-первым реальным компонентом соответствующего сценария.
+Модули `Connects` и `Invitations` реализованы в SC-008. `Debts` и `Transfers`
+появятся вместе с финансовым сценарием.
 
 ## 2. Модули текущего этапа
 
 | Модуль | Ответственность | Корневое пространство имён | Состояние |
 |---|---|---|---|
 | Identity and Access | Пользователь, жизненный цикл аккаунта, action token, регистрация, активация, login, refresh-сессия и current user | `App\IdentityAccess\` | Реализованы Domain/Application auth среза, login/refresh/`/me` endpoints, Bearer authenticator/principal, security primitives, session persistence, HTTP/security/persistence adapters и Doctrine records |
+| Connects | Постоянная каноническая пара, get-or-create, чтение и ACL | `App\Connects\` | Domain/Application/Adapter и отдельный Doctrine record |
+| Invitations | Подписанная ссылка, preview, атомарное принятие | `App\Invitations\` | Domain/Application/Adapter и отдельный Doctrine record |
 | Infrastructure | Идемпотентность, email delivery/outbox и общие технические входы | `App\Infrastructure\` | Реализованы HTTP infrastructure, Bearer JSON entry point, идемпотентность, зашифрованный outbox, relay, Messenger consumer, Mailer integration и schema listener |
 
 `IdempotencyRecord` по ADR-009 и `EmailDeliveryOutbox` по ADR-013 принадлежат
@@ -360,3 +362,17 @@ IdentityAccess\Application\PasswordChange владеет ChangePassword и comma
 revoke core. HTTP DTO/controller и Bearer support остаются в Adapter; Domain
 не импортирует framework, Application не зависит от HTTP. Схема не менялась.
 [Этапы](features/password-change.md), [проверка](acceptance/password-change.md).
+
+## Границы SC-008
+
+`Connects/Domain/{CanonicalPair,Connect}` и `Invitations/Domain/ConnectInvitation`
+не зависят от Symfony/Doctrine. Application использует собственные ports;
+`ConnectAccess` и `IdentityAccess/Application/Api/AccountAccess` — узкие
+межмодульные интерфейсы. AccountSummary содержит id/name/isActive без email.
+
+Doctrine repositories, records, HTTP controllers и InvitationTokenCodec/RateLimit
+находятся в Adapter соответствующего модуля. Infrastructure/Persistence/Doctrine/ConnectRuntime
+реализует transaction/clock/UUID ports обоих модулей на общей БД. Infrastructure
+регистрирует глобальный InvitationRedactionProcessor; он скрывает capability,
+token hashes, SQL/parameters и сообщения exceptions, сохраняя request ID.
+Application не зависит от HTTP; controllers получают subject через Symfony Security.

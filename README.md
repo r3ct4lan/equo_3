@@ -53,7 +53,7 @@ make install        # install exact backend/frontend lock files
 make check-fast     # run style/static/config/type checks
 make test           # run backend and frontend tests
 make check          # run the complete local quality gate
-make test-e2e       # run the isolated browser auth/session journey
+make test-e2e       # run isolated auth/session and invitation browser journeys
 make check-full     # run the quality gate and browser E2E
 make lint           # check PHP and frontend style without changes
 make format         # explicitly fix PHP and frontend style
@@ -103,8 +103,8 @@ patterns, generated changes and Nginx smoke checks.
 `make check-full` additionally executes the auth/session browser journey in
 Chromium against a disposable HTTPS Compose project with tmpfs
 PostgreSQL/Redis/RabbitMQ and Mailpit. It covers registration, activation,
-login, refresh rotation, protected `/me`, reload, cookie/storage checks and
-safe error cases without touching the development database or named Docker
+login, refresh rotation, protected `/me`, reload, invitations between two users,
+Connect reads, cookie/storage checks and safe error cases without touching the development database or named Docker
 volumes.
 
 The equivalent GitHub Actions workflow runs for pull requests and pushes to

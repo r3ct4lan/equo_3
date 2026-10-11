@@ -27,7 +27,7 @@ final class InvitationRedactionProcessor
     private function context(array $values): array
     {
         foreach ($values as $key => $value) {
-            if (is_string($key) && in_array(strtolower($key), ['token', 'tokenhash', 'token_hash'], true)) {
+            if (is_string($key) && in_array(strtolower($key), ['token', 'tokenhash', 'token_hash', 'sql', 'params', 'parameters'], true)) {
                 $values[$key] = '[redacted]';
             } elseif (is_string($value)) {
                 $values[$key] = $this->redact($value);

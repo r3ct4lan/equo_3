@@ -42,7 +42,9 @@ EOF
     jwt_private_b64=$(base64 -w 0 <"$jwt_private")
     jwt_public_b64=$(base64 -w 0 <"$jwt_public")
     csrf_key_b64=$(openssl rand -base64 32 | tr -d '\n')
+    invitation_key_b64=$(openssl rand -base64 32 | tr -d '\n')
 
+    export E2E_INVITATION_SIGNING_KEYS="{\"v1\":\"$invitation_key_b64\"}"
     export E2E_TLS_DIR="$secrets_dir"
     export E2E_JWT_SIGNING_PRIVATE_KEY="$jwt_private_b64"
     export E2E_JWT_PUBLIC_KEY_RING="{\"v1\":\"$jwt_public_b64\"}"
@@ -54,7 +56,7 @@ cleanup() {
     trap - EXIT HUP INT TERM
 
     if [ "$status" -ne 0 ]; then
-        echo 'Safe API request log (query strings are not logged):' >&2
+        echo 'Safe API request log (queries omitted, invitation paths redacted):' >&2
         $compose logs --no-color nginx 2>/dev/null | grep -E ' (GET|POST|PUT|PATCH|DELETE) /api/' >&2 || true
         $compose logs --no-color --tail=80 backend worker frontend nginx mailpit >&2 || true
     fi

@@ -4,15 +4,15 @@
 |---|---|
 | Назначение | Зафиксировать фактически реализованную часть модели данных текущего MVP |
 | Статус | Accepted |
-| Версия | 11 |
-| Дата актуальности | 2026-10-10 |
+| Версия | 12 |
+| Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | Модель сущностей; ER-диаграмма; ADR-001, ADR-006, ADR-007, ADR-009, ADR-011—ADR-016, ADR-019; фактические migrations и mapping |
 
 ## 1. Граница реализации
 
-Для реализованных регистрации, активации, password recovery и защищённой browser-сессии
-используются пять записей:
+Для регистрации, активации, password recovery, защищённой browser-сессии
+и приглашения/Connect используются семь записей:
 
 | ER-сущность | Таблица | Doctrine-класс | Владелец |
 |---|---|---|---|
@@ -20,6 +20,8 @@
 | `UserActionToken` | `user_action_token` | `App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserActionTokenRecord` | Identity and Access |
 | `UserSession` | `user_session` | `App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserSessionRecord` | Identity and Access |
 | `IdempotencyRecord` | `idempotency_record` | `App\Infrastructure\Idempotency\Persistence\Doctrine\Record\IdempotencyRecord` | Infrastructure |
+| `Connect` | `connect` | `App\Connects\Adapter\Persistence\Doctrine\Record\ConnectRecord` | Connects |
+| `ConnectInvitation` | `connect_invitation` | `App\Invitations\Adapter\Persistence\Doctrine\Record\ConnectInvitationRecord` | Invitations |
 | `EmailDeliveryOutbox` | `email_delivery_outbox` | `App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryOutboxRecord` | Infrastructure |
 
 Техническое имя `app_user` используется вместо специального SQL-идентификатора
@@ -159,10 +161,9 @@ ADR-014. Повторный запрос активации реализован
 
 ## 5. Сознательно отложенная ER-модель
 
-Не создавались `Connect`, `ConnectInvitation`, `Debt`, `DebtParticipant`,
-`Transfer`: они не нужны для регистрации, активации и session persistence и
-относятся к следующим вертикальным сценариям. Logout и logout-all реализованы
-на существующей session-схеме; password reset реализован на ней в SC-004. Change password и финансовые protected
+Не создавались `Debt`, `DebtParticipant`, `Transfer`: они относятся к финансовому
+этапу 3. `Connect` и `ConnectInvitation` реализованы в SC-008. Logout и logout-all реализованы
+на существующей session-схеме; password reset реализован на ней в SC-004. Change password реализован в SC-005; финансовые protected
 endpoints пока не реализованы. Не
 создавались mapper-слой для полной ER-модели, fixtures и демонстрационные
 данные. Минимальные repositories, domain objects и application use cases
@@ -226,3 +227,27 @@ replacement, encrypted payload и rollback обеих команд. Новых �
 unfinished user_session владельца в одной transaction. Expired, previously
 revoked и чужие sessions сохраняются; UserActionToken и email outbox не меняются.
 [Доказательства атомарности и конкурентности](../acceptance/password-change.md).
+
+## SC-008: постоянная пара и приглашение
+
+Новая миграция `Version20261010120000` создаёт две таблицы; прежние миграции
+сохранены. В records межмодульные ссылки представлены UUID, без ORM associations.
+
+| Таблица | Поля |
+|---|---|
+| `connect` | UUID id/first_user_id/second_user_id; TIMESTAMPTZ created_at |
+| `connect_invitation` | UUID id/created_by_id, nullable accepted_by_id; TEXT token_hash; TIMESTAMPTZ created_at/expires_at, nullable used_at |
+
+`connect`: CHECK first < second исключает self-connect и обратную пару;
+unique pair, оба FK на app_user с RESTRICT. Индексы каждой стороны включают
+created_at/id для cursor pagination. Нет status, owner или признака удаления.
+
+`connect_invitation`: unique полный SHA-256 token hash, FK автора/принявшего
+с RESTRICT, CHECK expires > created, согласованная nullability used/accepted,
+запрет собственного принятия, used >= created. Индексы author/expiry, acceptor,
+expires и used поддерживают lookup/retention. TTL — семь дней.
+
+Единственность действующей ссылки обеспечивается блокировкой автора;
+истёкшие unused записи не переписываются. Accept блокирует пользователей в
+порядке UUID, затем invitation. INSERT ON CONFLICT для пары и использование
+приглашения находятся в одной транзакции. [Доказательства](../acceptance/connect-invitations.md).

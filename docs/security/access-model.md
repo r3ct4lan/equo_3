@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle, logout, password reset/change и `/me` |
 | Статус | Accepted |
-| Версия | 12 |
-| Дата актуальности | 2026-10-10 |
+| Версия | 13 |
+| Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | BR-USR-001—003/007/009; BR-SEC-003—007; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
 
@@ -19,8 +19,9 @@ access token в response body и устанавливает refresh/CSRF cookies
 `refresh -> /me`, сериализует refresh через Web Locks и делает один
 refresh/retry для подходящего `401` защищённого запроса. Refresh endpoint
 ротирует refresh token и выдаёт новый access token без продления срока сессии.
-Stateless Bearer firewall защищает `GET /api/v1/me` и
-`POST /api/v1/auth/logout-all` и `POST /api/v1/account/password-change`. Current logout использует optional refresh
+Stateless Bearer firewall защищает `GET /api/v1/me`,
+`POST /api/v1/auth/logout-all`, `POST /api/v1/account/password-change`,
+создание/принятие приглашения и чтение Connect. Current logout использует optional refresh
 cookie с same-origin/CSRF guard. Финансовые protected endpoints ещё не реализованы.
 Текущий этап не добавляет временный bearer header, hardcoded пользователя,
 фиктивную роль или RBAC-модель.
@@ -171,9 +172,9 @@ hash и всегда возвращает `false`, поэтому Application н
 
 ## 8. Сознательно отложено
 
-- change password и остальные security commands;
-- финансовые voters/policies и проверки Connect/Debt/Transfer;
-- расширение защищённых frontend-разделов за пределы минимальной `/me`-страницы.
+- остальные security commands аккаунта;
+- финансовые policies и проверки Debt/Transfer; Connect membership уже проверяется;
+- финансовые frontend-разделы; Connections и смена пароля уже защищены.
 
 ## 9. Проверки безопасности
 
@@ -243,3 +244,23 @@ rate profile не добавляется. Новый пароль проверя
 DTO. Успешный empty 204 очищает обе cookies через общую factory; JWT до exp,
 frontend очищает auth и требует повторный login. Неверный currentPassword не
 вызывает refresh/retry или local logout. [Акт](../acceptance/password-change.md).
+
+## SC-008: capability и membership
+
+Public preview проверяет HMAC и полный storage hash; Bearer не требуется.
+Автор раскрывается только как id/name. Create/accept проверяют fresh activity
+под lock, own acceptance запрещён. Connect читают только стороны; чужой ресурс
+скрыт через 404, email другой стороны никогда не возвращается.
+
+Отдельные EQUO_INVITATION_SIGNING_VERSION/KEYS задают HMAC-SHA256 key ring:
+минимум 32 bytes, максимум восемь ключей; совместимые ключи сохраняются минимум
+до истечения подписанных ссылок. TTL семь дней, signature Base64URL без padding,
+в БД только SHA-256 полного token. Accept limits: IP 10/15 min и invitation 5/15 min.
+Лимиты применяются и к повторам; invalid capability потребляет только IP quota.
+
+Nginx access logs заменяют invitation path на redacted, исключают query/referrer.
+Capability locations подавляют raw upstream error URLs; безопасная application
+диагностика сохраняет request ID. Monolog processor скрывает token/hash,
+SQL/parameters и exception detail. Browser fixtures очищают invitation paths,
+trace/video отключены. Capability не сохраняется в SSR payload/storage; login
+continuation использует память вкладки. [Акт проверки](../acceptance/connect-invitations.md).
