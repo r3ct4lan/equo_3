@@ -259,6 +259,37 @@ final class FinancialHttpTest extends WebTestCase
         yield 'title' => ['title', '  '];
     }
 
+    public function testGeneratedLedgerPermutationsPreserveBalanceAndSign(): void
+    {
+        $pair = [$this->users[0], $this->users[1]];
+        sort($pair);
+        $connect = $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id=? AND second_user_id=?', $pair);
+        self::assertIsString($connect);
+        $entries = [];
+        $expected = 0;
+        for ($n = 1; $n <= 32; ++$n) {
+            $sender = $n % 2;
+            $amount = ($n * 7919) % 100000 + 1;
+            $deleted = 0 === $n % 5;
+            $entries[] = ['id' => Uuid::v4()->toRfc4122(), 'connect_id' => $connect, 'sender_id' => $this->users[$sender], 'receiver_id' => $this->users[1 - $sender], 'amount' => $amount, 'type' => 'MANUAL', 'created_by_id' => $this->users[$sender], 'created_at' => '2026-10-01 00:00:00+00', 'is_deleted' => $deleted, 'version' => 1];
+            if (!$deleted) {
+                $expected += 0 === $sender ? $amount : -$amount;
+            }
+        }
+        $alternate = [...array_slice($entries, 16), ...array_slice($entries, 0, 16)];
+        foreach ([$entries, array_reverse($entries), $alternate] as $permutation) {
+            $this->db->executeStatement('DELETE FROM transfer WHERE connect_id=?', [$connect]);
+            foreach ($permutation as $entry) {
+                $this->db->insert('transfer', $entry, ['is_deleted' => 'boolean']);
+            }
+            foreach ([0 => $expected, 1 => -$expected] as $viewer => $balance) {
+                $this->request('GET', '/api/v1/connects/'.$connect, $viewer);
+                self::assertResponseStatusCodeSame(200);
+                self::assertSame($balance, $this->body()['balanceAmount']);
+            }
+        }
+    }
+
     public function testRequiredHeadersProtectedPathsAndInvalidPagination(): void
     {
         foreach (['/api/v1/debts', '/api/v1/debts/invalid', '/api/v1/transfers/invalid', '/api/v1/connects/invalid/transfers'] as $path) {

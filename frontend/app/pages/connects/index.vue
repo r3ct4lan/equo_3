@@ -1,50 +1,10 @@
 <script setup lang="ts">
-import type { ConnectPage, ConnectView } from '~/types/connects'
-import { toApiClientError, type ApiClientError } from '~/utils/api-error'
+import type { ConnectView } from '~/types/connects'
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Connections · Equo' })
-const { $auth } = useNuxtApp()
 const { state } = useCurrentUser()
-const items = ref<ConnectView[]>([])
-let generation = 0
-const pending = ref(false)
-const loaded = ref(false)
-const cursor = ref<string | null>(null)
-const error = ref<ApiClientError | null>(null)
-async function load(more = false): Promise<void> {
-  if (state.value.status !== 'authenticated') return
-  const requestGeneration = ++generation
-  const viewer = state.value.user?.id
-  pending.value = true
-  error.value = null
-  try {
-    const result = await $auth.protectedRequest<ConnectPage>('/v1/connects', { query: more && cursor.value ? { cursor: cursor.value } : {} })
-    if (requestGeneration !== generation || state.value.user?.id !== viewer) return
-    items.value = more ? [...items.value, ...result.items] : result.items
-    cursor.value = result.pagination.nextCursor
-    loaded.value = true
-  }
-  catch (failure) {
-    if (requestGeneration === generation) error.value = toApiClientError(failure)
-  }
-  finally {
-    if (requestGeneration === generation) pending.value = false
-  }
-}
-onMounted(() => {
-  void load()
-})
-watch(() => [state.value.status, state.value.user?.id], () => {
-  ++generation
-  const status = state.value.status
-  if (status === 'authenticated') void load()
-  else {
-    items.value = []
-    loaded.value = false
-    cursor.value = null
-  }
-})
+const { items, pending, loaded, cursor, error, load } = useFinancialList<ConnectView>(() => '/v1/connects')
 </script>
 
 <template>

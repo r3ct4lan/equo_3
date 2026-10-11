@@ -9,6 +9,7 @@ import {
 } from 'vitest'
 import CreateDebtForm from '../../app/components/CreateDebtForm.vue'
 import DebtsPage from '../../app/pages/debts/index.vue'
+import ConnectsPage from '../../app/pages/connects/index.vue'
 import DebtCard from '../../app/pages/debts/[id].vue'
 import TransferCard from '../../app/pages/transfers/[id].vue'
 import TransferHistory from '../../app/components/TransferHistory.vue'
@@ -238,6 +239,48 @@ describe('financial journey components', () => {
     expect(wrapper.text()).toContain('does not affect the balance')
     wrapper.unmount()
   })
+
+  it('removes newly inactive participants when people are reloaded after a definitive rejection', async () => {
+    let reloaded = false
+    auth.protectedRequest.mockImplementation(async (path, options_) => {
+      if (options_?.method === 'POST') {
+        reloaded = true
+        throw new ApiClientError({ kind: 'api', status: 422, code: 'INACTIVE_USER', message: 'Safe error' })
+      }
+      if (path === '/v1/connects') return page([{ otherUser: { ...other, isActive: !reloaded } }])
+      return page([])
+    })
+    const wrapper = await mountSuspended(CreateDebtForm)
+    signedIn()
+    await flushPromises()
+    await fill(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text() === 'Reload people')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('input[value="other"]').exists()).toBe(false)
+    await wrapper.get('form').trigger('submit')
+    expect(auth.protectedRequest.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(1)
+    expect(wrapper.text()).toContain('Enter a title')
+    wrapper.unmount()
+  })
+  it('clears connection balances immediately when a new account list is still pending', async () => {
+    let resolve: (value: unknown) => void = () => undefined
+    auth.protectedRequest.mockResolvedValueOnce(page([{ id: 'connect', otherUser: other, balanceAmount: 501, canCreateDebt: true, canCreateTransfer: true, createdAt: debt.createdAt }]))
+      .mockImplementation(() => new Promise((done) => { resolve = done }))
+    const wrapper = await mountSuspended(ConnectsPage)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Boris')
+    signedIn('other-viewer')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('Boris')
+    expect(wrapper.text()).not.toContain('€5.01')
+    resolve(page([]))
+    await flushPromises()
+    expect(wrapper.text()).toContain('No connections yet')
+    wrapper.unmount()
+  })
+
   it.each([[501, 'They owe you €5.01'], [-501, 'You owe them €5.01'], [0, 'You are settled up']])('explains balance %s from the viewer perspective', async (amount, text) => {
     const wrapper = await mountSuspended(ConnectBalance, {
       props: {

@@ -104,7 +104,8 @@ patterns, generated changes and Nginx smoke checks.
 Chromium against a disposable HTTPS Compose project with tmpfs
 PostgreSQL/Redis/RabbitMQ and Mailpit. It covers registration, activation,
 login, refresh rotation, protected `/me`, reload, invitations between two users,
-Connect reads, cookie/storage checks and safe error cases without touching the development database or named Docker
+Connect reads, expense creation/shares/balances/history, third-user financial privacy,
+cookie/storage checks and safe error cases without touching the development database or named Docker
 volumes.
 
 The equivalent GitHub Actions workflow runs for pull requests and pushes to
