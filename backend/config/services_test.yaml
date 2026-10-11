@@ -78,3 +78,7 @@ services:
     test.debt_views:
         alias: App\Debts\Application\DebtViews
         public: true
+
+    test.create_manual_transfer:
+        alias: App\Transfers\Application\CreateManualTransfer
+        public: true

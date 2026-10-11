@@ -213,3 +213,6 @@ services:
         alias: App\Debts\Application\DebtQueries
     App\Transfers\Application\Api\BalanceQuery:
         alias: App\Transfers\Application\BalanceService
+
+    App\Transfers\Application\Port\TransferIdempotencyPort:
+        alias: App\Infrastructure\Idempotency\Persistence\Doctrine\DebtIdempotency

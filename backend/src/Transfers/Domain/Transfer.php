@@ -27,6 +27,11 @@ final readonly class Transfer
         }
     }
 
+    public static function manual(string $id, string $connectId, string $senderId, string $receiverId, int $amount, string $authorId, DateTimeImmutable $createdAt): self
+    {
+        return new self($id, $connectId, $senderId, $receiverId, $amount, 'MANUAL', $authorId, $createdAt);
+    }
+
     public function assertConnectSides(string $first, string $second): void
     {
         if ($first === $second || !in_array($this->senderId, [$first, $second], true) || !in_array($this->receiverId, [$first, $second], true)) {

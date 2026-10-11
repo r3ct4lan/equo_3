@@ -632,19 +632,19 @@ access token и защищённую refresh-сессию, может перез
 
 - [x] `DR-E4-001` — выполнить contract audit `BR-TRF-004—005`,
   `BR-IDEM-*`, ACL и HTTP 14.4.
-- [ ] `DR-E4-002` — реализовать MANUAL factory с
+- [x] `DR-E4-002` — реализовать MANUAL factory с
   `debtId/debtParticipantId=null` и `createdById=currentUser`.
-- [ ] `DR-E4-003` — разрешать sender/receiver только как две стороны
+- [x] `DR-E4-003` — разрешать sender/receiver только как две стороны
   указанного Connect.
-- [ ] `DR-E4-004` — требовать, чтобы author был sender или receiver.
-- [ ] `DR-E4-005` — требовать active author и active вторую сторону.
-- [ ] `DR-E4-006` — принимать только положительные целые евроценты.
-- [ ] `DR-E4-007` — не ограничивать amount текущим balance и разрешить смену
+- [x] `DR-E4-004` — требовать, чтобы author был sender или receiver.
+- [x] `DR-E4-005` — требовать active author и active вторую сторону.
+- [x] `DR-E4-006` — принимать только положительные целые евроценты.
+- [x] `DR-E4-007` — не ограничивать amount текущим balance и разрешить смену
   знака/переплату.
-- [ ] `DR-E4-008` — сохранять MANUAL и idempotency result атомарно.
-- [ ] `DR-E4-009` — одинаковый retry возвращает прежний Transfer, другой body
+- [x] `DR-E4-008` — сохранять MANUAL и idempotency result атомарно.
+- [x] `DR-E4-009` — одинаковый retry возвращает прежний Transfer, другой body
   с тем же ключом конфликтует.
-- [ ] `DR-E4-010` — не изменять Debt или `DEBT_SHARE` при создании MANUAL.
+- [x] `DR-E4-010` — не изменять Debt или `DEBT_SHARE` при создании MANUAL.
 
 ### 8.4. HTTP/Frontend
 
@@ -664,9 +664,9 @@ access token и защищённую refresh-сессию, может перез
 
 ### 8.5. Tests и exit criteria
 
-- [ ] `DR-E4-019` — unit tests direction, author, amount и overpayment.
-- [ ] `DR-E4-020` — integration/transaction tests persistence и rollback.
-- [ ] `DR-E4-021` — idempotency/concurrency tests двойной отправки.
+- [x] `DR-E4-019` — unit tests direction, author, amount и overpayment.
+- [x] `DR-E4-020` — integration/transaction tests persistence и rollback.
+- [x] `DR-E4-021` — idempotency/concurrency tests двойной отправки.
 - [ ] `DR-E4-022` — HTTP tests ACL, inactive side, both directions,
   overpayment и safe errors.
 - [ ] `DR-E4-023` — component tests формы и обновления read state.

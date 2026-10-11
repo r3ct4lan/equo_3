@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Infrastructure\Idempotency\Persistence\Doctrine;
 
 use App\Debts\Application\Port\DebtIdempotencyPort;
+use App\Transfers\Application\Port\TransferIdempotencyPort;
 use DateTimeImmutable;
 
-final readonly class DebtIdempotency implements DebtIdempotencyPort
+final readonly class DebtIdempotency implements DebtIdempotencyPort, TransferIdempotencyPort
 {
     public function __construct(private DoctrineIdempotency $idempotency)
     {
