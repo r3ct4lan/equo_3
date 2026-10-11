@@ -36,7 +36,7 @@ UI явно показывает sender→receiver и предварительн
 |---|---|---|
 | SC16-01 | Contract audit, границы и декомпозиция | PASS |
 | SC16-02 | Domain, atomic writer, persistence/idempotency/races | PASS: 24 tests / 113 assertions; 4 architecture tests / 614 assertions; backend quality |
-| SC16-03 | POST, validation, ACL и safe HTTP errors | Pending |
+| SC16-03 | POST, validation, ACL и safe HTTP errors | PASS: 16 tests / 198 assertions; backend quality |
 | SC16-04 | Форма, preview, retry и server refresh; component tests | Pending |
 | SC16-05 | Полный gate, browser/core path, акт и интеграция | Pending |
 

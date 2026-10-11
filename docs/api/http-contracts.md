@@ -1678,6 +1678,10 @@ Authorization: Bearer <access-token>
 Idempotency-Key: <UUID>
 ```
 
+Текущий инкремент SC-016 по mvp-scope §15 принимает только senderId,
+receiverId и amount. Поле relatedTransferId в полном контракте ниже вводится
+в SC-018; до этого переданное поле считается неизвестным (400 INVALID_REQUEST).
+
 ### Запрос
 
 ```json

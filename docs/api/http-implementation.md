@@ -475,3 +475,16 @@ Safe недоступная debtReference содержит только id/isAcc
 Пагинация createdAt DESC/id DESC, default 20/max 100, opaque Base64URL cursor.
 Edit/delete/MANUAL writers на этом этапе не опубликованы.
 [Доказательства](../acceptance/create-debt.md).
+
+## SC-016: создание MANUAL
+
+POST /api/v1/connects/{connectId}/transfers принимает senderId/receiverId
+(UUID) и amount (JSON integer, 1..2147483647), Bearer и UUID Idempotency-Key.
+201 возвращает полный Transfer, Location, ETag "1" и no-store. Чужой или
+отсутствующий Connect — 404 RESOURCE_NOT_FOUND; неверная пара/сумма —
+422 VALIDATION_ERROR; неактивная сторона — 409 INACTIVE_USER. Ключ обязателен
+(400), изменённая команда с тем же ключом — 409 IDEMPOTENCY_KEY_REUSED.
+relatedTransferId отложен до SC-018 по mvp-scope §15, неизвестные поля — 400.
+Edit/delete маршруты не экспонируются. Денежные DTO не допускают coercion
+из numeric string, bool или float. Atomic writer использует существующую
+схему без новой миграции. Проверки — features/manual-transfer.md.

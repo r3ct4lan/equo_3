@@ -648,10 +648,10 @@ access token и защищённую refresh-сессию, может перез
 
 ### 8.4. HTTP/Frontend
 
-- [ ] `DR-E4-011` — реализовать
+- [x] `DR-E4-011` — реализовать
   `POST /api/v1/connects/{connectId}/transfers`.
-- [ ] `DR-E4-012` — применять Connect ACL и скрывать чужой Connect.
-- [ ] `DR-E4-013` — вернуть точные inactive side, validation,
+- [x] `DR-E4-012` — применять Connect ACL и скрывать чужой Connect.
+- [x] `DR-E4-013` — вернуть точные inactive side, validation,
   idempotency/access ошибки.
 - [ ] `DR-E4-014` — добавить форму MANUAL в карточку Connect.
 - [ ] `DR-E4-015` — явно показывать направление «кто передал кому», amount и
@@ -667,7 +667,7 @@ access token и защищённую refresh-сессию, может перез
 - [x] `DR-E4-019` — unit tests direction, author, amount и overpayment.
 - [x] `DR-E4-020` — integration/transaction tests persistence и rollback.
 - [x] `DR-E4-021` — idempotency/concurrency tests двойной отправки.
-- [ ] `DR-E4-022` — HTTP tests ACL, inactive side, both directions,
+- [x] `DR-E4-022` — HTTP tests ACL, inactive side, both directions,
   overpayment и safe errors.
 - [ ] `DR-E4-023` — component tests формы и обновления read state.
 - [ ] `DR-E4-024` — browser E2E:
