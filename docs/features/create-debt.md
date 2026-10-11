@@ -14,7 +14,7 @@ Debt/DebtParticipant/Transfer и ER constraints; ADR-002/003/005/009—012/015.
 | ID | Объём | Проверка | Статус |
 |---|---|---|---|
 | SC11-01 | Contract audit, план и границы | Документы и Git | PASS |
-| SC11-02 | Чистые Money/Debt/Transfer, новая миграция, records | Unit, DB constraints, mapping parity | Pending |
+| SC11-02 | Чистые Money/Debt/Transfer, новая миграция, records | Unit, DB constraints, mapping parity | PASS |
 | SC11-03 | Атомарное создание, допустимые пользователи, idempotency | Integration, rollback, real-process races | Pending |
 | SC11-04 | ACL, ledger balance, history, шесть endpoints | HTTP, property, privacy, pagination, ETag | Pending |
 | SC11-05 | Create/list/card/history, server-derived выбор пользователей | Frontend unit/component, lint/typecheck | Pending |
@@ -59,3 +59,8 @@ controls, пользовательская дата и другие валюты
   потери ответа, новый key только для новой команды. No edit/delete/pay controls.
 - Новая migration не меняет применённые. Тесты только в tmpfs test/E2E окружениях.
   Полный gate запускается; dependency audit не обходится и release PASS не заявляется.
+
+SC11-02: 55 focused tests / 2098 assertions PASS; пустая test-БД со всеми
+пятью миграциями, mapping/schema parity PASS; backend style/PHPStan/container
+и четыре ADR-015 architecture tests PASS. Partial-index predicate соответствует
+каноническому PostgreSQL выражению. Применённые миграции и dev volumes сохранены.
