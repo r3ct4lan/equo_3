@@ -1,7 +1,7 @@
 # SC-008 — приглашение и постоянный Connect
 
 Дата: 2026-10-11. Ветка: `codex/sc-008-connect-invitations`.
-Статус: functional PASS; release audit BLOCKED. Нормативные источники: BR-CON-001—005, BR-INV-001—006,
+Статус: merged в main; functional PASS; release audit BLOCKED. Нормативные источники: BR-CON-001—005, BR-INV-001—006,
 BR-ACL-001/005/007, BR-SEC-005/007; ADR-004/008/014/015; HTTP 6, 11—12, 17;
 модель Connect и ConnectInvitation. Зависимость SC-002 выполнена.
 
@@ -69,3 +69,6 @@ make check-full остановился на прежних 11 high npm advisorie
 логирование SQL parameters защищены регрессиями. Test Composer timeout
 увеличен до 900 секунд в изолированном test container.
 [Матрица доказательств и ограничения](../acceptance/connect-invitations.md).
+
+Интеграция: 2026-10-11, fast-forward main до проверенного snapshot 8cef3ba.
+Roadmap отмечает 43/45 задач; DR-E2-042/045 остаются blocked dependency audit.

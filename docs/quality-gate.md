@@ -311,3 +311,7 @@ preview, copy, отсутствие capability в SSR/storage и no-store/no-ref
 Invitation paths в Nginx и browser diagnostics очищаются; trace/video отключены.
 Текущие результаты и ограничения — [акт SC-008](acceptance/connect-invitations.md).
 Audit threshold и политика исключений сохраняются.
+
+Изолированный backend test container получает COMPOSER_PROCESS_TIMEOUT=900,
+чтобы полный suite не прерывался стандартным лимитом Composer в 300 секунд.
+Runtime приложения и audit policy этим не меняются.

@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 6 |
-| Дата актуальности | 2026-10-10 |
+| Версия | 7 |
+| Дата актуальности | 2026-10-11 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
 
@@ -159,7 +159,7 @@ production-сессии и `Connect` сначала строится финан�
 |---|---:|---:|---|
 | Реализованный baseline | 8 | 10 | Первый ограниченный срез работает |
 | Этап 1 | 53 | 53 | Завершён |
-| Этап 2 | 0 | 45 | Не начат |
+| Этап 2 | 43 | 45 | SC-008 merged; functional PASS; DR-E2-042/045 blocked dependency audit |
 | Этап 3 | 0 | 70 | Не начат |
 | Этап 4 | 0 | 28 | Не начат |
 | Этап 5 | 0 | 37 | Не начат |
@@ -343,94 +343,94 @@ access token и защищённую refresh-сессию, может перез
 
 ### 6.3. Data и migration
 
-- [ ] `DR-E2-001` — выполнить contract audit `BR-CON-*`, `BR-INV-*`,
+- [x] `DR-E2-001` — выполнить contract audit `BR-CON-*`, `BR-INV-*`,
   ADR-004/008/014 и HTTP 11—12.
-- [ ] `DR-E2-002` — добавить таблицу `connect` с UUID сторон и `created_at`.
-- [ ] `DR-E2-003` — сохранять стороны в каноническом порядке и запретить
+- [x] `DR-E2-002` — добавить таблицу `connect` с UUID сторон и `created_at`.
+- [x] `DR-E2-003` — сохранять стороны в каноническом порядке и запретить
   self-connect.
-- [ ] `DR-E2-004` — добавить unique `(first_user_id, second_user_id)` и оба
+- [x] `DR-E2-004` — добавить unique `(first_user_id, second_user_id)` и оба
   FK с `RESTRICT`.
-- [ ] `DR-E2-005` — добавить `connect_invitation` со всеми lifecycle полями,
+- [x] `DR-E2-005` — добавить `connect_invitation` со всеми lifecycle полями,
   FK автора/принявшего и token hash.
-- [ ] `DR-E2-006` — обеспечить уникальный полный `token_hash` и не более одного
+- [x] `DR-E2-006` — обеспечить уникальный полный `token_hash` и не более одного
   незавершённого приглашения автора.
-- [ ] `DR-E2-007` — добавить индексы `expires_at`, `used_at` и сторон Connect.
-- [ ] `DR-E2-008` — реализовать Doctrine records/mapping и schema parity.
+- [x] `DR-E2-007` — добавить индексы `expires_at`, `used_at` и сторон Connect.
+- [x] `DR-E2-008` — реализовать Doctrine records/mapping и schema parity.
 
 ### 6.4. Domain/Application
 
-- [ ] `DR-E2-009` — реализовать value object канонической неориентированной
+- [x] `DR-E2-009` — реализовать value object канонической неориентированной
   пары.
-- [ ] `DR-E2-010` — реализовать get-or-create invitation: повтор возвращает
+- [x] `DR-E2-010` — реализовать get-or-create invitation: повтор возвращает
   ту же действующую ссылку, не продлевая TTL.
-- [ ] `DR-E2-011` — создать новое приглашение только после истечения или
+- [x] `DR-E2-011` — создать новое приглашение только после истечения или
   использования предыдущего.
-- [ ] `DR-E2-012` — реализовать token вида
+- [x] `DR-E2-012` — реализовать token вида
   `<invitationId>.<HMAC-signature>` и хранение hash полного token.
-- [ ] `DR-E2-013` — воспроизводить существующую ссылку через active/compatible
+- [x] `DR-E2-013` — воспроизводить существующую ссылку через active/compatible
   signing keys по ADR-008.
-- [ ] `DR-E2-014` — публично показывать только безопасную информацию об авторе
+- [x] `DR-E2-014` — публично показывать только безопасную информацию об авторе
   приглашения.
-- [ ] `DR-E2-015` — запретить собственное приглашение, inactive author и
+- [x] `DR-E2-015` — запретить собственное приглашение, inactive author и
   inactive acceptor.
-- [ ] `DR-E2-016` — принять приглашение атомарно с блокировкой записи и
+- [x] `DR-E2-016` — принять приглашение атомарно с блокировкой записи и
   созданием/получением Connect.
-- [ ] `DR-E2-017` — повтор тому же `acceptedById` возвращает тот же Connect;
+- [x] `DR-E2-017` — повтор тому же `acceptedById` возвращает тот же Connect;
   другой пользователь получает нормативный отказ.
-- [ ] `DR-E2-018` — сериализовать get-or-create при отсутствии строки
+- [x] `DR-E2-018` — сериализовать get-or-create при отсутствии строки
   invitation через lock User или advisory lock.
-- [ ] `DR-E2-019` — считать Connect постоянным: не добавлять status,
+- [x] `DR-E2-019` — считать Connect постоянным: не добавлять status,
   `isDeleted` или owner.
-- [ ] `DR-E2-020` — реализовать список/карточку Connect относительно current
+- [x] `DR-E2-020` — реализовать список/карточку Connect относительно current
   user с нулевым балансом до этапа 3.
 
 ### 6.5. HTTP и ACL
 
-- [ ] `DR-E2-021` — реализовать `POST /api/v1/connect-invitations`.
-- [ ] `DR-E2-022` — реализовать публичный
+- [x] `DR-E2-021` — реализовать `POST /api/v1/connect-invitations`.
+- [x] `DR-E2-022` — реализовать публичный
   `GET /api/v1/connect-invitations/{token}`.
-- [ ] `DR-E2-023` — реализовать protected
+- [x] `DR-E2-023` — реализовать protected
   `POST /api/v1/connect-invitations/{token}/accept`.
-- [ ] `DR-E2-024` — реализовать `GET /api/v1/connects` с пагинацией.
-- [ ] `DR-E2-025` — реализовать `GET /api/v1/connects/{connectId}`.
-- [ ] `DR-E2-026` — скрывать чужой Connect через `404 RESOURCE_NOT_FOUND`.
-- [ ] `DR-E2-027` — не возвращать email другой стороны там, где контракт
+- [x] `DR-E2-024` — реализовать `GET /api/v1/connects` с пагинацией.
+- [x] `DR-E2-025` — реализовать `GET /api/v1/connects/{connectId}`.
+- [x] `DR-E2-026` — скрывать чужой Connect через `404 RESOURCE_NOT_FOUND`.
+- [x] `DR-E2-027` — не возвращать email другой стороны там, где контракт
   разрешает только краткого пользователя.
-- [ ] `DR-E2-028` — применить invitation accept rate limits по IP и
+- [x] `DR-E2-028` — применить invitation accept rate limits по IP и
   invitation ID.
 
 ### 6.6. Frontend
 
-- [ ] `DR-E2-029` — добавить страницу/действие создания приглашения с copy/share
+- [x] `DR-E2-029` — добавить страницу/действие создания приглашения с copy/share
   состояниями без сохранения token в storage.
-- [ ] `DR-E2-030` — добавить публичную страницу invitation preview.
-- [ ] `DR-E2-031` — после login позволить принять приглашение и перейти к
+- [x] `DR-E2-030` — добавить публичную страницу invitation preview.
+- [x] `DR-E2-031` — после login позволить принять приглашение и перейти к
   карточке Connect.
-- [ ] `DR-E2-032` — обработать own, expired, used-by-other, inactive и
+- [x] `DR-E2-032` — обработать own, expired, used-by-other, inactive и
   technical retry states.
-- [ ] `DR-E2-033` — добавить список Connect и карточку с корректным empty
+- [x] `DR-E2-033` — добавить список Connect и карточку с корректным empty
   balance state.
-- [ ] `DR-E2-034` — не показывать search, revoke, hide или delete controls.
+- [x] `DR-E2-034` — не показывать search, revoke, hide или delete controls.
 
 ### 6.7. Tests
 
-- [ ] `DR-E2-035` — unit tests canonical pair и invitation lifecycle.
-- [ ] `DR-E2-036` — integration tests unique pair, single active invitation,
+- [x] `DR-E2-035` — unit tests canonical pair и invitation lifecycle.
+- [x] `DR-E2-036` — integration tests unique pair, single active invitation,
   expiry, token hash и key compatibility.
-- [ ] `DR-E2-037` — concurrency tests двух get-or-create и двух accept.
-- [ ] `DR-E2-038` — HTTP tests public preview, protected accept, ACL, safe
+- [x] `DR-E2-037` — concurrency tests двух get-or-create и двух accept.
+- [x] `DR-E2-038` — HTTP tests public preview, protected accept, ACL, safe
   errors, pagination и rate limits.
-- [ ] `DR-E2-039` — component tests invitation/Connect UI states.
-- [ ] `DR-E2-040` — browser E2E двух пользователей:
+- [x] `DR-E2-039` — component tests invitation/Connect UI states.
+- [x] `DR-E2-040` — browser E2E двух пользователей:
   `login A → invite → login B → accept → Connect у A и B`.
 
 ### 6.8. Документация и exit criteria
 
-- [ ] `DR-E2-041` — обновить фактическую схему, backend structure, access
+- [x] `DR-E2-041` — обновить фактическую схему, backend structure, access
   model и frontend foundation.
 - [ ] `DR-E2-042` — `make check` и двухпользовательский E2E проходят.
-- [ ] `DR-E2-043` — одна пара не создаётся дважды при повторах/гонках.
-- [ ] `DR-E2-044` — token и чужие персональные данные не раскрываются.
+- [x] `DR-E2-043` — одна пара не создаётся дважды при повторах/гонках.
+- [x] `DR-E2-044` — token и чужие персональные данные не раскрываются.
 - [ ] `DR-E2-045` — этап 2 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
@@ -1234,3 +1234,18 @@ Definition of Ready.
 | 3 | 2026-10-09 | Сверены handoff, код, tests и Git; актуализированы SC-001 и SC-003; SC3-08 остаётся blocked по dependency audit |
 | 2 | 2026-08-10 | Этап 1 завершён: login, refresh, protected browser session и `/me`; `MVP-SC-002` закрыт |
 | 1 | 2026-08-08 | Создана подробная дорожная карта семи обязательных этапов, post-MVP backlog и traceability всех 29 сценариев |
+
+## Интеграция SC-008 — 2026-10-11
+
+SC8-01—06 включены в main, проверенный application snapshot 8cef3ba.
+461 backend tests / 4711 assertions, 53 unit, 53 component, 23 browser E2E,
+production build, smoke и Nginx syntax PASS. Полный make check-full остановился
+на прежних 11 high npm advisories. DR-E2-042/045 и статус этапа 2 остаются
+открытыми; merge не означает release exemption или продуктовую приёмку.
+[Доказательства](acceptance/connect-invitations.md).
+
+DR-E2-006: единственность относится к действующему приглашению (unused и ещё
+не expired), обеспеченному User lock. Исторические expired unused записи
+сохраняются до отдельного retention cleanup; срок/usedAt не переписываются.
+SC-009 покрыт только чтением Connect с нулевым балансом. Следующая функциональная
+область — этап 3 (долг, доли, баланс и история); gate этапа 2 ещё не закрыт.

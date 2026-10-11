@@ -76,3 +76,10 @@ DR-E2-042/045 остаются открытыми. SC-009 покрыт толь�
 
 Ветка функционально проверена; отметки roadmap обновляются после интеграции
 в main. Merge не означает закрытие dependency audit или продуктовую приёмку.
+
+## Интеграция — 2026-10-11
+
+SC-008 fast-forward merged в main после проверки snapshot 8cef3ba.
+Roadmap отмечает 43/45 задач, DR-E2-042/045 остаются открытыми. Проверенные
+application files при merge не менялись. Product Owner acceptance, audit
+exemption и готовность MVP не подтверждены.
