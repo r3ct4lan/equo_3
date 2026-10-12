@@ -32,6 +32,18 @@ final readonly class Transfer
         return new self($id, $connectId, $senderId, $receiverId, $amount, 'MANUAL', $authorId, $createdAt);
     }
 
+    public function recalculateShare(int $amount, bool $isDeleted): self
+    {
+        if ('DEBT_SHARE' !== $this->type) {
+            throw new InvalidArgumentException('Only automatic shares can be recalculated.');
+        }
+        if ($amount === $this->amount && $isDeleted === $this->isDeleted) {
+            return $this;
+        }
+
+        return new self($this->id, $this->connectId, $this->senderId, $this->receiverId, $amount, $this->type, null, $this->createdAt, $this->debtId, $this->debtParticipantId, null, $isDeleted, $this->version + 1);
+    }
+
     public function assertConnectSides(string $first, string $second): void
     {
         if ($first === $second || !in_array($this->senderId, [$first, $second], true) || !in_array($this->receiverId, [$first, $second], true)) {

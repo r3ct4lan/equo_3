@@ -40,7 +40,7 @@ Session/path/unmount guards отбрасывают поздние ответы.
 | ID | Содержание | Статус |
 |---|---|---|
 | SC13-01 | Contract audit, no-op и декомпозиция | PASS |
-| SC13-02 | Domain revision/composition/versions и unit tests | Pending |
+| SC13-02 | Domain revision/composition/versions и unit tests | PASS: 20 unit/architecture tests, 678 assertions; backend quality |
 | SC13-03 | Atomic writer/repositories/shares, rollback и DB races | Pending |
 | SC13-04 | PUT/If-Match/ACL/errors, HTTP tests | Pending |
 | SC13-05 | Edit UI, conflict/reload/server refresh, component tests | Pending |

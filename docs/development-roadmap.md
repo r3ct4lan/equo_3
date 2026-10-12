@@ -720,7 +720,7 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
   участников в той же транзакции.
 - [ ] `DR-E5-013` — увеличивать Debt.version ровно один раз на фактическое
   изменение агрегата.
-- [ ] `DR-E5-014` — определить контракт no-op update согласно HTTP/Domain и
+- [x] `DR-E5-014` — определить контракт no-op update согласно HTTP/Domain и
   закрепить тестом.
 - [ ] `DR-E5-015` — выполнить Debt, participants, shares, Connect и version
   одной транзакцией.
@@ -747,8 +747,8 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 
 ### 9.5. Tests и exit criteria
 
-- [ ] `DR-E5-026` — aggregate tests всех composition/freeze правил.
-- [ ] `DR-E5-027` — recalculation tests изменения amount, payer-in-split,
+- [x] `DR-E5-026` — aggregate tests всех composition/freeze правил.
+- [x] `DR-E5-027` — recalculation tests изменения amount, payer-in-split,
   remove/restore и округления.
 - [ ] `DR-E5-028` — integration tests identity восстановленных строк и
   soft-deleted shares.
