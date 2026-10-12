@@ -165,7 +165,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 4 | 26 | 28 | SC-016 merged; functional PASS; DR-E4-026/028 blocked dependency audit |
 | Этап 5 | 35 | 37 | SC-013 functional PASS; merged в main; DR-E5-035/037 blocked dependency audit |
 | Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
-| Этап 7 | 0 | 58 | Не начат |
+| Этап 7 | 10 | 58 | Retention slice PASS; остальные hardening/release задачи в работе |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
 
@@ -939,23 +939,23 @@ DR-E6-031—037 реализованы и функционально прове�
 
 ### 11.2. Retention и cleanup
 
-- [ ] `DR-E7-001` — выполнить contract audit ADR-013/014,
+- [x] `DR-E7-001` — выполнить contract audit ADR-013/014,
   `BR-IDEM-005`, `BR-SEC-005—007` и lifecycle всех технических сущностей.
-- [ ] `DR-E7-002` — составить явную retention matrix для `UserSession`,
+- [x] `DR-E7-002` — составить явную retention matrix для `UserSession`,
   `UserActionToken`, `ConnectInvitation`, `IdempotencyRecord` и
   `EmailDeliveryOutbox`.
-- [ ] `DR-E7-003` — реализовать batch cleanup command/job с bounded batch,
+- [x] `DR-E7-003` — реализовать batch cleanup command/job с bounded batch,
   стабильным порядком и безопасным повтором.
-- [ ] `DR-E7-004` — не удалять active/non-terminal записи раньше срока.
-- [ ] `DR-E7-005` — хранить idempotency result минимум нормативные 24 часа.
-- [ ] `DR-E7-006` — физически очищать terminal technical records после
+- [x] `DR-E7-004` — не удалять active/non-terminal записи раньше срока.
+- [x] `DR-E7-005` — хранить idempotency result минимум нормативные 24 часа.
+- [x] `DR-E7-006` — физически очищать terminal technical records после
   нормативных 30 дней с учётом FK order.
-- [ ] `DR-E7-007` — очищать encrypted email payload сразу при
+- [x] `DR-E7-007` — очищать encrypted email payload сразу при
   `SENT/FAILED` или недоставляемом/истёкшем token.
-- [ ] `DR-E7-008` — не удалять business/financial history cleanup job-ом.
-- [ ] `DR-E7-009` — добавить schedule/worker invocation без tight loop и
+- [x] `DR-E7-008` — не удалять business/financial history cleanup job-ом.
+- [x] `DR-E7-009` — добавить schedule/worker invocation без tight loop и
   без параллельного разрушительного запуска.
-- [ ] `DR-E7-010` — добавить dry-run/summary только если он не выводит
+- [x] `DR-E7-010` — добавить dry-run/summary только если он не выводит
   sensitive values.
 
 ### 11.3. Наблюдаемость email и безопасный replay

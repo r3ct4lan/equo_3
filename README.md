@@ -64,6 +64,13 @@ Use `docker compose logs <service>` to inspect one service. Run
 `docker compose down` (or `make down`) to stop the project without deleting
 named data volumes.
 
+The `retention` service waits for Doctrine migrations, then runs
+`app:retention:cleanup` every 24 hours. It retries failures after five minutes.
+For an operator dry-run, use
+`docker compose exec backend php bin/console app:retention:cleanup --dry-run`;
+the output contains eligible counts only. `EQUO_RETENTION_BATCH_SIZE` controls
+the maximum rows handled per record type and is limited to 1–5,000.
+
 ## Frontend runtime configuration
 
 The browser calls the API through the same Nginx origin. The committed defaults
