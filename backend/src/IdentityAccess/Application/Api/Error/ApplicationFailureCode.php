@@ -26,5 +26,9 @@ enum ApplicationFailureCode: string
     case InvalidParticipant = 'INVALID_PARTICIPANT';
     case DebtNotAvailable = 'DEBT_NOT_AVAILABLE';
     case TransferNotAvailable = 'TRANSFER_NOT_AVAILABLE';
+    case DebtFrozen = 'DEBT_FROZEN';
+    case DebtDeleted = 'DEBT_DELETED';
+    case VersionConflict = 'VERSION_CONFLICT';
+    case PreconditionRequired = 'PRECONDITION_REQUIRED';
     case Forbidden = 'FORBIDDEN';
 }

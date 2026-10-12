@@ -8,6 +8,7 @@ use App\Transfers\Application\Port\TransferRepositoryPort;
 use App\Transfers\Domain\Transfer;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use InvalidArgumentException;
 use RuntimeException;
 
 final readonly class DoctrineTransferRepository implements TransferRepositoryPort
@@ -57,6 +58,14 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
     public function save(Transfer $t): void
     {
         $this->db->insert('transfer', ['id' => $t->id, 'connect_id' => $t->connectId, 'sender_id' => $t->senderId, 'receiver_id' => $t->receiverId, 'amount' => $t->amount, 'type' => $t->type, 'created_by_id' => $t->createdById, 'created_at' => $t->createdAt->format('Y-m-d H:i:sP'), 'debt_id' => $t->debtId, 'debt_participant_id' => $t->debtParticipantId, 'related_transfer_id' => $t->relatedTransferId, 'is_deleted' => $t->isDeleted, 'version' => $t->version], ['is_deleted' => 'boolean']);
+    }
+
+    public function updateShare(Transfer $transfer): void
+    {
+        if ('DEBT_SHARE' !== $transfer->type) {
+            throw new InvalidArgumentException('Only automatic shares can be persisted by recalculation.');
+        }
+        $this->db->update('transfer', ['amount' => $transfer->amount, 'is_deleted' => $transfer->isDeleted, 'version' => $transfer->version], ['id' => $transfer->id, 'type' => 'DEBT_SHARE'], ['is_deleted' => 'boolean']);
     }
 
     public function sharesForDebt(string $debtId): array

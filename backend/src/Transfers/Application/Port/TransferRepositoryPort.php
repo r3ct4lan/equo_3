@@ -18,6 +18,8 @@ interface TransferRepositoryPort
 
     public function save(Transfer $transfer): void;
 
+    public function updateShare(Transfer $transfer): void;
+
     /** @return array<string,string> */
     public function sharesForDebt(string $debtId): array;
 }

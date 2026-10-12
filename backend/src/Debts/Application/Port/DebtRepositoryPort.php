@@ -14,7 +14,9 @@ interface DebtRepositoryPort
 
     public function save(Debt $debt): void;
 
-    public function find(string $id): ?Debt;
+    public function find(string $id, bool $forUpdate = false): ?Debt;
+
+    public function update(Debt $debt): void;
 
     public function isCoParticipant(string $authorId, string $candidateId): bool;
 }

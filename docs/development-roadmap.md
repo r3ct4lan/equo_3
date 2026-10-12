@@ -700,29 +700,29 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 
 - [x] `DR-E5-001` — выполнить contract audit `BR-DEBT-007—013`,
   `BR-CONC-*`, ADR-003/010 и HTTP 13.5.
-- [ ] `DR-E5-002` — разрешить update только author активного Debt.
-- [ ] `DR-E5-003` — заморозить update, если author или payer inactive.
-- [ ] `DR-E5-004` — сделать payer неизменяемым на уровне command и Domain.
-- [ ] `DR-E5-005` — требовать актуальный `If-Match`; отсутствие даёт `428`,
+- [x] `DR-E5-002` — разрешить update только author активного Debt.
+- [x] `DR-E5-003` — заморозить update, если author или payer inactive.
+- [x] `DR-E5-004` — сделать payer неизменяемым на уровне command и Domain.
+- [x] `DR-E5-005` — требовать актуальный `If-Match`; отсутствие даёт `428`,
   stale version — нормативный `409`.
-- [ ] `DR-E5-006` — блокировать Debt aggregate и проверить version до
+- [x] `DR-E5-006` — блокировать Debt aggregate и проверить version до
   изменения.
-- [ ] `DR-E5-007` — author, не являющийся payer, не может исключить себя.
-- [ ] `DR-E5-008` — неактивного current participant разрешить оставить или
+- [x] `DR-E5-007` — author, не являющийся payer, не может исключить себя.
+- [x] `DR-E5-008` — неактивного current participant разрешить оставить или
   исключить, но не добавить/восстановить.
-- [ ] `DR-E5-009` — исключение переводит существующий
+- [x] `DR-E5-009` — исключение переводит существующий
   `DebtParticipant.isDeleted=true` и удаляет его `DEBT_SHARE` мягко.
-- [ ] `DR-E5-010` — повторное добавление active user восстанавливает прежние
+- [x] `DR-E5-010` — повторное добавление active user восстанавливает прежние
   participant/share записи, сохраняя identity и исходный `createdAt`.
-- [ ] `DR-E5-011` — пересчитать share для полного итогового current состава,
+- [x] `DR-E5-011` — пересчитать share для полного итогового current состава,
   а не применять локальную дельту.
-- [ ] `DR-E5-012` — создать недостающие Connect для новых допустимых
+- [x] `DR-E5-012` — создать недостающие Connect для новых допустимых
   участников в той же транзакции.
-- [ ] `DR-E5-013` — увеличивать Debt.version ровно один раз на фактическое
+- [x] `DR-E5-013` — увеличивать Debt.version ровно один раз на фактическое
   изменение агрегата.
 - [x] `DR-E5-014` — определить контракт no-op update согласно HTTP/Domain и
   закрепить тестом.
-- [ ] `DR-E5-015` — выполнить Debt, participants, shares, Connect и version
+- [x] `DR-E5-015` — выполнить Debt, participants, shares, Connect и version
   одной транзакцией.
 
 ### 9.4. HTTP/Frontend
@@ -750,10 +750,10 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 - [x] `DR-E5-026` — aggregate tests всех composition/freeze правил.
 - [x] `DR-E5-027` — recalculation tests изменения amount, payer-in-split,
   remove/restore и округления.
-- [ ] `DR-E5-028` — integration tests identity восстановленных строк и
+- [x] `DR-E5-028` — integration tests identity восстановленных строк и
   soft-deleted shares.
-- [ ] `DR-E5-029` — rollback tests каждого шага полного перерасчёта.
-- [ ] `DR-E5-030` — concurrency test двух writers с одной version: применяется
+- [x] `DR-E5-029` — rollback tests каждого шага полного перерасчёта.
+- [x] `DR-E5-030` — concurrency test двух writers с одной version: применяется
   ровно один.
 - [ ] `DR-E5-031` — HTTP tests `428/409`, ACL, frozen/deleted и ETag.
 - [ ] `DR-E5-032` — component tests edit/conflict/reload states.
@@ -761,7 +761,7 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
   затронутые shares и balances у участников.
 - [ ] `DR-E5-034` — обновить фактическую документацию.
 - [ ] `DR-E5-035` — `make check` проходит.
-- [ ] `DR-E5-036` — ни один stale/failed update не оставляет частично
+- [x] `DR-E5-036` — ни один stale/failed update не оставляет частично
   пересчитанный агрегат.
 - [ ] `DR-E5-037` — этап 5 закрыт и строка сводной карты отмечена `[x]`.
 

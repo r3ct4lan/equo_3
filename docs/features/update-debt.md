@@ -41,7 +41,7 @@ Session/path/unmount guards отбрасывают поздние ответы.
 |---|---|---|
 | SC13-01 | Contract audit, no-op и декомпозиция | PASS |
 | SC13-02 | Domain revision/composition/versions и unit tests | PASS: 20 unit/architecture tests, 678 assertions; backend quality |
-| SC13-03 | Atomic writer/repositories/shares, rollback и DB races | Pending |
+| SC13-03 | Atomic writer/repositories/shares, rollback и DB races | PASS: full backend 626 tests / 7724 assertions, schema parity, backend quality |
 | SC13-04 | PUT/If-Match/ACL/errors, HTTP tests | Pending |
 | SC13-05 | Edit UI, conflict/reload/server refresh, component tests | Pending |
 | SC13-06 | Полный gate, browser, документация и интеграция | Pending |
@@ -49,3 +49,8 @@ Session/path/unmount guards отбрасывают поздние ответы.
 Удаление Debt, смена payer, прямое изменение DEBT_SHARE и audit log версий
 не входят. Технические доказательства отделяются от продуктовой приёмки и
 полного release gate. Прежний npm audit (11 high) не обходится.
+
+SC13-03: шесть rollback точек и четыре real-process races (stale writer,
+first rollback, payer deactivation, retained inactive current participant) PASS.
+Read repository получает root/current/history participant rows одним SQL snapshot;
+writer блокирует root перед чтением состава. Новых миграций не потребовалось.
