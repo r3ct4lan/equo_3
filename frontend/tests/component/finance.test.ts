@@ -10,7 +10,7 @@ import {
 import CreateDebtForm from '../../app/components/CreateDebtForm.vue'
 import DebtsPage from '../../app/pages/debts/index.vue'
 import ConnectsPage from '../../app/pages/connects/index.vue'
-import DebtCard from '../../app/pages/debts/[id].vue'
+import DebtCard from '../../app/pages/debts/[id]/index.vue'
 import TransferCard from '../../app/pages/transfers/[id].vue'
 import TransferHistory from '../../app/components/TransferHistory.vue'
 import ConnectBalance from '../../app/components/ConnectBalance.vue'
