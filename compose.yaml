@@ -59,6 +59,7 @@ services:
       EQUO_JWT_CLOCK_SKEW_SECONDS: "30"
       EQUO_CSRF_SIGNING_KEY_VERSION: "v1"
       EQUO_CSRF_SIGNING_KEY_RING: '{"v1":"base64-encoded-32-byte-csrf-key-placeholder"}'
+      EQUO_RETENTION_BATCH_SIZE: "${EQUO_RETENTION_BATCH_SIZE:-500}"
     volumes: &backend-volumes
       - ./backend:/var/www/backend
       - backend_vendor:/var/www/backend/vendor
@@ -181,6 +182,30 @@ services:
         while true; do
           php bin/console app:email-outbox:relay --no-interaction;
           php bin/console messenger:consume async --time-limit=5 --memory-limit=256M -vv;
+        done
+    environment: *backend-environment
+    volumes: *backend-volumes
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [equo]
+
+  retention:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: development
+    restart: unless-stopped
+    command:
+      - sh
+      - -lc
+      - >-
+        while true; do
+          if php bin/console doctrine:migrations:up-to-date --no-interaction; then
+            php bin/console app:retention:cleanup --no-interaction --batch-size="$${EQUO_RETENTION_BATCH_SIZE:-500}" && sleep 86400 || sleep 300;
+          else
+            sleep 300;
+          fi;
         done
     environment: *backend-environment
     volumes: *backend-volumes
