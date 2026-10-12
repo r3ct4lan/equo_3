@@ -1687,3 +1687,166 @@ test('manual payment survives a lost response and refreshes both histories after
     await otherContext.close()
   }
 })
+
+test('debt editing recalculates all shares, restores history and rejects a stale editor without changing manual payments', async ({ page, browser, request }) => {
+  test.setTimeout(200_000)
+  const authorEmail = await registerAndActivate(page, request, uniqueEmail('edit-author'))
+  const authorAccess = await login(page, authorEmail)
+  const profile = async (access: string) => {
+    const response = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + access } })
+    return (await response.json() as { id: string }).id
+  }
+  const authorId = await profile(authorAccess)
+  const payerContext = await browser.newContext({ ignoreHTTPSErrors: true })
+  const memberContext = await browser.newContext({ ignoreHTTPSErrors: true })
+  try {
+    const payer = await payerContext.newPage()
+    const member = await memberContext.newPage()
+    const payerEmail = await registerAndActivate(payer, request, uniqueEmail('edit-payer'))
+    const payerAccess = await login(payer, payerEmail)
+    const payerId = await profile(payerAccess)
+    const memberEmail = await registerAndActivate(member, request, uniqueEmail('edit-member'))
+    const memberAccess = await login(member, memberEmail)
+    const memberId = await profile(memberAccess)
+    async function connectWith(recipient: Page): Promise<string> {
+      await page.goto('/connects')
+      await waitForNuxtHydration(page)
+      const invited = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/connect-invitations')
+      await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
+      const invitation = await (await invited).json() as { url: string }
+      await followSecretUrl(recipient, invitation.url)
+      const accepted = recipient.waitForResponse(response => new URL(response.url()).pathname.endsWith('/accept'))
+      await recipient.getByRole('button', { name: 'Accept invitation', exact: true }).click()
+      const result = (await (await accepted).json() as { id: string }).id
+      await expect(recipient).toHaveURL(/\/connects\/[0-9a-f-]{36}$/u)
+      return result
+    }
+    const authorPayerConnect = await connectWith(payer)
+    await connectWith(member)
+    await page.goto('/debts/new')
+    await waitForNuxtHydration(page)
+    await expect(page.getByLabel('Who paid?', { exact: true })).toBeEnabled()
+    await page.getByLabel('Who paid?', { exact: true }).selectOption(payerId)
+    await page.locator('input[value="' + authorId + '"]').check()
+    await page.locator('input[value="' + memberId + '"]').check()
+    const title = 'Editable shared dinner ' + Date.now()
+    await page.getByLabel('Title', { exact: true }).fill(title)
+    await page.getByLabel('Amount in EUR', { exact: true }).fill('10.01')
+    const created = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/debts' && response.request().method() === 'POST')
+    await page.getByRole('button', { name: 'Create expense', exact: true }).click()
+    const debtResponse = await created
+    expect(debtResponse.status()).toBe(201)
+    const initial = await debtResponse.json() as { id: string, participants: Array<{ user: { id: string }, debtParticipantId: string, transferId: string | null }> }
+    const debtId = initial.id
+    const debtPath = '/api/v1/debts/' + debtId
+    await expect(page).toHaveURL(/\/debts\/[0-9a-f-]{36}$/u)
+    await expect(page.getByText('3 people · €3.34 each', { exact: true })).toBeVisible()
+    const memberPart = initial.participants.find(part => part.user.id === memberId)!
+    const originalShareResponse = await request.get(baseUrl + '/api/v1/transfers/' + memberPart.transferId, { headers: { Authorization: 'Bearer ' + memberAccess } })
+    const originalShare = await originalShareResponse.json() as { id: string, connectId: string, createdAt: string }
+    const manualResponse = await request.post(baseUrl + '/api/v1/connects/' + authorPayerConnect + '/transfers', {
+      headers: { 'Authorization': 'Bearer ' + authorAccess, 'Idempotency-Key': randomUUID() },
+      data: { senderId: authorId, receiverId: payerId, amount: 100 }
+    })
+    expect(manualResponse.status()).toBe(201)
+    const manual = await manualResponse.json() as { id: string }
+    const staleEditor = await page.context().newPage()
+    await staleEditor.goto('/debts/' + debtId + '/edit')
+    await waitForNuxtHydration(staleEditor)
+    await expect(staleEditor.getByRole('button', { name: 'Save changes', exact: true })).toBeEnabled()
+    await page.getByRole('link', { name: 'Edit expense', exact: true }).click()
+    await waitForNuxtHydration(page)
+    await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeEnabled()
+    await expect(page.locator('input[value="' + authorId + '"]')).toBeDisabled()
+    await expect(page.getByLabel('Who paid?', { exact: true })).toHaveCount(0)
+    await page.getByLabel('Amount in EUR', { exact: true }).fill('12.01')
+    await page.locator('input[value="' + memberId + '"]').uncheck()
+    await page.getByLabel('Include the payer in the split', { exact: true }).uncheck()
+    await expect(page.getByText('Each share: €12.01. Every current share will be recalculated.', { exact: true })).toBeVisible()
+    const updated = page.waitForResponse(response => new URL(response.url()).pathname === debtPath && response.request().method() === 'PUT')
+    await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+    const saved = await updated
+    expect(saved.status()).toBe(200)
+    expect(saved.request().headers()['if-match']).toBe('"1"')
+    expect(saved.headers()['etag']).toBe('"2"')
+    await expect(page).toHaveURL(new RegExp('/debts/' + debtId + '$', 'u'))
+    await expect(page.getByText('1 people · €12.01 each', { exact: true })).toBeVisible()
+    await member.goto('/debts/' + debtId)
+    await expect(member.getByRole('alert')).toContainText('Expense unavailable')
+    await member.goto('/transfers/' + originalShare.id)
+    await expect(member.getByText('Removed · does not affect the balance', { exact: true })).toBeVisible()
+    await expect(member.getByRole('link', { name: title, exact: true })).toHaveCount(0)
+    await member.goto('/connects/' + originalShare.connectId)
+    await expect(member.getByText('You are settled up.', { exact: true })).toBeVisible()
+    await expect(member.getByRole('link', { name: 'Expense share · €3.34', exact: true })).toBeVisible()
+    await payer.goto('/connects/' + authorPayerConnect)
+    await expect(payer.getByText('They owe you €11.01.', { exact: true })).toBeVisible()
+    let staleCommands = 0
+    staleEditor.on('request', (sent) => {
+      if (sent.method() === 'PUT' && new URL(sent.url()).pathname === debtPath) ++staleCommands
+    })
+    await staleEditor.getByLabel('Title', { exact: true }).fill('Stale overwrite')
+    const conflicted = staleEditor.waitForResponse(response => new URL(response.url()).pathname === debtPath && response.request().method() === 'PUT')
+    await staleEditor.getByRole('button', { name: 'Save changes', exact: true }).click()
+    const conflict = await conflicted
+    expect(conflict.status()).toBe(409)
+    expect(conflict.request().headers()['if-match']).toBe('"1"')
+    expect((await conflict.json() as { error: { code: string } }).error.code).toBe('VERSION_CONFLICT')
+    await expect(staleEditor.getByRole('alert')).toContainText('Someone changed this expense')
+    await expect(staleEditor.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled()
+    expect(staleCommands).toBe(1)
+    await staleEditor.getByRole('button', { name: 'Reload expense and discard draft', exact: true }).click()
+    await expect(staleEditor.getByLabel('Title', { exact: true })).toHaveValue(title)
+    await expect(staleEditor.getByLabel('Amount in EUR', { exact: true })).toHaveValue('12.01')
+    await expect(staleEditor.getByRole('button', { name: 'Save changes', exact: true })).toBeEnabled()
+    expect(staleCommands).toBe(1)
+    await staleEditor.locator('input[value="' + memberId + '"]').check()
+    await staleEditor.getByLabel('Include the payer in the split', { exact: true }).check()
+    await staleEditor.getByLabel('Amount in EUR', { exact: true }).fill('13.01')
+    const restored = staleEditor.waitForResponse(response => new URL(response.url()).pathname === debtPath && response.request().method() === 'PUT')
+    await staleEditor.getByRole('button', { name: 'Save changes', exact: true }).click()
+    const restoredResponse = await restored
+    expect(restoredResponse.status()).toBe(200)
+    expect(restoredResponse.request().headers()['if-match']).toBe('"2"')
+    expect(restoredResponse.headers()['etag']).toBe('"3"')
+    const restoredBody = await restoredResponse.json() as { version: number, participants: typeof initial.participants }
+    const restoredMember = restoredBody.participants.find(part => part.user.id === memberId)!
+    expect(restoredMember.debtParticipantId).toBe(memberPart.debtParticipantId)
+    expect(restoredMember.transferId).toBe(memberPart.transferId)
+    await expect(staleEditor).toHaveURL(new RegExp('/debts/' + debtId + '$', 'u'))
+    await expect(staleEditor.getByText('3 people · €4.34 each', { exact: true })).toBeVisible()
+    expect(staleCommands).toBe(2)
+    for (const viewer of [payer, member]) {
+      await viewer.goto('/debts/' + debtId)
+      await expect(viewer.getByRole('heading', { name: title, exact: true })).toBeVisible()
+      await expect(viewer.getByText('3 people · €4.34 each', { exact: true })).toBeVisible()
+      await expect(viewer.getByRole('link', { name: 'Edit expense', exact: true })).toHaveCount(0)
+    }
+    for (const [viewer, expected] of [[payer, 'They owe you €4.34.'], [member, 'You owe them €4.34.']] as const) {
+      await viewer.goto('/connects/' + originalShare.connectId)
+      await expect(viewer.getByText(expected, { exact: true })).toBeVisible()
+      await expect(viewer.getByRole('link', { name: 'Expense share · €4.34', exact: true })).toHaveCount(1)
+    }
+    await page.goto('/connects/' + authorPayerConnect)
+    await expect(page.getByText('You owe them €3.34.', { exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Expense share · €4.34', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Payment · €1.00', exact: true })).toBeVisible()
+    const currentShare = await request.get(baseUrl + '/api/v1/transfers/' + originalShare.id, { headers: { Authorization: 'Bearer ' + memberAccess } })
+    const share = await currentShare.json() as { amount: number, isDeleted: boolean, createdAt: string, version: number }
+    expect(share.amount).toBe(434)
+    expect(share.isDeleted).toBe(false)
+    expect(share.createdAt).toBe(originalShare.createdAt)
+    expect(share.version).toBe(3)
+    const currentManual = await request.get(baseUrl + '/api/v1/transfers/' + manual.id, { headers: { Authorization: 'Bearer ' + authorAccess } })
+    expect(await currentManual.json()).toEqual(manual)
+    await expectNoPersistentSecrets(page, [authorAccess, payerAccess, memberAccess, testPassword])
+    await expectNoPersistentSecrets(staleEditor, [authorAccess, payerAccess, memberAccess, testPassword])
+    await expectNoPersistentSecrets(payer, [authorAccess, payerAccess, memberAccess, testPassword])
+    await expectNoPersistentSecrets(member, [authorAccess, payerAccess, memberAccess, testPassword])
+    await staleEditor.close()
+  }
+  finally {
+    await payerContext.close()
+    await memberContext.close()
+  }
+})
