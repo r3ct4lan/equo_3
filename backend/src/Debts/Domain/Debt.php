@@ -30,6 +30,64 @@ final readonly class Debt
         }
     }
 
+    /**
+     * @param array<string,bool> $activeUsers
+     * @param array<string,bool> $eligibleUsers
+     * @param callable():string  $newId
+     */
+    public function revise(DebtUpdate $update, string $actorId, int $expectedVersion, array $activeUsers, array $eligibleUsers, callable $newId, DateTimeImmutable $now): self
+    {
+        if ($actorId !== $this->createdById) {
+            throw new DebtUpdateRejected(DebtUpdateFailure::Forbidden);
+        }
+        if ($this->isDeleted) {
+            throw new DebtUpdateRejected(DebtUpdateFailure::Deleted);
+        }
+        if (!($activeUsers[$this->createdById] ?? false) || !($activeUsers[$this->payerId] ?? false)) {
+            throw new DebtUpdateRejected(DebtUpdateFailure::Frozen);
+        }
+        if ($expectedVersion !== $this->version) {
+            throw new DebtUpdateRejected(DebtUpdateFailure::VersionConflict);
+        }
+        $ids = $update->participantIds;
+        if ([] === $ids || count(array_unique($ids)) !== count($ids) || in_array($this->payerId, $ids, true) || ($this->createdById !== $this->payerId && !in_array($this->createdById, $ids, true))) {
+            throw new DebtUpdateRejected(DebtUpdateFailure::InvalidParticipant);
+        }
+        if ($update->includePayerInSplit) {
+            $ids[] = $this->payerId;
+        }
+        sort($ids, SORT_STRING);
+        $oldCurrent = array_map(static fn (DebtParticipant $p): string => $p->userId, $this->currentParticipants());
+        foreach ($ids as $id) {
+            if (in_array($id, $oldCurrent, true)) {
+                continue;
+            }
+            if (!($eligibleUsers[$id] ?? false)) {
+                throw new DebtUpdateRejected(DebtUpdateFailure::InvalidParticipant);
+            }
+            if (!($activeUsers[$id] ?? false)) {
+                throw new DebtUpdateRejected(DebtUpdateFailure::InactiveParticipant);
+            }
+        }
+        sort($oldCurrent, SORT_STRING);
+        if ($this->title === $update->title && $this->description === $update->description && $this->totalAmount->cents === $update->totalAmount->cents && $oldCurrent === $ids) {
+            return $this;
+        }
+        $participants = [];
+        $known = [];
+        foreach ($this->participants as $p) {
+            $known[$p->userId] = true;
+            $participants[] = new DebtParticipant($p->id, $p->debtId, $p->userId, $p->createdAt, !in_array($p->userId, $ids, true));
+        }
+        foreach ($ids as $id) {
+            if (!isset($known[$id])) {
+                $participants[] = new DebtParticipant($newId(), $this->id, $id, $now);
+            }
+        }
+
+        return new self($this->id, $update->title, $update->description, $update->totalAmount, $this->payerId, $this->createdById, $this->createdAt, $participants, false, $this->version + 1);
+    }
+
     /** @return list<DebtParticipant> */
     public function currentParticipants(): array
     {
