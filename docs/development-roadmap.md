@@ -727,11 +727,11 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 
 ### 9.4. HTTP/Frontend
 
-- [ ] `DR-E5-016` — реализовать `PUT /api/v1/debts/{debtId}`.
-- [ ] `DR-E5-017` — принимать version только из `If-Match`, не доверять
+- [x] `DR-E5-016` — реализовать `PUT /api/v1/debts/{debtId}`.
+- [x] `DR-E5-017` — принимать version только из `If-Match`, не доверять
   скрытому body fallback.
-- [ ] `DR-E5-018` — возвращать обновлённую карточку/ETag строго по контракту.
-- [ ] `DR-E5-019` — различать forbidden, not found, deleted, frozen,
+- [x] `DR-E5-018` — возвращать обновлённую карточку/ETag строго по контракту.
+- [x] `DR-E5-019` — различать forbidden, not found, deleted, frozen,
   invalid composition, missing/stale precondition.
 - [ ] `DR-E5-020` — показывать edit action только author; сервер остаётся
   источником авторизации.
@@ -755,7 +755,7 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 - [x] `DR-E5-029` — rollback tests каждого шага полного перерасчёта.
 - [x] `DR-E5-030` — concurrency test двух writers с одной version: применяется
   ровно один.
-- [ ] `DR-E5-031` — HTTP tests `428/409`, ACL, frozen/deleted и ETag.
+- [x] `DR-E5-031` — HTTP tests `428/409`, ACL, frozen/deleted и ETag.
 - [ ] `DR-E5-032` — component tests edit/conflict/reload states.
 - [ ] `DR-E5-033` — browser E2E: изменение amount/composition меняет все
   затронутые shares и balances у участников.

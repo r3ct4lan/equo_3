@@ -488,3 +488,13 @@ relatedTransferId отложен до SC-018 по mvp-scope §15, неизвес
 Edit/delete маршруты не экспонируются. Денежные DTO не допускают coercion
 из numeric string, bool или float. Atomic writer использует существующую
 схему без новой миграции. Проверки — features/manual-transfer.md.
+
+## SC-013 — PUT Debt
+
+PUT /api/v1/debts/{id} принимает UpdateDebtRequest с полным редактируемым
+состоянием, без payerId и version в body. Strict If-Match защищает aggregate
+version; No-op возвращает текущий 200/ETag без записи. Missing/stale — 428/409,
+version conflict содержит только expectedVersion/actualVersion. Resource ACL
+проверяется до раскрытия versions; неавтор-читатель — 403, outsider — hidden 404.
+Frozen/deleted — 409. Response reuse DebtViews и no-store; тело всегда содержит
+только текущих participants. Новых migrations и альтернативного API client нет.

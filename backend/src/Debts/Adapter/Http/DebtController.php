@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Debts\Adapter\Http;
 
 use App\Debts\Adapter\Http\Request\CreateDebtRequest;
+use App\Debts\Adapter\Http\Request\UpdateDebtRequest;
 use App\Debts\Application\CreateDebt;
 use App\Debts\Application\CreateDebtCommand;
 use App\Debts\Application\DebtQueries;
+use App\Debts\Application\UpdateDebt;
+use App\Debts\Application\UpdateDebtCommand;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -19,7 +22,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class DebtController
 {
-    public function __construct(private CreateDebt $createDebt, private DebtQueries $queries, private Security $security)
+    public function __construct(private CreateDebt $createDebt, private DebtQueries $queries, private Security $security, private UpdateDebt $updateDebt)
     {
     }
 
@@ -37,6 +40,24 @@ final readonly class DebtController
         $body = $result['body'];
 
         return new JsonResponse($body, $result['status'], ['Cache-Control' => 'no-store', 'Location' => '/api/v1/debts/'.$body['id'], 'ETag' => '"'.$body['version'].'"']);
+    }
+
+    #[Route('/api/v1/debts/{debtId}', name: 'api_v1_debt_update', methods: ['PUT'])]
+    public function update(string $debtId, Request $request, #[MapRequestPayload(acceptFormat: 'json')] UpdateDebtRequest $payload): JsonResponse
+    {
+        $etag = $request->headers->get('If-Match');
+        if (null === $etag || '' === trim($etag)) {
+            throw new ApplicationFailure(ApplicationFailureCode::PreconditionRequired);
+        }
+        if (1 !== preg_match('/^"([1-9][0-9]{0,9})"$/D', $etag, $match) || (int) $match[1] > 2147483647) {
+            throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
+        }
+        if (!CreateDebtCommand::isUuid($debtId)) {
+            throw new ApplicationFailure(ApplicationFailureCode::DebtNotAvailable);
+        }
+        $body = $this->updateDebt->handle(new UpdateDebtCommand($debtId, $payload->title ?? '', $payload->description, is_int($payload->totalAmount) ? $payload->totalAmount : 0, $payload->participantIds ?? [], is_bool($payload->includePayerInSplit) ? $payload->includePayerInSplit : false, (int) $match[1]), $this->userId());
+
+        return new JsonResponse($body, 200, ['Cache-Control' => 'no-store', 'ETag' => '"'.$body['version'].'"']);
     }
 
     #[Route('/api/v1/debts', name: 'api_v1_debt_list', methods: ['GET'])]
