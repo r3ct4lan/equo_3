@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Зафиксировать выражение принятых ADR в структуре Symfony backend |
 | Статус | Accepted |
-| Версия | 15 |
-| Дата актуальности | 2026-10-11 |
+| Версия | 16 |
+| Дата актуальности | 2026-10-12 |
 | Владелец | Maksim Smolkov |
 | Источник | E1-07—E1-12, backend login stage, ADR-001, ADR-006, ADR-007, ADR-012—018 и фактическая реализация auth среза |
 
@@ -417,3 +417,18 @@ Infrastructure DebtIdempotency реализует также TransferIdempotency
 TransferQueries формирует исходный безопасный representation для сохранённого
 201. Схема, ledger query и Connect balance API переиспользуются без новой
 миграции. PHP-FPM access log исключает URI, safe API routes остаются в Nginx.
+
+## Исправление долга SC-013
+
+Debt::revise и DebtUpdate принадлежат Domain; UpdateDebt координирует одну
+транзакцию через DebtRuntimePort. DebtRepositoryPort.find(forUpdate=true)
+блокирует root до чтения состава; свежие sorted UUID User locks сериализуют
+проверку активности с деактивацией. AutomaticShares.recalculate — межмодульный
+Application/Api port; Transfers владеет обновлением только DEBT_SHARE.
+
+Read repository получает root и полный participant history одним SQL snapshot.
+Writer сохраняет прежние IDs/createdAt, обновляет только изменённые participant
+flags и создаёт только новые записи. Transfer.recalculateShare увеличивает
+version лишь при фактическом изменении суммы/флага. MANUAL не затрагивается.
+Domain не зависит от Doctrine/Symfony, Application — от HTTP.
+[Доказательства](acceptance/update-debt.md).

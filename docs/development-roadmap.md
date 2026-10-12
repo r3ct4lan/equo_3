@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 9 |
-| Дата актуальности | 2026-10-11 |
+| Версия | 10 |
+| Дата актуальности | 2026-10-12 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
 
@@ -145,7 +145,7 @@ read endpoints SC-009/012/015. MANUAL и исправление долга ос�
 | 2 | Два пользователя создают постоянный `Connect` по приглашению | `MVP-SC-008`, часть `009/020/021` | этап 1 | `[ ]` |
 | 3 | Общий расход создаёт доли, историю и объяснимый баланс | `MVP-SC-009/011/012/015`, части `020/021` | этапы 1—2 | `[ ]` |
 | 4 | Ручной трансфер изменяет баланс | `MVP-SC-016`, части `020/021` | этап 3 | `[ ]` |
-| 5 | Автор исправляет долг с полным перерасчётом | `MVP-SC-013`, части `020/021` | этап 3 | `[ ]` |
+| 5 | Автор исправляет долг с полным перерасчётом | `MVP-SC-013`, части `020/021` | этап 3 | `[ ]` functional PASS; release audit blocked |
 | 6 | Завершён обязательный security lifecycle аккаунта | завершение `001`, `003/004/005`, части `019/020/021` | этап 1 | `[ ]` |
 | 7 | MVP эксплуатационно готов и полностью проверен | завершение `019/020/021/022` | этапы 1—6 | `[ ]` |
 
@@ -162,8 +162,8 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 1 | 53 | 53 | Завершён |
 | Этап 2 | 43 | 45 | SC-008 merged; functional PASS; DR-E2-042/045 blocked dependency audit |
 | Этап 3 | 68 | 70 | SC-011 merged; functional PASS; DR-E3-066/070 blocked dependency audit |
-| Этап 4 | 0 | 28 | Не начат |
-| Этап 5 | 0 | 37 | Не начат |
+| Этап 4 | 26 | 28 | SC-016 merged; functional PASS; DR-E4-026/028 blocked dependency audit |
+| Этап 5 | 35 | 37 | SC-013 functional PASS; merge pending; DR-E5-035/037 blocked dependency audit |
 | Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
 | Этап 7 | 0 | 58 | Не начат |
 | Should have | 0 | 24 | Отложено до решения владельца |
@@ -757,9 +757,9 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
   ровно один.
 - [x] `DR-E5-031` — HTTP tests `428/409`, ACL, frozen/deleted и ETag.
 - [x] `DR-E5-032` — component tests edit/conflict/reload states.
-- [ ] `DR-E5-033` — browser E2E: изменение amount/composition меняет все
+- [x] `DR-E5-033` — browser E2E: изменение amount/composition меняет все
   затронутые shares и balances у участников.
-- [ ] `DR-E5-034` — обновить фактическую документацию.
+- [x] `DR-E5-034` — обновить фактическую документацию.
 - [ ] `DR-E5-035` — `make check` проходит.
 - [x] `DR-E5-036` — ни один stale/failed update не оставляет частично
   пересчитанный агрегат.
@@ -1193,7 +1193,7 @@ Definition of Ready.
 | `MVP-SC-010` | Later | `LT-010` | `[ ]` |
 | `MVP-SC-011` | Must | этап 3 | `[ ]` |
 | `MVP-SC-012` | Must | этап 3 | `[ ]` |
-| `MVP-SC-013` | Must | этап 5 | `[ ]` |
+| `MVP-SC-013` | Must | этап 5 | `[ ]` functional PASS; merge pending; release audit blocked |
 | `MVP-SC-014` | Should | `SH-014` | `[ ]` |
 | `MVP-SC-015` | Must | этап 3 | `[ ]` |
 | `MVP-SC-016` | Must | этап 4 | `[ ]` merged в main; functional PASS; release audit blocked |
@@ -1229,6 +1229,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 10 | 2026-10-12 | SC-013: 35/37 задач этапа 5, full recalculation/edit, 26 browser PASS; DR-E5-035/037 blocked npm audit |
 | 9 | 2026-10-11 | SC-016: MANUAL writer/UI, 26/28 задач этапа 4, основной browser путь PASS; release audit blocked |
 | 6 | 2026-10-10 | SC-003/004/005 последовательно merged в main; проверенные DR-E6-010—048/050—052 отмечены, полный gate и этап 6 blocked dependency audit |
 | 5 | 2026-10-10 | SC-005 реализована и функционально проверена; этап 6/security lifecycle в ветках, merge и release audit остаются открытыми |
@@ -1283,3 +1284,17 @@ Snapshot b2a6307 fast-forward merged и pushed в main. Проверенные a
 files при merge не менялись; feature branch сохранена. 26/28 задач этапа 4
 включены в main; DR-E4-026/028, npm audit blocker и продуктовая приёмка
 остаются открытыми. Следующая функциональная область — этап 5 / SC-013.
+
+## Проверка SC-013 — 2026-10-12
+
+SC13-01—06 функционально проверены в codex/sc-013-update-debt от 4282715.
+652 backend / 8020 assertions, 62 unit, 87 component, 26 browser E2E PASS.
+Build, smoke, Nginx syntax и Composer audit PASS. 35/37 задач этапа 5
+реализованы и проверены; интеграция pending. DR-E5-035/037 и сводная строка
+этапа 5 остаются открытыми: make check-full останавливается на прежних
+11 high npm advisories. [Доказательства](acceptance/update-debt.md).
+
+Следующая обязательная область — этап 7: hardening, эксплуатация и финальная
+приёмка SC-019—022. SC-014/017 остаются Should и не выбираются автоматически
+вместо обязательного MVP. Product Owner acceptance, staging/SMTP, эксплуатационные
+критерии и полный release gate отдельно не подтверждены.

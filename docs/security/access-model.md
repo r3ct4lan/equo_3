@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle, logout, password reset/change и `/me` |
 | Статус | Accepted |
-| Версия | 15 |
-| Дата актуальности | 2026-10-11 |
+| Версия | 16 |
+| Дата актуальности | 2026-10-12 |
 | Владелец | Maksim Smolkov |
 | Источник | BR-USR-001—003/007/009; BR-SEC-003—007; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
 
@@ -298,3 +298,19 @@ transfer.create, canonical request содержит Connect ID. Replay сохр�
 операция требует активности обеих сторон. Приватные identity поля не включены
 в Transfer. Capability URI исключён из PHP-FPM access format и контролируется
 в E2E diagnostics; JWT/refresh/CSRF pipeline переиспользуется без изменений.
+
+## Исправление долга SC-013
+
+PUT Debt доступен только author. Незнакомый/исключённый обычный участник
+получает hidden 404; читающий payer/current participant — 403. Versions в
+VERSION_CONFLICT раскрываются только автору после resource ACL. Bearer policy
+проверяет active account до command: inactive author получает 403 ACCOUNT_INACTIVE;
+деактивация после authentication выявляется свежими locks как 409 DEBT_FROZEN.
+
+Неактивный текущий ordinary participant допускается в составе или исключается;
+новый/возвращаемый должен быть active и допустимым для автора. Неактивный
+payer/author замораживает update. Payer и author неизменяемы. Исключение лишает
+Debt access, сохраняя independent Transfer/Connect history и минимальный
+inaccessible debtReference. Read-only UI скрывает edit; сервер проверяет права
+самостоятельно. Late session/path responses отбрасываются.
+[Доказательства ACL и конкурентности](../acceptance/update-debt.md).

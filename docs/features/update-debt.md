@@ -1,6 +1,6 @@
 # SC-013 — Исправление долга и полный перерасчёт
 Дата: 2026-10-12. Ветка: codex/sc-013-update-debt от main 4282715.
-Статус: реализация; release audit blocker сохраняется.
+Статус: functional PASS; интеграция в main pending; release BLOCKED.
 
 ## Требования и техническое решение
 Основания: MVP-SC-013, DR-E5-001—037, BR-DEBT-001/006—013,
@@ -44,7 +44,7 @@ Session/path/unmount guards отбрасывают поздние ответы.
 | SC13-03 | Atomic writer/repositories/shares, rollback и DB races | PASS: full backend 626 tests / 7724 assertions, schema parity, backend quality |
 | SC13-04 | PUT/If-Match/ACL/errors, HTTP tests | PASS: 26 tests / 293 assertions; backend quality |
 | SC13-05 | Edit UI, conflict/reload/server refresh, component tests | PASS: 62 unit, 87 component; frontend quality/build |
-| SC13-06 | Полный gate, browser, документация и интеграция | Pending |
+| SC13-06 | Полный gate, browser, документация и интеграция | Functional PASS: 652 backend / 8020 assertions, 62 unit, 87 component, 26 browser; release BLOCKED npm audit; merge pending |
 
 Удаление Debt, смена payer, прямое изменение DEBT_SHARE и audit log версий
 не входят. Технические доказательства отделяются от продуктовой приёмки и
@@ -60,3 +60,9 @@ SC13-05: ETag берётся из onResponse существующего API clie
 Balance/history перечитываются существующими server queries при открытии;
 успешное сохранение возвращает к карточке с новым GET. Исторический состав
 не добавлен в DTO: UI явно различает current/remove и add-or-restore.
+
+SC13-06: [итоговая техническая проверка](../acceptance/update-debt.md).
+35/37 задач этапа 5 реализованы и проверены. DR-E5-035/037 остаются открытыми:
+npm audit возвращает 11 high; полный release gate не PASS. Product Owner
+acceptance и готовность MVP не подтверждены. Следующая обязательная область —
+эксплуатационный этап 7 и финальная проверка SC-019—022.

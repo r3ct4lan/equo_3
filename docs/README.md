@@ -5,8 +5,8 @@
 | Название | Индекс проектной документации Equo |
 | Назначение | Обеспечить единый вход в комплект проектных артефактов и правила их актуализации |
 | Статус | Accepted |
-| Версия | 30 |
-| Дата актуальности | 2026-10-11 |
+| Версия | 31 |
+| Дата актуальности | 2026-10-12 |
 | Владелец | Maksim Smolkov |
 | Источник | Нормативная документация и фактическая реализация MVP |
 
@@ -45,6 +45,8 @@
 | [Приёмка финансового этапа](acceptance/create-debt.md) | Atomicity, real DB races, ledger, ACL и browser путь двух сторон/third-user denial | Functional PASS; release BLOCKED | Повторены проверки или устранён blocker |
 | [Ручной перевод](features/manual-transfer.md) | SC-016, этапы SC16-01—05, atomic MANUAL writer, form/retry и server refresh | Merged; functional PASS; release audit blocked | Изменился MANUAL scope или результат проверки |
 | [Приёмка ручного перевода](acceptance/manual-transfer.md) | Both directions, overpayment, real races, основной browser путь и safe diagnostics | Functional PASS; release BLOCKED | Повторены проверки, устранён blocker или принято решение владельца |
+| [Исправление долга](features/update-debt.md) | SC-013, этапы SC13-01—06, atomic recalculation, edit UI и If-Match | Functional PASS; merge pending; release audit blocked | Изменился update scope или результат проверки |
+| [Приёмка исправления долга](acceptance/update-debt.md) | Stable identities, шесть rollback points, четыре races, stale editor и три browser accounts | Functional PASS; release BLOCKED | Повторены проверки, устранён blocker или принято решение владельца |
 | [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, browser E2E, audits, smoke и GitHub Actions | Accepted | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
 | [Приёмка повторного запроса активации](acceptance/activation-resend.md) | Сквозное доказательство replacement semantics, neutral 202, rate limit и security regressions для `MVP-SC-001` | Passed | Повторена приёмка или Product Owner принял итоговое решение |
 | [Architecture Decision Records](adr/architecture-decisions.md) | Принятые ADR-001—ADR-019 | Accepted | Решение заменяется новым или выполнено условие его пересмотра; историю следует сохранять, добавляя новый ADR |

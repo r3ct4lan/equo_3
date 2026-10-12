@@ -1,6 +1,6 @@
 # Продуктовый контекст и автономная разработка
 
-Актуализировано: 2026-10-11. Источник передачи: `Equo-handoff-2026-10-09.zip`
+Актуализировано: 2026-10-12. Источник передачи: `Equo-handoff-2026-10-09.zip`
 (HANDOFF, MVP, DECISIONS и 13 файлов сценариев), сопоставленный с документацией,
 кодом, тестами и Git репозитория. Пакет восстанавливает переписку и не заменяет
 принятые нормативные документы из [индекса](README.md).
@@ -129,3 +129,18 @@ Application snapshot SC-016 b2a6307 fast-forward merged и pushed в main
 2026-10-11. Проверенные application files при интеграции не менялись;
 main содержит 26/28 задач этапа 4. Release blocker и решение Product Owner
 не закрыты этой интеграцией.
+
+## Исправление долга SC-013 — 2026-10-12
+
+SC13-01—06 функционально реализованы и проверены в codex/sc-013-update-debt
+от 4282715: полный update по настоящему ETag, soft exclude/restore со стабильной
+identity, atomic recalculation всех долей, explicit conflict/reload и неизменный
+MANUAL. 652 backend / 8020 assertions, 62 unit, 87 component, 26 browser E2E,
+build, smoke и Composer audit PASS. [Акт](acceptance/update-debt.md).
+35/37 задач этапа 5 выполнены; merge pending. DR-E5-035/037 и release gate
+blocked прежними 11 high npm advisories, без исключений.
+
+Следующая обязательная область — этап 7 (SC-019—022, hardening/эксплуатация и
+финальная техническая приёмка), затем решение Product Owner. Реализованные
+пользовательские Must-сценарии не означают готовность MVP к запуску.
+SC-014/017 — Should и не становятся следующей обязательной фичей.

@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth/financial экраны |
 | Статус | Implemented |
-| Версия | 13 |
-| Дата актуальности | 2026-10-11 |
+| Версия | 14 |
+| Дата актуальности | 2026-10-12 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v4; ADR-001/006/012/017/018; реализация HTTP-слоя; модель доступа; фактический frontend |
 
@@ -413,7 +413,7 @@ writer, оставляя историю. Связи с долями, edit/delete
 ## SC-013 — исправление расхода
 
 Карточка /debts/{id} находится в pages/debts/[id]/index.vue, edit — соседняя
-[ id ]/edit.vue (route /debts/{id}/edit), без parent component, скрывающего
+[id]/edit.vue (route /debts/{id}/edit), без parent component, скрывающего
 child page. EditDebtForm показывает неизменяемого payer, current/inactive
 participants, remove и add-or-restore selections, полный share preview.
 Read-only clients не получают edit controls; сервер проверяет ACL независимо.

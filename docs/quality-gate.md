@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 14 |
-| Дата актуальности | 2026-10-11 |
+| Версия | 15 |
+| Дата актуальности | 2026-10-12 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
 
@@ -343,3 +343,21 @@ PHP-FPM logs содержат IP/date/method/status без URI; test-e2e.sh до
 проверяет service logs на invitation capabilities. Полные результаты и прежний
 npm audit blocker — [акт SC-016](acceptance/manual-transfer.md).
 Audit policy/threshold и отсутствие исключений сохраняются.
+
+## Дополнение SC-013
+
+Update suite проверяет normalized no-op, stable participant/share identity,
+полный пересчёт, integer If-Match и независимые ACL. Шесть DB failure points
+(root UPDATE, participant UPDATE/INSERT, Connect INSERT, Transfer UPDATE/INSERT)
+проверяют полный rollback. Четыре real-process races с pg_blocking_pids barrier:
+stale writers, rollback первого writer, деактивация payer, сохранение
+деактивированного обычного current participant.
+
+Обязательный browser suite: 26 сценариев. SC-013 использует три accounts,
+author != payer, MANUAL до edit, исключение/возвращение участника, stale editor,
+explicit reload и обе стороны ledger. Stable IDs/createdAt и неизменность
+MANUAL сравниваются с исходными representation; automatic PUT retry отсутствует.
+Свежий browser прогон PASS без source drift. Полный make check-full выполнен,
+но release gate BLOCKED прежними 11 high npm advisories; browser и smoke
+проверены отдельно. Audit threshold/исключения не менялись.
+[Итог](acceptance/update-debt.md).
