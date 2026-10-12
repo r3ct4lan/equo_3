@@ -15,6 +15,7 @@ use App\Infrastructure\EmailDelivery\Messaging\UserActionEmailRetryStrategy;
 use App\Infrastructure\EmailDelivery\Outbox\OutboxRelay;
 use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryOutboxRecord;
 use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryStatus;
+use App\Infrastructure\EmailDelivery\Replay\EmailOutboxReplay;
 use App\Infrastructure\EmailDelivery\Security\PayloadCipher;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -240,6 +241,26 @@ final class EmailDeliveryFlowTest extends KernelTestCase
             self::assertEquals($now->modify(sprintf('+%d seconds', $expectedDelay)), $outbox->availableAt());
             self::assertSame('Message broker publication failed.', $outbox->lastError());
         }
+    }
+
+    public function testSafeReplayRequiresPublishedStateAndDeliverableToken(): void
+    {
+        $deliverable = $this->fixture(EmailDeliveryStatus::Published);
+        $expired = $this->fixture(EmailDeliveryStatus::Published, expired: true);
+        $terminal = $this->fixture(EmailDeliveryStatus::Failed);
+        $replay = self::getContainer()->get(EmailOutboxReplay::class);
+        $transport = self::getContainer()->get('messenger.transport.async');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        self::assertTrue($replay->replay($deliverable->id()));
+        self::assertFalse($replay->replay($expired->id()));
+        self::assertFalse($replay->replay($terminal->id()));
+
+        $messages = $transport->getSent();
+        self::assertCount(1, $messages);
+        $message = $messages[0]->getMessage();
+        self::assertInstanceOf(SendUserActionEmail::class, $message);
+        self::assertSame($deliverable->id(), $message->deliveryId);
     }
 
     public function testUncertainSmtpOutcomeCanRetryWithoutDuplicatingBusinessState(): void

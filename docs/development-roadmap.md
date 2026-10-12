@@ -165,7 +165,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 4 | 26 | 28 | SC-016 merged; functional PASS; DR-E4-026/028 blocked dependency audit |
 | Этап 5 | 35 | 37 | SC-013 functional PASS; merged в main; DR-E5-035/037 blocked dependency audit |
 | Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
-| Этап 7 | 10 | 58 | Retention slice PASS; остальные hardening/release задачи в работе |
+| Этап 7 | 35 | 58 | Retention, email operations, API inventory, full browser journeys, CI E2E and migration slices PASS; release audit in progress |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
 
@@ -960,28 +960,28 @@ DR-E6-031—037 реализованы и функционально прове�
 
 ### 11.3. Наблюдаемость email и безопасный replay
 
-- [ ] `DR-E7-011` — определить наблюдаемые показатели:
+- [x] `DR-E7-011` — определить наблюдаемые показатели:
   pending count/age, published count/age, failed count, failure transport size,
   relay/SMTP errors.
-- [ ] `DR-E7-012` — добавить structured logs/metrics без recipient email,
+- [x] `DR-E7-012` — добавить structured logs/metrics без recipient email,
   token, ciphertext, SMTP response body или stack trace в публичном контексте.
 - [ ] `DR-E7-013` — определить warning/critical thresholds как deployment
   configuration; если числовые SLA не приняты, не объявлять их нормативными.
-- [ ] `DR-E7-014` — документировать операторскую диагностику PostgreSQL
+- [x] `DR-E7-014` — документировать операторскую диагностику PostgreSQL
   outbox, RabbitMQ и Messenger failure transport.
-- [ ] `DR-E7-015` — реализовать/описать safe replay только для всё ещё
+- [x] `DR-E7-015` — реализовать/описать safe replay только для всё ещё
   deliverable token и non-terminal delivery.
-- [ ] `DR-E7-016` — запретить replay путём ручного изменения token/outbox
+- [x] `DR-E7-016` — запретить replay путём ручного изменения token/outbox
   status или копирования открытого token.
-- [ ] `DR-E7-017` — доказать, что replay не создаёт второй business state и
+- [x] `DR-E7-017` — доказать, что replay не создаёт второй business state и
   допускает только принятую `at-least-once` email семантику.
-- [ ] `DR-E7-018` — описать terminal `FAILED` и порядок реакции оператора.
+- [x] `DR-E7-018` — описать terminal `FAILED` и порядок реакции оператора.
 
 ### 11.4. Сквозной security и consistency audit
 
-- [ ] `DR-E7-019` — составить фактическую матрицу всех 31 endpoint и сравнить
+- [x] `DR-E7-019` — составить фактическую матрицу всех 31 endpoint и сравнить
   её с HTTP 16.
-- [ ] `DR-E7-020` — проверить, что не реализованные Should/Later endpoints
+- [x] `DR-E7-020` — проверить, что не реализованные Should/Later endpoints
   действительно отсутствуют, а не возвращают placeholder.
 - [ ] `DR-E7-021` — проверить authentication/ACL для каждого protected read и
   writer.
@@ -1004,25 +1004,25 @@ DR-E6-031—037 реализованы и функционально прове�
 
 ### 11.5. Full product E2E и quality
 
-- [ ] `DR-E7-031` — создать isolated full-MVP browser E2E:
+- [x] `DR-E7-031` — создать isolated full-MVP browser E2E:
   два новых пользователя регистрируются и активируются.
-- [ ] `DR-E7-032` — оба входят; A приглашает B; B принимает.
-- [ ] `DR-E7-033` — A создаёт долг с нормативным составом.
-- [ ] `DR-E7-034` — A и B видят Debt, `DEBT_SHARE`, history и исходный
+- [x] `DR-E7-032` — оба входят; A приглашает B; B принимает.
+- [x] `DR-E7-033` — A создаёт долг с нормативным составом.
+- [x] `DR-E7-034` — A и B видят Debt, `DEBT_SHARE`, history и исходный
   balance.
-- [ ] `DR-E7-035` — одна сторона создаёт MANUAL; обе видят новый balance.
-- [ ] `DR-E7-036` — author изменяет Debt; все затронутые доли и balances
+- [x] `DR-E7-035` — одна сторона создаёт MANUAL; обе видят новый balance.
+- [x] `DR-E7-036` — author изменяет Debt; все затронутые доли и balances
   пересчитываются.
-- [ ] `DR-E7-037` — третий пользователь не видит чужие ресурсы.
-- [ ] `DR-E7-038` — повтор критических запросов не создаёт дублей.
-- [ ] `DR-E7-039` — stale update не изменяет данные.
-- [ ] `DR-E7-040` — E2E использует disposable PostgreSQL/Redis/RabbitMQ/
+- [x] `DR-E7-037` — третий пользователь не видит чужие ресурсы.
+- [x] `DR-E7-038` — повтор критических запросов не создаёт дублей.
+- [x] `DR-E7-039` — stale update не изменяет данные.
+- [x] `DR-E7-040` — E2E использует disposable PostgreSQL/Redis/RabbitMQ/
   Mailpit и не касается development volumes.
-- [ ] `DR-E7-041` — расширить CI отдельным full-MVP job с безопасными
+- [x] `DR-E7-041` — расширить CI отдельным full-MVP job с безопасными
   artifacts.
 - [ ] `DR-E7-042` — `make check-full` охватывает текущий основной путь.
 - [ ] `DR-E7-043` — dependency audits и repository secret checks проходят.
-- [ ] `DR-E7-044` — миграции проверены с нуля и на поддерживаемом upgrade path
+- [x] `DR-E7-044` — миграции проверены с нуля и на поддерживаемом upgrade path
   от текущей начальной схемы.
 
 ### 11.6. Deployment и операционная документация
@@ -1033,14 +1033,14 @@ DR-E6-031—037 реализованы и функционально прове�
   secrets/key rings.
 - [ ] `DR-E7-047` — проверить healthchecks, startup dependencies и graceful
   worker restart.
-- [ ] `DR-E7-048` — документировать миграцию, запуск workers, cleanup,
+- [x] `DR-E7-048` — документировать миграцию, запуск workers, cleanup,
   monitoring и failure replay.
-- [ ] `DR-E7-049` — документировать key rotation action-token, invitation и
+- [x] `DR-E7-049` — документировать key rotation action-token, invitation и
   JWT без раскрытия ключей.
-- [ ] `DR-E7-050` — явно зафиксировать, что SLA, backup policy, RPO/RTO пока
+- [x] `DR-E7-050` — явно зафиксировать, что SLA, backup policy, RPO/RTO пока
   не определены и требуют отдельного решения до production, если владелец считает
   их release requirement.
-- [ ] `DR-E7-051` — проверить актуальность README, индекса docs, фактической
+- [x] `DR-E7-051` — проверить актуальность README, индекса docs, фактической
   схемы, backend/frontend/access/quality документов.
 
 ### 11.7. Финальный release gate
@@ -1202,7 +1202,7 @@ Definition of Ready.
 | `MVP-SC-019` | Must | baseline + этапы 6—7 | `[ ]` частично |
 | `MVP-SC-020` | Must | все этапы, финальный audit в 7 | `[ ]` частично |
 | `MVP-SC-021` | Must | все writers, финальный audit в 7 | `[ ]` частично |
-| `MVP-SC-022` | Must | этап 7 | `[ ]` |
+| `MVP-SC-022` | Must | этап 7 | `[ ]` частично: retention/email operations slice PASS; full stage 7 open |
 | `MVP-SC-023` | Out | раздел 13 | не планируется |
 | `MVP-SC-024` | Out | раздел 13 | не планируется |
 | `MVP-SC-025` | Out | раздел 13 | не планируется |

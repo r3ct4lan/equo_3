@@ -24,7 +24,7 @@
 удалялись.
 
 Основной набор: [`first-vertical-slice.spec.ts`](../../frontend/tests/e2e/first-vertical-slice.spec.ts).
-CI job: [`Auth session browser E2E`](../../.github/workflows/quality.yml).
+CI job: [`Full MVP browser E2E`](../../.github/workflows/quality.yml).
 Локальная точка входа: `make test-e2e`; она уже входит в `make check-full` и
 вызывается отдельным обязательным CI job.
 

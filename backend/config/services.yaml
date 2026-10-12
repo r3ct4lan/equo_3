@@ -158,6 +158,10 @@ services:
             $frontendBaseUrl: '%env(FRONTEND_BASE_URL)%'
             $fromAddress: '%env(MAILER_FROM)%'
 
+    App\Infrastructure\EmailDelivery\Monitoring\FailedEmailDeliveries:
+        arguments:
+            $failedTransport: '@messenger.transport.failed'
+
     App\Infrastructure\Http\ApiExceptionSubscriber:
         arguments:
             $logger: '@monolog.logger.api'

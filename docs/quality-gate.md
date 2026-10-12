@@ -52,7 +52,7 @@ smoke-проверки. Скрипт запоминает исходный `git 
 | `make check-backend` | Backend quality, пустая test-БД, PHPUnit и audit | Нет |
 | `make check-frontend` | Lock, ESLint, typecheck, tests, build и audit | Нет |
 | `make test` | Backend tests на изолированной БД и frontend unit/component tests | Нет |
-| `make test-e2e` | Chromium E2E регистрации, активации, login, refresh, reload и защищённого `/me` | Нет |
+| `make test-e2e` | Изолированные Chromium E2E auth/security, invitation, debt, MANUAL, пересчёта, privacy и stale update journeys | Нет |
 | `make lint` | PHP и TypeScript/Vue style check | Нет |
 | `make format` | Исправить PHP и frontend style | **Да** |
 | `make audit` | Composer и npm dependency audit | Нет |
@@ -126,11 +126,13 @@ named factory. Patch идемпотентен и отказывает при н�
 Команда не выполняет `schema:update --force`, не очищает dev-таблицы и не
 удаляет Docker volumes.
 
-## 6. Browser E2E auth/session
+## 6. Full MVP browser E2E
 
 `make test-e2e` поднимает отдельный Compose project `equo-3-e2e` и проверяет
-полный auth/session путь в Chromium через тот же HTTPS Nginx origin, который
-использует пользователь. PostgreSQL, Redis и RabbitMQ работают на `tmpfs`;
+auth/security, invitation и финансовые journeys в Chromium через тот же HTTPS
+Nginx origin, который использует пользователь. Сценарии запускаются отдельно,
+но вместе покрывают основной путь двух пользователей, расход, MANUAL,
+пересчёт долей, privacy, идемпотентный retry и stale update. PostgreSQL, Redis и RabbitMQ работают на `tmpfs`;
 Mailpit принимает реальное письмо. E2E build включает backend, worker, frontend и browser image: API и email consumer должны собираться из одной версии исходников. Dev-база, основной Compose stack и named
 volumes не затрагиваются.
 RabbitMQ запускается и достигает `healthy` до старта остальных временных
@@ -221,7 +223,7 @@ Workflow: [`.github/workflows/quality.yml`](../.github/workflows/quality.yml).
 | `Backend tests and migrations` | empty migration chain, schema, PHPUnit | PHP 8.4 + PostgreSQL 17 service |
 | `Frontend quality and build` | `npm ci`, `npm run check` | Node.js 22 |
 | `Dependency audit` | Composer и npm audit | PHP 8.4 + Node.js 22 |
-| `Auth session browser E2E` | реальная регистрация, доставка email, активация, login, refresh/reload, `/me` и security regressions | Изолированный HTTPS Compose + Chromium + Mailpit |
+| `Full MVP browser E2E` | auth/security, invitation, financial user journeys, privacy, retries и stale update | Изолированный HTTPS Compose + Chromium + Mailpit |
 | `Application smoke` | full Compose build/start, Nginx `/` и `/api/health` | Изолированный CI Compose stack |
 
 CI вызывает те же Composer/npm/Make scripts, что local gate. Различаются только
@@ -263,7 +265,7 @@ run:
 - `Backend tests and migrations`;
 - `Frontend quality and build`;
 - `Dependency audit`;
-- `Auth session browser E2E`;
+- `Full MVP browser E2E`;
 - `Application smoke`.
 
 ## 12. Сознательно отложено

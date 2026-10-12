@@ -5,7 +5,7 @@
 | Название | Индекс проектной документации Equo |
 | Назначение | Обеспечить единый вход в комплект проектных артефактов и правила их актуализации |
 | Статус | Accepted |
-| Версия | 32 |
+| Версия | 33 |
 | Дата актуальности | 2026-10-12 |
 | Владелец | Maksim Smolkov |
 | Источник | Нормативная документация и фактическая реализация MVP |
@@ -49,6 +49,7 @@
 | [Приёмка исправления долга](acceptance/update-debt.md) | Stable identities, шесть rollback points, четыре races, stale editor и три browser accounts | Functional PASS; release BLOCKED | Повторены проверки, устранён blocker или принято решение владельца |
 | [Retention и очистка](features/retention-operations.md) | SC-022 retention matrix, bounded cleanup command, daily schedule and safe summary | Retention slice implemented and verified; stage 7 in progress | Изменились retention requirements, cleanup behavior or operational evidence |
 | [Приёмка retention](acceptance/retention-operations.md) | Backend tests, migration/schema verification and retention implementation boundaries | Retention slice PASS; full SC-022 open | Повторены проверки или закрыты оставшиеся stage-7 requirements |
+| [Операции email и retention](operations/email-delivery.md) | Запуск сервисов, безопасная диагностика/failure replay, key rotation and retention operations | Implemented; deployment thresholds and production evidence remain open | Изменились deployment commands, retry/replay procedure or operations evidence |
 | [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, browser E2E, audits, smoke и GitHub Actions | Accepted | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
 | [Приёмка повторного запроса активации](acceptance/activation-resend.md) | Сквозное доказательство replacement semantics, neutral 202, rate limit и security regressions для `MVP-SC-001` | Passed | Повторена приёмка или Product Owner принял итоговое решение |
 | [Architecture Decision Records](adr/architecture-decisions.md) | Принятые ADR-001—ADR-019 | Accepted | Решение заменяется новым или выполнено условие его пересмотра; историю следует сохранять, добавляя новый ADR |
