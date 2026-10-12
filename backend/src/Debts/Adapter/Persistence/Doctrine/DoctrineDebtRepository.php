@@ -46,15 +46,32 @@ final readonly class DoctrineDebtRepository implements DebtRepositoryPort
         }
     }
 
-    public function find(string $id): ?Debt
+    public function find(string $id, bool $forUpdate = false): ?Debt
     {
-        $row = $this->db->fetchAssociative('SELECT * FROM debt WHERE id=?', [$id]);
+        $row = $this->db->fetchAssociative($forUpdate ? 'SELECT * FROM debt WHERE id=? FOR UPDATE' : "SELECT d.*, (SELECT COALESCE(jsonb_agg(to_jsonb(p) ORDER BY p.created_at,p.id),'[]'::jsonb) FROM debt_participant p WHERE p.debt_id=d.id) AS participant_rows FROM debt d WHERE d.id=?", [$id]);
         if (false === $row) {
             return null;
         }
-        $parts = array_map(static fn (array $p): DebtParticipant => new DebtParticipant((string) $p['id'], (string) $p['debt_id'], (string) $p['user_id'], new DateTimeImmutable((string) $p['created_at']), (bool) $p['is_deleted']), $this->db->fetchAllAssociative('SELECT * FROM debt_participant WHERE debt_id=? ORDER BY created_at, id', [$id]));
+        /** @var list<array<string,mixed>> $rows */
+        $rows = $forUpdate ? $this->db->fetchAllAssociative('SELECT * FROM debt_participant WHERE debt_id=? ORDER BY created_at,id', [$id]) : json_decode((string) $row['participant_rows'], true, flags: JSON_THROW_ON_ERROR);
+        $parts = array_map(static fn (array $p): DebtParticipant => new DebtParticipant((string) $p['id'], (string) $p['debt_id'], (string) $p['user_id'], new DateTimeImmutable((string) $p['created_at']), (bool) $p['is_deleted']), $rows);
 
         return new Debt((string) $row['id'], (string) $row['title'], null === $row['description'] ? null : (string) $row['description'], new Money((int) $row['total_amount']), (string) $row['payer_id'], (string) $row['created_by_id'], new DateTimeImmutable((string) $row['created_at']), $parts, (bool) $row['is_deleted'], (int) $row['version']);
+    }
+
+    public function update(Debt $debt): void
+    {
+        $this->db->update('debt', ['title' => $debt->title, 'description' => $debt->description, 'total_amount' => $debt->totalAmount->cents, 'version' => $debt->version], ['id' => $debt->id]);
+        $known = array_column($this->db->fetchAllAssociative('SELECT id,is_deleted FROM debt_participant WHERE debt_id=?', [$debt->id]), 'is_deleted', 'id');
+        foreach ($debt->participants as $p) {
+            if (array_key_exists($p->id, $known)) {
+                if ((bool) $known[$p->id] !== $p->isDeleted) {
+                    $this->db->update('debt_participant', ['is_deleted' => $p->isDeleted], ['id' => $p->id], ['is_deleted' => 'boolean']);
+                }
+            } else {
+                $this->db->insert('debt_participant', ['id' => $p->id, 'debt_id' => $p->debtId, 'user_id' => $p->userId, 'created_at' => $p->createdAt->format('Y-m-d H:i:sP'), 'is_deleted' => $p->isDeleted], ['is_deleted' => 'boolean']);
+            }
+        }
     }
 
     public function isCoParticipant(string $authorId, string $candidateId): bool

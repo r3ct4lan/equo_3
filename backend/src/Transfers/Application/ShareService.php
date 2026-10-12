@@ -11,6 +11,7 @@ use App\Transfers\Application\Port\TransferRuntimePort;
 use App\Transfers\Domain\Transfer;
 use DateTimeImmutable;
 use InvalidArgumentException;
+use RuntimeException;
 
 final readonly class ShareService implements AutomaticShares
 {
@@ -28,6 +29,30 @@ final readonly class ShareService implements AutomaticShares
         $this->repository->save($t);
 
         return $t->id;
+    }
+
+    public function recalculate(string $debtId, string $payerId, array $participants, int $amount, DateTimeImmutable $now): void
+    {
+        $existing = $this->repository->sharesForDebt($debtId);
+        foreach ($participants as $p) {
+            if ($p['userId'] === $payerId) {
+                continue;
+            }
+            $id = $existing[$p['participantId']] ?? null;
+            if (null !== $id) {
+                $old = $this->repository->find($id);
+                if (null === $old) {
+                    throw new RuntimeException('Automatic share is missing.');
+                }
+                $next = $old->recalculateShare($p['isDeleted'] ? $old->amount : $amount, $p['isDeleted']);
+                if ($next !== $old) {
+                    $this->repository->updateShare($next);
+                }
+            } elseif (!$p['isDeleted']) {
+                $connect = $this->connects->ensurePair($payerId, $p['userId']);
+                $this->create($connect, $payerId, $p['userId'], $amount, $debtId, $p['participantId'], $now);
+            }
+        }
     }
 
     public function forDebt(string $debtId): array

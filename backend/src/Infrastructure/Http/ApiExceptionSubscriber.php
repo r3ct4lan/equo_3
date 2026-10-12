@@ -106,6 +106,10 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
                 ApplicationFailureCode::ResourceNotFound => $this->definition(Response::HTTP_NOT_FOUND, 'RESOURCE_NOT_FOUND', 'Resource was not found.'),
                 ApplicationFailureCode::InactiveUser => $this->definition(Response::HTTP_CONFLICT, 'INACTIVE_USER', 'Both users must be active.'),
                 ApplicationFailureCode::ValidationError => $this->definition(Response::HTTP_UNPROCESSABLE_ENTITY, 'VALIDATION_ERROR', 'Request validation failed.'),
+                ApplicationFailureCode::DebtFrozen => $this->definition(409, 'DEBT_FROZEN', 'This debt is frozen.'),
+                ApplicationFailureCode::DebtDeleted => $this->definition(409, 'DEBT_DELETED', 'This debt has been removed.'),
+                ApplicationFailureCode::VersionConflict => [...$this->definition(409, 'VERSION_CONFLICT', 'The resource was changed by another request.'), 'details' => $exception->details],
+                ApplicationFailureCode::PreconditionRequired => $this->definition(428, 'PRECONDITION_REQUIRED', 'If-Match header is required.'),
                 ApplicationFailureCode::Forbidden => $this->definition(Response::HTTP_FORBIDDEN, 'FORBIDDEN', 'Operation is forbidden.'),
             };
         }
