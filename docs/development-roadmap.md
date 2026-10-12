@@ -733,17 +733,17 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 - [x] `DR-E5-018` — возвращать обновлённую карточку/ETag строго по контракту.
 - [x] `DR-E5-019` — различать forbidden, not found, deleted, frozen,
   invalid composition, missing/stale precondition.
-- [ ] `DR-E5-020` — показывать edit action только author; сервер остаётся
+- [x] `DR-E5-020` — показывать edit action только author; сервер остаётся
   источником авторизации.
-- [ ] `DR-E5-021` — предзаполнять форму из карточки и сохранять полученный
+- [x] `DR-E5-021` — предзаполнять форму из карточки и сохранять полученный
   ETag.
-- [ ] `DR-E5-022` — при conflict не перетирать серверное состояние:
+- [x] `DR-E5-022` — при conflict не перетирать серверное состояние:
   предложить reload/review, не делать silent retry.
-- [ ] `DR-E5-023` — ясно показывать текущих, исключаемых и восстанавливаемых
+- [x] `DR-E5-023` — ясно показывать текущих, исключаемых и восстанавливаемых
   участников.
-- [ ] `DR-E5-024` — после успеха обновлять Debt, balance и history данными
+- [x] `DR-E5-024` — после успеха обновлять Debt, balance и history данными
   сервера.
-- [ ] `DR-E5-025` — не показывать payer selector как изменяемое поле.
+- [x] `DR-E5-025` — не показывать payer selector как изменяемое поле.
 
 ### 9.5. Tests и exit criteria
 
@@ -756,7 +756,7 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 - [x] `DR-E5-030` — concurrency test двух writers с одной version: применяется
   ровно один.
 - [x] `DR-E5-031` — HTTP tests `428/409`, ACL, frozen/deleted и ETag.
-- [ ] `DR-E5-032` — component tests edit/conflict/reload states.
+- [x] `DR-E5-032` — component tests edit/conflict/reload states.
 - [ ] `DR-E5-033` — browser E2E: изменение amount/composition меняет все
   затронутые shares и balances у участников.
 - [ ] `DR-E5-034` — обновить фактическую документацию.

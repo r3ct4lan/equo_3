@@ -43,7 +43,7 @@ Session/path/unmount guards отбрасывают поздние ответы.
 | SC13-02 | Domain revision/composition/versions и unit tests | PASS: 20 unit/architecture tests, 678 assertions; backend quality |
 | SC13-03 | Atomic writer/repositories/shares, rollback и DB races | PASS: full backend 626 tests / 7724 assertions, schema parity, backend quality |
 | SC13-04 | PUT/If-Match/ACL/errors, HTTP tests | PASS: 26 tests / 293 assertions; backend quality |
-| SC13-05 | Edit UI, conflict/reload/server refresh, component tests | Pending |
+| SC13-05 | Edit UI, conflict/reload/server refresh, component tests | PASS: 62 unit, 87 component; frontend quality/build |
 | SC13-06 | Полный gate, browser, документация и интеграция | Pending |
 
 Удаление Debt, смена payer, прямое изменение DEBT_SHARE и audit log версий
@@ -54,3 +54,9 @@ SC13-03: шесть rollback точек и четыре real-process races (stal
 first rollback, payer deactivation, retained inactive current participant) PASS.
 Read repository получает root/current/history participant rows одним SQL snapshot;
 writer блокирует root перед чтением состава. Новых миграций не потребовалось.
+
+SC13-05: ETag берётся из onResponse существующего API client, без fallback
+на body.version. Карточка и edit — sibling pages [id]/index.vue и edit.vue.
+Balance/history перечитываются существующими server queries при открытии;
+успешное сохранение возвращает к карточке с новым GET. Исторический состав
+не добавлен в DTO: UI явно различает current/remove и add-or-restore.

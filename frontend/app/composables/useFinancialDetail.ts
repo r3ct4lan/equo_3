@@ -10,6 +10,7 @@ export function useFinancialDetail<T>(path: () => string) {
     state
   } = useCurrentUser()
   const item = shallowRef<T | null>(null)
+  const etag = ref<string | null>(null)
   const pending = ref(false)
   const error = ref<ApiClientError | null>(null)
   let generation = 0
@@ -20,9 +21,18 @@ export function useFinancialDetail<T>(path: () => string) {
     pending.value = true
     error.value = null
     item.value = null
+    etag.value = null
+    let responseEtag: string | null = null
     try {
-      const result = await $auth.protectedRequest<T>(path())
-      if (requestGeneration === generation && state.value.user?.id === viewer && state.value.status === 'authenticated') item.value = result
+      const result = await $auth.protectedRequest<T>(path(), {
+        onResponse({ response }) {
+          if (response.ok) responseEtag = response.headers.get('ETag')
+        }
+      })
+      if (requestGeneration === generation && state.value.user?.id === viewer && state.value.status === 'authenticated') {
+        item.value = result
+        etag.value = responseEtag
+      }
     }
     catch (failure) {
       if (requestGeneration === generation) error.value = toApiClientError(failure)
@@ -34,6 +44,7 @@ export function useFinancialDetail<T>(path: () => string) {
   function clear(): void {
     ++generation
     item.value = null
+    etag.value = null
     pending.value = false
     error.value = null
   }
@@ -46,6 +57,6 @@ export function useFinancialDetail<T>(path: () => string) {
   })
   onBeforeUnmount(clear)
   return {
-    item, pending, error, load
+    item, etag, pending, error, load
   }
 }

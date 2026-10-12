@@ -409,3 +409,19 @@ Definitive rejection позволяет исправить форму с нов�
 double submit; generation/session/Connect guards отбрасывают поздний ответ.
 INACTIVE_USER предлагает перечитать Connect; неактивная сторона скрывает
 writer, оставляя историю. Связи с долями, edit/delete controls не показаны.
+
+## SC-013 — исправление расхода
+
+Карточка /debts/{id} находится в pages/debts/[id]/index.vue, edit — соседняя
+[ id ]/edit.vue (route /debts/{id}/edit), без parent component, скрывающего
+child page. EditDebtForm показывает неизменяемого payer, current/inactive
+participants, remove и add-or-restore selections, полный share preview.
+Read-only clients не получают edit controls; сервер проверяет ACL независимо.
+
+useFinancialDetail захватывает настоящий ETag через onResponse API client.
+Отсутствующий ETag запрещает edit; body.version не заменяет заголовок. PUT
+использует сохранённый If-Match. Conflict/network/5xx/frozen блокируют повтор
+и требуют explicit reload/discard/review; pending и lifecycle generation
+исключают двойную запись и late response другой session/path/version.
+После confirmed save — новый GET карточки; balance/history используют
+существующие свежие queries при открытии, локального сохранённого пересчёта нет.

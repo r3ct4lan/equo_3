@@ -50,3 +50,11 @@ export interface CreateManualTransferBody {
   receiverId: string
   amount: number
 }
+
+export interface UpdateDebtBody extends Record<string, unknown> {
+  title: string
+  description: string | null
+  totalAmount: number
+  participantIds: string[]
+  includePayerInSplit: boolean
+}

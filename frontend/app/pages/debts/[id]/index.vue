@@ -40,6 +40,11 @@ const { item: debt, pending, error, load } = useFinancialDetail<DebtView>(() => 
         <div><dt>Recorded by</dt><dd>{{ debt.createdBy.name }}{{ debt.createdBy.isActive ? '' : ' (inactive)' }}</dd></div>
         <div><dt>Split</dt><dd>{{ debt.participantCount }} people · {{ formatEuro(debt.shareAmount) }} each</dd></div>
       </dl>
+      <NuxtLink
+        v-if="debt.canEdit && !debt.isDeleted && debt.createdBy.id === state.user?.id"
+        class="button"
+        :to="'/debts/' + debt.id + '/edit'"
+      >Edit expense</NuxtLink>
       <h2>Participants</h2>
       <ul class="stack">
         <li
