@@ -137,7 +137,7 @@ SC13-01—06 функционально реализованы и провере
 identity, atomic recalculation всех долей, explicit conflict/reload и неизменный
 MANUAL. 652 backend / 8020 assertions, 62 unit, 87 component, 26 browser E2E,
 build, smoke и Composer audit PASS. [Акт](acceptance/update-debt.md).
-35/37 задач этапа 5 выполнены; merge pending. DR-E5-035/037 и release gate
+35/37 задач этапа 5 выполнены; merged в main (snapshot 8699d82). DR-E5-035/037 и release gate
 blocked прежними 11 high npm advisories, без исключений.
 
 Следующая обязательная область — этап 7 (SC-019—022, hardening/эксплуатация и

@@ -1,7 +1,9 @@
 # Техническая проверка SC-013
 
 Дата: 2026-10-12. Ветка: codex/sc-013-update-debt от main 4282715.
-Итог: functional PASS; интеграция pending; release BLOCKED.
+Application snapshot 8699d82 fast-forward merged в main и pushed 2026-10-12.
+Проверенные application files при интеграции не менялись.
+Итог: functional PASS; release BLOCKED.
 Product Owner acceptance и готовность MVP не подтверждены.
 
 ## Реализованный результат

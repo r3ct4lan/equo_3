@@ -1,6 +1,6 @@
 # SC-013 — Исправление долга и полный перерасчёт
 Дата: 2026-10-12. Ветка: codex/sc-013-update-debt от main 4282715.
-Статус: functional PASS; интеграция в main pending; release BLOCKED.
+Статус: functional PASS; merged в main (snapshot 8699d82); release BLOCKED.
 
 ## Требования и техническое решение
 Основания: MVP-SC-013, DR-E5-001—037, BR-DEBT-001/006—013,
@@ -44,7 +44,7 @@ Session/path/unmount guards отбрасывают поздние ответы.
 | SC13-03 | Atomic writer/repositories/shares, rollback и DB races | PASS: full backend 626 tests / 7724 assertions, schema parity, backend quality |
 | SC13-04 | PUT/If-Match/ACL/errors, HTTP tests | PASS: 26 tests / 293 assertions; backend quality |
 | SC13-05 | Edit UI, conflict/reload/server refresh, component tests | PASS: 62 unit, 87 component; frontend quality/build |
-| SC13-06 | Полный gate, browser, документация и интеграция | Functional PASS: 652 backend / 8020 assertions, 62 unit, 87 component, 26 browser; release BLOCKED npm audit; merge pending |
+| SC13-06 | Полный gate, browser, документация и интеграция | Functional PASS: 652 backend / 8020 assertions, 62 unit, 87 component, 26 browser; release BLOCKED npm audit; merged main 8699d82 |
 
 Удаление Debt, смена payer, прямое изменение DEBT_SHARE и audit log версий
 не входят. Технические доказательства отделяются от продуктовой приёмки и

@@ -163,7 +163,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 2 | 43 | 45 | SC-008 merged; functional PASS; DR-E2-042/045 blocked dependency audit |
 | Этап 3 | 68 | 70 | SC-011 merged; functional PASS; DR-E3-066/070 blocked dependency audit |
 | Этап 4 | 26 | 28 | SC-016 merged; functional PASS; DR-E4-026/028 blocked dependency audit |
-| Этап 5 | 35 | 37 | SC-013 functional PASS; merge pending; DR-E5-035/037 blocked dependency audit |
+| Этап 5 | 35 | 37 | SC-013 functional PASS; merged в main; DR-E5-035/037 blocked dependency audit |
 | Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
 | Этап 7 | 0 | 58 | Не начат |
 | Should have | 0 | 24 | Отложено до решения владельца |
@@ -1193,7 +1193,7 @@ Definition of Ready.
 | `MVP-SC-010` | Later | `LT-010` | `[ ]` |
 | `MVP-SC-011` | Must | этап 3 | `[ ]` |
 | `MVP-SC-012` | Must | этап 3 | `[ ]` |
-| `MVP-SC-013` | Must | этап 5 | `[ ]` functional PASS; merge pending; release audit blocked |
+| `MVP-SC-013` | Must | этап 5 | `[ ]` functional PASS; merged в main; release audit blocked |
 | `MVP-SC-014` | Should | `SH-014` | `[ ]` |
 | `MVP-SC-015` | Must | этап 3 | `[ ]` |
 | `MVP-SC-016` | Must | этап 4 | `[ ]` merged в main; functional PASS; release audit blocked |
@@ -1290,7 +1290,7 @@ files при merge не менялись; feature branch сохранена. 26/
 SC13-01—06 функционально проверены в codex/sc-013-update-debt от 4282715.
 652 backend / 8020 assertions, 62 unit, 87 component, 26 browser E2E PASS.
 Build, smoke, Nginx syntax и Composer audit PASS. 35/37 задач этапа 5
-реализованы и проверены; интеграция pending. DR-E5-035/037 и сводная строка
+реализованы и проверены; включены в main. DR-E5-035/037 и сводная строка
 этапа 5 остаются открытыми: make check-full останавливается на прежних
 11 high npm advisories. [Доказательства](acceptance/update-debt.md).
 
@@ -1298,3 +1298,11 @@ Build, smoke, Nginx syntax и Composer audit PASS. 35/37 задач этапа 5
 приёмка SC-019—022. SC-014/017 остаются Should и не выбираются автоматически
 вместо обязательного MVP. Product Owner acceptance, staging/SMTP, эксплуатационные
 критерии и полный release gate отдельно не подтверждены.
+
+## Интеграция SC-013 — 2026-10-12
+
+Snapshot 8699d82 fast-forward merged и pushed в main. Проверенные application
+files не менялись; feature branch сохранена и синхронизирована с origin.
+35/37 задач этапа 5 включены в main. DR-E5-035/037, npm audit blocker,
+Product Owner acceptance и готовность MVP остаются открытыми. Следующая
+обязательная область — эксплуатационный этап 7 и SC-019—022.
