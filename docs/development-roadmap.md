@@ -698,7 +698,7 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 
 ### 9.3. Domain/Application
 
-- [ ] `DR-E5-001` — выполнить contract audit `BR-DEBT-007—013`,
+- [x] `DR-E5-001` — выполнить contract audit `BR-DEBT-007—013`,
   `BR-CONC-*`, ADR-003/010 и HTTP 13.5.
 - [ ] `DR-E5-002` — разрешить update только author активного Debt.
 - [ ] `DR-E5-003` — заморозить update, если author или payer inactive.
