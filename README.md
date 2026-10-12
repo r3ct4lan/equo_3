@@ -133,3 +133,4 @@ compose.yaml   Local development stack
 ## Documentation
 
 The project artifacts and documentation index are available in [docs/README.md](docs/README.md).
+Email delivery, safe replay, retention and key rotation procedures are in [the operations runbook](docs/operations/email-delivery.md).
