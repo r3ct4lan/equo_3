@@ -92,7 +92,7 @@ audit-backend:
 	$(BACKEND_EXEC) composer audit --locked
 
 audit-frontend:
-	$(FRONTEND_EXEC) npm audit --audit-level=moderate
+	$(FRONTEND_EXEC) npm run audit
 
 smoke:
 	./scripts/smoke.sh
