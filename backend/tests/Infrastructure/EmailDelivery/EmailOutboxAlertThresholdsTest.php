@@ -49,6 +49,9 @@ final class EmailOutboxAlertThresholdsTest extends TestCase
         new EmailOutboxAlertThresholds($configuration);
     }
 
+    /**
+     * @return iterable<string, array{string}>
+     */
     public static function invalidConfigurations(): iterable
     {
         yield 'malformed JSON' => ['{'];
