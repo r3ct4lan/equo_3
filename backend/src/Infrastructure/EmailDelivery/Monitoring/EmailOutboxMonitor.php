@@ -9,6 +9,18 @@ use RuntimeException;
 
 final readonly class EmailOutboxMonitor
 {
+    /** @var list<string> */
+    public const METRIC_NAMES = [
+        'pending_count',
+        'pending_oldest_age_seconds',
+        'published_count',
+        'published_oldest_age_seconds',
+        'failed_count',
+        'failure_transport_count',
+        'relay_error_count',
+        'smtp_failure_count',
+    ];
+
     public function __construct(private Connection $connection)
     {
     }
