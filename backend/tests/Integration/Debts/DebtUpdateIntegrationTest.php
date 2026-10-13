@@ -150,7 +150,7 @@ final class DebtUpdateIntegrationTest extends KernelTestCase
     {
         $author = $this->users[0];
         $actor = match ($case) {
-            'foreign' => $this->users[4], 'reader' => $this->users[2], default => $author
+            'foreign' => $this->users[4], 'reader' => $this->users[2], default => $author,
         };
         if ('frozen' === $case || 'author inactive' === $case) {
             $this->db->executeStatement('UPDATE app_user SET is_active=false WHERE id=?', [$this->users['author inactive' === $case ? 0 : 1]]);
@@ -159,7 +159,7 @@ final class DebtUpdateIntegrationTest extends KernelTestCase
             $this->db->executeStatement('UPDATE debt SET is_deleted=true WHERE id=?', [$this->initial['id']]);
         }
         $ids = match ($case) {
-            'self removal' => [$this->users[2]], 'ineligible' => [$author, $this->users[4]], default => [$author, $this->users[2]]
+            'self removal' => [$this->users[2]], 'ineligible' => [$author, $this->users[4]], default => [$author, $this->users[2]],
         };
         $before = $this->snapshot();
         try {
