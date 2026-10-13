@@ -165,7 +165,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 4 | 26 | 28 | SC-016 merged; functional PASS; DR-E4-026/028 blocked dependency audit |
 | Этап 5 | 35 | 37 | SC-013 functional PASS; merged в main; DR-E5-035/037 blocked dependency audit |
 | Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
-| Этап 7 | 36 | 58 | Retention, email operations, API inventory, full browser journeys, CI E2E and migration slices PASS; two npm GHSA accepted temporarily; release gate remains open |
+| Этап 7 | 37 | 58 | Retention, email operations, API inventory, full browser journeys, CI E2E and migration slices PASS; two npm GHSA accepted temporarily; release gate remains open |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
 
@@ -965,7 +965,7 @@ DR-E6-031—037 реализованы и функционально прове�
   relay/SMTP errors.
 - [x] `DR-E7-012` — добавить structured logs/metrics без recipient email,
   token, ciphertext, SMTP response body или stack trace в публичном контексте.
-- [ ] `DR-E7-013` — определить warning/critical thresholds как deployment
+- [x] `DR-E7-013` — определить warning/critical thresholds как deployment
   configuration; если числовые SLA не приняты, не объявлять их нормативными.
 - [x] `DR-E7-014` — документировать операторскую диагностику PostgreSQL
   outbox, RabbitMQ и Messenger failure transport.
@@ -1233,6 +1233,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 12 | 2026-10-13 | SC-022: deployment-configured email alert thresholds; 37/58 задач этапа 7 |
 | 11 | 2026-10-13 | SC-022: два npm GHSA временно приняты, exact-ID allowlist и DR-E7-060 для обновления после исправлений; 36/58 задач этапа 7 |
 | 10 | 2026-10-12 | SC-013: 35/37 задач этапа 5, full recalculation/edit, 26 browser PASS; DR-E5-035/037 blocked npm audit |
 | 9 | 2026-10-11 | SC-016: MANUAL writer/UI, 26/28 задач этапа 4, основной browser путь PASS; release audit blocked |
@@ -1321,3 +1322,7 @@ moderate/high/critical findings и ошибки registry остаются бло
 Периодическая проверка наличия новых package releases не требуется. Задача
 `DR-E7-060` — обновить затронутые зависимости и удалить исключения после
 публикации исправлений.
+В этом же этапе реализованы deployment-configured email alert thresholds по
+`DR-E7-013`: при отсутствии конфигурации status остаётся `unconfigured`, а
+числа не объявляются общими SLA. Следующий security-audit блок начинается с
+`DR-E7-021`.

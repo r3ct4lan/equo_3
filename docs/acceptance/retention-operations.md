@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`, except `DR-E7-013`) |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) |
 | Result | PASS for implemented slices; full SC-022 and release gate remain open |
 | Date | 2026-10-12 |
-| Branch | `codex/sc-022-operations-hardening` |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds` |
 
 ## Evidence
 
@@ -46,12 +46,31 @@ non-terminal `PUBLISHED` row is requeued; terminal and expired rows are refused.
 Failure transport listing emits message and delivery identifiers only, and the
 monitoring test checks that a marker in failure details is absent from output.
 
-`DR-E7-013` remains open because deployments must choose numeric warning and
-critical thresholds; no cross-environment SLA has been accepted. This record is
-not the complete stage-7 acceptance. Endpoint/security/consistency audit,
-full-product E2E/CI, frontend/npm gate, deployment review, staging SMTP,
-operational policy decisions and Product Owner release decision remain open.
-No external SMTP delivery or production service was exercised.
+`DR-E7-013` now supports deployment-provided warning and critical thresholds;
+each deployment must still choose its own values because no cross-environment
+SLA has been accepted. This record is not the complete stage-7 acceptance.
+Endpoint/security/consistency audit, full-product release gate, deployment
+review, staging SMTP, operational policy decisions and Product Owner release
+decision remain open. No external SMTP delivery or production service was
+exercised.
+
+## Threshold configuration addendum — 2026-10-13
+
+`DR-E7-013` is implemented with deployment-provided JSON thresholds for each
+email outbox metric. The status command retains aggregate metrics, reports
+`unconfigured` when no thresholds are supplied, and returns warning/critical
+status when configured inclusive limits are reached. No numeric threshold is
+declared as a product-wide SLA. Unit coverage verifies configuration validation,
+healthy/warning/critical boundaries and unconfigured behavior. Production alert
+values still need to be selected by each deployment.
+
+At 2026-10-13, the WSL environment had no Docker CLI, so a fresh
+`make check-full` could not proceed beyond repository checks. The PHP unit test
+runner also could not start because WSL provides PHP 8.3.19 while the pinned
+PHPUnit requires PHP >=8.4.1. PHP syntax checks and direct evaluator checks for
+healthy/warning/critical/unconfigured and invalid configuration passed. The
+npm audit helper passed directly against the current lockfile; these checks do
+not replace the full local gate or its browser E2E run.
 
 ## API surface audit
 

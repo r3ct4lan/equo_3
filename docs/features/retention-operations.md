@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Scenario | `MVP-SC-022` |
-| Scope | Stage 7, sections 11.1–11.2 |
-| Status | Retention and email-operations slices implemented; stage 7 remains in progress |
+| Scope | Stage 7, sections 11.1–11.3 |
+| Status | Retention and email-operations slices implemented; deployment alert thresholds are configurable; stage 7 remains in progress |
 | Normative sources | `BR-IDEM-005`, `BR-SEC-005—007`, ADR-013/014 |
 
 ## Retention contract
@@ -82,7 +82,7 @@ must set its own alert rules before production use.
 | `DR-E7-010` safe dry-run summary | Done | Counts only; no identifiers or sensitive values |
 | `DR-E7-011` email metrics | Done | `app:email-outbox:status` reports outbox age/count, failure transport, relay and SMTP failures |
 | `DR-E7-012` safe structured output | Done | JSON metrics and safe failure ID list omit message body and exception material |
-| `DR-E7-013` alert thresholds | Open | Thresholds belong to deployment configuration; no numeric SLA is accepted |
+| `DR-E7-013` alert thresholds | Done | `EQUO_EMAIL_OUTBOX_THRESHOLDS` validates per-metric warning/critical limits; no project-wide numeric SLA/default is declared |
 | `DR-E7-014—018` diagnostics and safe replay | Done | [Operator runbook](../operations/email-delivery.md), guarded replay and tests |
 
 The remaining SC-022 work is tracked in [roadmap stage 7](../development-roadmap.md#11-этап-7--эксплуатация-hardening-и-release-gate) and the [acceptance record](../acceptance/retention-operations.md). This implementation does not close the stage or declare the MVP ready.
