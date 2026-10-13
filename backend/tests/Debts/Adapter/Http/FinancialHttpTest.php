@@ -296,6 +296,10 @@ final class FinancialHttpTest extends WebTestCase
             $this->request('GET', $path, null);
             $this->failure(401, 'AUTHENTICATION_REQUIRED');
         }
+        $this->request('POST', '/api/v1/debts', null, $this->command(), Uuid::v4()->toRfc4122());
+        $this->failure(401, 'AUTHENTICATION_REQUIRED');
+        self::assertSame(0, (int) $this->db->fetchOne('SELECT COUNT(*) FROM debt'));
+
         $this->request('POST', '/api/v1/debts', 0, $this->command());
         $this->failure(400, 'IDEMPOTENCY_KEY_REQUIRED');
         foreach (['limit=0', 'limit=101', 'limit[]=20', 'cursor=invalid', 'cursor[]=bad', 'otherUserId=foo'] as $q) {
