@@ -154,7 +154,10 @@ SC-022 retention и email operations slices включены в `main`. Влад
 периодические проверки releases не требуются. Реализована конфигурация
 deployment email alert thresholds без общих числовых SLA (`DR-E7-013`).
 
-Первый следующий незавершённый security audit этапа 7 — `DR-E7-021`, затем
-`DR-E7-022—030`; полный gate (`DR-E7-042`), deployment review, staging SMTP и
-Product Owner release decision остаются открытыми. Локальный полный gate
-остановился до тестов из-за отсутствующего Docker CLI в WSL.
+`DR-E7-021` завершён: защищённые read/write маршруты и ACL зафиксированы в
+acceptance-матрице, проверки включают отказ в анонимном создании долга без
+записи и приватность списков для постороннего пользователя. Следующая задача
+security audit — `DR-E7-022`, затем `DR-E7-023—030`. Полный gate
+(`DR-E7-042`), deployment review, staging SMTP и Product Owner release decision
+остаются открытыми. Локальный полный gate остановился до тестов из-за
+отсутствующего Docker CLI в WSL; CI quality gate выполняется для PR.

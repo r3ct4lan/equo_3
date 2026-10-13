@@ -139,6 +139,8 @@ final class FinancialHttpTest extends WebTestCase
             self::assertSame($debt['id'], $this->body()['items'][0]['id']);
             self::assertSame(3, $this->body()['items'][0]['participantCount']);
         }
+        $this->request('GET', '/api/v1/debts', 3);
+        self::assertSame([], $this->body()['items']);
         $this->request('GET', '/api/v1/debts/'.$debt['id'], 3);
         $this->failure(404, 'DEBT_NOT_AVAILABLE');
         $this->request('GET', '/api/v1/debts/'.Uuid::v4()->toRfc4122(), 3);
@@ -296,6 +298,10 @@ final class FinancialHttpTest extends WebTestCase
             $this->request('GET', $path, null);
             $this->failure(401, 'AUTHENTICATION_REQUIRED');
         }
+        $this->request('POST', '/api/v1/debts', null, $this->command(), Uuid::v4()->toRfc4122());
+        $this->failure(401, 'AUTHENTICATION_REQUIRED');
+        self::assertSame(0, (int) $this->db->fetchOne('SELECT COUNT(*) FROM debt'));
+
         $this->request('POST', '/api/v1/debts', 0, $this->command());
         $this->failure(400, 'IDEMPOTENCY_KEY_REQUIRED');
         foreach (['limit=0', 'limit=101', 'limit[]=20', 'cursor=invalid', 'cursor[]=bad', 'otherUserId=foo'] as $q) {

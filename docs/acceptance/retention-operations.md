@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) |
-| Result | PASS for implemented slices; full SC-022 and release gate remain open |
-| Date | 2026-10-12 |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL audit (`DR-E7-021`) |
+| Result | PASS for implemented slices and DR-E7-021; full SC-022 and release gate remain open |
+| Date | 2026-10-13 |
 | Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds` |
 
 ## Evidence
@@ -45,6 +45,13 @@ Guarded replay is covered by integration tests: only a still-deliverable,
 non-terminal `PUBLISHED` row is requeued; terminal and expired rows are refused.
 Failure transport listing emits message and delivery identifiers only, and the
 monitoring test checks that a marker in failure details is absent from output.
+
+For `DR-E7-021`, [quality workflow run #27](https://github.com/r3ct4lan/equo_3/actions/runs/38463042164)
+for PR #4 passed the dependency audit, repository checks, backend quality and
+tests/migrations, frontend quality/build, isolated full-MVP browser E2E and
+application smoke. The local `make check-full` could not run because Docker CLI
+is unavailable in WSL; `DR-E7-042` therefore remains open until that exact full
+gate is executed successfully.
 
 `DR-E7-013` now supports deployment-provided warning and critical thresholds;
 each deployment must still choose its own values because no cross-environment
@@ -121,6 +128,33 @@ unauthenticated denial, participant/author access, non-participant 404 privacy,
 version conflicts, idempotent retries and redacted responses on the relevant
 operations. Transaction rollback, uniqueness constraints and concurrency are
 covered by the corresponding `Integration/{Debts,Invitations,Transfers}` suites.
+
+## Protected route authentication and ACL audit — DR-E7-021
+
+The protected API surface has 14 operations. Bearer authentication is required
+for each protected read and writer below; missing, malformed or invalid tokens
+are rejected as `401 AUTHENTICATION_REQUIRED` before the operation can mutate
+state. The HTTP test suites also exercise the per-resource authorization rules:
+
+| Protected operation | ACL boundary | Evidence |
+|---|---|---|
+| `GET /me` | Returns only the active identity from a valid Bearer subject | `MeHttpTest::testMeAuthenticationFailuresUseOneSafe401`, `testMeRejectsValidTokensForUnknownAndInactiveUsers` |
+| `GET /connects`, `GET /connects/{connectId}` | Only a side of the Connect can list/read it; other users receive the same hidden-resource response | `InvitationHttpTest::testBearerIsRequired`; `FinancialHttpTest::testCreateReplayReadAndPerspectiveBalances`; `InvitationFlowTest::testConnectListPaginationPrivacyAndInactiveSideRemainVisible` |
+| `POST /connect-invitations`, `POST /connect-invitations/{token}/accept` | Active authenticated author/acceptor; self-acceptance is rejected | `InvitationHttpTest::testBearerIsRequired`, `testOwnInvitationHasSafeValidationError`; `InvitationFlowTest::testOwnInvitationIsRejectedWithoutWrites`, `testInactiveAcceptorIsFreshlyChecked` |
+| `GET /debts`, `GET /debts/{debtId}` | Reads are limited to users included in the debt; non-participant detail is hidden | `FinancialHttpTest::testCreateReplayReadAndPerspectiveBalances`, `testExcludedParticipantRetainsTransferWithoutLeakingDebtAndDeletionFreezesAccess` |
+| `POST /debts` | The author must be part of the command; selected users must be eligible. HTTP auth is tested with an otherwise valid command and idempotency key | `FinancialHttpTest::testRequiredHeadersProtectedPathsAndInvalidPagination`; `FinancialCreationTest::testInvalidSelectionsOrInactiveUsersHaveNoPartialEffect` |
+| `PUT /debts/{debtId}` | Only the author may revise; an existing participant is forbidden and an outsider gets hidden-resource behavior | `DebtUpdateHttpTest::testAclFrozenDeletedAndAuthorCannotExcludeSelf`; `DebtUpdateIntegrationTest::testDeniedUpdatesLeaveAllRowsUnchanged` |
+| `GET /transfers/{transferId}`, `GET /connects/{connectId}/transfers` | Only a side of the associated Connect can read the transfer/history | `FinancialHttpTest::testCreateReplayReadAndPerspectiveBalances`, `testExcludedParticipantRetainsTransferWithoutLeakingDebtAndDeletionFreezesAccess` |
+| `POST /connects/{connectId}/transfers` | Author must belong to the Connect and be one of the exact sender/receiver sides | `ManualTransferHttpTest::testHiddenConnectActiveSidesAndKeyRequirements`, `testWrongPairSelfTransferMissingFieldAndCrossTargetKey`; `ManualTransferCreationTest::testAclSidesAndFreshActiveAccounts` |
+| `POST /auth/logout-all`, `POST /account/password-change` | Operates only on the valid active Bearer subject; missing/invalid identity does not revoke sessions | `LogoutHttpTest::testLogoutAllUniformAuthenticationFailure`; `PasswordChangeHttpTest::testAuthenticationRequiresValidBearerAndActiveSubject` |
+
+The explicit debt-create auth regression sends a valid body without Bearer,
+expects `401 AUTHENTICATION_REQUIRED`, and confirms the debt table remains
+empty. Public-by-contract routes are excluded from this Bearer matrix: account
+bootstrap/login/reset operations use their documented public capability or
+credential checks, invitation preview is token-capability based, and current
+logout uses its refresh-cookie/CSRF guard (`LogoutHttpTest`); these boundaries
+have their own HTTP coverage.
 
 `make test-e2e`: **26 tests passed** on the isolated Compose project, and its
 workspace-drift guard passed. Scenarios include two-user registration/activation
