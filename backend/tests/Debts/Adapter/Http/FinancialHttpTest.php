@@ -139,6 +139,8 @@ final class FinancialHttpTest extends WebTestCase
             self::assertSame($debt['id'], $this->body()['items'][0]['id']);
             self::assertSame(3, $this->body()['items'][0]['participantCount']);
         }
+        $this->request('GET', '/api/v1/debts', 3);
+        self::assertSame([], $this->body()['items']);
         $this->request('GET', '/api/v1/debts/'.$debt['id'], 3);
         $this->failure(404, 'DEBT_NOT_AVAILABLE');
         $this->request('GET', '/api/v1/debts/'.Uuid::v4()->toRfc4122(), 3);
