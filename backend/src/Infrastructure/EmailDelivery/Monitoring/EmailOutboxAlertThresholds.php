@@ -6,6 +6,7 @@ namespace App\Infrastructure\EmailDelivery\Monitoring;
 
 use InvalidArgumentException;
 use JsonException;
+use stdClass;
 
 final readonly class EmailOutboxAlertThresholds
 {
@@ -28,7 +29,7 @@ final readonly class EmailOutboxAlertThresholds
             throw new InvalidArgumentException('Email outbox alert thresholds must be valid JSON.');
         }
 
-        if (!$decodedObject instanceof \stdClass) {
+        if (!$decodedObject instanceof stdClass) {
             throw new InvalidArgumentException('Email outbox alert thresholds must be a JSON object.');
         }
 
@@ -38,19 +39,13 @@ final readonly class EmailOutboxAlertThresholds
                 throw new InvalidArgumentException(sprintf('Unsupported email outbox metric: %s.', $metric));
             }
 
-            if (!$levelsObject instanceof \stdClass) {
-                throw new InvalidArgumentException(sprintf(
-                    'Thresholds for %s must define warning and critical values.',
-                    $metric,
-                ));
+            if (!$levelsObject instanceof stdClass) {
+                throw new InvalidArgumentException(sprintf('Thresholds for %s must define warning and critical values.', $metric));
             }
 
             $levels = get_object_vars($levelsObject);
             if (2 !== count($levels) || !array_key_exists('warning', $levels) || !array_key_exists('critical', $levels)) {
-                throw new InvalidArgumentException(sprintf(
-                    'Thresholds for %s must define warning and critical values.',
-                    $metric,
-                ));
+                throw new InvalidArgumentException(sprintf('Thresholds for %s must define warning and critical values.', $metric));
             }
 
             $warning = $levels['warning'];
