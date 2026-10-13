@@ -40,9 +40,25 @@ docker compose exec backend php bin/console app:email-outbox:status --no-interac
 The JSON includes pending/published counts and oldest ages, terminal failures,
 RabbitMQ publish failures, exhausted SMTP retries, and failure-transport size.
 It contains no message body, recipient, token, payload, exception or stack trace.
-Use the output as input to deployment monitoring. Warning and critical
-thresholds belong in that deployment's alert rules; this repository does not
-declare numeric email SLA thresholds.
+It also includes `alert_status` (`unconfigured`, `ok`, `warning` or `critical`)
+and an `alerts` list. With no configured thresholds, metrics are still returned
+and status is `unconfigured`. A warning returns process exit code 1; critical
+returns 2; an unconfigured or healthy snapshot returns 0.
+
+Set `EQUO_EMAIL_OUTBOX_THRESHOLDS` in the deployment environment to a JSON object
+keyed by any metric from the status response. Each configured metric must have
+non-negative integer `warning` and `critical` limits, with warning no greater
+than critical. The limit is reached inclusively. For example, these
+deployment-chosen values illustrate the format only; they are not Equo SLAs or
+defaults:
+
+```dotenv
+EQUO_EMAIL_OUTBOX_THRESHOLDS={"pending_oldest_age_seconds":{"warning":900,"critical":3600},"failure_transport_count":{"warning":1,"critical":5}}
+```
+
+Invalid JSON, unknown metric names, and invalid limits fail closed. The
+repository does not prescribe deployment values or periodically check whether
+they remain appropriate.
 
 For RabbitMQ queue health and sizes, use the management console or:
 
