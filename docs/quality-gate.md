@@ -183,19 +183,23 @@ test endpoint, возвращающий только агрегаты token/outb
 - `npm audit --audit-level=moderate` блокирует `moderate`, `high` и `critical`;
 - audit не выполняет автоматическое обновление или `audit fix`;
 - исключение допустимо только явным изменением с advisory ID, обоснованием,
-  владельцем и датой пересмотра;
+  владельцем и условием пересмотра; разрешённые npm advisories находятся в
+  машинно-читаемом allowlist и пропускаются только по точному GHSA ID;
 - недоступность registry/advisory service является видимой ошибкой gate, а не
   успешной проверкой.
 
-На 2026-10-10 после доступных обновлений остаются два корневых advisory:
+На 2026-10-13 после проверки обновлений остаются два корневых advisory:
 [braces GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
 и [node-forge GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
-Registry latest 3.0.3 и 1.4.0 соответственно остаются уязвимыми; advisory не
-указывает patched version. Nitro 2.13.4 требует globby/fast-glob/micromatch/braces
-и listhen/node-forge; @nuxt/nitro-server 4.6.1 также требует Nitro ^2.13.4 и не удаляет эту
-цепочку. Audit сообщает 11 high affected packages, но два корневых дефекта,
-0 critical и 0 moderate. Исключения/понижение threshold не применены.
-Это видимый release blocker; технические проверки поведения выполняются отдельно.
+Владелец принял временный риск для этих двух advisory: registry latest 3.0.3 и
+1.4.0 соответственно остаются уязвимыми, patched versions не опубликованы.
+В `audit` разрешены только эти GHSA ID; новые moderate/high/critical advisory
+продолжают блокировать проверку. Allowlist и условия пересмотра записаны в
+[`frontend/scripts/accepted-audit-advisories.json`](../frontend/scripts/accepted-audit-advisories.json).
+Обновления не проверяются периодически: задачу обновить цепочки зависимостей
+добавили в backlog `DR-E7-060`, её нужно выполнить после публикации исправленных
+версий. Само наличие этих двух известных advisory теперь не блокирует
+dependency audit; остальные критерии release gate остаются обязательными.
 
 ## 8. Repository checks
 

@@ -113,8 +113,10 @@ the documentation edits made during that run; the clean rerun passed.
 `make check-full` ran repository checks, backend quality, the isolated backend
 suite (**659 tests, 8,086 assertions**), Composer audit, frontend lint/typecheck,
 unit/component tests (**62 + 87**) and production build. It stopped at
-`npm audit --audit-level=moderate` with **11 high** findings rooted in `braces`
-(`GHSA-vfj7-8cjw-p6xm`) and `node-forge` (`GHSA-86w9-cpqp-85rv`); npm reports no
-fix for `node-forge`. The audit threshold was not lowered and no exception was
-added. `make smoke` passed separately. Therefore the full gate and
-`DR-E7-042/043` remain open despite the independently passing browser run.
+`npm audit --audit-level=moderate` with **11 high affected packages** rooted in
+`braces` (`GHSA-vfj7-8cjw-p6xm`) and `node-forge`
+(`GHSA-86w9-cpqp-85rv`). No patched versions were available in the registry.
+The owner accepted these two risks temporarily; the audit helper allows only
+these exact advisory IDs and continues to fail on any other moderate/high/
+critical advisory. `DR-E7-043` is complete under this policy; `DR-E7-042` stays
+open until the full gate is rerun. `make smoke` passed separately.

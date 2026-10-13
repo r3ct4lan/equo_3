@@ -9,6 +9,7 @@
     "check": "npm run check:lock && npm run lint && npm run typecheck && npm test && npm run build",
     "check:lock": "npm ci --dry-run --ignore-scripts --no-audit",
     "check:quality": "npm run check:lock && npm run lint && npm run typecheck",
+    "audit": "node scripts/audit-dependencies.mjs",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "test": "npm run test:unit && npm run test:component",

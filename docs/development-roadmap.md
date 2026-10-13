@@ -165,7 +165,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 4 | 26 | 28 | SC-016 merged; functional PASS; DR-E4-026/028 blocked dependency audit |
 | Этап 5 | 35 | 37 | SC-013 functional PASS; merged в main; DR-E5-035/037 blocked dependency audit |
 | Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
-| Этап 7 | 35 | 58 | Retention, email operations, API inventory, full browser journeys, CI E2E and migration slices PASS; release audit in progress |
+| Этап 7 | 36 | 58 | Retention, email operations, API inventory, full browser journeys, CI E2E and migration slices PASS; two npm GHSA accepted temporarily; release gate remains open |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
 
@@ -1021,7 +1021,8 @@ DR-E6-031—037 реализованы и функционально прове�
 - [x] `DR-E7-041` — расширить CI отдельным full-MVP job с безопасными
   artifacts.
 - [ ] `DR-E7-042` — `make check-full` охватывает текущий основной путь.
-- [ ] `DR-E7-043` — dependency audits и repository secret checks проходят.
+- [x] `DR-E7-043` — dependency audits и repository secret checks проходят по
+  принятой политике; два точечных npm advisory исключены до выхода исправлений.
 - [x] `DR-E7-044` — миграции проверены с нуля и на поддерживаемом upgrade path
   от текущей начальной схемы.
 
@@ -1056,6 +1057,9 @@ DR-E6-031—037 реализованы и функционально прове�
 - [ ] `DR-E7-057` — все семь строк сводной карты отмечены `[x]`.
 - [ ] `DR-E7-058` — MVP признан готовым отдельным решением владельца с датой
   и ссылкой на release/commit.
+- [ ] `DR-E7-060` — после публикации исправленных версий для GHSA-vfj7-8cjw-p6xm
+  и GHSA-86w9-cpqp-85rv обновить цепочки зависимостей, удалить их из npm audit
+  allowlist и вернуть полный строгий аудит без исключений.
 
 ---
 
@@ -1229,6 +1233,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 11 | 2026-10-13 | SC-022: два npm GHSA временно приняты, exact-ID allowlist и DR-E7-060 для обновления после исправлений; 36/58 задач этапа 7 |
 | 10 | 2026-10-12 | SC-013: 35/37 задач этапа 5, full recalculation/edit, 26 browser PASS; DR-E5-035/037 blocked npm audit |
 | 9 | 2026-10-11 | SC-016: MANUAL writer/UI, 26/28 задач этапа 4, основной browser путь PASS; release audit blocked |
 | 6 | 2026-10-10 | SC-003/004/005 последовательно merged в main; проверенные DR-E6-010—048/050—052 отмечены, полный gate и этап 6 blocked dependency audit |
@@ -1306,3 +1311,13 @@ files не менялись; feature branch сохранена и синхрон
 35/37 задач этапа 5 включены в main. DR-E5-035/037, npm audit blocker,
 Product Owner acceptance и готовность MVP остаются открытыми. Следующая
 обязательная область — эксплуатационный этап 7 и SC-019—022.
+
+## Решение по npm audit — 2026-10-13
+
+Владелец временно принимает риски GHSA-vfj7-8cjw-p6xm (`braces`) и
+GHSA-86w9-cpqp-85rv (`node-forge`): исправленные версии пока не опубликованы.
+Только эти два advisory исключены из blocking результата npm audit; все прочие
+moderate/high/critical findings и ошибки registry остаются блокирующими.
+Периодическая проверка наличия новых package releases не требуется. Задача
+`DR-E7-060` — обновить затронутые зависимости и удалить исключения после
+публикации исправлений.

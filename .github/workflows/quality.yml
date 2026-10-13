@@ -194,7 +194,7 @@ jobs:
         run: composer audit --locked
       - name: Audit npm lock file
         working-directory: frontend
-        run: npm audit --audit-level=moderate
+        run: npm run audit
 
   full-mvp-browser-e2e:
     name: Full MVP browser E2E
