@@ -18,3 +18,8 @@ frontend/.nuxtrc
 frontend/.output/
 frontend/node_modules/
 frontend/test-results/
+
+#AI
+/skills-lock.json
+/.agents/
+/.claude/
