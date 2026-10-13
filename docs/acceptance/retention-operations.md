@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) |
-| Result | PASS for implemented slices; full SC-022 and release gate remain open |
-| Date | 2026-10-12 |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL audit (`DR-E7-021`) |
+| Result | PASS for implemented slices and DR-E7-021; full SC-022 and release gate remain open |
+| Date | 2026-10-13 |
 | Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds` |
 
 ## Evidence
@@ -45,6 +45,13 @@ Guarded replay is covered by integration tests: only a still-deliverable,
 non-terminal `PUBLISHED` row is requeued; terminal and expired rows are refused.
 Failure transport listing emits message and delivery identifiers only, and the
 monitoring test checks that a marker in failure details is absent from output.
+
+For `DR-E7-021`, [quality workflow run #27](https://github.com/r3ct4lan/equo_3/actions/runs/38463042164)
+for PR #4 passed the dependency audit, repository checks, backend quality and
+tests/migrations, frontend quality/build, isolated full-MVP browser E2E and
+application smoke. The local `make check-full` could not run because Docker CLI
+is unavailable in WSL; `DR-E7-042` therefore remains open until that exact full
+gate is executed successfully.
 
 `DR-E7-013` now supports deployment-provided warning and critical thresholds;
 each deployment must still choose its own values because no cross-environment
