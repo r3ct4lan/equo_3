@@ -87,6 +87,9 @@ final class InvitationHttpTest extends WebTestCase
             self::assertResponseStatusCodeSame(200);
             self::assertSame($this->users[1 - $n], $this->body()['otherUser']['id']);
         }
+        $this->request('GET', '/api/v1/connects', $this->access[2]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], $this->body()['items']);
         $this->request('GET', '/api/v1/connects/'.$id, $this->access[2]);
         $this->failure(404, 'RESOURCE_NOT_FOUND');
     }
