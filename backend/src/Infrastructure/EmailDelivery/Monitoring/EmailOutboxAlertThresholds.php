@@ -56,10 +56,7 @@ final readonly class EmailOutboxAlertThresholds
             $warning = $levels['warning'];
             $critical = $levels['critical'];
             if (!is_int($warning) || !is_int($critical) || $warning < 0 || $critical < 0 || $warning > $critical) {
-                throw new InvalidArgumentException(sprintf(
-                    'Thresholds for %s must be non-negative integers with warning <= critical.',
-                    $metric,
-                ));
+                throw new InvalidArgumentException(sprintf('Thresholds for %s must be non-negative integers with warning <= critical.', $metric));
             }
 
             $thresholds[$metric] = ['warning' => $warning, 'critical' => $critical];
