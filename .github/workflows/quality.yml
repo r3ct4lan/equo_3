@@ -49,6 +49,9 @@ env:
   EQUO_JWT_CLOCK_SKEW_SECONDS: '30'
   EQUO_CSRF_SIGNING_KEY_VERSION: v1
   EQUO_CSRF_SIGNING_KEY_RING: '{"v1":"base64-encoded-32-byte-csrf-key-placeholder"}'
+  EQUO_APPLICATION_ORIGIN: https://equo.test
+  EQUO_INVITATION_SIGNING_VERSION: v1
+  EQUO_INVITATION_SIGNING_KEYS: '{"v1":"ZGV2LW9ubHktaW52aXRhdGlvbi1zaWduaW5nLWtleS0zMi1ieXRlcw=="}'
 
 jobs:
   repository-quality:
