@@ -223,3 +223,16 @@ scope/operation. Добавлены недостающие integration tests. CI
 прошёл: 679 backend тестов / 8 318 assertions и 26 browser E2E. Следующая задача —
 `DR-E7-029`, audit redaction. Полный SC-022, deployment review и решение Product
 Owner открыты.
+
+## Состояние после DR-E7-029 — 2026-10-15
+
+Проверена редактировка чувствительных данных в serializer assertions, логах,
+публичных failure responses и browser diagnostics. Проверки подтверждают
+отсутствие password, action token, JWT, refresh cookie, CSRF, ciphertext,
+SQLSTATE и локальных путей в ошибочных ответах и диагностике. Успешный auth
+response остаётся в пределах принятого HTTP-контракта. Playwright screenshots,
+traces и videos отключены, CI публикует только ограниченные redacted browser
+artifacts. CI quality gate #55 прошёл: 680 backend тестов / 8 341 assertions и
+26 browser E2E. Следующая задача — `DR-E7-030`, ADR-015 dependency/architecture
+audit для новых модулей. Полный SC-022, deployment review и решение Product
+Owner открыты.

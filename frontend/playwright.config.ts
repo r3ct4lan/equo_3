@@ -15,7 +15,7 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
     baseURL: process.env.E2E_BASE_URL ?? 'https://nginx',
     ignoreHTTPSErrors: true,
-    screenshot: 'only-on-failure',
+    screenshot: 'off',
     trace: 'off',
     video: 'off'
   }

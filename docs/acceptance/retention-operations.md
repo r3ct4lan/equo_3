@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency audits (`DR-E7-021—028`) |
-| Result | PASS through DR-E7-028; full SC-022 and release gate remain open |
-| Date | 2026-10-14 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit`, `codex/dr-e7-028-unique-constraints-audit` |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency/redaction audits (`DR-E7-021—029`) |
+| Result | PASS through DR-E7-029; full SC-022 and release gate remain open |
+| Date | 2026-10-15 |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit`, `codex/dr-e7-028-unique-constraints-audit`, `codex/dr-e7-029-redaction-audit` |
 
 ## Evidence
 
@@ -328,3 +328,24 @@ The owner accepted these two risks temporarily; the audit helper allows only
 these exact advisory IDs and continues to fail on any other moderate/high/
 critical advisory. `DR-E7-043` is complete under this policy; `DR-E7-042` stays
 open until the full gate is rerun. `make smoke` passed separately.
+
+## Credential redaction audit — DR-E7-029
+
+Sensitive response serialization continues to use explicit DTOs and the
+sensitive-data exclusion assertions. Failure-path checks now verify that
+passwords, action tokens, JWTs, refresh cookies, CSRF values, ciphertext,
+SQLSTATE details and filesystem paths do not appear in public error bodies or
+logged diagnostics. Log processing recursively redacts sensitive context and
+scrubs credentials, SQL and stack/path details from messages; throwable values
+are represented by class only. The successful authentication response remains
+governed by its explicit HTTP contract.
+
+Browser diagnostics attached by Playwright pass through the shared redactor.
+Regression tests cover credentials, cookies, hashes, SQL and local paths.
+Screenshots, traces and videos are disabled; CI uploads only the narrowly
+scoped redacted browser-diagnostics artifacts when present.
+
+Quality workflow [#55](https://github.com/r3ct4lan/equo_3/actions/runs/38645794310)
+passed: **680 PHPUnit tests / 8,341 assertions**, migrations,
+backend/frontend quality, dependency audit, application smoke and **26 browser
+E2E** tests. Workspace drift checks passed.
