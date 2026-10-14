@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency/redaction/architecture audits (`DR-E7-021—030`) |
-| Result | PASS through DR-E7-030; full SC-022 and release gate remain open |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency/redaction/architecture audits (`DR-E7-021—030`), plus the full current-main quality gate (`DR-E7-042`) |
+| Result | PASS through DR-E7-042; full SC-022 and release gate remain open |
 | Date | 2026-10-15 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit`, `codex/dr-e7-028-unique-constraints-audit`, `codex/dr-e7-029-redaction-audit`, `codex/dr-e7-030-adr015-audit` |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit`, `codex/dr-e7-028-unique-constraints-audit`, `codex/dr-e7-029-redaction-audit`, `codex/dr-e7-030-adr015-audit`, `codex/dr-e7-042-check-full` |
 
 ## Evidence
 
@@ -377,3 +377,18 @@ Quality workflow [#58](https://github.com/r3ct4lan/equo_3/actions/runs/386481204
 passed: **681 PHPUnit tests / 8,365 assertions**, six migrations,
 backend/frontend quality, dependency audit, application smoke and **26 browser
 E2E** tests. Workspace drift checks passed.
+
+## Full current-main quality gate — DR-E7-042
+
+The Makefile defines check-full as check plus test-e2e. Workflow #59 ran the
+current-main source state before its merge and passed repository checks,
+backend tests/migrations, backend and frontend quality/build, dependency audit,
+application smoke and isolated full-MVP browser E2E. Backend reported 681 tests
+and 8,365 assertions; browser E2E reported 26 passing scenarios.
+
+The required local make check-full attempt stopped in check-ci-config.sh because
+the WSL environment has no Docker CLI. CI therefore provides the successful
+full-gate evidence; the local attempt did not reach application or browser tests.
+
+Quality workflow [#59](https://github.com/r3ct4lan/equo_3/actions/runs/38649371167)
+passed all jobs. Workspace drift checks passed.

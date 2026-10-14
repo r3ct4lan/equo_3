@@ -247,3 +247,13 @@ ModuleDependencyTest теперь явно закрепляет наличие �
 тест / 8 365 assertions и 26 browser E2E. Следующая незавершённая задача —
 DR-E7-042, повторить make check-full по текущему основному пути. Полный
 SC-022, deployment review и решение Product Owner остаются открытыми.
+
+## Состояние после DR-E7-042 — 2026-10-15
+
+Текущий основной путь проверен полным gate в CI #59: 681 backend тест /
+8 365 assertions, frontend quality и build, dependency audit, smoke и 26
+изолированных browser E2E прошли. Локальный make check-full дошёл до
+check-ci-config.sh и остановился из-за отсутствия Docker CLI в WSL; CI выполнил
+полный набор успешно. Следующая незавершённая задача — DR-E7-045, проверить
+обязательные deployment services. Полный SC-022, deployment review и решение
+Product Owner остаются открытыми.
