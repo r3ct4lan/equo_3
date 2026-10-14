@@ -183,10 +183,17 @@ final class DebtUpdateHttpTest extends WebTestCase
         $path = '/api/v1/debts/'.$initial['id'];
         $this->request('PUT', $path, 1, $this->updateBody(), etag: '"1"');
         $this->failure(403, 'FORBIDDEN');
+        $hiddenDebtError = null;
         foreach ([$path, '/api/v1/debts/'.Uuid::v4()->toRfc4122(), '/api/v1/debts/invalid'] as $route) {
             $this->request('PUT', $route, 3, $this->updateBody(), etag: '"99"');
             $this->failure(404, 'DEBT_NOT_AVAILABLE');
-            self::assertArrayNotHasKey('details', $this->body()['error']);
+            $error = $this->body()['error'];
+            self::assertArrayNotHasKey('details', $error);
+            if (null !== $hiddenDebtError) {
+                self::assertSame($hiddenDebtError['code'], $error['code']);
+                self::assertSame($hiddenDebtError['message'], $error['message']);
+            }
+            $hiddenDebtError = $error;
             self::assertStringNotContainsString('Dinner', (string) $this->client->getResponse()->getContent());
         }
         $otherPayer = $this->command();
