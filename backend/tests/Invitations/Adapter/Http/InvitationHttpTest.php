@@ -141,6 +141,20 @@ final class InvitationHttpTest extends WebTestCase
         $this->failure(409, 'INACTIVE_USER');
     }
 
+    public function testInactiveAcceptorCannotConsumeInvitation(): void
+    {
+        $this->request('POST', '/api/v1/connect-invitations', $this->access[0]);
+        self::assertResponseStatusCodeSame(200);
+        $token = $this->body()['token'];
+        self::assertIsString($token);
+        $this->db->executeStatement('UPDATE app_user SET is_active = false WHERE id = ?', [$this->users[1]]);
+
+        $this->request('POST', '/api/v1/connect-invitations/'.$token.'/accept', $this->access[1]);
+        $this->failure(401, 'AUTHENTICATION_REQUIRED');
+        self::assertSame(0, (int) $this->db->fetchOne('SELECT COUNT(*) FROM connect WHERE first_user_id=? OR second_user_id=?', [$this->users[1], $this->users[1]]));
+        self::assertNull($this->db->fetchOne('SELECT used_at FROM connect_invitation WHERE created_by_id=?', [$this->users[0]]));
+    }
+
     public function testExpiredUsedAndInvalidPreviewCodes(): void
     {
         $this->request('GET', '/api/v1/connect-invitations/invalid');
