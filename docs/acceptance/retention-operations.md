@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency audits (`DR-E7-021—027`) |
-| Result | PASS through DR-E7-027; full SC-022 and release gate remain open |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency audits (`DR-E7-021—028`) |
+| Result | PASS through DR-E7-028; full SC-022 and release gate remain open |
 | Date | 2026-10-14 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit` |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit`, `codex/dr-e7-028-unique-constraints-audit` |
 
 ## Evidence
 
@@ -267,6 +267,25 @@ routes are outside this audit.
 
 Quality workflow [#48](https://github.com/r3ct4lan/equo_3/actions/runs/38639948181)
 passed: **675 PHPUnit tests / 8,314 assertions**, migrations,
+backend/frontend quality, dependency audit, application smoke and **26 browser
+E2E** tests. Workspace drift checks passed.
+
+## Database uniqueness audit — DR-E7-028
+
+The existing migrations and Doctrine mappings define unique constraints for
+canonical Connect pairs, `(debt_id, user_id)` participants, one `DEBT_SHARE` per
+participant, unique invitation and action-token hashes, one unfinished action
+token per user/purpose, and idempotency `(scope, operation, key)`. The
+PostgreSQL integration suite now proves duplicate rejection for each relevant
+business key, including participants and shares whose rows were soft-deleted;
+token hash duplication across users; invitation hash duplication; and
+idempotency tuple duplication. It also verifies that completing an action token
+allows a replacement and that the same idempotency key is allowed under a
+different scope or operation. No schema migration was needed because the
+constraints were already present.
+
+Quality workflow [#51](https://github.com/r3ct4lan/equo_3/actions/runs/38642361440)
+passed: **679 PHPUnit tests / 8,318 assertions**, migrations,
 backend/frontend quality, dependency audit, application smoke and **26 browser
 E2E** tests. Workspace drift checks passed.
 
