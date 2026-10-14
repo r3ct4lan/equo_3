@@ -143,12 +143,25 @@ final class FinancialHttpTest extends WebTestCase
         self::assertSame([], $this->body()['items']);
         $this->request('GET', '/api/v1/debts/'.$debt['id'], 3);
         $this->failure(404, 'DEBT_NOT_AVAILABLE');
+        $hiddenDebtError = $this->body()['error'];
         $this->request('GET', '/api/v1/debts/'.Uuid::v4()->toRfc4122(), 3);
         $this->failure(404, 'DEBT_NOT_AVAILABLE');
+        self::assertSame($hiddenDebtError['code'], $this->body()['error']['code']);
+        self::assertSame($hiddenDebtError['message'], $this->body()['error']['message']);
         $this->request('GET', '/api/v1/transfers/'.$transfer['id'], 2);
         $this->failure(404, 'TRANSFER_NOT_AVAILABLE');
+        $hiddenTransferError = $this->body()['error'];
+        $this->request('GET', '/api/v1/transfers/'.Uuid::v4()->toRfc4122(), 2);
+        $this->failure(404, 'TRANSFER_NOT_AVAILABLE');
+        self::assertSame($hiddenTransferError['code'], $this->body()['error']['code']);
+        self::assertSame($hiddenTransferError['message'], $this->body()['error']['message']);
         $this->request('GET', '/api/v1/connects/'.$transfer['connectId'].'/transfers', 3);
         $this->failure(404, 'RESOURCE_NOT_FOUND');
+        $hiddenHistoryError = $this->body()['error'];
+        $this->request('GET', '/api/v1/connects/'.Uuid::v4()->toRfc4122().'/transfers', 3);
+        $this->failure(404, 'RESOURCE_NOT_FOUND');
+        self::assertSame($hiddenHistoryError['code'], $this->body()['error']['code']);
+        self::assertSame($hiddenHistoryError['message'], $this->body()['error']['message']);
         self::assertStringNotContainsString('Dinner', (string) $this->client->getResponse()->getContent());
         self::assertStringNotContainsString('@example.test', json_encode($debt, JSON_THROW_ON_ERROR));
     }
