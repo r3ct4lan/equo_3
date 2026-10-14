@@ -150,6 +150,7 @@ final class ManualTransferHttpTest extends WebTestCase
             $this->assertNoForeignEmails($history, $viewer);
             $this->request('GET', '/api/v1/transfers/'.$first['id'], $viewer);
             self::assertResponseStatusCodeSame(200);
+            self::assertResponseHeaderSame('ETag', '"1"');
             $transfer = $this->body();
             self::assertSame('MANUAL', $transfer['type']);
             $this->assertNoForeignEmails($transfer, $viewer);
