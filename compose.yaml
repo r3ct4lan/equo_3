@@ -25,15 +25,15 @@ services:
     environment: &backend-environment
       APP_ENV: "${APP_ENV:-dev}"
       APP_RUNTIME_OPTIONS: '{"disable_dotenv":true}'
-      APP_SECRET: "${APP_SECRET:-change-me-in-local-env}"
-      DATABASE_URL: "${BACKEND_DATABASE_URL:-postgresql://${POSTGRES_USER:-equo}:${POSTGRES_PASSWORD:-equo}@postgres:5432/${POSTGRES_DB:-equo}?serverVersion=17&charset=utf8}"
-      MESSENGER_TRANSPORT_DSN: "amqp://${RABBITMQ_DEFAULT_USER:-equo}:${RABBITMQ_DEFAULT_PASS:-equo}@rabbitmq:5672/%2f/messages"
-      REDIS_URL: "redis://redis:6379"
-      MAILER_DSN: "smtp://mailpit:1025"
-      MAILER_FROM: "no-reply@equo.local"
+      APP_SECRET: "${APP_SECRET:?Set APP_SECRET in the environment}"
+      DATABASE_URL: "${BACKEND_DATABASE_URL:?Set BACKEND_DATABASE_URL in the environment}"
+      MESSENGER_TRANSPORT_DSN: "${BACKEND_MESSENGER_TRANSPORT_DSN:?Set BACKEND_MESSENGER_TRANSPORT_DSN in the environment}"
+      REDIS_URL: "${BACKEND_REDIS_URL:?Set BACKEND_REDIS_URL in the environment}"
+      MAILER_DSN: "${BACKEND_MAILER_DSN:?Set BACKEND_MAILER_DSN in the environment}"
+      MAILER_FROM: "${MAILER_FROM:?Set MAILER_FROM in the environment}"
       TRUSTED_PROXIES: "127.0.0.1,172.16.0.0/12"
-      DEFAULT_URI: "${DEFAULT_URI:-http://localhost}"
-      FRONTEND_BASE_URL: "${FRONTEND_BASE_URL:-http://localhost}"
+      DEFAULT_URI: "${DEFAULT_URI:?Set DEFAULT_URI in the environment}"
+      FRONTEND_BASE_URL: "${FRONTEND_BASE_URL:?Set FRONTEND_BASE_URL in the environment}"
       EQUO_REGISTRATION_IP_LIMIT: "${EQUO_REGISTRATION_IP_LIMIT:-5}"
       EQUO_REGISTRATION_EMAIL_LIMIT: "${EQUO_REGISTRATION_EMAIL_LIMIT:-3}"
       EQUO_ACTIVATION_REQUEST_IP_LIMIT: "${EQUO_ACTIVATION_REQUEST_IP_LIMIT:-20}"
@@ -42,23 +42,23 @@ services:
       EQUO_ACTIVATION_TOKEN_LIMIT: "${EQUO_ACTIVATION_TOKEN_LIMIT:-5}"
       EQUO_LOGIN_IP_LIMIT: "${EQUO_LOGIN_IP_LIMIT:-30}"
       EQUO_LOGIN_EMAIL_IP_LIMIT: "${EQUO_LOGIN_EMAIL_IP_LIMIT:-5}"
-      EQUO_APPLICATION_ORIGIN: "${EQUO_APPLICATION_ORIGIN:-http://localhost}"
-      EQUO_INVITATION_SIGNING_VERSION: "${EQUO_INVITATION_SIGNING_VERSION:-v1}"
-      EQUO_INVITATION_SIGNING_KEYS: '${EQUO_INVITATION_SIGNING_KEYS:-{"v1":"ZGV2LW9ubHktaW52aXRhdGlvbi1zaWduaW5nLWtleS0zMi1ieXRlcw=="}}'
-      ACTION_TOKEN_ACTIVE_VERSION: "v1"
-      ACTION_TOKEN_HMAC_KEYS: '{"v1":"YWN0aW9uLXRva2VuLWRldi1rZXktMzItYnl0ZXMhISE="}'
-      IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION: "v1"
-      IDEMPOTENCY_FINGERPRINT_HMAC_KEYS: '{"v1":"aWRlbXBvdGVuY3ktZmluZ2VycHJpbnQtZGV2LWtleS0zMiEh"}'
-      EMAIL_PAYLOAD_KEY: "ZW1haWwtcGF5bG9hZC1kZXYta2V5LTMyLWJ5dGVzISE="
-      EQUO_JWT_SIGNING_KEY_VERSION: "v1"
-      EQUO_JWT_SIGNING_PRIVATE_KEY: "base64-encoded-rsa-private-key-placeholder"
-      EQUO_JWT_PUBLIC_KEY_RING: '{"v1":"base64-encoded-rsa-public-key-placeholder"}'
-      EQUO_JWT_ISSUER: "https://equo.local"
-      EQUO_JWT_AUDIENCE: "equo-api"
+      EQUO_APPLICATION_ORIGIN: "${EQUO_APPLICATION_ORIGIN:?Set EQUO_APPLICATION_ORIGIN in the environment}"
+      EQUO_INVITATION_SIGNING_VERSION: "${EQUO_INVITATION_SIGNING_VERSION:?Set EQUO_INVITATION_SIGNING_VERSION in the environment}"
+      EQUO_INVITATION_SIGNING_KEYS: "${EQUO_INVITATION_SIGNING_KEYS:?Set EQUO_INVITATION_SIGNING_KEYS in the environment}"
+      ACTION_TOKEN_ACTIVE_VERSION: "${ACTION_TOKEN_ACTIVE_VERSION:?Set ACTION_TOKEN_ACTIVE_VERSION in the environment}"
+      ACTION_TOKEN_HMAC_KEYS: "${ACTION_TOKEN_HMAC_KEYS:?Set ACTION_TOKEN_HMAC_KEYS in the environment}"
+      IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION: "${IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION:?Set IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION in the environment}"
+      IDEMPOTENCY_FINGERPRINT_HMAC_KEYS: "${IDEMPOTENCY_FINGERPRINT_HMAC_KEYS:?Set IDEMPOTENCY_FINGERPRINT_HMAC_KEYS in the environment}"
+      EMAIL_PAYLOAD_KEY: "${EMAIL_PAYLOAD_KEY:?Set EMAIL_PAYLOAD_KEY in the environment}"
+      EQUO_JWT_SIGNING_KEY_VERSION: "${EQUO_JWT_SIGNING_KEY_VERSION:?Set EQUO_JWT_SIGNING_KEY_VERSION in the environment}"
+      EQUO_JWT_SIGNING_PRIVATE_KEY: "${EQUO_JWT_SIGNING_PRIVATE_KEY:?Set EQUO_JWT_SIGNING_PRIVATE_KEY in the environment}"
+      EQUO_JWT_PUBLIC_KEY_RING: "${EQUO_JWT_PUBLIC_KEY_RING:?Set EQUO_JWT_PUBLIC_KEY_RING in the environment}"
+      EQUO_JWT_ISSUER: "${EQUO_JWT_ISSUER:?Set EQUO_JWT_ISSUER in the environment}"
+      EQUO_JWT_AUDIENCE: "${EQUO_JWT_AUDIENCE:?Set EQUO_JWT_AUDIENCE in the environment}"
       EQUO_JWT_ACCESS_TTL_SECONDS: "900"
       EQUO_JWT_CLOCK_SKEW_SECONDS: "30"
-      EQUO_CSRF_SIGNING_KEY_VERSION: "v1"
-      EQUO_CSRF_SIGNING_KEY_RING: '{"v1":"base64-encoded-32-byte-csrf-key-placeholder"}'
+      EQUO_CSRF_SIGNING_KEY_VERSION: "${EQUO_CSRF_SIGNING_KEY_VERSION:?Set EQUO_CSRF_SIGNING_KEY_VERSION in the environment}"
+      EQUO_CSRF_SIGNING_KEY_RING: "${EQUO_CSRF_SIGNING_KEY_RING:?Set EQUO_CSRF_SIGNING_KEY_RING in the environment}"
       EQUO_RETENTION_BATCH_SIZE: "${EQUO_RETENTION_BATCH_SIZE:-500}"
       EQUO_EMAIL_OUTBOX_THRESHOLDS: "${EQUO_EMAIL_OUTBOX_THRESHOLDS:-}"
     volumes: &backend-volumes
@@ -107,15 +107,15 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: "${POSTGRES_DB:-equo}"
-      POSTGRES_USER: "${POSTGRES_USER:-equo}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-equo}"
+      POSTGRES_DB: "${POSTGRES_DB:?Set POSTGRES_DB in the environment}"
+      POSTGRES_USER: "${POSTGRES_USER:?Set POSTGRES_USER in the environment}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the environment}"
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-equo} -d ${POSTGRES_DB:-equo}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?Set POSTGRES_USER in the environment} -d ${POSTGRES_DB:?Set POSTGRES_DB in the environment}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -155,8 +155,8 @@ services:
     image: rabbitmq:4.2-management-alpine
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: "${RABBITMQ_DEFAULT_USER:-equo}"
-      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_DEFAULT_PASS:-equo}"
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_DEFAULT_USER:?Set RABBITMQ_DEFAULT_USER in the environment}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_DEFAULT_PASS:?Set RABBITMQ_DEFAULT_PASS in the environment}"
     ports:
       - "${RABBITMQ_AMQP_PORT:-5672}:5672"
       - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
