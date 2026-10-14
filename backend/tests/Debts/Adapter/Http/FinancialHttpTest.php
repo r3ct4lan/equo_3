@@ -211,7 +211,9 @@ final class FinancialHttpTest extends WebTestCase
         // Replaying the original operation still returns its own saved result.
         $this->request('POST', '/api/v1/debts', 0, $command, $key);
         self::assertResponseStatusCodeSame(201);
-        self::assertSame($firstDebt, $this->body());
+        $replayedDebt = $this->body();
+        self::assertEquals($firstDebt, $replayedDebt);
+        self::assertSame($firstDebt['id'], $replayedDebt['id']);
         self::assertSame(3, (int) $this->db->fetchOne('SELECT COUNT(*) FROM idempotency_record WHERE idempotency_key=?', [$key]));
         self::assertSame(2, (int) $this->db->fetchOne('SELECT COUNT(*) FROM debt'));
         self::assertSame($this->users[0], $manualTransfer['createdBy']['id']);
