@@ -171,6 +171,32 @@ final class InitialSchemaTest extends KernelTestCase
         );
     }
 
+    public function testTokenHashIsUniqueAcrossUsers(): void
+    {
+        $firstUser = '00000000-0000-4000-8000-000000000046';
+        $secondUser = '00000000-0000-4000-8000-000000000047';
+        $this->insertUser($firstUser, 'first-token-hash-owner@example.test');
+        $this->insertUser($secondUser, 'second-token-hash-owner@example.test');
+        $this->insertToken('00000000-0000-4000-8000-000000000048', $firstUser, 'same-token-hash');
+
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        $this->insertToken('00000000-0000-4000-8000-000000000049', $secondUser, 'same-token-hash');
+    }
+
+    public function testCompletedTokenDoesNotBlockReplacementForSamePurpose(): void
+    {
+        $userId = '00000000-0000-4000-8000-00000000004a';
+        $tokenId = '00000000-0000-4000-8000-00000000004b';
+        $this->insertUser($userId, 'completed-token-owner@example.test');
+        $this->insertToken($tokenId, $userId, 'completed-token');
+        $this->connection->update('user_action_token', ['used_at' => '2026-07-31 12:30:00+00'], ['id' => $tokenId]);
+
+        $this->insertToken('00000000-0000-4000-8000-00000000004c', $userId, 'replacement-token');
+
+        self::assertSame(2, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM user_action_token WHERE user_id = ?', [$userId]));
+    }
+
     public function testTokenMustExpireAfterItWasCreated(): void
     {
         $userId = '00000000-0000-4000-8000-000000000044';
@@ -205,6 +231,29 @@ final class InitialSchemaTest extends KernelTestCase
         $this->expectException(UniqueConstraintViolationException::class);
 
         $this->connection->insert('idempotency_record', ['id' => '00000000-0000-4000-8000-000000000052'] + $values);
+    }
+
+    public function testSameIdempotencyKeyIsAllowedForDifferentScopeOrOperation(): void
+    {
+        $values = [
+            'user_id' => null,
+            'idempotency_key' => 'shared-key',
+            'request_hash' => 'hash',
+            'response_status' => null,
+            'response_body' => null,
+            'created_at' => '2026-07-31 12:00:00+00',
+            'expires_at' => '2026-08-01 12:00:00+00',
+        ];
+
+        foreach ([
+            ['id' => '00000000-0000-4000-8000-000000000054', 'scope' => 'anonymous', 'operation' => 'register'],
+            ['id' => '00000000-0000-4000-8000-000000000055', 'scope' => 'user:one', 'operation' => 'register'],
+            ['id' => '00000000-0000-4000-8000-000000000056', 'scope' => 'anonymous', 'operation' => 'manual-transfer'],
+        ] as $identity) {
+            $this->connection->insert('idempotency_record', $identity + $values);
+        }
+
+        self::assertSame(3, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM idempotency_record WHERE idempotency_key = ?', ['shared-key']));
     }
 
     public function testIdempotencyRecordMustExpireAfterItWasCreated(): void
