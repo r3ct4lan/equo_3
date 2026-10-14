@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency audits (`DR-E7-021—025`) |
-| Result | PASS through DR-E7-025; full SC-022 and release gate remain open |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency audits (`DR-E7-021—026`) |
+| Result | PASS through DR-E7-026; full SC-022 and release gate remain open |
 | Date | 2026-10-14 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix` |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit` |
 
 ## Evidence
 
@@ -232,6 +232,24 @@ does not accept an `Idempotency-Key`; both are outside this key matrix. Quality
 workflow #42 passed: **674 PHPUnit tests / 8,299 assertions**, migrations,
 backend/frontend quality, dependency audit, application smoke, and **26
 browser E2E** tests. Workspace drift checks passed.
+
+## ETag and If-Match audit — DR-E7-026
+
+The only implemented writer accepting `If-Match` is
+`PUT /debts/{debtId}`. `DebtUpdateHttpTest` covers a successful version
+increment, a no-op retaining version/ETag, stale update conflict (including a
+stale no-op), missing and empty headers returning 428, and weak, wildcard,
+list, zero, leading-zero, out-of-range and malformed values returning 400. It
+also confirms those rejected writes leave the version unchanged.
+
+Debt creation/detail and MANUAL creation/detail expose the expected quoted
+ETag for their versioned read/response representation; tests assert the Debt
+versions through 1→2→3, automatic Transfer detail ETag, and MANUAL detail ETag.
+Debt deletion is deferred under `SH-014`; the documented Transfer update/delete
+routes are not implemented, so they have no current `If-Match` handling to
+audit. Quality workflow #43 passed: **674 PHPUnit tests / 8,299 assertions**,
+migrations, backend/frontend quality, dependency audit, application smoke and
+**26 browser E2E** tests. Workspace drift checks passed.
 
 ## Hidden resource 404 privacy audit — DR-E7-022
 

@@ -191,3 +191,13 @@ registration, Debt creation и MANUAL creation. Добавлено доказа�
 прошёл: 674 backend теста / 8 299 assertions и 26 browser E2E. Следующий пункт —
 `DR-E7-026`, аудит `ETag/If-Match` для реализованных versioned writers. Полный
 SC-022, deployment review и Product Owner release decision остаются открытыми.
+
+## Состояние после DR-E7-026 — 2026-10-14
+
+Проверен versioned writer `PUT /debts/{debtId}`: успешная и no-op версии,
+stale conflict, empty/missing/malformed `If-Match` и отсутствие изменений при
+отказе. Для реализованных Debt/MANUAL read/write responses сверены version ETag.
+Отложенный `SH-014` Debt delete и отсутствующие Transfer update/delete не
+включались. CI quality gate #43 прошёл: 674 backend теста / 8 299 assertions и
+26 browser E2E. Следующая задача — `DR-E7-027`, rollback многотабличных writers.
+Полный SC-022, deployment review и решение Product Owner открыты.
