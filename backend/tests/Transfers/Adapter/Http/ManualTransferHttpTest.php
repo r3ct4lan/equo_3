@@ -144,9 +144,16 @@ final class ManualTransferHttpTest extends WebTestCase
     public function testHiddenConnectActiveSidesAndKeyRequirements(): void
     {
         $path = '/api/v1/connects/'.$this->connect().'/transfers';
+        $hiddenConnectError = null;
         foreach ([$path, '/api/v1/connects/'.Uuid::v4()->toRfc4122().'/transfers', '/api/v1/connects/invalid/transfers'] as $route) {
             $this->request('POST', $route, 3, $this->command(), Uuid::v4()->toRfc4122());
             $this->failure(404, 'RESOURCE_NOT_FOUND');
+            $error = $this->body()['error'];
+            if (null !== $hiddenConnectError) {
+                self::assertSame($hiddenConnectError['code'], $error['code']);
+                self::assertSame($hiddenConnectError['message'], $error['message']);
+            }
+            $hiddenConnectError = $error;
             foreach (['Financial person', 'senderId', 'password', 'SQL', 'trace', '@example.test'] as $secret) {
                 self::assertStringNotContainsString($secret, (string) $this->client->getResponse()->getContent());
             }

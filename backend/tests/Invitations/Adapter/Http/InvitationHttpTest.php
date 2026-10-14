@@ -92,6 +92,11 @@ final class InvitationHttpTest extends WebTestCase
         self::assertSame([], $this->body()['items']);
         $this->request('GET', '/api/v1/connects/'.$id, $this->access[2]);
         $this->failure(404, 'RESOURCE_NOT_FOUND');
+        $hiddenConnectError = $this->body()['error'];
+        $this->request('GET', '/api/v1/connects/'.Uuid::v4()->toRfc4122(), $this->access[2]);
+        $this->failure(404, 'RESOURCE_NOT_FOUND');
+        self::assertSame($hiddenConnectError['code'], $this->body()['error']['code']);
+        self::assertSame($hiddenConnectError['message'], $this->body()['error']['message']);
     }
 
     #[DataProvider('protectedPaths')]
