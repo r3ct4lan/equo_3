@@ -257,3 +257,15 @@ check-ci-config.sh и остановился из-за отсутствия Dock
 полный набор успешно. Следующая незавершённая задача — DR-E7-045, проверить
 обязательные deployment services. Полный SC-022, deployment review и решение
 Product Owner остаются открытыми.
+
+## Состояние после DR-E7-045 — 2026-10-15
+
+Подтверждены семь обязательных Compose services: nginx, frontend, backend,
+PostgreSQL, Redis, RabbitMQ и worker; README/runbook описывают тот же набор.
+Добавлен отдельный CI guard, который проверяет resolved service list. CI #65
+прошёл: 681 backend test / 8 335 assertions и 26 browser E2E, а Repository
+quality подтвердил новый service guard. Локальный Docker Compose запуск
+недоступен в WSL без Docker CLI. Следующий пункт — DR-E7-046, разделить
+development defaults и production-required secrets/key rings. Проверки
+production deployment, health/readiness и graceful worker restart остаются
+открытыми.
