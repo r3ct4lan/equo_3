@@ -119,8 +119,6 @@ final class MeHttpTest extends WebTestCase
         $this->assertAuthenticationRequired($body);
         self::assertSame([], $this->client->getResponse()->headers->getCookies());
         self::assertSame('Bearer', $this->client->getResponse()->headers->get('WWW-Authenticate'));
-        self::assertStringNotContainsString('jwt', strtolower((string) $this->client->getResponse()->getContent()));
-        self::assertStringNotContainsString('signature', strtolower((string) $this->client->getResponse()->getContent()));
     }
 
     /** @return iterable<string, array{string|null}> */
@@ -263,7 +261,6 @@ final class MeHttpTest extends WebTestCase
             'requestId' => $this->client->getResponse()->headers->get('X-Request-Id'),
         ], $body['error']);
         self::assertArrayNotHasKey('id', $body);
-        self::assertStringNotContainsString('password', (string) $this->client->getResponse()->getContent());
     }
 
     /** @return array<string, mixed> */

@@ -61,6 +61,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Verify required Compose services
+        run: ./scripts/check-compose-services.sh
       - name: Scan tracked files for common secret patterns
         run: ./scripts/check-secrets.sh
       - name: Verify checks leave no generated changes

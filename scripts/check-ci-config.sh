@@ -3,6 +3,7 @@
 set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+"$project_dir/scripts/check-compose-services.sh"
 
 docker compose \
     --project-directory "$project_dir" \
