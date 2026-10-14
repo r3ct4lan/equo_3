@@ -201,3 +201,13 @@ stale conflict, empty/missing/malformed `If-Match` и отсутствие из�
 включались. CI quality gate #43 прошёл: 674 backend теста / 8 299 assertions и
 26 browser E2E. Следующая задача — `DR-E7-027`, rollback многотабличных writers.
 Полный SC-022, deployment review и решение Product Owner открыты.
+
+## Состояние после DR-E7-027 — 2026-10-14
+
+Проверены rollback и отсутствие частичных записей у реализованных
+многотабличных writers: identity/outbox/session, Debt create/update, MANUAL
+Transfer и принятие приглашения. Контролируемые сбои подтверждают, что ранние
+записи отменяются вместе с поздней ошибкой. CI quality gate #48 прошёл: 675
+backend тестов / 8 314 assertions и 26 browser E2E. Следующая задача —
+`DR-E7-028`, проверка уникальных DB constraints. Полный SC-022, deployment
+review и решение Product Owner открыты.

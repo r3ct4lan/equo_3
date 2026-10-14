@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency audits (`DR-E7-021—026`) |
-| Result | PASS through DR-E7-026; full SC-022 and release gate remain open |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency audits (`DR-E7-021—027`) |
+| Result | PASS through DR-E7-027; full SC-022 and release gate remain open |
 | Date | 2026-10-14 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit` |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit` |
 
 ## Evidence
 
@@ -250,6 +250,25 @@ routes are not implemented, so they have no current `If-Match` handling to
 audit. Quality workflow #43 passed: **674 PHPUnit tests / 8,299 assertions**,
 migrations, backend/frontend quality, dependency audit, application smoke and
 **26 browser E2E** tests. Workspace drift checks passed.
+
+## Transaction rollback and partial-state audit — DR-E7-027
+
+Failure-path tests force a database or outbox failure after earlier writes and
+verify the entire operation rolls back. Coverage includes registration and
+activation token state, activation-request token replacement plus email outbox,
+password reset and password change with sessions, logout-all, Debt creation
+across Debt/participants/Connect/Transfer shares/idempotency state, Debt
+recalculation at each aggregate write stage, MANUAL Transfer plus idempotency
+state, and invitation acceptance after Connect creation. The invitation test
+confirms a failed invitation consume leaves neither a Connect nor a used
+invitation marker. All implemented cross-table writers found in the route and
+application audit have rollback evidence; single-row writers and deferred
+routes are outside this audit.
+
+Quality workflow [#48](https://github.com/r3ct4lan/equo_3/actions/runs/38639948181)
+passed: **675 PHPUnit tests / 8,314 assertions**, migrations,
+backend/frontend quality, dependency audit, application smoke and **26 browser
+E2E** tests. Workspace drift checks passed.
 
 ## Hidden resource 404 privacy audit — DR-E7-022
 
