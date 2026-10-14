@@ -63,7 +63,7 @@ final class FinancialHttpTest extends WebTestCase
     }
 
     /** @param array<string,mixed>|null $body */
-    private function request(string $method, string $path, ?int $user = 0, ?array $body = null, ?string $key = null): void
+    private function request(string $method, string $path, ?int $user = 0, ?array $body = null, ?string $key = null, ?string $etag = null): void
     {
         $headers = null === $user ? [] : ['HTTP_AUTHORIZATION' => 'Bearer '.$this->access[$user]];
         if (null !== $body) {
@@ -71,6 +71,9 @@ final class FinancialHttpTest extends WebTestCase
         }
         if (null !== $key) {
             $headers['HTTP_IDEMPOTENCY_KEY'] = $key;
+        }
+        if (null !== $etag) {
+            $headers['HTTP_IF_MATCH'] = $etag;
         }
         $this->client->request($method, $path, server: $headers, content: null === $body ? null : json_encode($body, JSON_THROW_ON_ERROR));
     }
@@ -220,6 +223,69 @@ final class FinancialHttpTest extends WebTestCase
             self::assertResponseStatusCodeSame(200);
             $this->assertNoForeignEmails($this->body(), $viewer);
         }
+    }
+
+    public function testDebtCreationRejectsInactivePayerOrParticipantWithoutPartialWrites(): void
+    {
+        /** @var array<string, array{int, array{payerId: string, participantIds: list<string>}}> $cases */
+        $cases = [
+            'payer' => [1, ['payerId' => $this->users[1], 'participantIds' => [$this->users[0], $this->users[2]]]],
+            'participant' => [2, ['payerId' => $this->users[0], 'participantIds' => [$this->users[1], $this->users[2]]]],
+        ];
+        foreach ($cases as $role => [$inactiveUser, $overrides]) {
+            $this->db->executeStatement('UPDATE app_user SET is_active=false WHERE id=?', [$this->users[$inactiveUser]]);
+            $command = [...$this->command(), ...$overrides];
+            $before = [
+                'debts' => (int) $this->db->fetchOne('SELECT COUNT(*) FROM debt'),
+                'participants' => (int) $this->db->fetchOne('SELECT COUNT(*) FROM debt_participant'),
+                'transfers' => (int) $this->db->fetchOne('SELECT COUNT(*) FROM transfer'),
+                'connects' => (int) $this->db->fetchOne('SELECT COUNT(*) FROM connect'),
+            ];
+            $this->request('POST', '/api/v1/debts', 0, $command, Uuid::v4()->toRfc4122());
+            $this->failure(409, 'INACTIVE_USER');
+            self::assertSame($before, [
+                'debts' => (int) $this->db->fetchOne('SELECT COUNT(*) FROM debt'),
+                'participants' => (int) $this->db->fetchOne('SELECT COUNT(*) FROM debt_participant'),
+                'transfers' => (int) $this->db->fetchOne('SELECT COUNT(*) FROM transfer'),
+                'connects' => (int) $this->db->fetchOne('SELECT COUNT(*) FROM connect'),
+            ], 'Rejected '.$role.' inactivity must leave no financial rows behind.');
+            $this->db->executeStatement('UPDATE app_user SET is_active=true WHERE id=?', [$this->users[$inactiveUser]]);
+        }
+    }
+
+    public function testInactiveBearerCannotIssueAnyImplementedProtectedCommand(): void
+    {
+        $debt = $this->create();
+        $transfer = $debt['participants'][1]['transferId'];
+        $connect = (string) $this->db->fetchOne('SELECT connect_id FROM transfer WHERE id=?', [$transfer]);
+        $this->request('POST', '/api/v1/connect-invitations', 0);
+        self::assertResponseStatusCodeSame(200);
+        $invitationToken = $this->body()['token'];
+        $this->db->executeStatement('UPDATE app_user SET is_active=false WHERE id=?', [$this->users[0]]);
+
+        /** @var list<array{string, string, ?array<string, mixed>, ?string, ?string}> $commands */
+        $commands = [
+            ['POST', '/api/v1/auth/logout-all', null, null, null],
+            ['POST', '/api/v1/account/password-change', ['currentPassword' => 'test-only', 'newPassword' => 'New secure password 123!'], null, null],
+            ['POST', '/api/v1/account/email-change-requests', ['currentPassword' => 'test-only', 'newEmail' => 'new@example.test'], null, null],
+            ['POST', '/api/v1/account/deactivate', ['password' => 'test-only'], null, null],
+            ['PATCH', '/api/v1/me', ['name' => 'Inactive update'], null, null],
+            ['POST', '/api/v1/connect-invitations', null, null, null],
+            ['POST', '/api/v1/connect-invitations/'.$invitationToken.'/accept', null, null, null],
+            ['POST', '/api/v1/debts', $this->command(), Uuid::v4()->toRfc4122(), null],
+            ['PUT', '/api/v1/debts/'.$debt['id'], $this->command(), null, '"1"'],
+            ['POST', '/api/v1/connects/'.$connect.'/transfers', ['senderId' => $this->users[0], 'receiverId' => $this->users[1], 'amount' => 100], Uuid::v4()->toRfc4122(), null],
+        ];
+
+        foreach ($commands as [$method, $path, $body, $key, $etag]) {
+            $this->request($method, $path, 0, $body, $key, $etag);
+            $this->failure(401, 'AUTHENTICATION_REQUIRED');
+        }
+
+        self::assertSame(1, (int) $this->db->fetchOne('SELECT COUNT(*) FROM debt'));
+        self::assertSame(1, (int) $this->db->fetchOne('SELECT COUNT(*) FROM connect_invitation WHERE created_by_id=? AND used_at IS NULL', [$this->users[0]]));
+        self::assertSame(2, (int) $this->db->fetchOne('SELECT COUNT(*) FROM transfer'));
+        self::assertSame('Financial person 0', $this->db->fetchOne('SELECT name FROM app_user WHERE id=?', [$this->users[0]]));
     }
 
     public function testExcludedParticipantRetainsTransferWithoutLeakingDebtAndDeletionFreezesAccess(): void
