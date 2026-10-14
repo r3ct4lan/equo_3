@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL audit (`DR-E7-021`) |
-| Result | PASS for implemented slices and DR-E7-021; full SC-022 and release gate remain open |
-| Date | 2026-10-13 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds` |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/404 privacy audits (`DR-E7-021—022`) |
+| Result | PASS for implemented slices and DR-E7-021—022; full SC-022 and release gate remain open |
+| Date | 2026-10-14 |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy` |
 
 ## Evidence
 
@@ -52,6 +52,14 @@ tests/migrations, frontend quality/build, isolated full-MVP browser E2E and
 application smoke. The local `make check-full` could not run because Docker CLI
 is unavailable in WSL; `DR-E7-042` therefore remains open until that exact full
 gate is executed successfully.
+
+For `DR-E7-022`, [quality workflow run #31](https://github.com/r3ct4lan/equo_3/actions/runs/38623785512)
+passed dependency audit, repository checks, backend quality and tests/migrations,
+frontend quality/build, full-MVP browser E2E and application smoke. A local
+`make check-full` attempt stopped in `check-repository` because Docker CLI is not
+installed/integrated into this WSL distribution; CI supplied the isolated full
+backend, E2E and smoke jobs. `DR-E7-042` stays open until the exact local full
+gate is executable and passes.
 
 `DR-E7-013` now supports deployment-provided warning and critical thresholds;
 each deployment must still choose its own values because no cross-environment
@@ -155,6 +163,28 @@ bootstrap/login/reset operations use their documented public capability or
 credential checks, invitation preview is token-capability based, and current
 logout uses its refresh-cookie/CSRF guard (`LogoutHttpTest`); these boundaries
 have their own HTTP coverage.
+
+## Hidden resource 404 privacy audit — DR-E7-022
+
+For an authenticated user who lacks access, the API returns the same HTTP
+status, public error code and message as it does for a valid but nonexistent
+resource ID. Tests compare the public error fields directly; request IDs are
+allowed to differ per request.
+
+| Resource and route | Hidden-versus-missing case | Evidence |
+|---|---|---|
+| `GET /connects/{connectId}` | Non-side cannot distinguish another pair's Connect from an absent UUID | `InvitationHttpTest::testPublicPreviewProtectedAcceptanceAndBothReadModels` |
+| `GET /connects/{connectId}/transfers` | Non-side cannot distinguish existing history from a nonexistent Connect UUID | `FinancialHttpTest::testCreateReplayReadAndPerspectiveBalances` |
+| `POST /connects/{connectId}/transfers` | Outsider receives the same `404 RESOURCE_NOT_FOUND` for an existing hidden pair and an absent/invalid Connect ID | `ManualTransferHttpTest::testHiddenConnectActiveSidesAndKeyRequirements` |
+| `GET /debts/{debtId}` | Outsider receives the same `404 DEBT_NOT_AVAILABLE` for an existing debt and an absent UUID | `FinancialHttpTest::testCreateReplayReadAndPerspectiveBalances` |
+| `PUT /debts/{debtId}` | Outsider receives `404 DEBT_NOT_AVAILABLE` with no details for an existing debt and absent/invalid IDs | `DebtUpdateHttpTest::testAclFrozenDeletedAndAuthorCannotExcludeSelf` |
+| `GET /transfers/{transferId}` | Non-side receives the same `404 TRANSFER_NOT_AVAILABLE` for an existing transfer and absent UUID | `FinancialHttpTest::testCreateReplayReadAndPerspectiveBalances` |
+
+These 404 checks preserve the specific visibility rules in `BR-ACL-001—006`:
+excluded participants lose access to the debt but keep access to their own
+transfers, and users with historical access can still view deleted debts.
+An accessible transfer whose debt is hidden exposes only the debt ID and
+`isAccessible: false`; it does not reveal debt title or deletion state.
 
 `make test-e2e`: **26 tests passed** on the isolated Compose project, and its
 workspace-drift guard passed. Scenarios include two-user registration/activation

@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 10 |
-| Дата актуальности | 2026-10-12 |
+| Версия | 11 |
+| Дата актуальности | 2026-10-14 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
 
@@ -165,7 +165,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 4 | 26 | 28 | SC-016 merged; functional PASS; DR-E4-026/028 blocked dependency audit |
 | Этап 5 | 35 | 37 | SC-013 functional PASS; merged в main; DR-E5-035/037 blocked dependency audit |
 | Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
-| Этап 7 | 38 | 58 | Retention, email operations, API inventory, protected-route auth/ACL audit, full browser journeys, CI E2E and migration slices PASS; two npm GHSA accepted temporarily; release gate remains open |
+| Этап 7 | 39 | 58 | Retention, email operations, API inventory, protected-route auth/ACL and 404 privacy audits, full browser journeys, CI E2E and migration slices PASS; two npm GHSA accepted temporarily; release gate remains open |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
 
@@ -985,7 +985,7 @@ DR-E6-031—037 реализованы и функционально прове�
   действительно отсутствуют, а не возвращают placeholder.
 - [x] `DR-E7-021` — проверить authentication/ACL для каждого protected read и
   writer.
-- [ ] `DR-E7-022` — проверить `404` privacy для Connect, Debt и Transfer.
+- [x] `DR-E7-022` — проверить `404` privacy для Connect, Debt и Transfer.
 - [ ] `DR-E7-023` — проверить отсутствие чужого email во всех nested read
   models.
 - [ ] `DR-E7-024` — проверить inactive-user restrictions во всех commands.
@@ -1233,6 +1233,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 14 | 2026-10-14 | DR-E7-022: identical 404 privacy responses for hidden/missing Connect, Debt and Transfer; 39/58 задач этапа 7 |
 | 13 | 2026-10-13 | DR-E7-021: protected route auth/ACL matrix and regressions; 38/58 задач этапа 7 |
 | 12 | 2026-10-13 | SC-022: deployment-configured email alert thresholds; 37/58 задач этапа 7 |
 | 11 | 2026-10-13 | SC-022: два npm GHSA временно приняты, exact-ID allowlist и DR-E7-060 для обновления после исправлений; 36/58 задач этапа 7 |
