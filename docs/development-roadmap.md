@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 12 |
+| Версия | 13 |
 | Дата актуальности | 2026-10-14 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -989,7 +989,7 @@ DR-E6-031—037 реализованы и функционально прове�
 - [x] `DR-E7-023` — проверить отсутствие чужого email во всех nested read
   models.
 - [x] `DR-E7-024` — проверить inactive-user restrictions во всех commands.
-- [ ] `DR-E7-025` — проверить Idempotency-Key scope/operation/body conflict
+- [x] `DR-E7-025` — проверить Idempotency-Key scope/operation/body conflict
   для всех предусмотренных create commands.
 - [ ] `DR-E7-026` — проверить `ETag/If-Match` для всех реализованных
   versioned writers.
@@ -1233,6 +1233,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 17 | 2026-10-14 | DR-E7-025: idempotency header/replay/body/scope/operation matrix for implemented create commands; 42/58 задач этапа 7 |
 | 16 | 2026-10-14 | DR-E7-024: inactive-user command matrix and no-partial-write cases; 41/58 задач этапа 7 |
 | 15 | 2026-10-14 | DR-E7-023: recursive foreign-email assertions for all financial read shapes; 40/58 задач этапа 7 |
 | 14 | 2026-10-14 | DR-E7-022: identical 404 privacy responses for hidden/missing Connect, Debt and Transfer; 39/58 задач этапа 7 |

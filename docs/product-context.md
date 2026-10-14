@@ -181,3 +181,13 @@ gate #38 прошёл: 673 backend теста / 8 285 assertions и 26 browser
 задача audit — `DR-E7-025`, матрица `Idempotency-Key` по scope, operation и body.
 Полный SC-022, deployment review и Product Owner release decision остаются
 открытыми.
+
+## Состояние после DR-E7-025 — 2026-10-14
+
+`Idempotency-Key` проверен для трёх реализованных команд, где он обязателен:
+registration, Debt creation и MANUAL creation. Добавлено доказательство
+независимых user scope и operation; повторы возвращают сохранённый результат,
+изменённый запрос в рамках прежней пары конфликтует. CI quality gate #42
+прошёл: 674 backend теста / 8 299 assertions и 26 browser E2E. Следующий пункт —
+`DR-E7-026`, аудит `ETag/If-Match` для реализованных versioned writers. Полный
+SC-022, deployment review и Product Owner release decision остаются открытыми.
