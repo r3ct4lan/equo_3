@@ -30,4 +30,37 @@ final class InvitationRedactionProcessorTest extends TestCase
         self::assertStringNotContainsString($token, json_encode($safe->toArray(), JSON_THROW_ON_ERROR));
         self::assertSame('[redacted]', $safe->context['route_parameters']['token']);
     }
+
+    public function testCredentialCookiesHashesAndCiphertextAreRedactedAtAnyNestingLevel(): void
+    {
+        $record = new LogRecord(
+            new DateTimeImmutable(),
+            'request',
+            Level::Error,
+            'authorization=Bearer eyJ'.str_repeat('a', 20).'.'.str_repeat('b', 20).'.'.str_repeat('c', 20).' SQLSTATE[23505]\nSELECT password_hash FROM app_user\n    at handler (/var/www/app.php:42)\npassword=guess-me hash='.str_repeat('e', 64),
+            [
+                'password_hash' => 'password-hash-secret',
+                'refreshToken' => 'refresh-token-secret',
+                'cookie' => 'equo_refresh=refresh-cookie-secret',
+                'nested' => [
+                    'csrf_token' => 'csrf-secret',
+                    'encrypted_payload' => 'ciphertext-secret',
+                    'idempotency_key_hash' => 'key-hash-secret',
+                ],
+            ],
+        );
+
+        $safe = (new InvitationRedactionProcessor())($record);
+        $diagnostic = json_encode($safe->toArray(), JSON_THROW_ON_ERROR);
+
+        foreach ([
+            'eyJ'.str_repeat('a', 20).'.'.str_repeat('b', 20).'.'.str_repeat('c', 20),
+            'guess-me', 'password-hash-secret', 'refresh-token-secret',
+            'refresh-cookie-secret', 'csrf-secret', 'ciphertext-secret', 'key-hash-secret',
+            'SQLSTATE[23505]', 'password_hash', '/var/www',
+            str_repeat('e', 64),
+        ] as $secret) {
+            self::assertStringNotContainsString($secret, $diagnostic);
+        }
+    }
 }

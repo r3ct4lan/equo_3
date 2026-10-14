@@ -42,7 +42,7 @@ final class HttpInfrastructureController
 
     public function error(): never
     {
-        throw new RuntimeException('SQLSTATE password=secret at /var/www/backend/src/Internal.php:42');
+        throw new RuntimeException('SQLSTATE password=secret token=v1.'.str_repeat('t', 43).' authorization=Bearer eyJ'.str_repeat('a', 20).'.'.str_repeat('b', 20).'.'.str_repeat('c', 20).' cookie: equo_refresh=refresh-secret csrf-token=csrf-secret ciphertext=payload-secret at /var/www/backend/src/Internal.php:42');
     }
 
     /** @return array{user: UserRecord, token: UserActionTokenRecord, session: UserSessionRecord, identity: StoredLoginIdentity, login: LoginResult, outbox: EmailDeliveryOutboxRecord} */
