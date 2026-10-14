@@ -265,7 +265,10 @@ invitation marker. All implemented cross-table writers found in the route and
 application audit have rollback evidence; single-row writers and deferred
 routes are outside this audit.
 
-The CI result for this documentation update is pending.
+Quality workflow [#48](https://github.com/r3ct4lan/equo_3/actions/runs/38639948181)
+passed: **675 PHPUnit tests / 8,314 assertions**, migrations,
+backend/frontend quality, dependency audit, application smoke and **26 browser
+E2E** tests. Workspace drift checks passed.
 
 ## Hidden resource 404 privacy audit — DR-E7-022
 
