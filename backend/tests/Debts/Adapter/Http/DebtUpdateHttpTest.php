@@ -151,6 +151,7 @@ final class DebtUpdateHttpTest extends WebTestCase
         }
         $this->request('GET', $path, 2);
         self::assertResponseStatusCodeSame(200);
+        self::assertResponseHeaderSame('ETag', '"3"');
         self::assertSame(3, $this->body()['participantCount']);
     }
 
@@ -161,6 +162,7 @@ final class DebtUpdateHttpTest extends WebTestCase
         unset($command['payerId']);
         $path = '/api/v1/debts/'.$initial['id'];
         $this->request('GET', $path);
+        self::assertResponseHeaderSame('ETag', '"1"');
         $read = $this->body();
         $this->request('PUT', $path, 0, $command, etag: '"1"');
         self::assertResponseStatusCodeSame(200);
@@ -169,10 +171,12 @@ final class DebtUpdateHttpTest extends WebTestCase
         $changed = $this->updateBody();
         $this->request('PUT', $path, 0, $changed, etag: '"1"');
         self::assertResponseStatusCodeSame(200);
+        self::assertResponseHeaderSame('ETag', '"2"');
         $this->request('PUT', $path, 0, $command, etag: '"1"');
         $this->failure(409, 'VERSION_CONFLICT');
         self::assertSame(['expectedVersion' => 1, 'actualVersion' => 2], $this->body()['error']['details']);
         $this->request('GET', $path);
+        self::assertResponseHeaderSame('ETag', '"2"');
         self::assertSame(1201, $this->body()['totalAmount']);
         self::assertSame(2, $this->body()['version']);
     }
@@ -227,6 +231,7 @@ final class DebtUpdateHttpTest extends WebTestCase
     public static function badHeaders(): iterable
     {
         yield [null, 428, 'PRECONDITION_REQUIRED'];
+        yield ['', 428, 'PRECONDITION_REQUIRED'];
         foreach (['1', 'W/"1"', '*', '"1","2"', '"0"', '"01"', '"2147483648"', '"1" garbage'] as $header) {
             yield [$header, 400, 'INVALID_REQUEST'];
         }
