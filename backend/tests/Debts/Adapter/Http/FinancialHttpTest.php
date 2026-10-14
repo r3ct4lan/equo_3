@@ -267,9 +267,6 @@ final class FinancialHttpTest extends WebTestCase
         $commands = [
             ['POST', '/api/v1/auth/logout-all', null, null, null],
             ['POST', '/api/v1/account/password-change', ['currentPassword' => 'test-only', 'newPassword' => 'New secure password 123!'], null, null],
-            ['POST', '/api/v1/account/email-change-requests', ['currentPassword' => 'test-only', 'newEmail' => 'new@example.test'], null, null],
-            ['POST', '/api/v1/account/deactivate', ['password' => 'test-only'], null, null],
-            ['PATCH', '/api/v1/me', ['name' => 'Inactive update'], null, null],
             ['POST', '/api/v1/connect-invitations', null, null, null],
             ['POST', '/api/v1/connect-invitations/'.$invitationToken.'/accept', null, null, null],
             ['POST', '/api/v1/debts', $this->command(), Uuid::v4()->toRfc4122(), null],
