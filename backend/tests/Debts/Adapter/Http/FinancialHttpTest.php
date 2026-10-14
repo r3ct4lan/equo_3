@@ -88,6 +88,17 @@ final class FinancialHttpTest extends WebTestCase
         self::assertResponseHasHeader('X-Request-Id');
     }
 
+    /** @param array<string, mixed> $payload */
+    private function assertNoForeignEmails(array $payload, int $viewer): void
+    {
+        $response = json_encode($payload, JSON_THROW_ON_ERROR);
+        foreach ($this->users as $index => $id) {
+            if ($index !== $viewer) {
+                self::assertStringNotContainsString($id.'@example.test', $response);
+            }
+        }
+    }
+
     /** @return array<string,mixed> */
     private function create(): array
     {
@@ -164,6 +175,51 @@ final class FinancialHttpTest extends WebTestCase
         self::assertSame($hiddenHistoryError['message'], $this->body()['error']['message']);
         self::assertStringNotContainsString('Dinner', (string) $this->client->getResponse()->getContent());
         self::assertStringNotContainsString('@example.test', json_encode($debt, JSON_THROW_ON_ERROR));
+    }
+
+    public function testForeignEmailsAreAbsentFromEveryNestedFinancialReadModel(): void
+    {
+        $debt = $this->create();
+        $participant = array_values(array_filter($debt['participants'], fn (array $p): bool => $p['user']['id'] === $this->users[1]))[0];
+        $transferId = $participant['transferId'];
+        $transferConnectId = (string) $this->db->fetchOne('SELECT connect_id FROM transfer WHERE id=?', [$transferId]);
+
+        // Debt creation also returns the full nested debt representation.
+        $this->assertNoForeignEmails($debt, 0);
+
+        foreach ([0, 1, 2] as $viewer) {
+            $this->request('GET', '/api/v1/connects', $viewer);
+            self::assertResponseStatusCodeSame(200);
+            $this->assertNoForeignEmails($this->body(), $viewer);
+
+            $connectIds = $this->db->fetchFirstColumn(
+                'SELECT id FROM connect WHERE first_user_id=? OR second_user_id=?',
+                [$this->users[$viewer], $this->users[$viewer]],
+            );
+            foreach ($connectIds as $connectId) {
+                $this->request('GET', '/api/v1/connects/'.$connectId, $viewer);
+                self::assertResponseStatusCodeSame(200);
+                $this->assertNoForeignEmails($this->body(), $viewer);
+            }
+
+            $this->request('GET', '/api/v1/debts', $viewer);
+            self::assertResponseStatusCodeSame(200);
+            $this->assertNoForeignEmails($this->body(), $viewer);
+
+            $this->request('GET', '/api/v1/debts/'.$debt['id'], $viewer);
+            self::assertResponseStatusCodeSame(200);
+            $this->assertNoForeignEmails($this->body(), $viewer);
+        }
+
+        foreach ([0, 1] as $viewer) {
+            $this->request('GET', '/api/v1/transfers/'.$transferId, $viewer);
+            self::assertResponseStatusCodeSame(200);
+            $this->assertNoForeignEmails($this->body(), $viewer);
+
+            $this->request('GET', '/api/v1/connects/'.$transferConnectId.'/transfers', $viewer);
+            self::assertResponseStatusCodeSame(200);
+            $this->assertNoForeignEmails($this->body(), $viewer);
+        }
     }
 
     public function testExcludedParticipantRetainsTransferWithoutLeakingDebtAndDeletionFreezesAccess(): void

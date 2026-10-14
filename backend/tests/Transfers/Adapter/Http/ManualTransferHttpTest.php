@@ -96,6 +96,17 @@ final class ManualTransferHttpTest extends WebTestCase
         self::assertResponseHasHeader('X-Request-Id');
     }
 
+    /** @param array<string, mixed> $payload */
+    private function assertNoForeignEmails(array $payload, int $viewer): void
+    {
+        $response = json_encode($payload, JSON_THROW_ON_ERROR);
+        foreach ($this->users as $index => $id) {
+            if ($index !== $viewer) {
+                self::assertStringNotContainsString($id.'@example.test', $response);
+            }
+        }
+    }
+
     public function testBothDirectionsAuthorsReplayAndOverpayment(): void
     {
         $connect = $this->connect();
@@ -130,12 +141,18 @@ final class ManualTransferHttpTest extends WebTestCase
         self::assertSame($this->users[1], $this->body()['createdBy']['id']);
         foreach ([0 => 301, 1 => -301] as $viewer => $amount) {
             $this->request('GET', '/api/v1/connects/'.$connect, $viewer);
-            self::assertSame($amount, $this->body()['balanceAmount']);
+            $connectView = $this->body();
+            self::assertSame($amount, $connectView['balanceAmount']);
+            $this->assertNoForeignEmails($connectView, $viewer);
             $this->request('GET', $path, $viewer);
-            self::assertCount(2, $this->body()['items']);
+            $history = $this->body();
+            self::assertCount(2, $history['items']);
+            $this->assertNoForeignEmails($history, $viewer);
             $this->request('GET', '/api/v1/transfers/'.$first['id'], $viewer);
             self::assertResponseStatusCodeSame(200);
-            self::assertSame('MANUAL', $this->body()['type']);
+            $transfer = $this->body();
+            self::assertSame('MANUAL', $transfer['type']);
+            $this->assertNoForeignEmails($transfer, $viewer);
         }
         self::assertSame(0, (int) $this->db->fetchOne('SELECT COUNT(*) FROM debt WHERE created_by_id IN (?,?)', [$this->users[0], $this->users[1]]));
         self::assertStringNotContainsString('@example.test', json_encode($first, JSON_THROW_ON_ERROR));

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/404 privacy audits (`DR-E7-021—022`) |
-| Result | PASS for implemented slices and DR-E7-021—022; full SC-022 and release gate remain open |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy audits (`DR-E7-021—023`) |
+| Result | PASS through DR-E7-023; full SC-022 and release gate remain open |
 | Date | 2026-10-14 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy` |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy` |
 
 ## Evidence
 
@@ -163,6 +163,27 @@ bootstrap/login/reset operations use their documented public capability or
 credential checks, invitation preview is token-capability based, and current
 logout uses its refresh-cookie/CSRF guard (`LogoutHttpTest`); these boundaries
 have their own HTTP coverage.
+
+## Nested financial read-model privacy audit — DR-E7-023
+
+`FinancialHttpTest::testForeignEmailsAreAbsentFromEveryNestedFinancialReadModel`
+scans the complete JSON response for every fixture email except the current
+viewer. It covers `GET /connects` and `GET /connects/{id}` for each side,
+`GET /debts` and `GET /debts/{id}` for all debt participants,
+`GET /transfers/{id}` for both Connect sides, and
+`GET /connects/{id}/transfers` for both sides, including `MANUAL` rows with a
+nested `createdBy`. Debt creation is also checked because it returns the full
+nested debt view. Together these responses cover
+all financial read shapes specified in HTTP sections 11.1—11.2, 13.1—13.2 and
+14.1—14.3. Each nested user is additionally shaped by the existing DTOs to
+`id`, `name` and `isActive` only.
+
+Direct local PHPUnit could not run because the WSL host has PHP 8.3.19 while
+the locked PHPUnit requires PHP >= 8.4.1, and Docker Desktop integration is
+unavailable in WSL. Pull request quality workflow #34 passed: backend quality,
+all **670 PHPUnit tests / 8,231 assertions**, migrations, frontend
+quality/build, dependency audit, application smoke, and all **26 browser E2E**
+tests. CI also confirmed checks left no generated workspace changes.
 
 ## Hidden resource 404 privacy audit — DR-E7-022
 

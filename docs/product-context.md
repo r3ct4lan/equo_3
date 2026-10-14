@@ -161,3 +161,12 @@ gate (`DR-E7-042`), deployment review, staging SMTP и Product Owner release
 decision остаются открытыми. CI quality gate #31 прошёл для DR-E7-022;
 локальный `make check-full` остановился на проверке CI config, поскольку в WSL
 отсутствует Docker CLI.
+
+## Состояние после DR-E7-023 — 2026-10-14
+
+Финансовые read-модели проверены на отсутствие email других пользователей во
+всех вложенных ответах Connect, Debt и Transfer, включая MANUAL `createdBy` и
+полное представление Debt при создании. CI quality gate #34 прошёл: 670 backend
+тестов / 8 231 assertions и 26 browser E2E. Следующая задача security audit —
+`DR-E7-024`, проверка ограничений inactive user для всех commands. Полный SC-022,
+deployment review и решение Product Owner остаются открытыми.
