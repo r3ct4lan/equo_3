@@ -76,6 +76,14 @@ final class ConnectSchemaTest extends KernelTestCase
         $this->db->insert('connect', ['id' => '00000000-0000-4000-8000-000000000078'] + $row);
     }
 
+    public function testInvitationTokenHashIsUnique(): void
+    {
+        $this->db->insert('connect_invitation', ['id' => '00000000-0000-4000-8000-000000000080', 'created_by_id' => '00000000-0000-4000-8000-000000000071', 'token_hash' => 'duplicate-invitation-hash', 'created_at' => '2026-10-10 12:00:00+00', 'expires_at' => '2026-10-17 12:00:00+00']);
+
+        $this->expectException(DriverException::class);
+        $this->db->insert('connect_invitation', ['id' => '00000000-0000-4000-8000-000000000081', 'created_by_id' => '00000000-0000-4000-8000-000000000072', 'token_hash' => 'duplicate-invitation-hash', 'created_at' => '2026-10-10 12:00:00+00', 'expires_at' => '2026-10-17 12:00:00+00']);
+    }
+
     #[DataProvider('invalidInvitations')]
     public function testDatabaseRejectsInvalidInvitationLifecycle(?string $used, ?string $acceptor, string $expiry): void
     {
