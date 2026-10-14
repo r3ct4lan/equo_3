@@ -211,3 +211,15 @@ Transfer и принятие приглашения. Контролируемы�
 backend тестов / 8 314 assertions и 26 browser E2E. Следующая задача —
 `DR-E7-028`, проверка уникальных DB constraints. Полный SC-022, deployment
 review и решение Product Owner открыты.
+
+## Состояние после DR-E7-028 — 2026-10-14
+
+Подтверждены уникальные ограничения PostgreSQL и соответствие Doctrine mapping:
+canonical Connect pair, один participant на user/debt (в том числе soft-deleted),
+одна DEBT_SHARE на participant (в том числе soft-deleted), уникальные hashes
+action/invitation tokens, один незавершённый action token на user/purpose и
+уникальность idempotency tuple `(scope, operation, key)` с разрешёнными другими
+scope/operation. Добавлены недостающие integration tests. CI quality gate #51
+прошёл: 679 backend тестов / 8 318 assertions и 26 browser E2E. Следующая задача —
+`DR-E7-029`, audit redaction. Полный SC-022, deployment review и решение Product
+Owner открыты.

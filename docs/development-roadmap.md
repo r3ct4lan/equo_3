@@ -995,7 +995,7 @@ DR-E6-031—037 реализованы и функционально прове�
   versioned writers.
 - [x] `DR-E7-027` — проверить transaction rollback и отсутствие частичного
   состояния каждого многотабличного writer.
-- [ ] `DR-E7-028` — проверить DB constraints против duplicate pair,
+- [x] `DR-E7-028` — проверить DB constraints против duplicate pair,
   participant, share, token и idempotency state.
 - [ ] `DR-E7-029` — проверить password/token/JWT/cookie/ciphertext redaction
   в serializer, logs, E2E artifacts и failure paths.
@@ -1233,6 +1233,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 20 | 2026-10-14 | DR-E7-028: audit DB uniqueness constraints for pairs, participants, shares, tokens and idempotency tuples; 45/58 задач этапа 7 |
 | 19 | 2026-10-14 | DR-E7-027: transaction rollback/no-partial-state audit across implemented multi-table writers; 44/58 задач этапа 7 |
 | 18 | 2026-10-14 | DR-E7-026: If-Match/ETag audit for implemented versioned writer; 43/58 задач этапа 7 |
 | 17 | 2026-10-14 | DR-E7-025: idempotency header/replay/body/scope/operation matrix for implemented create commands; 42/58 задач этапа 7 |
