@@ -1020,7 +1020,7 @@ DR-E6-031—037 реализованы и функционально прове�
   Mailpit и не касается development volumes.
 - [x] `DR-E7-041` — расширить CI отдельным full-MVP job с безопасными
   artifacts.
-- [ ] `DR-E7-042` — `make check-full` охватывает текущий основной путь.
+- [x] `DR-E7-042` — `make check-full` охватывает текущий основной путь.
 - [x] `DR-E7-043` — dependency audits и repository secret checks проходят по
   принятой политике; два точечных npm advisory исключены до выхода исправлений.
 - [x] `DR-E7-044` — миграции проверены с нуля и на поддерживаемом upgrade path
@@ -1233,6 +1233,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 23 | 2026-10-15 | DR-E7-042: full current-main quality gate passed in CI, including isolated browser E2E; 48/58 задач этапа 7 |
 | 22 | 2026-10-15 | DR-E7-030: audit ADR-015 dependencies and pin coverage for Connects, Invitations, Debts and Transfers; 47/58 задач этапа 7 |
 | 21 | 2026-10-15 | DR-E7-029: redact credentials from serialization, logs, failure responses and browser diagnostics; 46/58 задач этапа 7 |
 | 20 | 2026-10-14 | DR-E7-028: audit DB uniqueness constraints for pairs, participants, shares, tokens and idempotency tuples; 45/58 задач этапа 7 |
