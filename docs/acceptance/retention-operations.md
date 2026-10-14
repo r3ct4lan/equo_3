@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy audits (`DR-E7-021—023`) |
-| Result | PASS through DR-E7-023; full SC-022 and release gate remain open |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy audits (`DR-E7-021—024`) |
+| Result | PASS through DR-E7-024; full SC-022 and release gate remain open |
 | Date | 2026-10-14 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy` |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands` |
 
 ## Evidence
 
@@ -184,6 +184,30 @@ unavailable in WSL. Pull request quality workflow #34 passed: backend quality,
 all **670 PHPUnit tests / 8,231 assertions**, migrations, frontend
 quality/build, dependency audit, application smoke, and all **26 browser E2E**
 tests. CI also confirmed checks left no generated workspace changes.
+
+## Inactive-user command audit — DR-E7-024
+
+`FinancialHttpTest::testInactiveBearerCannotIssueAnyImplementedProtectedCommand`
+reuses a previously valid access token after deactivating its account. It
+checks the protected `logout-all`, password-change, invitation create/accept,
+Debt create/update, and MANUAL create commands all return
+`401 AUTHENTICATION_REQUIRED`. It also verifies the pending invitation,
+existing debt/transfers, and account profile remain unchanged.
+
+`FinancialHttpTest::testDebtCreationRejectsInactivePayerOrParticipantWithoutPartialWrites`
+checks inactive payer and participant cases independently; both return
+`409 INACTIVE_USER` with no Debt, participant, Transfer, or Connect writes.
+Additional HTTP coverage verifies that an inactive invitation acceptor cannot
+consume the token. Existing regressions cover an inactive invitation author,
+inactive MANUAL counterparty, an inactive payer freezing Debt update, and
+reactivation being required to restore an excluded inactive participant.
+
+Scope follows actually implemented writer routes. Debt deletion is deferred
+under `SH-014`; account deactivation/email-change and MANUAL update/delete
+routes are not currently implemented. Pull request quality workflow #38
+passed: backend quality, **673 PHPUnit tests / 8,285 assertions**, migrations,
+frontend quality/build, dependency audit, application smoke, and all **26
+browser E2E** tests. CI confirmed there were no generated workspace changes.
 
 ## Hidden resource 404 privacy audit — DR-E7-022
 

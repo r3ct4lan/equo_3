@@ -170,3 +170,14 @@ decision остаются открытыми. CI quality gate #31 прошёл �
 тестов / 8 231 assertions и 26 browser E2E. Следующая задача security audit —
 `DR-E7-024`, проверка ограничений inactive user для всех commands. Полный SC-022,
 deployment review и решение Product Owner остаются открытыми.
+
+## Состояние после DR-E7-024 — 2026-10-14
+
+Проверены inactive-user restrictions для всех реализованных protected writers:
+неактивный текущий аккаунт получает `401`; inactive payer/participant блокирует
+создание Debt без частичных финансовых записей; invitation acceptance, MANUAL
+creation и Debt update сохраняют свои отдельные роли и ограничения. CI quality
+gate #38 прошёл: 673 backend теста / 8 285 assertions и 26 browser E2E. Следующая
+задача audit — `DR-E7-025`, матрица `Idempotency-Key` по scope, operation и body.
+Полный SC-022, deployment review и Product Owner release decision остаются
+открытыми.
