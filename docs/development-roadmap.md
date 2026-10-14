@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 11 |
+| Версия | 12 |
 | Дата актуальности | 2026-10-14 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -986,7 +986,7 @@ DR-E6-031—037 реализованы и функционально прове�
 - [x] `DR-E7-021` — проверить authentication/ACL для каждого protected read и
   writer.
 - [x] `DR-E7-022` — проверить `404` privacy для Connect, Debt и Transfer.
-- [ ] `DR-E7-023` — проверить отсутствие чужого email во всех nested read
+- [x] `DR-E7-023` — проверить отсутствие чужого email во всех nested read
   models.
 - [ ] `DR-E7-024` — проверить inactive-user restrictions во всех commands.
 - [ ] `DR-E7-025` — проверить Idempotency-Key scope/operation/body conflict
@@ -1233,6 +1233,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 15 | 2026-10-14 | DR-E7-023: recursive foreign-email assertions for all financial read shapes; 40/58 задач этапа 7 |
 | 14 | 2026-10-14 | DR-E7-022: identical 404 privacy responses for hidden/missing Connect, Debt and Transfer; 39/58 задач этапа 7 |
 | 13 | 2026-10-13 | DR-E7-021: protected route auth/ACL matrix and regressions; 38/58 задач этапа 7 |
 | 12 | 2026-10-13 | SC-022: deployment-configured email alert thresholds; 37/58 задач этапа 7 |

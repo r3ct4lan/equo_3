@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy audits (`DR-E7-021—023`) |
-| Result | PASS through DR-E7-022; DR-E7-023 implementation added, validation pending; full SC-022 and release gate remain open |
+| Result | PASS through DR-E7-023; full SC-022 and release gate remain open |
 | Date | 2026-10-14 |
 | Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy` |
 
@@ -178,9 +178,12 @@ all financial read shapes specified in HTTP sections 11.1—11.2, 13.1—13.2 an
 14.1—14.3. Each nested user is additionally shaped by the existing DTOs to
 `id`, `name` and `isActive` only.
 
-Validation is pending the project backend/quality workflow; direct local
-PHPUnit cannot run because the WSL host has PHP 8.3.19 while the locked PHPUnit
-requires PHP >= 8.4.1, and Docker Desktop integration is unavailable in WSL.
+Direct local PHPUnit could not run because the WSL host has PHP 8.3.19 while
+the locked PHPUnit requires PHP >= 8.4.1, and Docker Desktop integration is
+unavailable in WSL. Pull request quality workflow #34 passed: backend quality,
+all **670 PHPUnit tests / 8,231 assertions**, migrations, frontend
+quality/build, dependency audit, application smoke, and all **26 browser E2E**
+tests. CI also confirmed checks left no generated workspace changes.
 
 ## Hidden resource 404 privacy audit — DR-E7-022
 
