@@ -52,12 +52,14 @@ final class InvitationRedactionProcessorTest extends TestCase
 
         $safe = (new InvitationRedactionProcessor())($record);
         $diagnostic = json_encode($safe->toArray(), JSON_THROW_ON_ERROR);
+        self::assertSame('[redacted]', $safe->context['password_hash']);
+        self::assertSame('[redacted]', $safe->context['nested']['csrf_token']);
 
         foreach ([
             'eyJ'.str_repeat('a', 20).'.'.str_repeat('b', 20).'.'.str_repeat('c', 20),
             'guess-me', 'password-hash-secret', 'refresh-token-secret',
             'refresh-cookie-secret', 'csrf-secret', 'ciphertext-secret', 'key-hash-secret',
-            'SQLSTATE[23505]', 'password_hash', '/var/www',
+            'SQLSTATE[23505]', '/var/www',
             str_repeat('e', 64),
         ] as $secret) {
             self::assertStringNotContainsString($secret, $diagnostic);
