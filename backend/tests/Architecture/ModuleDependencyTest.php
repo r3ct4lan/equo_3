@@ -12,6 +12,28 @@ use SplFileInfo;
 final class ModuleDependencyTest extends TestCase
 {
     private const array BUSINESS_LAYERS = ['Domain', 'Application', 'Adapter'];
+    private const array ADR_015_AUDIT_MODULES = ['Connects', 'Invitations', 'Debts', 'Transfers'];
+
+    public function testAdr015AuditModulesHaveSourcesInEachRequiredLayer(): void
+    {
+        foreach (self::ADR_015_AUDIT_MODULES as $module) {
+            foreach (self::BUSINESS_LAYERS as $layer) {
+                $directory = $this->sourceRoot().'/'.$module.'/'.$layer;
+                self::assertDirectoryExists($directory);
+
+                $fileCount = 0;
+                $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory));
+
+                foreach ($iterator as $file) {
+                    if ($file->isFile() && 'php' === $file->getExtension()) {
+                        ++$fileCount;
+                    }
+                }
+
+                self::assertGreaterThan(0, $fileCount, sprintf('%s/%s must be included in the ADR-015 audit.', $module, $layer));
+            }
+        }
+    }
 
     public function testSourceNamespacesMatchTheirPaths(): void
     {
