@@ -236,3 +236,14 @@ artifacts. CI quality gate #55 прошёл: 680 backend тестов / 8 341 as
 26 browser E2E. Следующая задача — `DR-E7-030`, ADR-015 dependency/architecture
 audit для новых модулей. Полный SC-022, deployment review и решение Product
 Owner открыты.
+
+## Состояние после DR-E7-030 — 2026-10-15
+
+Завершён dependency/architecture audit по ADR-015 для Connects, Invitations,
+Debts и Transfers. Межмодульные вызовы идут только через опубликованные
+Application\Api; нарушений границ Domain/Adapter/Persistence не найдено.
+ModuleDependencyTest теперь явно закрепляет наличие каждого audited module и
+всех трёх слоёв в области проверки. CI quality gate #58 прошёл: 681 backend
+тест / 8 365 assertions и 26 browser E2E. Следующая незавершённая задача —
+DR-E7-042, повторить make check-full по текущему основному пути. Полный
+SC-022, deployment review и решение Product Owner остаются открытыми.

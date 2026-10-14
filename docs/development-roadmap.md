@@ -999,7 +999,7 @@ DR-E6-031—037 реализованы и функционально прове�
   participant, share, token и idempotency state.
 - [x] `DR-E7-029` — проверить password/token/JWT/cookie/ciphertext redaction
   в serializer, logs, E2E artifacts и failure paths.
-- [ ] `DR-E7-030` — выполнить dependency/architecture audit ADR-015 для новых
+- [x] `DR-E7-030` — выполнить dependency/architecture audit ADR-015 для новых
   модулей `Connects`, `Invitations`, `Debts` и `Transfers`.
 
 ### 11.5. Full product E2E и quality
@@ -1233,6 +1233,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 22 | 2026-10-15 | DR-E7-030: audit ADR-015 dependencies and pin coverage for Connects, Invitations, Debts and Transfers; 47/58 задач этапа 7 |
 | 21 | 2026-10-15 | DR-E7-029: redact credentials from serialization, logs, failure responses and browser diagnostics; 46/58 задач этапа 7 |
 | 20 | 2026-10-14 | DR-E7-028: audit DB uniqueness constraints for pairs, participants, shares, tokens and idempotency tuples; 45/58 задач этапа 7 |
 | 19 | 2026-10-14 | DR-E7-027: transaction rollback/no-partial-state audit across implemented multi-table writers; 44/58 задач этапа 7 |
