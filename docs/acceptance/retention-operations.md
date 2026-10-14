@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency/redaction/architecture audits (`DR-E7-021—030`), plus the full current-main quality gate (`DR-E7-042`) |
-| Result | PASS through DR-E7-042; full SC-022 and release gate remain open |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency/redaction/architecture audits (`DR-E7-021—030`), plus the full current-main quality gate (`DR-E7-042`) and deployment service inventory (`DR-E7-045`) |
+| Result | PASS through DR-E7-045; full SC-022 and release gate remain open |
 | Date | 2026-10-15 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit`, `codex/dr-e7-028-unique-constraints-audit`, `codex/dr-e7-029-redaction-audit`, `codex/dr-e7-030-adr015-audit`, `codex/dr-e7-042-check-full` |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit`, `codex/dr-e7-028-unique-constraints-audit`, `codex/dr-e7-029-redaction-audit`, `codex/dr-e7-030-adr015-audit`, `codex/dr-e7-042-check-full`, `codex/dr-e7-045-deployment-services-audit` |
 
 ## Evidence
 
@@ -392,3 +392,34 @@ full-gate evidence; the local attempt did not reach application or browser tests
 
 Quality workflow [#59](https://github.com/r3ct4lan/equo_3/actions/runs/38649371167)
 passed all jobs. Workspace drift checks passed.
+
+## Deployment service inventory — DR-E7-045
+
+The development Compose stack defines all seven required MVP services:
+
+| Service | Responsibility |
+|---|---|
+| nginx | Single public entry point; routes API requests to Symfony/PHP-FPM and page requests to Nuxt |
+| frontend | Nuxt web application |
+| backend | Symfony API and PHP-FPM |
+| postgres | PostgreSQL application database |
+| redis | Redis service used by the application |
+| rabbitmq | Async message broker |
+| worker | Relays the email outbox and consumes the async Messenger transport |
+
+Compose startup dependencies connect PostgreSQL, Redis and RabbitMQ to backend;
+Nginx waits for backend and frontend; worker waits for backend. Service names are
+now guarded by scripts/check-compose-services.sh, which reads the resolved
+Compose service list and fails if a required service is missing. GitHub Actions
+runs this guard in Repository quality.
+
+The operational runbook also lists the retention scheduler, which is an
+additional Compose service. This inventory verifies the committed development
+stack; production-specific defaults/secrets and health/readiness behavior remain
+separate roadmap checks.
+
+Quality workflow [#65](https://github.com/r3ct4lan/equo_3/actions/runs/38653250342)
+passed: **681 PHPUnit tests / 8,335 assertions**, six migrations,
+backend/frontend quality, dependency audit, application smoke and **26 browser
+E2E** tests. The required-service guard passed. Local Docker Compose checks
+remain unavailable because the WSL distribution has no Docker CLI.
