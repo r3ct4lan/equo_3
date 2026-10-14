@@ -1,33 +1,5 @@
 import { test as base } from '@playwright/test'
-
-function safePath(rawUrl: string): string {
-  try {
-    const url = new URL(rawUrl)
-    return `${url.origin}${url.pathname.replace(/[0-9a-f-]{36}\\.[A-Za-z0-9_-]{43}/giu, '[redacted]')}`
-  }
-  catch {
-    return '[invalid URL]'
-  }
-}
-
-function redact(message: string): string {
-  return message
-    .replace(/[0-9a-f-]{36}\\.[A-Za-z0-9_-]{43}/giu, '[redacted invitation]')
-    .replace(/https?:\/\/[^\s"'<>]+/giu, match => safePath(match))
-    .replace(/([?&]token=)[^\s&"']+/giu, '$1[redacted]')
-    .replace(/\brt\.[A-Za-z0-9_-]{20,}\b/gu, '[redacted refresh token]')
-    .replace(/\brt2\.[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}\b/gu, '[redacted refresh token]')
-    .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/gu, '[redacted jwt]')
-    .replace(/\bv\d+\.[A-Za-z0-9_-]{20,}(?:\.[A-Za-z0-9_-]{20,})?\b/gu, '[redacted token]')
-    .replace(/(Authorization:\s*Bearer\s+)[^\s,;]+/giu, '$1[redacted]')
-    .replace(/(authorization[=:]\s*Bearer\s+)[^\s,;]+/giu, '$1[redacted]')
-    .replace(/((?:Set-)?Cookie:\s*)[^\n\r]+/giu, '$1[redacted]')
-    .replace(/((?:set-)?cookie[=:]\s*)[^\n\r]+/giu, '$1[redacted]')
-    .replace(/(X-CSRF-Token:\s*)[^\s,;]+/giu, '$1[redacted]')
-    .replace(/(x-csrf-token[=:]\s*)[^\s,;]+/giu, '$1[redacted]')
-    .replace(/(password(?:\s*[:=]|\s*=\s*)\s*)[^\s,;]+/giu, '$1[redacted]')
-    .replace(/(\.value\s*=\s*['"])[^'"]+(['"])/giu, '$1[redacted]$2')
-}
+import { redact, safePath } from './redaction'
 
 export const test = base.extend({
   page: async ({ page }, use, testInfo) => {

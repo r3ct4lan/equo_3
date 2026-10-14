@@ -184,6 +184,11 @@ final class HttpInfrastructureTest extends WebTestCase
         self::assertSame('INTERNAL_SERVER_ERROR', $this->error($client)['code']);
         self::assertStringNotContainsString('SQLSTATE', $content);
         self::assertStringNotContainsString('password=secret', $content);
+        self::assertStringNotContainsString('v1.'.str_repeat('t', 43), $content);
+        self::assertStringNotContainsString('eyJ'.str_repeat('a', 20).'.'.str_repeat('b', 20).'.'.str_repeat('c', 20), $content);
+        self::assertStringNotContainsString('refresh-secret', $content);
+        self::assertStringNotContainsString('csrf-secret', $content);
+        self::assertStringNotContainsString('payload-secret', $content);
         self::assertStringNotContainsString('/var/www', $content);
     }
 
@@ -206,6 +211,11 @@ final class HttpInfrastructureTest extends WebTestCase
         $diagnostic = serialize($record->toArray());
         self::assertStringNotContainsString('SQLSTATE', $diagnostic);
         self::assertStringNotContainsString('password=secret', $diagnostic);
+        self::assertStringNotContainsString('v1.'.str_repeat('t', 43), $diagnostic);
+        self::assertStringNotContainsString('eyJ'.str_repeat('a', 20).'.'.str_repeat('b', 20).'.'.str_repeat('c', 20), $diagnostic);
+        self::assertStringNotContainsString('refresh-secret', $diagnostic);
+        self::assertStringNotContainsString('csrf-secret', $diagnostic);
+        self::assertStringNotContainsString('payload-secret', $diagnostic);
         self::assertStringNotContainsString('/var/www', $diagnostic);
     }
 
