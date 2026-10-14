@@ -180,6 +180,43 @@ final class FinancialHttpTest extends WebTestCase
         self::assertStringNotContainsString('@example.test', json_encode($debt, JSON_THROW_ON_ERROR));
     }
 
+    public function testIdempotencyKeyIsScopedByUserAndOperation(): void
+    {
+        $key = Uuid::v4()->toRfc4122();
+        $command = $this->command();
+
+        $this->request('POST', '/api/v1/debts', 0, $command, $key);
+        self::assertResponseStatusCodeSame(201);
+        $firstDebt = $this->body();
+
+        // The same key and operation are independent in another user's scope.
+        $this->request('POST', '/api/v1/debts', 1, $command, $key);
+        self::assertResponseStatusCodeSame(201);
+        $otherUserDebt = $this->body();
+        self::assertNotSame($firstDebt['id'], $otherUserDebt['id']);
+
+        // The same key in the same user scope is also independent for a new operation.
+        $connect = (string) $this->db->fetchOne(
+            'SELECT id FROM connect WHERE (first_user_id=? AND second_user_id=?) OR (first_user_id=? AND second_user_id=?)',
+            [$this->users[0], $this->users[1], $this->users[1], $this->users[0]],
+        );
+        $this->request('POST', '/api/v1/connects/'.$connect.'/transfers', 0, [
+            'senderId' => $this->users[1],
+            'receiverId' => $this->users[0],
+            'amount' => 100,
+        ], $key);
+        self::assertResponseStatusCodeSame(201);
+        $manualTransfer = $this->body();
+
+        // Replaying the original operation still returns its own saved result.
+        $this->request('POST', '/api/v1/debts', 0, $command, $key);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($firstDebt, $this->body());
+        self::assertSame(3, (int) $this->db->fetchOne('SELECT COUNT(*) FROM idempotency_record WHERE idempotency_key=?', [$key]));
+        self::assertSame(2, (int) $this->db->fetchOne('SELECT COUNT(*) FROM debt'));
+        self::assertSame($this->users[0], $manualTransfer['createdBy']['id']);
+    }
+
     public function testForeignEmailsAreAbsentFromEveryNestedFinancialReadModel(): void
     {
         $debt = $this->create();
