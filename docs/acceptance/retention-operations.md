@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy audits (`DR-E7-021—024`) |
-| Result | PASS through DR-E7-024; full SC-022 and release gate remain open |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency audits (`DR-E7-021—025`) |
+| Result | PASS through DR-E7-025; full SC-022 and release gate remain open |
 | Date | 2026-10-14 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands` |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix` |
 
 ## Evidence
 
@@ -208,6 +208,30 @@ routes are not currently implemented. Pull request quality workflow #38
 passed: backend quality, **673 PHPUnit tests / 8,285 assertions**, migrations,
 frontend quality/build, dependency audit, application smoke, and all **26
 browser E2E** tests. CI confirmed there were no generated workspace changes.
+
+## Idempotency-Key scope audit — DR-E7-025
+
+The implemented commands that require `Idempotency-Key` are registration,
+Debt creation and MANUAL creation. Existing HTTP tests cover missing/invalid
+keys, exact retry returning the saved response, and same-scope/same-operation
+body changes returning `409 IDEMPOTENCY_KEY_REUSED`. Registration also checks
+that a retry preserves its original response and does not consume more rate
+limit.
+
+`FinancialHttpTest::testIdempotencyKeyIsScopedByUserAndOperation` verifies
+that a key used for Debt creation by one user does not collide with the same
+key/operation used by another user, and that the same user/key is independent
+between `debt.create` and `manual_transfer.create`. It replays the first Debt
+command and checks that it returns the first Debt's saved response. Exactly
+three idempotency records are expected for these distinct scope/operation
+pairs.
+
+`POST /connects` is listed in HTTP 4.1 but is not implemented in the current
+controllers. Invitation creation has a different repeat-safe contract and
+does not accept an `Idempotency-Key`; both are outside this key matrix. Quality
+workflow #42 passed: **674 PHPUnit tests / 8,299 assertions**, migrations,
+backend/frontend quality, dependency audit, application smoke, and **26
+browser E2E** tests. Workspace drift checks passed.
 
 ## Hidden resource 404 privacy audit — DR-E7-022
 
