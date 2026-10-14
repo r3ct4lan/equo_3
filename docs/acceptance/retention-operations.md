@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency/redaction/architecture audits (`DR-E7-021—030`), plus the full current-main quality gate (`DR-E7-042`) and deployment service inventory (`DR-E7-045`) |
-| Result | PASS through DR-E7-045; full SC-022 and release gate remain open |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency/redaction/architecture audits (`DR-E7-021—030`), plus the full current-main quality gate (`DR-E7-042`), deployment service inventory (`DR-E7-045`), and environment/key-ring separation (`DR-E7-046`) |
+| Result | PASS through DR-E7-046; full SC-022 and release gate remain open |
 | Date | 2026-10-15 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit`, `codex/dr-e7-028-unique-constraints-audit`, `codex/dr-e7-029-redaction-audit`, `codex/dr-e7-030-adr015-audit`, `codex/dr-e7-042-check-full`, `codex/dr-e7-045-deployment-services-audit` |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit`, `codex/dr-e7-028-unique-constraints-audit`, `codex/dr-e7-029-redaction-audit`, `codex/dr-e7-030-adr015-audit`, `codex/dr-e7-042-check-full`, `codex/dr-e7-045-deployment-services-audit`, `codex/dr-e7-046-production-secrets` |
 
 ## Evidence
 
@@ -423,3 +423,28 @@ passed: **681 PHPUnit tests / 8,335 assertions**, six migrations,
 backend/frontend quality, dependency audit, application smoke and **26 browser
 E2E** tests. The required-service guard passed. Local Docker Compose checks
 remain unavailable because the WSL distribution has no Docker CLI.
+
+## Environment and key-ring separation — DR-E7-046
+
+The checked-in .env.example is explicitly local-development-only. compose.yaml
+no longer embeds default APP_SECRET, database/broker credentials, runtime URLs,
+SMTP configuration or signing/encryption keys. Compose interpolation fails if
+these values are absent. The runbook lists each production-required variable;
+deployment values belong in an external secret store, not a committed env file.
+
+Purpose-specific rings have separate active-version and key-ring variables for
+action tokens, invitations, idempotency fingerprints, JWT and CSRF. The payload
+encryption key is separate. Application codecs validate active-version
+membership, HMAC minimum lengths, the 32-byte payload key and the matching
+RS256 key pair when those services are constructed.
+
+GitHub Actions supplies isolated test-only environment values to resolve the
+development Compose file and run its checks; these are not deployment values.
+Quality workflow [#68](https://github.com/r3ct4lan/equo_3/actions/runs/38655581368)
+passed: **681 PHPUnit tests / 8,335 assertions**, six migrations,
+backend/frontend quality, dependency audit, application smoke and **26 browser
+E2E** tests. Required-service and Compose interpolation checks passed.
+
+The WSL environment lacks Docker CLI, so local Compose validation was not
+available. Production deployment and its secret-store configuration have not
+been exercised; DR-E7-047 health/readiness and worker restart checks remain open.
