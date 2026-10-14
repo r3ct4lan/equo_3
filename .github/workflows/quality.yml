@@ -19,6 +19,15 @@ env:
   APP_DEBUG: '1'
   APP_RUNTIME_OPTIONS: '{"disable_dotenv":true}'
   APP_SECRET: ci_test_only_not_a_production_secret
+  POSTGRES_DB: equo
+  POSTGRES_USER: equo
+  POSTGRES_PASSWORD: ci_postgres_test_only
+  RABBITMQ_DEFAULT_USER: equo
+  RABBITMQ_DEFAULT_PASS: ci_rabbitmq_test_only
+  BACKEND_DATABASE_URL: postgresql://equo:ci_postgres_test_only@postgres:5432/equo?serverVersion=17&charset=utf8
+  BACKEND_MESSENGER_TRANSPORT_DSN: amqp://equo:ci_rabbitmq_test_only@rabbitmq:5672/%2f/messages
+  BACKEND_REDIS_URL: redis://redis:6379
+  BACKEND_MAILER_DSN: smtp://mailpit:1025
   DATABASE_URL: postgresql://equo_ci:equo_ci_only@127.0.0.1:5432/equo_ci?serverVersion=17&charset=utf8
   MESSENGER_TRANSPORT_DSN: in-memory://
   MAILER_DSN: null://null

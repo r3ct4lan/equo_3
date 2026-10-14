@@ -269,3 +269,15 @@ quality подтвердил новый service guard. Локальный Docker
 development defaults и production-required secrets/key rings. Проверки
 production deployment, health/readiness и graceful worker restart остаются
 открытыми.
+
+## Состояние после DR-E7-046 — 2026-10-15
+
+Development values оставлены только в явно помеченном local-only .env.example.
+Compose требует явной передачи APP_SECRET, DB/broker credentials, runtime URLs,
+SMTP DSN и всех криптографических key rings; в Compose удалены inline
+credential/key defaults. Операционный runbook перечисляет production-required
+переменные, а приложение валидирует key formats при создании codec services.
+CI #68 прошёл: 681 backend test / 8 335 assertions и 26 browser E2E. Локальная
+Compose validation недоступна без Docker CLI в WSL; production deployment ещё
+не упражнялся. Следующая задача — DR-E7-047, проверить healthchecks, startup
+dependencies и graceful worker restart.

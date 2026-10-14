@@ -19,15 +19,38 @@ make ps
 docker compose logs --tail=100 backend worker retention rabbitmq
 ```
 
-The commands above use the development Compose configuration. Its sample
-credentials and signing keys are development-only. A deployment must supply
-unique values for `APP_SECRET`, JWT private/public keys, CSRF key ring, action
-token HMAC key ring, invitation signing key ring, idempotency fingerprint key
-ring, email payload encryption key, database/Redis/RabbitMQ credentials,
-application origins and SMTP DSN/from address. Do not copy example keys or
-development passwords into a deployed environment. The exact variable names
-and profiles are defined in `compose.yaml`, `docs/security/access-model.md` and
-ADR-008/016/017/018/019.
+The commands above use the development Compose configuration. `.env.example`
+contains local-only sample credentials and keys. Compose requires the values to
+be supplied by the environment; it no longer embeds secret/key-ring defaults.
+For local development, copy `.env.example` to `.env`. Do not use that file for a
+deployment.
+
+Production deployments must provide their own values through the deployment
+secret store. Required values are grouped here:
+
+| Purpose | Required variables |
+|---|---|
+| Symfony and origins | `APP_SECRET`, `DEFAULT_URI`, `FRONTEND_BASE_URL`, `EQUO_APPLICATION_ORIGIN` |
+| PostgreSQL | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `BACKEND_DATABASE_URL` |
+| Redis and async transport | `BACKEND_REDIS_URL`, `BACKEND_MESSENGER_TRANSPORT_DSN`, `RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS` |
+| SMTP | `BACKEND_MAILER_DSN`, `MAILER_FROM` |
+| User action tokens | `ACTION_TOKEN_ACTIVE_VERSION`, `ACTION_TOKEN_HMAC_KEYS` |
+| Invitation capabilities | `EQUO_INVITATION_SIGNING_VERSION`, `EQUO_INVITATION_SIGNING_KEYS` |
+| Idempotency fingerprints | `IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION`, `IDEMPOTENCY_FINGERPRINT_HMAC_KEYS` |
+| JWT access tokens | `EQUO_JWT_SIGNING_KEY_VERSION`, `EQUO_JWT_SIGNING_PRIVATE_KEY`, `EQUO_JWT_PUBLIC_KEY_RING`, `EQUO_JWT_ISSUER`, `EQUO_JWT_AUDIENCE` |
+| CSRF tokens | `EQUO_CSRF_SIGNING_KEY_VERSION`, `EQUO_CSRF_SIGNING_KEY_RING` |
+| Email payload encryption | `EMAIL_PAYLOAD_KEY` |
+
+Set active key versions to entries present in their rings. HMAC keys must decode
+to at least 32 bytes; the email payload key must decode to exactly 32 bytes; the
+JWT private key and active public key must form a matching RS256 pair. The
+application validates these formats when the associated services are built.
+Keep purpose-specific keys separate and rotate them according to the procedures
+below. Do not commit production environment files or copy example keys/passwords
+to a deployment. Production deployment itself has not yet been exercised.
+
+The exact variable bindings are in `compose.yaml`; protocol profiles are in
+`docs/security/access-model.md` and ADR-008/016/017/018/019.
 
 ## Backlog and delivery diagnostics
 
