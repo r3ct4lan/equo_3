@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 16 |
-| Дата актуальности | 2026-10-13 |
+| Версия | 17 |
+| Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
 
@@ -207,6 +207,12 @@ dependency audit; остальные критерии release gate остают�
 key, GitHub, AWS, Slack и live payment token patterns. Это лёгкая штатная
 защита, а не полноценная entropy/history scanner. Реальные secrets запрещено
 передавать через repository или CI variables этой задачи.
+
+`scripts/check-compose-services.sh` разрешает основной Compose config и
+проверяет наличие обязательных services, healthchecks, условия ожидания healthy
+dependencies, PHP-FPM ping и Nginx API probe. Он также фиксирует worker
+entrypoint с передачей SIGTERM и 90-секундное окно остановки. Repository quality
+в CI запускает этот guard.
 
 CI и полный локальный gate дополнительно проверяют полный
 `git status --porcelain=v1 --untracked-files=all` после инструментов. Поэтому

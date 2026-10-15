@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 14 |
-| Дата актуальности | 2026-10-14 |
+| Версия | 15 |
+| Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
 
@@ -1032,7 +1032,7 @@ DR-E6-031—037 реализованы и функционально прове�
   backend, PostgreSQL, Redis, RabbitMQ и worker.
 - [x] `DR-E7-046` — разделить development defaults и production-required
   secrets/key rings.
-- [ ] `DR-E7-047` — проверить healthchecks, startup dependencies и graceful
+- [x] `DR-E7-047` — проверить healthchecks, startup dependencies и graceful
   worker restart.
 - [x] `DR-E7-048` — документировать миграцию, запуск workers, cleanup,
   monitoring и failure replay.
@@ -1233,6 +1233,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 26 | 2026-10-15 | DR-E7-047: verify service healthchecks and startup dependencies; forward shutdown signals to Messenger worker; 52/58 задач этапа 7 |
 | 25 | 2026-10-15 | DR-E7-046: separate local-only samples from required external deployment secrets/key rings; 51/58 задач этапа 7 |
 | 24 | 2026-10-15 | DR-E7-045: verify and guard the seven required Compose deployment services; 50/58 задач этапа 7 |
 | 23 | 2026-10-15 | DR-E7-042: full current-main quality gate passed in CI, including isolated browser E2E; 48/58 задач этапа 7 |

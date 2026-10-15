@@ -10,6 +10,8 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.l
     && rm -rf /var/lib/apt/lists/* /tmp/pear
 
 COPY docker/php/zz-equo-access.conf /usr/local/etc/php-fpm.d/zz-equo-access.conf
+COPY docker/php/worker-entrypoint.sh /usr/local/bin/equo-worker-entrypoint
+RUN chmod 0755 /usr/local/bin/equo-worker-entrypoint
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/backend
