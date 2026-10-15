@@ -99,3 +99,14 @@ Snapshot 5b1d981 fast-forward merged в main после функциональн
 Проверенные application files при merge не менялись; roadmap отмечает 68/70
 задач этапа 3. DR-E3-066/070 сохраняют общий audit blocker; продуктовая приёмка
 и готовность MVP не подтверждены.
+
+## Повторная проверка quality gate — 2026-10-15
+
+На `main` snapshot `c390841` GitHub Actions run `38766369660` завершил полный
+workflow успешно: backend/frontend quality и build, миграции и тесты,
+dependency audit по принятой политике, full MVP browser E2E и application
+smoke. Browser job проходит создание долга двумя пользователями и проверяет
+доли, историю, баланс и privacy. CI запускает проектные проверки, описанные в
+`docs/quality-gate.md`; локальный `make check` отдельно не запускался. Это
+закрывает технические DR-E3-066/070. Product Owner acceptance и готовность MVP
+остаются отдельным решением.

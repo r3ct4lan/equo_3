@@ -77,6 +77,18 @@ DR-E2-042/045 остаются открытыми. SC-009 покрыт толь�
 Ветка функционально проверена; отметки roadmap обновляются после интеграции
 в main. Merge не означает закрытие dependency audit или продуктовую приёмку.
 
+## Повторная проверка quality gate — 2026-10-15
+
+На `main` snapshot `c390841` GitHub Actions run `38766369660` завершил полный
+workflow успешно: repository quality, backend quality, backend tests and
+migrations, frontend quality/build, dependency audit, full MVP browser E2E и
+application smoke. E2E job включает двухпользовательский путь приглашения и
+принятия Connect. Workflow проходит по принятой audit policy, включая два
+точечных временных npm advisory из DR-E7-060. Локальная команда не запускалась;
+CI выполняет те же проектные Composer/npm/Make scripts и изолированный browser
+journey по `docs/quality-gate.md`. Это закрывает технические DR-E2-042/045;
+Product Owner acceptance и готовность MVP остаются отдельным решением.
+
 ## Интеграция — 2026-10-11
 
 SC-008 fast-forward merged в main после проверки snapshot 8cef3ba.

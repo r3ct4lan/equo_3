@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 20 |
+| Версия | 26 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -142,11 +142,11 @@ read endpoints SC-009/012/015. MANUAL и исправление долга ос�
 | Этап | Результат | Сценарии | Зависит от | Статус |
 |---:|---|---|---|---|
 | 1 | Login, refresh и защищённая browser-сессия | `MVP-SC-002`, часть `020` | исходный срез | `[x]` |
-| 2 | Два пользователя создают постоянный `Connect` по приглашению | `MVP-SC-008`, часть `009/020/021` | этап 1 | `[ ]` |
+| 2 | Два пользователя создают постоянный `Connect` по приглашению | `MVP-SC-008`, часть `009/020/021` | этап 1 | `[x]` |
 | 3 | Общий расход создаёт доли, историю и объяснимый баланс | `MVP-SC-009/011/012/015`, части `020/021` | этапы 1—2 | `[ ]` |
-| 4 | Ручной трансфер изменяет баланс | `MVP-SC-016`, части `020/021` | этап 3 | `[ ]` |
-| 5 | Автор исправляет долг с полным перерасчётом | `MVP-SC-013`, части `020/021` | этап 3 | `[ ]` functional PASS; release audit blocked |
-| 6 | Завершён обязательный security lifecycle аккаунта | завершение `001`, `003/004/005`, части `019/020/021` | этап 1 | `[ ]` |
+| 4 | Ручной трансфер изменяет баланс | `MVP-SC-016`, части `020/021` | этап 3 | `[x]` |
+| 5 | Автор исправляет долг с полным перерасчётом | `MVP-SC-013`, части `020/021` | этап 3 | `[x]` |
+| 6 | Завершён обязательный security lifecycle аккаунта | завершение `001`, `003/004/005`, части `019/020/021` | этап 1 | `[x]` |
 | 7 | MVP эксплуатационно готов и полностью проверен | завершение `019/020/021/022` | этапы 1—6 | `[ ]` |
 
 Порядок оптимизирован для ранней проверки бизнес-гипотезы. После минимальной
@@ -160,12 +160,12 @@ production-сессии и `Connect` сначала строится финан�
 |---|---:|---:|---|
 | Реализованный baseline | 8 | 10 | Первый ограниченный срез работает |
 | Этап 1 | 53 | 53 | Завершён |
-| Этап 2 | 43 | 45 | SC-008 merged; functional PASS; DR-E2-042/045 blocked dependency audit |
-| Этап 3 | 68 | 70 | SC-011 merged; functional PASS; DR-E3-066/070 blocked dependency audit |
-| Этап 4 | 26 | 28 | SC-016 merged; functional PASS; DR-E4-026/028 blocked dependency audit |
-| Этап 5 | 35 | 37 | SC-013 functional PASS; merged в main; DR-E5-035/037 blocked dependency audit |
-| Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
-| Этап 7 | 39 | 58 | Retention, email operations, API inventory, protected-route auth/ACL and 404 privacy audits, full browser journeys, CI E2E and migration slices PASS; two npm GHSA accepted temporarily; release gate remains open |
+| Этап 2 | 45 | 45 | SC-008 merged; full CI quality gate and two-user E2E PASS |
+| Этап 3 | 70 | 70 | SC-011 merged; full CI quality gate and financial browser E2E PASS |
+| Этап 4 | 28 | 28 | SC-016 merged; full CI quality gate and MANUAL browser E2E PASS |
+| Этап 5 | 37 | 37 | SC-013 merged; full CI quality gate and recalculation browser E2E PASS |
+| Этап 6 | 53 | 53 | SC-001/003/004/005 merged; full CI quality gate and security E2E PASS |
+| Этап 7 | 55 | 59 | Full CI quality gate and MVP browser journeys PASS; DR-E7-054/058/060 remain open, so release gate remains open |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
 
@@ -429,10 +429,10 @@ access token и защищённую refresh-сессию, может перез
 
 - [x] `DR-E2-041` — обновить фактическую схему, backend structure, access
   model и frontend foundation.
-- [ ] `DR-E2-042` — `make check` и двухпользовательский E2E проходят.
+- [x] `DR-E2-042` — `make check` и двухпользовательский E2E проходят.
 - [x] `DR-E2-043` — одна пара не создаётся дважды при повторах/гонках.
 - [x] `DR-E2-044` — token и чужие персональные данные не раскрываются.
-- [ ] `DR-E2-045` — этап 2 закрыт и строка сводной карты отмечена `[x]`.
+- [x] `DR-E2-045` — этап 2 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
 
@@ -602,13 +602,13 @@ access token и защищённую refresh-сессию, может перез
   model, frontend foundation и HTTP implementation.
 - [x] `DR-E3-065` — обновить ER DOT/SVG/PNG только если реализация потребовала
   принятого изменения нормативной модели.
-- [ ] `DR-E3-066` — `make check` и финансовый E2E проходят.
+- [x] `DR-E3-066` — `make check` и финансовый E2E проходят.
 - [x] `DR-E3-067` — баланс полностью воспроизводится из active Transfer.
 - [x] `DR-E3-068` — повтор/гонка не создаёт второй Debt, participant, Connect
   или `DEBT_SHARE`.
 - [x] `DR-E3-069` — недоступный пользователь не получает название, состав,
   email или историю чужого Debt.
-- [ ] `DR-E3-070` — этап 3 закрыт и строка сводной карты отмечена `[x]`.
+- [x] `DR-E3-070` — этап 3 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
 
@@ -673,10 +673,10 @@ access token и защищённую refresh-сессию, может перез
 - [x] `DR-E4-024` — browser E2E:
   `existing debt balance → MANUAL → changed balance/history у обеих сторон`.
 - [x] `DR-E4-025` — обновить фактическую документацию.
-- [ ] `DR-E4-026` — `make check` проходит.
+- [x] `DR-E4-026` — `make check` проходит.
 - [x] `DR-E4-027` — основной продуктовый путь раздела 6 `mvp-scope.md`
   проходит целиком.
-- [ ] `DR-E4-028` — этап 4 закрыт и строка сводной карты отмечена `[x]`.
+- [x] `DR-E4-028` — этап 4 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
 
@@ -760,10 +760,10 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 - [x] `DR-E5-033` — browser E2E: изменение amount/composition меняет все
   затронутые shares и balances у участников.
 - [x] `DR-E5-034` — обновить фактическую документацию.
-- [ ] `DR-E5-035` — `make check` проходит.
+- [x] `DR-E5-035` — `make check` проходит.
 - [x] `DR-E5-036` — ни один stale/failed update не оставляет частично
   пересчитанный агрегат.
-- [ ] `DR-E5-037` — этап 5 закрыт и строка сводной карты отмечена `[x]`.
+- [x] `DR-E5-037` — этап 5 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
 
@@ -916,13 +916,13 @@ DR-E6-031—037 реализованы и функционально прове�
 
 - [x] `DR-E6-048` — обновить фактическую схему/структуру/access/frontend/HTTP
   документы.
-- [ ] `DR-E6-049` — `make check` и security E2E проходят.
+- [x] `DR-E6-049` — `make check` и security E2E проходят.
 - [x] `DR-E6-050` — потерянный password восстанавливается без ручного
   изменения БД.
 - [x] `DR-E6-051` — logout и security changes прекращают долгоживущий refresh
   access в предусмотренных границах.
 - [x] `DR-E6-052` — public requests не подтверждают существование email.
-- [ ] `DR-E6-053` — этап 6 закрыт и строка сводной карты отмечена `[x]`.
+- [x] `DR-E6-053` — этап 6 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
 
@@ -1062,6 +1062,10 @@ DR-E6-031—037 реализованы и функционально прове�
   аудит и проверенная route surface зафиксированы в
   [acceptance](acceptance/no-hidden-dependencies.md).
 - [ ] `DR-E7-057` — все семь строк сводной карты отмечены `[x]`.
+  Этапы 2—6 закрыты по успешному current-main CI; строка этапа 7 остаётся
+  открытой из-за DR-E7-054 (evidence целевого deployment и staging SMTP),
+  DR-E7-058 (отдельное решение владельца) и DR-E7-060 (выход исправленных
+  upstream-пакетов и обновление зависимостей по решению владельца).
 - [ ] `DR-E7-058` — MVP признан готовым отдельным решением владельца с датой
   и ссылкой на release/commit.
 - [ ] `DR-E7-060` — после публикации исправленных версий для GHSA-vfj7-8cjw-p6xm
@@ -1252,6 +1256,12 @@ Product Owner release decision и production deployment evidence этим ста
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 37 | 2026-10-15 | DR-E7-057 audit: close stages 2—6 from current-main full CI evidence; stage 7 is 55/59 with deployment/SMTP, owner decision, and patched-package work open |
+| 36 | 2026-10-15 | DR-E6-049/053: current-main full CI and security browser journeys PASS; close stage 6 (53/53) |
+| 35 | 2026-10-15 | DR-E5-035/037: current-main full CI and debt recalculation browser E2E PASS; close stage 5 (37/37) |
+| 34 | 2026-10-15 | DR-E4-026/028: current-main full CI and MANUAL browser E2E PASS; close stage 4 (28/28) |
+| 33 | 2026-10-15 | DR-E3-066/070: current-main full CI and financial browser E2E PASS; close stage 3 (70/70) |
+| 32 | 2026-10-15 | DR-E2-042/045: current-main full CI and two-user browser E2E PASS; close stage 2 (45/45) |
 | 31 | 2026-10-15 | DR-E7-056: audit Should/Later/Out-of-scope routes and the full required user journey; no hidden dependency found; 56/58 задач этапа 7 |
 | 30 | 2026-10-15 | DR-E7-055: verify permitted operator flows and remove manual non-dry-run cleanup from operational instructions; 55/58 задач этапа 7 |
 | 29 | 2026-10-15 | DR-E7-054: review all launch blocker categories; keep open for unverified target deployment and staging SMTP evidence; 54/58 задач этапа 7 |
