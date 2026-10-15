@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 22 |
+| Версия | 23 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -144,7 +144,7 @@ read endpoints SC-009/012/015. MANUAL и исправление долга ос�
 | 1 | Login, refresh и защищённая browser-сессия | `MVP-SC-002`, часть `020` | исходный срез | `[x]` |
 | 2 | Два пользователя создают постоянный `Connect` по приглашению | `MVP-SC-008`, часть `009/020/021` | этап 1 | `[x]` |
 | 3 | Общий расход создаёт доли, историю и объяснимый баланс | `MVP-SC-009/011/012/015`, части `020/021` | этапы 1—2 | `[ ]` |
-| 4 | Ручной трансфер изменяет баланс | `MVP-SC-016`, части `020/021` | этап 3 | `[ ]` |
+| 4 | Ручной трансфер изменяет баланс | `MVP-SC-016`, части `020/021` | этап 3 | `[x]` |
 | 5 | Автор исправляет долг с полным перерасчётом | `MVP-SC-013`, части `020/021` | этап 3 | `[ ]` functional PASS; release audit blocked |
 | 6 | Завершён обязательный security lifecycle аккаунта | завершение `001`, `003/004/005`, части `019/020/021` | этап 1 | `[ ]` |
 | 7 | MVP эксплуатационно готов и полностью проверен | завершение `019/020/021/022` | этапы 1—6 | `[ ]` |
@@ -162,7 +162,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 1 | 53 | 53 | Завершён |
 | Этап 2 | 45 | 45 | SC-008 merged; full CI quality gate and two-user E2E PASS |
 | Этап 3 | 70 | 70 | SC-011 merged; full CI quality gate and financial browser E2E PASS |
-| Этап 4 | 26 | 28 | SC-016 merged; functional PASS; DR-E4-026/028 blocked dependency audit |
+| Этап 4 | 28 | 28 | SC-016 merged; full CI quality gate and MANUAL browser E2E PASS |
 | Этап 5 | 35 | 37 | SC-013 functional PASS; merged в main; DR-E5-035/037 blocked dependency audit |
 | Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
 | Этап 7 | 39 | 58 | Retention, email operations, API inventory, protected-route auth/ACL and 404 privacy audits, full browser journeys, CI E2E and migration slices PASS; two npm GHSA accepted temporarily; release gate remains open |
@@ -673,10 +673,10 @@ access token и защищённую refresh-сессию, может перез
 - [x] `DR-E4-024` — browser E2E:
   `existing debt balance → MANUAL → changed balance/history у обеих сторон`.
 - [x] `DR-E4-025` — обновить фактическую документацию.
-- [ ] `DR-E4-026` — `make check` проходит.
+- [x] `DR-E4-026` — `make check` проходит.
 - [x] `DR-E4-027` — основной продуктовый путь раздела 6 `mvp-scope.md`
   проходит целиком.
-- [ ] `DR-E4-028` — этап 4 закрыт и строка сводной карты отмечена `[x]`.
+- [x] `DR-E4-028` — этап 4 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
 
@@ -1252,6 +1252,7 @@ Product Owner release decision и production deployment evidence этим ста
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 34 | 2026-10-15 | DR-E4-026/028: current-main full CI and MANUAL browser E2E PASS; close stage 4 (28/28) |
 | 33 | 2026-10-15 | DR-E3-066/070: current-main full CI and financial browser E2E PASS; close stage 3 (70/70) |
 | 32 | 2026-10-15 | DR-E2-042/045: current-main full CI and two-user browser E2E PASS; close stage 2 (45/45) |
 | 31 | 2026-10-15 | DR-E7-056: audit Should/Later/Out-of-scope routes and the full required user journey; no hidden dependency found; 56/58 задач этапа 7 |

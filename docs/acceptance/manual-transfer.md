@@ -49,3 +49,14 @@ DR-E4-026/028 остаются открытыми: release gate не PASS, эт�
 продуктовую приёмку или готовность MVP. Политика audit не менялась.
 SC-013 (этап 5), эксплуатационный этап 7 и Product Owner acceptance остаются
 отдельными работами. Нормативная модель/ER/BR не менялись.
+
+## Повторная проверка quality gate — 2026-10-15
+
+На `main` snapshot `c390841` GitHub Actions run `38766369660` завершил полный
+workflow успешно: backend/frontend quality и build, миграции и тесты,
+dependency audit по принятой политике, full MVP browser E2E и application
+smoke. Browser job проходит MANUAL transfer journey и проверяет изменение
+баланса и истории. CI запускает проектные проверки из `docs/quality-gate.md`;
+локальный `make check` отдельно не запускался. Это закрывает технические
+DR-E4-026/028; Product Owner acceptance и готовность MVP остаются отдельным
+решением.
