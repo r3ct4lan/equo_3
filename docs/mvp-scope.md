@@ -5,8 +5,8 @@
 | Название | Equo — границы MVP |
 | Назначение | Зафиксировать проверяемый состав MVP и защитить его от неконтролируемого расширения |
 | Статус | Accepted |
-| Версия | 5 |
-| Дата актуальности | 2026-10-13 |
+| Версия | 6 |
+| Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Нормативные бизнес-правила, модель данных, HTTP-контракты и ADR |
 | Реализованный сценарий | `MVP-SC-001`: первичная регистрация с активацией по первому email |
@@ -797,9 +797,14 @@ logout/revoke (SC-003), reset/change password (SC-004/005), invitation и
 
 SC-013 дополнительно проверяет edit, исключение/возвращение, stale writer и
 неизменность MANUAL: [акт SC-013](acceptance/update-debt.md).
-Это не закрывает критерии запуска: финальная эксплуатационная проверка
-SC-019—022 и Product Owner acceptance остаются открытыми. На 2026-10-13 владелец
-временно принял два npm advisory без опубликованных исправлений; точечная
-allowlist не блокирует аудит, остальные findings продолжают блокировать.
-Полный gate после изменения не повторён из-за недоступного Docker CLI в WSL.
-Границы Must/Should/Later/Out и нормативные требования разделов 1—20 не менялись.
+Это не закрывает критерии запуска: production deployment evidence и Product
+Owner acceptance остаются открытыми. На 2026-10-13 владелец
+временно принял два npm advisory без опубликованных исправлений; они остаются
+единственными npm audit exceptions. Текущий main snapshot прошёл quality
+workflow [#73](https://github.com/r3ct4lan/equo_3/actions/runs/38659998867):
+681 PHPUnit tests / 8,335 assertions, migrations, backend/frontend quality,
+dependency audit, application smoke и 26 browser E2E. Compose startup/stop и
+production deployment в WSL не запускались из-за отсутствия Docker CLI.
+Технический статус 16 Must have зафиксирован в [traceability matrix](development-roadmap.md#14-traceability-всех-сценариев);
+он не является Product Owner решением о запуске. Границы Must/Should/Later/Out
+и нормативные требования разделов 1—20 не менялись.
