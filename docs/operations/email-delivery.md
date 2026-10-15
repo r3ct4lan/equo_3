@@ -25,6 +25,24 @@ be supplied by the environment; it no longer embeds secret/key-ring defaults.
 For local development, copy `.env.example` to `.env`. Do not use that file for a
 deployment.
 
+Compose waits for PostgreSQL, Redis and RabbitMQ health before starting the
+backend. Nginx waits for the healthy backend and frontend, and the email worker
+waits for the healthy backend. The backend probe calls PHP-FPM's private ping
+path; Nginx separately requests `/api/health`. These probes support startup
+readiness and do not replace production monitoring or a deployment exercise.
+
+The worker entrypoint forwards `SIGTERM` to its active relay or Messenger
+consumer. Messenger consumers are rotated every five seconds, and Compose
+allows 90 seconds for a stopped worker to finish its current message. To request
+a graceful worker replacement during an update:
+
+```bash
+docker compose up -d --build --wait worker
+```
+
+Check the resulting state with `docker compose ps` and inspect worker logs if
+startup fails.
+
 Production deployments must provide their own values through the deployment
 secret store. Required values are grouped here:
 

@@ -281,3 +281,18 @@ CI #68 прошёл: 681 backend test / 8 335 assertions и 26 browser E2E. Ло
 Compose validation недоступна без Docker CLI в WSL; production deployment ещё
 не упражнялся. Следующая задача — DR-E7-047, проверить healthchecks, startup
 dependencies и graceful worker restart.
+
+## Состояние после DR-E7-047 — 2026-10-15
+
+Основной Compose stack теперь проверяет PHP-FPM ping, API `/api/health`, frontend
+и инфраструктурные сервисы отдельными healthchecks; зависимости backend, Nginx и
+worker запускаются после healthy dependencies. Worker пересылает SIGTERM
+активному relay/consumer, Messenger consumer перезапускается каждые пять секунд,
+Compose ждёт остановку до 90 секунд. Compose guard включён в
+Repository quality. CI #71 выявил задержку outbox relay при 60-секундном
+consumer; интервал восстановлен до пяти секунд и закреплён guard-проверкой.
+CI #72 прошёл полностью: 681 backend test / 8 335 assertions, frontend build,
+smoke и 26 browser E2E — [workflow](https://github.com/r3ct4lan/equo_3/actions/runs/38659025957).
+Следующая
+незавершённая задача roadmap — DR-E7-052, финальная traceability-проверка Must
+have; production deployment и Product Owner acceptance остаются открытыми.

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency/redaction/architecture audits (`DR-E7-021—030`), plus the full current-main quality gate (`DR-E7-042`), deployment service inventory (`DR-E7-045`), and environment/key-ring separation (`DR-E7-046`) |
-| Result | PASS through DR-E7-046; full SC-022 and release gate remain open |
+| Scope | Retention and email operations slices (`DR-E7-001—018`) and protected-route auth/ACL/privacy/consistency/redaction/architecture audits (`DR-E7-021—030`), plus the full current-main quality gate (`DR-E7-042`), deployment service inventory (`DR-E7-045`), environment/key-ring separation (`DR-E7-046`), and health/readiness/startup/worker shutdown checks (`DR-E7-047`) |
+| Result | PASS through DR-E7-047; full SC-022 and release gate remain open |
 | Date | 2026-10-15 |
-| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit`, `codex/dr-e7-028-unique-constraints-audit`, `codex/dr-e7-029-redaction-audit`, `codex/dr-e7-030-adr015-audit`, `codex/dr-e7-042-check-full`, `codex/dr-e7-045-deployment-services-audit`, `codex/dr-e7-046-production-secrets` |
+| Branches | `codex/sc-022-operations-hardening`, `codex/sc-022-email-alert-thresholds`, `codex/dr-e7-022-resource-privacy`, `codex/dr-e7-023-email-privacy`, `codex/dr-e7-024-inactive-user-commands`, `codex/dr-e7-025-idempotency-matrix`, `codex/dr-e7-026-etag-if-match-audit`, `codex/dr-e7-027-writer-rollback-audit`, `codex/dr-e7-028-unique-constraints-audit`, `codex/dr-e7-029-redaction-audit`, `codex/dr-e7-030-adr015-audit`, `codex/dr-e7-042-check-full`, `codex/dr-e7-045-deployment-services-audit`, `codex/dr-e7-046-production-secrets`, `codex/dr-e7-047-health-worker-restart` |
 
 ## Evidence
 
@@ -447,4 +447,34 @@ E2E** tests. Required-service and Compose interpolation checks passed.
 
 The WSL environment lacks Docker CLI, so local Compose validation was not
 available. Production deployment and its secret-store configuration have not
-been exercised; DR-E7-047 health/readiness and worker restart checks remain open.
+been exercised.
+
+## Health/readiness and graceful worker shutdown — DR-E7-047
+
+The backend healthcheck now calls PHP-FPM's configured ping path and expects its
+static readiness response. Nginx checks the public `/api/health` route; frontend,
+PostgreSQL, Redis and RabbitMQ retain service-specific probes. Compose startup
+conditions require healthy data services before backend, and a healthy backend
+before Nginx and the email worker. Repository quality validates these conditions
+against the resolved Compose configuration.
+
+The email worker is a dedicated entrypoint that forwards SIGTERM to its active
+relay or Messenger child. It rotates the Messenger consumer every five seconds and
+has a 90-second Compose stop grace period. A local signal-forwarding check passed.
+The full Compose startup/stop flow and production deployment are not exercised
+in this WSL environment because Docker CLI is unavailable.
+
+Quality workflow [#71](https://github.com/r3ct4lan/equo_3/actions/runs/38657402267)
+exposed a regression: the worker ran the outbox relay only before a 60-second
+Messenger consumer window, so browser journeys timed out waiting for newly
+created action emails. The consumer window is now five seconds, preserving the
+existing relay cadence; the Compose guard asserts that interval and signal
+forwarding remain configured.
+
+Quality workflow [#72](https://github.com/r3ct4lan/equo_3/actions/runs/38659025957)
+passed all jobs: **681 PHPUnit tests / 8,335 assertions**, six migrations,
+backend/frontend quality and build, dependency audits, required Compose/readiness
+guard, application smoke and **26 browser E2E** scenarios. The local
+SIGTERM-forwarding check and `git diff --check` also passed. Docker is not
+available in this WSL environment, so local Compose startup/stop and production
+deployment were not exercised.

@@ -5,7 +5,7 @@
 | Название | Индекс проектной документации Equo |
 | Назначение | Обеспечить единый вход в комплект проектных артефактов и правила их актуализации |
 | Статус | Accepted |
-| Версия | 44 |
+| Версия | 45 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Нормативная документация и фактическая реализация MVP |
@@ -48,9 +48,9 @@
 | [Исправление долга](features/update-debt.md) | SC-013, этапы SC13-01—06, atomic recalculation, edit UI и If-Match | Merged; functional PASS; release audit blocked | Изменился update scope или результат проверки |
 | [Приёмка исправления долга](acceptance/update-debt.md) | Stable identities, шесть rollback points, четыре races, stale editor и три browser accounts | Functional PASS; release BLOCKED | Повторены проверки, устранён blocker или принято решение владельца |
 | [Retention и очистка](features/retention-operations.md) | SC-022 retention matrix, bounded cleanup command, daily schedule, safe summary and deployment alert thresholds | Retention/email slices implemented and verified; stage 7 in progress | Изменились retention requirements, cleanup behavior or operational evidence |
-| [Приёмка retention](acceptance/retention-operations.md) | Backend tests, migration/schema verification, protected-route auth/ACL/privacy, inactive-user, idempotency, ETag/If-Match, transaction rollback, DB uniqueness, credential-redaction, ADR-015 dependency, deployment-service and environment/key-ring matrices, audit exception and retention boundaries | Retention slice, DR-E7-021—030 and DR-E7-042, DR-E7-045—046 PASS; two npm advisories temporarily accepted; full SC-022 open | Повторены проверки или закрыты оставшиеся stage-7 requirements |
-| [Операции email и retention](operations/email-delivery.md) | Запуск сервисов, безопасная диагностика/failure replay, key rotation, deployment alert thresholds and retention operations | Implemented; deployment values and production evidence remain open | Изменились deployment commands, retry/replay procedure or operations evidence |
-| [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, browser E2E, audits, smoke и GitHub Actions | Accepted; два npm GHSA временно allowlisted до исправлений | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
+| [Приёмка retention](acceptance/retention-operations.md) | Backend tests, migration/schema verification, protected-route auth/ACL/privacy, inactive-user, idempotency, ETag/If-Match, transaction rollback, DB uniqueness, credential-redaction, ADR-015 dependency, deployment-service and environment/key-ring matrices, readiness/dependency/worker shutdown checks | Retention slice, DR-E7-021—030, DR-E7-042 and DR-E7-045—047 PASS; two npm advisories temporarily accepted; full SC-022 open | Повторены проверки или закрыты оставшиеся stage-7 requirements |
+| [Операции email и retention](operations/email-delivery.md) | Запуск сервисов, health/readiness, graceful worker restart, безопасная диагностика/failure replay, key rotation, deployment alert thresholds and retention operations | Implemented; deployment values and production evidence remain open | Изменились deployment commands, retry/replay procedure or operations evidence |
+| [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, browser E2E, audits, smoke, Compose readiness/dependency checks и GitHub Actions | Accepted; два npm GHSA временно allowlisted до исправлений | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
 | [Приёмка повторного запроса активации](acceptance/activation-resend.md) | Сквозное доказательство replacement semantics, neutral 202, rate limit и security regressions для `MVP-SC-001` | Passed | Повторена приёмка или Product Owner принял итоговое решение |
 | [Architecture Decision Records](adr/architecture-decisions.md) | Принятые ADR-001—ADR-019 | Accepted | Решение заменяется новым или выполнено условие его пересмотра; историю следует сохранять, добавляя новый ADR |
 | [Границы MVP](mvp-scope.md) | Цель, каталог `MVP-SC-*`, классификация, основной путь, зависимости и критерии запуска E1-04 | Accepted | Изменилась цель MVP, категория сценария, обязательный путь, критерий запуска или решение о границе |
