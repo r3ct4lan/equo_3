@@ -341,3 +341,14 @@ cleanup запускает только Compose retention scheduler; опера�
 [Акт DR-E7-055](acceptance/manual-process-review.md) фиксирует все разрешённые
 операторские процессы и итоговый main Quality gate. Следующий пункт — DR-E7-056:
 проверить, что Should/Later features не стали скрытыми зависимостями.
+
+## Состояние после DR-E7-056 — 2026-10-15
+
+Основной пользовательский путь и реализованные routes сверены со всеми
+Should/Later и Out-of-scope сценариями. Профиль/email edit, добровольная
+деактивация, удаление долга, edit/delete `MANUAL`, прямой Connect по общему
+долгу и связь возврата с `DEBT_SHARE` не являются prerequisites; их endpoints
+не выставлены как частичные функции. Полный browser journey двух пользователей
+подтверждён [приёмкой SC-016](acceptance/manual-transfer.md), а аудит —
+[актом DR-E7-056](acceptance/no-hidden-dependencies.md). Прогресс этапа 7 —
+56/58; DR-E7-054 и DR-E7-058 остаются отдельными открытыми release решениями.
