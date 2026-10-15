@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 16 |
+| Версия | 17 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -1048,8 +1048,9 @@ DR-E6-031—037 реализованы и функционально прове�
 
 - [x] `DR-E7-052` — все `Must have` в traceability matrix имеют статус
   `[x]`.
-- [ ] `DR-E7-053` — все 13 критериев готовности `mvp-scope.md` доказаны
-  тестом или документированной операционной проверкой.
+- [x] `DR-E7-053` — все 13 критериев готовности `mvp-scope.md` доказаны
+  тестом или документированной операционной проверкой; сводный
+  [акт готовности](acceptance/mvp-readiness.md) фиксирует evidence и ограничения.
 - [ ] `DR-E7-054` — ни один launch blocker раздела 16 не остаётся открытым.
 - [ ] `DR-E7-055` — все допустимые ручные процессы соответствуют разделу 15;
   штатный путь не требует ручного SQL.
@@ -1245,6 +1246,7 @@ Product Owner release decision и production deployment evidence этим ста
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 28 | 2026-10-15 | DR-E7-053: map test and operations evidence for all 13 MVP readiness criteria; 54/58 задач этапа 7 |
 | 27 | 2026-10-15 | DR-E7-052: reconcile all 16 Must-have traceability rows with current-main functional and technical evidence; 53/58 задач этапа 7 |
 | 26 | 2026-10-15 | DR-E7-047: verify service healthchecks and startup dependencies; forward shutdown signals to Messenger worker; 52/58 задач этапа 7 |
 | 25 | 2026-10-15 | DR-E7-046: separate local-only samples from required external deployment secrets/key rings; 51/58 задач этапа 7 |
