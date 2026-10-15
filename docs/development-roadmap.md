@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 25 |
+| Версия | 26 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -165,7 +165,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 4 | 28 | 28 | SC-016 merged; full CI quality gate and MANUAL browser E2E PASS |
 | Этап 5 | 37 | 37 | SC-013 merged; full CI quality gate and recalculation browser E2E PASS |
 | Этап 6 | 53 | 53 | SC-001/003/004/005 merged; full CI quality gate and security E2E PASS |
-| Этап 7 | 39 | 58 | Retention, email operations, API inventory, protected-route auth/ACL and 404 privacy audits, full browser journeys, CI E2E and migration slices PASS; two npm GHSA accepted temporarily; release gate remains open |
+| Этап 7 | 55 | 59 | Full CI quality gate and MVP browser journeys PASS; DR-E7-054/058/060 remain open, so release gate remains open |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
 
@@ -1062,6 +1062,10 @@ DR-E6-031—037 реализованы и функционально прове�
   аудит и проверенная route surface зафиксированы в
   [acceptance](acceptance/no-hidden-dependencies.md).
 - [ ] `DR-E7-057` — все семь строк сводной карты отмечены `[x]`.
+  Этапы 2—6 закрыты по успешному current-main CI; строка этапа 7 остаётся
+  открытой из-за DR-E7-054 (evidence целевого deployment и staging SMTP),
+  DR-E7-058 (отдельное решение владельца) и DR-E7-060 (выход исправленных
+  upstream-пакетов и обновление зависимостей по решению владельца).
 - [ ] `DR-E7-058` — MVP признан готовым отдельным решением владельца с датой
   и ссылкой на release/commit.
 - [ ] `DR-E7-060` — после публикации исправленных версий для GHSA-vfj7-8cjw-p6xm
@@ -1252,6 +1256,7 @@ Product Owner release decision и production deployment evidence этим ста
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 37 | 2026-10-15 | DR-E7-057 audit: close stages 2—6 from current-main full CI evidence; stage 7 is 55/59 with deployment/SMTP, owner decision, and patched-package work open |
 | 36 | 2026-10-15 | DR-E6-049/053: current-main full CI and security browser journeys PASS; close stage 6 (53/53) |
 | 35 | 2026-10-15 | DR-E5-035/037: current-main full CI and debt recalculation browser E2E PASS; close stage 5 (37/37) |
 | 34 | 2026-10-15 | DR-E4-026/028: current-main full CI and MANUAL browser E2E PASS; close stage 4 (28/28) |
