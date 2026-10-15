@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 23 |
+| Версия | 24 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -145,7 +145,7 @@ read endpoints SC-009/012/015. MANUAL и исправление долга ос�
 | 2 | Два пользователя создают постоянный `Connect` по приглашению | `MVP-SC-008`, часть `009/020/021` | этап 1 | `[x]` |
 | 3 | Общий расход создаёт доли, историю и объяснимый баланс | `MVP-SC-009/011/012/015`, части `020/021` | этапы 1—2 | `[ ]` |
 | 4 | Ручной трансфер изменяет баланс | `MVP-SC-016`, части `020/021` | этап 3 | `[x]` |
-| 5 | Автор исправляет долг с полным перерасчётом | `MVP-SC-013`, части `020/021` | этап 3 | `[ ]` functional PASS; release audit blocked |
+| 5 | Автор исправляет долг с полным перерасчётом | `MVP-SC-013`, части `020/021` | этап 3 | `[x]` |
 | 6 | Завершён обязательный security lifecycle аккаунта | завершение `001`, `003/004/005`, части `019/020/021` | этап 1 | `[ ]` |
 | 7 | MVP эксплуатационно готов и полностью проверен | завершение `019/020/021/022` | этапы 1—6 | `[ ]` |
 
@@ -163,7 +163,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 2 | 45 | 45 | SC-008 merged; full CI quality gate and two-user E2E PASS |
 | Этап 3 | 70 | 70 | SC-011 merged; full CI quality gate and financial browser E2E PASS |
 | Этап 4 | 28 | 28 | SC-016 merged; full CI quality gate and MANUAL browser E2E PASS |
-| Этап 5 | 35 | 37 | SC-013 functional PASS; merged в main; DR-E5-035/037 blocked dependency audit |
+| Этап 5 | 37 | 37 | SC-013 merged; full CI quality gate and recalculation browser E2E PASS |
 | Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
 | Этап 7 | 39 | 58 | Retention, email operations, API inventory, protected-route auth/ACL and 404 privacy audits, full browser journeys, CI E2E and migration slices PASS; two npm GHSA accepted temporarily; release gate remains open |
 | Should have | 0 | 24 | Отложено до решения владельца |
@@ -760,10 +760,10 @@ Debt, прямое редактирование `DEBT_SHARE` и audit log вер
 - [x] `DR-E5-033` — browser E2E: изменение amount/composition меняет все
   затронутые shares и balances у участников.
 - [x] `DR-E5-034` — обновить фактическую документацию.
-- [ ] `DR-E5-035` — `make check` проходит.
+- [x] `DR-E5-035` — `make check` проходит.
 - [x] `DR-E5-036` — ни один stale/failed update не оставляет частично
   пересчитанный агрегат.
-- [ ] `DR-E5-037` — этап 5 закрыт и строка сводной карты отмечена `[x]`.
+- [x] `DR-E5-037` — этап 5 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
 
@@ -1252,6 +1252,7 @@ Product Owner release decision и production deployment evidence этим ста
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 35 | 2026-10-15 | DR-E5-035/037: current-main full CI and debt recalculation browser E2E PASS; close stage 5 (37/37) |
 | 34 | 2026-10-15 | DR-E4-026/028: current-main full CI and MANUAL browser E2E PASS; close stage 4 (28/28) |
 | 33 | 2026-10-15 | DR-E3-066/070: current-main full CI and financial browser E2E PASS; close stage 3 (70/70) |
 | 32 | 2026-10-15 | DR-E2-042/045: current-main full CI and two-user browser E2E PASS; close stage 2 (45/45) |

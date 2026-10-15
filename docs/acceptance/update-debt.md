@@ -55,3 +55,13 @@ DR-E5-035/037 остаются открытыми: release gate не PASS, эт�
 exemption, Product Owner acceptance или готовность MVP. Нормативные
 BR/ER/Must-Should-Later границы не менялись. Следующая обязательная область —
 этап 7: SC-019—022, эксплуатация, staging/SMTP и финальная приёмка.
+
+## Повторная проверка quality gate — 2026-10-15
+
+На `main` snapshot `c390841` GitHub Actions run `38766369660` завершил полный
+workflow успешно: backend/frontend quality и build, миграции и тесты,
+dependency audit по принятой политике, full MVP browser E2E и application
+smoke. Browser job проходит изменение долга с пересчётом долей, истории и
+баланса. CI запускает проектные проверки из `docs/quality-gate.md`; локальный
+`make check` отдельно не запускался. Это закрывает технические DR-E5-035/037.
+Product Owner acceptance и готовность MVP остаются отдельным решением.
