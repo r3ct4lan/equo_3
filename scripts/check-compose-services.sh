@@ -14,6 +14,12 @@ done
 
 echo 'Required deployment services are defined.'
 
+worker_entrypoint="$project_dir/docker/php/worker-entrypoint.sh"
+grep -Fq 'app:email-outbox:relay' "$worker_entrypoint"
+grep -Fq -- '--time-limit=5' "$worker_entrypoint"
+grep -Fq 'trap forward_shutdown TERM INT' "$worker_entrypoint"
+grep -Fq 'kill -TERM "$child_pid"' "$worker_entrypoint"
+
 docker compose --project-directory "$project_dir" config --format json | python3 -c '
 import json
 import sys
