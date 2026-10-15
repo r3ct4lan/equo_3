@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 21 |
+| Версия | 22 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -161,7 +161,7 @@ production-сессии и `Connect` сначала строится финан�
 | Реализованный baseline | 8 | 10 | Первый ограниченный срез работает |
 | Этап 1 | 53 | 53 | Завершён |
 | Этап 2 | 45 | 45 | SC-008 merged; full CI quality gate and two-user E2E PASS |
-| Этап 3 | 68 | 70 | SC-011 merged; functional PASS; DR-E3-066/070 blocked dependency audit |
+| Этап 3 | 70 | 70 | SC-011 merged; full CI quality gate and financial browser E2E PASS |
 | Этап 4 | 26 | 28 | SC-016 merged; functional PASS; DR-E4-026/028 blocked dependency audit |
 | Этап 5 | 35 | 37 | SC-013 functional PASS; merged в main; DR-E5-035/037 blocked dependency audit |
 | Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
@@ -602,13 +602,13 @@ access token и защищённую refresh-сессию, может перез
   model, frontend foundation и HTTP implementation.
 - [x] `DR-E3-065` — обновить ER DOT/SVG/PNG только если реализация потребовала
   принятого изменения нормативной модели.
-- [ ] `DR-E3-066` — `make check` и финансовый E2E проходят.
+- [x] `DR-E3-066` — `make check` и финансовый E2E проходят.
 - [x] `DR-E3-067` — баланс полностью воспроизводится из active Transfer.
 - [x] `DR-E3-068` — повтор/гонка не создаёт второй Debt, participant, Connect
   или `DEBT_SHARE`.
 - [x] `DR-E3-069` — недоступный пользователь не получает название, состав,
   email или историю чужого Debt.
-- [ ] `DR-E3-070` — этап 3 закрыт и строка сводной карты отмечена `[x]`.
+- [x] `DR-E3-070` — этап 3 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
 
@@ -1252,6 +1252,7 @@ Product Owner release decision и production deployment evidence этим ста
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 33 | 2026-10-15 | DR-E3-066/070: current-main full CI and financial browser E2E PASS; close stage 3 (70/70) |
 | 32 | 2026-10-15 | DR-E2-042/045: current-main full CI and two-user browser E2E PASS; close stage 2 (45/45) |
 | 31 | 2026-10-15 | DR-E7-056: audit Should/Later/Out-of-scope routes and the full required user journey; no hidden dependency found; 56/58 задач этапа 7 |
 | 30 | 2026-10-15 | DR-E7-055: verify permitted operator flows and remove manual non-dry-run cleanup from operational instructions; 55/58 задач этапа 7 |
