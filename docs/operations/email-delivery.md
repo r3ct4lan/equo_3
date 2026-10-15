@@ -160,21 +160,12 @@ financial tables manually in SQL.
 
 ## Retention and key rotation
 
-Preview cleanup counts without changing rows:
-
-```bash
-docker compose exec backend php bin/console app:retention:cleanup --dry-run --no-interaction
-```
-
-Run one bounded cleanup batch manually if needed:
-
-```bash
-docker compose exec backend php bin/console app:retention:cleanup --batch-size=500 --no-interaction
-```
-
-The scheduled service retries failed cleanup after five minutes and otherwise
-runs every 24 hours. Each table is limited independently; a large backlog is
-drained by later scheduled runs. Cleanup does not touch financial history.
+The retention scheduler is the only documented operational caller of
+non-dry-run cleanup. Operators inspect `docker compose logs retention`; the
+service retries failed cleanup after five minutes and otherwise runs every 24
+hours. Each table is limited independently; a large backlog is drained by later
+scheduled runs. Cleanup does not touch financial history. Do not run cleanup
+manually as an operator action.
 
 Rotate keys by adding a new random key and making its version active while
 keeping old verification keys in the corresponding ring for the accepted

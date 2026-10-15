@@ -66,10 +66,10 @@ named data volumes.
 
 The `retention` service waits for Doctrine migrations, then runs
 `app:retention:cleanup` every 24 hours. It retries failures after five minutes.
-For an operator dry-run, use
-`docker compose exec backend php bin/console app:retention:cleanup --dry-run`;
-the output contains eligible counts only. `EQUO_RETENTION_BATCH_SIZE` controls
-the maximum rows handled per record type and is limited to 1–5,000.
+The scheduler is the only documented operational caller of non-dry-run
+cleanup; operators inspect its logs and must not invoke cleanup manually.
+`EQUO_RETENTION_BATCH_SIZE` controls the maximum rows handled per record type
+and is limited to 1–5,000.
 
 ## Frontend runtime configuration
 

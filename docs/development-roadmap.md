@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 18 |
+| Версия | 19 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -1055,8 +1055,9 @@ DR-E6-031—037 реализованы и функционально прове�
   аудит не выявил открытого source-level дефекта, но target deployment и
   staging SMTP не проверены. Требуемые evidence зафиксированы в
   [launch blocker review](acceptance/launch-blocker-review.md).
-- [ ] `DR-E7-055` — все допустимые ручные процессы соответствуют разделу 15;
-  штатный путь не требует ручного SQL.
+- [x] `DR-E7-055` — все документированные ручные процессы соответствуют
+  разделу 15; штатный путь не требует ручного SQL. Проверен и ограничен
+  [manual process review](acceptance/manual-process-review.md).
 - [ ] `DR-E7-056` — Should/Later features не являются скрытыми зависимостями.
 - [ ] `DR-E7-057` — все семь строк сводной карты отмечены `[x]`.
 - [ ] `DR-E7-058` — MVP признан готовым отдельным решением владельца с датой
@@ -1249,6 +1250,7 @@ Product Owner release decision и production deployment evidence этим ста
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 30 | 2026-10-15 | DR-E7-055: verify permitted operator flows and remove manual non-dry-run cleanup from operational instructions; 55/58 задач этапа 7 |
 | 29 | 2026-10-15 | DR-E7-054: review all launch blocker categories; keep open for unverified target deployment and staging SMTP evidence; 54/58 задач этапа 7 |
 | 28 | 2026-10-15 | DR-E7-053: map test and operations evidence for all 13 MVP readiness criteria; 54/58 задач этапа 7 |
 | 27 | 2026-10-15 | DR-E7-052: reconcile all 16 Must-have traceability rows with current-main functional and technical evidence; 53/58 задач этапа 7 |

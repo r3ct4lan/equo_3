@@ -4,7 +4,7 @@
 |---|---|
 | Scenario | `MVP-SC-022` |
 | Scope | Stage 7, sections 11.1–11.3 |
-| Status | Retention and email-operations slices implemented; deployment alert thresholds are configurable; stage 7 remains in progress |
+| Status | Retention and email-operations slices implemented; scheduled cleanup is the only documented operational caller; deployment alert thresholds are configurable; stage 7 remains in progress |
 | Normative sources | `BR-IDEM-005`, `BR-SEC-005—007`, ADR-013/014 |
 
 ## Retention contract
@@ -25,19 +25,17 @@ transaction advisory lock prevents concurrent cleanup runs; row locks use
 
 ## Operations
 
-The one-shot command is:
+The Compose `retention` service is the operational caller of the cleanup
+command. It first waits until Doctrine migrations are up-to-date, then runs
+cleanup every 24 hours. If migration status or cleanup fails, it retries after
+five minutes. `EQUO_RETENTION_BATCH_SIZE` configures its per-table batch. The
+database lock also protects against overlapping scheduler instances. Operators
+inspect scheduler logs; routine operations do not start cleanup manually.
 
-```bash
-docker compose exec backend php bin/console app:retention:cleanup --no-interaction
-```
-
-Use `--dry-run` to print eligible aggregate counts, or set `--batch-size` to a
-value from 1 through 5,000. Output includes only counts and record-type labels.
-The Compose `retention` service first waits until Doctrine migrations are
-up-to-date, then runs cleanup every 24 hours. If migration status or cleanup
-fails, it retries after five minutes. `EQUO_RETENTION_BATCH_SIZE` configures its
-per-table batch. The database lock also protects a manually started run or a
-second scheduler instance. A skipped run is safe to retry on the next schedule.
+The command supports a count-only `--dry-run` for isolated development and test
+verification. Non-dry-run command execution is covered by backend tests and the
+Compose scheduler; this feature does not document it as a manual operator
+process.
 
 The scheduled cleanup terminalizes expired `PENDING`/`PUBLISHED` deliveries,
 sets a generic diagnostic, and clears ciphertext. The relay and email consumer

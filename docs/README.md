@@ -5,7 +5,7 @@
 | Название | Индекс проектной документации Equo |
 | Назначение | Обеспечить единый вход в комплект проектных артефактов и правила их актуализации |
 | Статус | Accepted |
-| Версия | 48 |
+| Версия | 49 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Нормативная документация и фактическая реализация MVP |
@@ -47,10 +47,11 @@
 | [Приёмка ручного перевода](acceptance/manual-transfer.md) | Both directions, overpayment, real races, основной browser путь и safe diagnostics | Functional PASS; release BLOCKED | Повторены проверки, устранён blocker или принято решение владельца |
 | [Исправление долга](features/update-debt.md) | SC-013, этапы SC13-01—06, atomic recalculation, edit UI и If-Match | Merged; functional PASS; release audit blocked | Изменился update scope или результат проверки |
 | [Приёмка исправления долга](acceptance/update-debt.md) | Stable identities, шесть rollback points, четыре races, stale editor и три browser accounts | Functional PASS; release BLOCKED | Повторены проверки, устранён blocker или принято решение владельца |
-| [Retention и очистка](features/retention-operations.md) | SC-022 retention matrix, bounded cleanup command, daily schedule, safe summary and deployment alert thresholds | Technical operations slice; DR-E7-052 traceability and DR-E7-053 readiness evidence verified; release gate remains open | Изменились retention requirements, cleanup behavior or operational evidence |
+| [Retention и очистка](features/retention-operations.md) | SC-022 retention matrix, bounded cleanup command, daily schedule, safe summary and deployment alert thresholds | Technical operations slice; scheduler-only cleanup process and DR-E7-055 verified; release gate remains open | Изменились retention requirements, cleanup behavior or operational evidence |
 | [Приёмка retention](acceptance/retention-operations.md) | Backend tests, migration/schema verification, protected-route auth/ACL/privacy, inactive-user, idempotency, ETag/If-Match, transaction rollback, DB uniqueness, credential-redaction, ADR-015 dependency, deployment-service and environment/key-ring matrices, readiness/dependency/worker shutdown checks | DR-E7-021—030, 042, 045—047 and 052 PASS; two npm advisories temporarily accepted; production/PO release review remains open | Повторены проверки или закрыты оставшиеся stage-7 requirements |
 | [Доказательства готовности MVP](acceptance/mvp-readiness.md) | Сводная матрица тестов и операционных проверок для 13 критериев запуска из `mvp-scope.md` §16 | DR-E7-053 PASS; production deployment и Product Owner decision остаются отдельными | Повторена проверка или изменились критерии запуска |
 | [Проверка launch blockers](acceptance/launch-blocker-review.md) | Evidence review каждого blocker раздела 16 с открытыми target deployment и SMTP checks | DR-E7-054 OPEN; source-level defects not found in reviewed evidence | Проверена целевая среда или изменились launch-blocker evidence |
+| [Допустимые ручные процессы](acceptance/manual-process-review.md) | Проверка исключений раздела 15, операторского email replay и отсутствия ручного SQL в штатном пути | DR-E7-055 PASS; retention cleanup вызывается scheduler service | Изменились scope §15 или operator runbook |
 | [Операции email и retention](operations/email-delivery.md) | Запуск сервисов, health/readiness, graceful worker restart, безопасная диагностика/failure replay, key rotation, deployment alert thresholds and retention operations | Implemented; deployment values and production evidence remain open | Изменились deployment commands, retry/replay procedure or operations evidence |
 | [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, browser E2E, audits, smoke, Compose readiness/dependency checks и GitHub Actions | Accepted; два npm GHSA временно allowlisted до исправлений | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
 | [Приёмка повторного запроса активации](acceptance/activation-resend.md) | Сквозное доказательство replacement semantics, neutral 202, rate limit и security regressions для `MVP-SC-001` | Passed | Повторена приёмка или Product Owner принял итоговое решение |
