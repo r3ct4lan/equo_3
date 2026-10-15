@@ -14,6 +14,12 @@ services:
         condition: service_healthy
       frontend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     networks: [equo]
 
   backend:
@@ -73,7 +79,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "kill -0 1"]
+      test: ["CMD-SHELL", "SCRIPT_NAME=/fpm-ping SCRIPT_FILENAME=/fpm-ping REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 | grep -q equo-fpm-ready"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -176,14 +182,8 @@ services:
       dockerfile: docker/php/Dockerfile
       target: development
     restart: unless-stopped
-    command:
-      - sh
-      - -lc
-      - >-
-        while true; do
-          php bin/console app:email-outbox:relay --no-interaction;
-          php bin/console messenger:consume async --time-limit=5 --memory-limit=256M -vv;
-        done
+    command: ["/usr/local/bin/equo-worker-entrypoint"]
+    stop_grace_period: 90s
     environment: *backend-environment
     volumes: *backend-volumes
     depends_on:
