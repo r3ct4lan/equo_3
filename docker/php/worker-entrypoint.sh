@@ -31,7 +31,7 @@ while [ "$shutdown_requested" -eq 0 ]; do
     run_child php bin/console app:email-outbox:relay --no-interaction || true
     [ "$shutdown_requested" -eq 0 ] || break
 
-    run_child php bin/console messenger:consume async --time-limit=60 --memory-limit=256M -vv || true
+    run_child php bin/console messenger:consume async --time-limit=5 --memory-limit=256M -vv || true
 done
 
 exit 0
