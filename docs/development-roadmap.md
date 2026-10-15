@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 24 |
+| Версия | 25 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -146,7 +146,7 @@ read endpoints SC-009/012/015. MANUAL и исправление долга ос�
 | 3 | Общий расход создаёт доли, историю и объяснимый баланс | `MVP-SC-009/011/012/015`, части `020/021` | этапы 1—2 | `[ ]` |
 | 4 | Ручной трансфер изменяет баланс | `MVP-SC-016`, части `020/021` | этап 3 | `[x]` |
 | 5 | Автор исправляет долг с полным перерасчётом | `MVP-SC-013`, части `020/021` | этап 3 | `[x]` |
-| 6 | Завершён обязательный security lifecycle аккаунта | завершение `001`, `003/004/005`, части `019/020/021` | этап 1 | `[ ]` |
+| 6 | Завершён обязательный security lifecycle аккаунта | завершение `001`, `003/004/005`, части `019/020/021` | этап 1 | `[x]` |
 | 7 | MVP эксплуатационно готов и полностью проверен | завершение `019/020/021/022` | этапы 1—6 | `[ ]` |
 
 Порядок оптимизирован для ранней проверки бизнес-гипотезы. После минимальной
@@ -164,7 +164,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 3 | 70 | 70 | SC-011 merged; full CI quality gate and financial browser E2E PASS |
 | Этап 4 | 28 | 28 | SC-016 merged; full CI quality gate and MANUAL browser E2E PASS |
 | Этап 5 | 37 | 37 | SC-013 merged; full CI quality gate and recalculation browser E2E PASS |
-| Этап 6 | 51 | 53 | SC-001/003/004/005 merged в main; DR-E6-049/053 blocked dependency audit |
+| Этап 6 | 53 | 53 | SC-001/003/004/005 merged; full CI quality gate and security E2E PASS |
 | Этап 7 | 39 | 58 | Retention, email operations, API inventory, protected-route auth/ACL and 404 privacy audits, full browser journeys, CI E2E and migration slices PASS; two npm GHSA accepted temporarily; release gate remains open |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
@@ -916,13 +916,13 @@ DR-E6-031—037 реализованы и функционально прове�
 
 - [x] `DR-E6-048` — обновить фактическую схему/структуру/access/frontend/HTTP
   документы.
-- [ ] `DR-E6-049` — `make check` и security E2E проходят.
+- [x] `DR-E6-049` — `make check` и security E2E проходят.
 - [x] `DR-E6-050` — потерянный password восстанавливается без ручного
   изменения БД.
 - [x] `DR-E6-051` — logout и security changes прекращают долгоживущий refresh
   access в предусмотренных границах.
 - [x] `DR-E6-052` — public requests не подтверждают существование email.
-- [ ] `DR-E6-053` — этап 6 закрыт и строка сводной карты отмечена `[x]`.
+- [x] `DR-E6-053` — этап 6 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
 
@@ -1252,6 +1252,7 @@ Product Owner release decision и production deployment evidence этим ста
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 36 | 2026-10-15 | DR-E6-049/053: current-main full CI and security browser journeys PASS; close stage 6 (53/53) |
 | 35 | 2026-10-15 | DR-E5-035/037: current-main full CI and debt recalculation browser E2E PASS; close stage 5 (37/37) |
 | 34 | 2026-10-15 | DR-E4-026/028: current-main full CI and MANUAL browser E2E PASS; close stage 4 (28/28) |
 | 33 | 2026-10-15 | DR-E3-066/070: current-main full CI and financial browser E2E PASS; close stage 3 (70/70) |

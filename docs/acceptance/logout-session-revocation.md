@@ -115,3 +115,14 @@ SC-003/004/005 последовательно merged в main по поручен
 Общая регрессия SC-005: 413 backend / 4340 assertions, 53 unit, 41 component,
 21 browser E2E и smoke PASS. Dependency audit остаётся BLOCKED; выпуск,
 исключение audit и продуктовая приёмка SC-004/005 этим merge не подтверждены.
+
+## Повторная проверка quality gate — 2026-10-15
+
+На `main` snapshot `c390841` GitHub Actions run `38766369660` завершил полный
+workflow успешно: backend/frontend quality и build, миграции и тесты,
+dependency audit по принятой политике, full MVP browser E2E и application
+smoke. Browser job включает auth/security journeys, logout/revocation и
+защищённые пользовательские пути. CI запускает проверки из
+`docs/quality-gate.md`; локальный `make check` отдельно не запускался. Это
+закрывает технические DR-E6-049/053. Product Owner acceptance и готовность MVP
+остаются отдельным решением.
