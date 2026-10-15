@@ -5,7 +5,7 @@
 | Название | Индекс проектной документации Equo |
 | Назначение | Обеспечить единый вход в комплект проектных артефактов и правила их актуализации |
 | Статус | Accepted |
-| Версия | 49 |
+| Версия | 50 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Нормативная документация и фактическая реализация MVP |
@@ -52,6 +52,7 @@
 | [Доказательства готовности MVP](acceptance/mvp-readiness.md) | Сводная матрица тестов и операционных проверок для 13 критериев запуска из `mvp-scope.md` §16 | DR-E7-053 PASS; production deployment и Product Owner decision остаются отдельными | Повторена проверка или изменились критерии запуска |
 | [Проверка launch blockers](acceptance/launch-blocker-review.md) | Evidence review каждого blocker раздела 16 с открытыми target deployment и SMTP checks | DR-E7-054 OPEN; source-level defects not found in reviewed evidence | Проверена целевая среда или изменились launch-blocker evidence |
 | [Допустимые ручные процессы](acceptance/manual-process-review.md) | Проверка исключений раздела 15, операторского email replay и отсутствия ручного SQL в штатном пути | DR-E7-055 PASS; retention cleanup вызывается scheduler service | Изменились scope §15 или operator runbook |
+| [Скрытые зависимости Should/Later](acceptance/no-hidden-dependencies.md) | Сверка основного пути с optional/out-of-scope сценариями, HTTP routes и UI | DR-E7-056 PASS; обязательные скрытые зависимости не найдены | Изменились обязательные зависимости, API surface или классификация сценариев |
 | [Операции email и retention](operations/email-delivery.md) | Запуск сервисов, health/readiness, graceful worker restart, безопасная диагностика/failure replay, key rotation, deployment alert thresholds and retention operations | Implemented; deployment values and production evidence remain open | Изменились deployment commands, retry/replay procedure or operations evidence |
 | [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, browser E2E, audits, smoke, Compose readiness/dependency checks и GitHub Actions | Accepted; два npm GHSA временно allowlisted до исправлений | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
 | [Приёмка повторного запроса активации](acceptance/activation-resend.md) | Сквозное доказательство replacement semantics, neutral 202, rate limit и security regressions для `MVP-SC-001` | Passed | Повторена приёмка или Product Owner принял итоговое решение |
