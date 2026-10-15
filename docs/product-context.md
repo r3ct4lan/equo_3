@@ -296,3 +296,13 @@ smoke и 26 browser E2E — [workflow](https://github.com/r3ct4lan/equo_3/action
 Следующая
 незавершённая задача roadmap — DR-E7-052, финальная traceability-проверка Must
 have; production deployment и Product Owner acceptance остаются открытыми.
+
+## Состояние после DR-E7-052 — 2026-10-15
+
+Traceability matrix в roadmap сверена с каталогом из 16 `Must have`: каждый
+сценарий теперь имеет технический статус `[x]` и ссылку на focused acceptance
+или текущий полный CI. Проверка основана на main snapshot `1fee70c` и workflow
+[#73](https://github.com/r3ct4lan/equo_3/actions/runs/38659998867). Этот checkbox
+фиксирует техническую проверку сценария; отдельное решение Product Owner и
+производственная готовность не подразумеваются. Следующая задача — DR-E7-053:
+доказать все 13 критериев готовности из `mvp-scope.md`.

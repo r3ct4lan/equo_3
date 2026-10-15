@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 15 |
+| Версия | 16 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -1046,7 +1046,7 @@ DR-E6-031—037 реализованы и функционально прове�
 
 ### 11.7. Финальный release gate
 
-- [ ] `DR-E7-052` — все `Must have` в traceability matrix имеют статус
+- [x] `DR-E7-052` — все `Must have` в traceability matrix имеют статус
   `[x]`.
 - [ ] `DR-E7-053` — все 13 критериев готовности `mvp-scope.md` доказаны
   тестом или документированной операционной проверкой.
@@ -1183,30 +1183,42 @@ Definition of Ready.
 
 ## 14. Traceability всех сценариев
 
+`[x]` в этой матрице означает, что реализация Must-сценария технически
+проверена на текущем основном snapshot и связана с evidence artifact; это не
+является решением Product Owner о готовности MVP к запуску. Последнее остаётся
+отдельным критерием DR-E7-058. Проверка матрицы выполнена по main snapshot
+`1fee70c` и полному quality workflow [#73](https://github.com/r3ct4lan/equo_3/actions/runs/38659998867):
+681 PHPUnit tests / 8,335 assertions, все 26 browser E2E, migrations, build,
+audit и smoke прошли. Фокусные evidence приведены в acceptance artifacts.
+Исторические acceptance reports сохраняют blocker status на дату исходной
+проверки; текущий audit выполняется по owner-approved exact GHSA allowlist.
+Product Owner release decision и production deployment evidence этим статусом
+не подтверждаются.
+
 | Сценарий | Категория | Где реализуется/хранится | Статус |
 |---|---|---|---|
-| `MVP-SC-001` | Must | baseline + этап 6 | `[x]` технически проверен 2026-09-30; регрессия 2026-10-09 |
-| `MVP-SC-002` | Must | этап 1 | `[x]` |
-| `MVP-SC-003` | Must | этап 6 | `[ ]` функционально принят владельцем; merged в main; SC3-08 release audit blocked |
-| `MVP-SC-004` | Must | этап 6 | `[ ]` реализован; functional PASS; merged в main; release audit blocked |
-| `MVP-SC-005` | Must | этап 6 | `[ ]` functional PASS; merged в main; release audit blocked |
+| `MVP-SC-001` | Must | baseline + этап 6 | `[x]` registration/activation and current browser regression coverage: [activation-resend](acceptance/activation-resend.md), quality workflow #73 |
+| `MVP-SC-002` | Must | этап 1 | `[x]` login/session and protected profile covered by current backend/browser gate #73 |
+| `MVP-SC-003` | Must | этап 6 | `[x]` functional PASS; current dependency audit passes under the owner-approved advisory policy; [logout/session evidence](acceptance/logout-session-revocation.md) |
+| `MVP-SC-004` | Must | этап 6 | `[x]` functional PASS; [reset acceptance](acceptance/password-reset.md); current backend/browser gate #73 |
+| `MVP-SC-005` | Must | этап 6 | `[x]` functional PASS; [password-change acceptance](acceptance/password-change.md); current backend gate #73 |
 | `MVP-SC-006` | Should | `SH-006` | `[ ]` |
 | `MVP-SC-007` | Should | `SH-007` | `[ ]` |
-| `MVP-SC-008` | Must | этап 2 | `[ ]` |
-| `MVP-SC-009` | Must | этапы 2—4 | `[ ]` |
+| `MVP-SC-008` | Must | этап 2 | `[x]` functional PASS; [Connect invitation acceptance](acceptance/connect-invitations.md); current browser gate #73 |
+| `MVP-SC-009` | Must | этапы 2—4 | `[x]` Connect/balance reads; [debt and history acceptance](acceptance/create-debt.md); current browser gate #73 |
 | `MVP-SC-010` | Later | `LT-010` | `[ ]` |
-| `MVP-SC-011` | Must | этап 3 | `[ ]` |
-| `MVP-SC-012` | Must | этап 3 | `[ ]` |
-| `MVP-SC-013` | Must | этап 5 | `[ ]` functional PASS; merged в main; release audit blocked |
+| `MVP-SC-011` | Must | этап 3 | `[x]` functional PASS; [debt acceptance](acceptance/create-debt.md); current backend/browser gate #73 |
+| `MVP-SC-012` | Must | этап 3 | `[x]` debt list/details and ACL; [debt acceptance](acceptance/create-debt.md); current backend/browser gate #73 |
+| `MVP-SC-013` | Must | этап 5 | `[x]` functional PASS; [update-debt acceptance](acceptance/update-debt.md); current backend/browser gate #73 |
 | `MVP-SC-014` | Should | `SH-014` | `[ ]` |
-| `MVP-SC-015` | Must | этап 3 | `[ ]` |
-| `MVP-SC-016` | Must | этап 4 | `[ ]` merged в main; functional PASS; release audit blocked |
+| `MVP-SC-015` | Must | этап 3 | `[x]` active/deleted transfer history; [debt/history acceptance](acceptance/create-debt.md); current backend/browser gate #73 |
+| `MVP-SC-016` | Must | этап 4 | `[x]` functional PASS; [manual-transfer acceptance](acceptance/manual-transfer.md); current backend/browser gate #73 |
 | `MVP-SC-017` | Should | `SH-017` | `[ ]` |
 | `MVP-SC-018` | Later | `LT-018` | `[ ]` |
-| `MVP-SC-019` | Must | baseline + этапы 6—7 | `[ ]` частично |
-| `MVP-SC-020` | Must | все этапы, финальный audit в 7 | `[ ]` частично |
-| `MVP-SC-021` | Must | все writers, финальный audit в 7 | `[ ]` частично |
-| `MVP-SC-022` | Must | этап 7 | `[ ]` частично: retention/email operations slice PASS; full stage 7 open |
+| `MVP-SC-019` | Must | baseline + этапы 6—7 | `[x]` outbox/relay/consumer and failure replay tested; [retention operations acceptance](acceptance/retention-operations.md); current E2E gate #73 |
+| `MVP-SC-020` | Must | все этапы, финальный audit в 7 | `[x]` auth/ACL/privacy/error-redaction audits DR-E7-021—030; [retention operations acceptance](acceptance/retention-operations.md); gate #73 |
+| `MVP-SC-021` | Must | все writers, финальный audit в 7 | `[x]` idempotency, versioning, rollback and uniqueness audits DR-E7-025—028; [retention operations acceptance](acceptance/retention-operations.md); gate #73 |
+| `MVP-SC-022` | Must | этап 7 | `[x]` retention/cleanup, delivery monitoring, readiness and restart checks DR-E7-001—018, 042, 045—051; [retention operations acceptance](acceptance/retention-operations.md); production/PO readiness remains in release gate |
 | `MVP-SC-023` | Out | раздел 13 | не планируется |
 | `MVP-SC-024` | Out | раздел 13 | не планируется |
 | `MVP-SC-025` | Out | раздел 13 | не планируется |
@@ -1233,6 +1245,7 @@ Definition of Ready.
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 27 | 2026-10-15 | DR-E7-052: reconcile all 16 Must-have traceability rows with current-main functional and technical evidence; 53/58 задач этапа 7 |
 | 26 | 2026-10-15 | DR-E7-047: verify service healthchecks and startup dependencies; forward shutdown signals to Messenger worker; 52/58 задач этапа 7 |
 | 25 | 2026-10-15 | DR-E7-046: separate local-only samples from required external deployment secrets/key rings; 51/58 задач этапа 7 |
 | 24 | 2026-10-15 | DR-E7-045: verify and guard the seven required Compose deployment services; 50/58 задач этапа 7 |
