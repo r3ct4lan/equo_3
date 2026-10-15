@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 20 |
+| Версия | 21 |
 | Дата актуальности | 2026-10-15 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
@@ -142,7 +142,7 @@ read endpoints SC-009/012/015. MANUAL и исправление долга ос�
 | Этап | Результат | Сценарии | Зависит от | Статус |
 |---:|---|---|---|---|
 | 1 | Login, refresh и защищённая browser-сессия | `MVP-SC-002`, часть `020` | исходный срез | `[x]` |
-| 2 | Два пользователя создают постоянный `Connect` по приглашению | `MVP-SC-008`, часть `009/020/021` | этап 1 | `[ ]` |
+| 2 | Два пользователя создают постоянный `Connect` по приглашению | `MVP-SC-008`, часть `009/020/021` | этап 1 | `[x]` |
 | 3 | Общий расход создаёт доли, историю и объяснимый баланс | `MVP-SC-009/011/012/015`, части `020/021` | этапы 1—2 | `[ ]` |
 | 4 | Ручной трансфер изменяет баланс | `MVP-SC-016`, части `020/021` | этап 3 | `[ ]` |
 | 5 | Автор исправляет долг с полным перерасчётом | `MVP-SC-013`, части `020/021` | этап 3 | `[ ]` functional PASS; release audit blocked |
@@ -160,7 +160,7 @@ production-сессии и `Connect` сначала строится финан�
 |---|---:|---:|---|
 | Реализованный baseline | 8 | 10 | Первый ограниченный срез работает |
 | Этап 1 | 53 | 53 | Завершён |
-| Этап 2 | 43 | 45 | SC-008 merged; functional PASS; DR-E2-042/045 blocked dependency audit |
+| Этап 2 | 45 | 45 | SC-008 merged; full CI quality gate and two-user E2E PASS |
 | Этап 3 | 68 | 70 | SC-011 merged; functional PASS; DR-E3-066/070 blocked dependency audit |
 | Этап 4 | 26 | 28 | SC-016 merged; functional PASS; DR-E4-026/028 blocked dependency audit |
 | Этап 5 | 35 | 37 | SC-013 functional PASS; merged в main; DR-E5-035/037 blocked dependency audit |
@@ -429,10 +429,10 @@ access token и защищённую refresh-сессию, может перез
 
 - [x] `DR-E2-041` — обновить фактическую схему, backend structure, access
   model и frontend foundation.
-- [ ] `DR-E2-042` — `make check` и двухпользовательский E2E проходят.
+- [x] `DR-E2-042` — `make check` и двухпользовательский E2E проходят.
 - [x] `DR-E2-043` — одна пара не создаётся дважды при повторах/гонках.
 - [x] `DR-E2-044` — token и чужие персональные данные не раскрываются.
-- [ ] `DR-E2-045` — этап 2 закрыт и строка сводной карты отмечена `[x]`.
+- [x] `DR-E2-045` — этап 2 закрыт и строка сводной карты отмечена `[x]`.
 
 ---
 
@@ -1252,6 +1252,7 @@ Product Owner release decision и production deployment evidence этим ста
 
 | Версия | Дата | Изменение |
 |---:|---|---|
+| 32 | 2026-10-15 | DR-E2-042/045: current-main full CI and two-user browser E2E PASS; close stage 2 (45/45) |
 | 31 | 2026-10-15 | DR-E7-056: audit Should/Later/Out-of-scope routes and the full required user journey; no hidden dependency found; 56/58 задач этапа 7 |
 | 30 | 2026-10-15 | DR-E7-055: verify permitted operator flows and remove manual non-dry-run cleanup from operational instructions; 55/58 задач этапа 7 |
 | 29 | 2026-10-15 | DR-E7-054: review all launch blocker categories; keep open for unverified target deployment and staging SMTP evidence; 54/58 задач этапа 7 |
