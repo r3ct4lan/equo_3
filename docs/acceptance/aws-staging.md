@@ -1,11 +1,10 @@
 # AWS staging deployment — 2026-10-17
 
-Status: **running; owner-confirmed registration/activation/login; isolated operational checks PASS; full quality gate and release decision pending**.
+Status: **running; owner-confirmed registration/activation/login; isolated operational checks and full CI quality gate PASS; Product Owner release decision pending**.
 
-Source: `main` baseline `d113e72` plus the deployment changes in the
-`codex/aws-staging` working tree. This is not evidence of a new full quality gate
-or a Product Owner release decision. Full quality verification and merge of the
-deployment branch are tracked separately below.
+Source: `main` baseline `d113e72` plus deployment commit `b5e81da` from
+`codex/aws-staging`, merged through PR #25 as `bba048b`. Full CI evidence is
+recorded below. This is not a Product Owner release decision.
 
 ## Target and observed outcomes
 
@@ -68,9 +67,8 @@ deployment branch are tracked separately below.
 
 ## Remaining acceptance work
 
-1. Review deployment changes and run the required isolated full quality gate
-   before merging. The operational checks below do not replace the full suite.
-2. Record the separate Product Owner decision. Backup/RPO/RTO remain owner
+1. Complete the [owner walkthrough](owner-mvp-walkthrough.md) and record the
+   separate Product Owner decision. Backup/RPO/RTO remain owner
    decisions; no backup schedule has been configured by this deployment.
 
 ## Operational acceptance — 2026-10-18
@@ -102,10 +100,22 @@ SMTP peer, not a fault injected into Brevo. Alerts remained `unconfigured`;
 aggregate failure visibility was verified, not external alert delivery. No host
 clock changes, live database edits or financial-data cleanup were performed.
 
+## Full quality gate and merge — 2026-10-18
+
+[Quality gate run 39123689846](https://github.com/r3ct4lan/equo_3/actions/runs/39123689846)
+passed on deployment commit `b5e81da`: repository quality, backend quality,
+681 backend tests / 8,335 assertions with migrations, frontend quality/build,
+dependency audit under the accepted policy, 26 browser E2E scenarios and full
+application smoke. Local `make check-full` was not run; GitHub Actions supplied
+the documented full suite. No upstream update search or dependency change was
+performed. [PR #25](https://github.com/r3ct4lan/equo_3/pull/25) merged the verified
+commit into `main` as `bba048b`. Subsequent acceptance/roadmap edits are documentation
+only. `DR-E7-054` is closed; `DR-E7-058` awaits the owner's separate decision.
+
 Temporary transfer archives, installer copies and deployment capture logs were
 removed from the workstation/server after setup. Runtime configuration, private
 credentials, certificates and application data remain in their documented paths.
 
 See [AWS staging runbook](../operations/aws-staging.md) for launch, TLS renewal,
-private captured-mail access and external SMTP configuration. Do not mark
-DR-E7-054 or overall MVP readiness complete based on this deployment alone.
+private captured-mail access and external SMTP configuration. Operational and
+CI evidence closes DR-E7-054; overall MVP readiness still requires DR-E7-058.

@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Превратить принятые границы MVP в последовательный, отслеживаемый и готовый к реализации план |
 | Статус | Active |
-| Версия | 27 |
-| Дата актуальности | 2026-10-15 |
+| Версия | 28 |
+| Дата актуальности | 2026-10-18 |
 | Владелец | Maksim Smolkov |
 | Источник | Границы MVP; бизнес-правила; модель сущностей; HTTP-контракты; ADR-001—019; фактическая реализация первого вертикального среза |
 
@@ -165,7 +165,7 @@ production-сессии и `Connect` сначала строится финан�
 | Этап 4 | 28 | 28 | SC-016 merged; full CI quality gate and MANUAL browser E2E PASS |
 | Этап 5 | 37 | 37 | SC-013 merged; full CI quality gate and recalculation browser E2E PASS |
 | Этап 6 | 53 | 53 | SC-001/003/004/005 merged; full CI quality gate and security E2E PASS |
-| Этап 7 | 55 | 59 | Full CI quality gate and MVP browser journeys PASS; DR-E7-054/058/060 remain open, so release gate remains open |
+| Этап 7 | 56 | 59 | AWS operational checks and full CI PASS; DR-E7-054 closed; DR-E7-057/058 await owner acceptance; DR-E7-060 remains a nonblocking dependency follow-up |
 | Should have | 0 | 24 | Отложено до решения владельца |
 | Later | 0 | 9 | Не входит в обязательный MVP |
 
@@ -1051,10 +1051,12 @@ DR-E6-031—037 реализованы и функционально прове�
 - [x] `DR-E7-053` — все 13 критериев готовности `mvp-scope.md` доказаны
   тестом или документированной операционной проверкой; сводный
   [акт готовности](acceptance/mvp-readiness.md) фиксирует evidence и ограничения.
-- [ ] `DR-E7-054` — ни один launch blocker раздела 16 не остаётся открытым;
-  аудит не выявил открытого source-level дефекта, но target deployment и
-  staging SMTP не проверены. Требуемые evidence зафиксированы в
-  [launch blocker review](acceptance/launch-blocker-review.md).
+- [x] `DR-E7-054` — ни один launch blocker раздела 16 не остаётся открытым;
+  AWS staging, получение письма активации, изолированные failure/retry,
+  retention и graceful worker checks подтверждены. Full CI run `39123689846`
+  прошёл; PR #25 merged в `main` как `bba048b`. Ограничения проверок — в
+  [launch blocker review](acceptance/launch-blocker-review.md) и
+  [AWS staging evidence](acceptance/aws-staging.md).
 - [x] `DR-E7-055` — все документированные ручные процессы соответствуют
   разделу 15; штатный путь не требует ручного SQL. Проверен и ограничен
   [manual process review](acceptance/manual-process-review.md).
@@ -1063,11 +1065,12 @@ DR-E6-031—037 реализованы и функционально прове�
   [acceptance](acceptance/no-hidden-dependencies.md).
 - [ ] `DR-E7-057` — все семь строк сводной карты отмечены `[x]`.
   Этапы 2—6 закрыты по успешному current-main CI; строка этапа 7 остаётся
-  открытой из-за DR-E7-054 (evidence целевого deployment и staging SMTP),
-  DR-E7-058 (отдельное решение владельца) и DR-E7-060 (выход исправленных
-  upstream-пакетов и обновление зависимостей по решению владельца).
+  открытой до DR-E7-058 (отдельное решение владельца). DR-E7-060 остаётся
+  отдельной неблокирующей задачей по ранее принятому исключению владельца.
 - [ ] `DR-E7-058` — MVP признан готовым отдельным решением владельца с датой
   и ссылкой на release/commit.
+  Подготовлен [сценарий ручной приёмки](acceptance/owner-mvp-walkthrough.md);
+  результат финансового сценария и решение о запуске ещё не получены.
 - [ ] `DR-E7-060` — после публикации исправленных версий для GHSA-vfj7-8cjw-p6xm
   и GHSA-86w9-cpqp-85rv обновить цепочки зависимостей, удалить их из npm audit
   allowlist и вернуть полный строгий аудит без исключений.

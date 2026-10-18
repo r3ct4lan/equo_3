@@ -352,3 +352,20 @@ Should/Later и Out-of-scope сценариями. Профиль/email edit, д
 подтверждён [приёмкой SC-016](acceptance/manual-transfer.md), а аудит —
 [актом DR-E7-056](acceptance/no-hidden-dependencies.md). Прогресс этапа 7 —
 56/58; DR-E7-054 и DR-E7-058 остаются отдельными открытыми release решениями.
+
+## AWS staging и закрытие DR-E7-054 — 2026-10-18
+
+Работает стенд https://equo.13-63-69-69.sslip.io/ с production-сборками,
+HTTPS и Brevo. Владелец подтвердил регистрацию, получение письма, активацию и
+вход. Изолированные проверки на том же EC2 подтвердили SMTP failure/retry,
+наблюдаемый terminal failure, safe replay, SIGTERM при отправке и очистку
+устаревших записей с сохранением действующих. Ограничения и результаты — в
+[AWS staging evidence](acceptance/aws-staging.md). Временные данные и ключи удалены.
+
+Полный CI `39123689846` прошёл на `b5e81da`: 681 backend test / 8 335 assertions,
+26 browser E2E, quality, audit и application smoke. PR #25 merged как `bba048b`.
+DR-E7-054 закрыт. По фактическим checkbox счётчик этапа 7 теперь 56/59;
+исторические записи 56/58 выше отражают прежнюю сводку и не перенумеровывают ID.
+DR-E7-057/058 ожидают отдельного решения владельца. DR-E7-060 остаётся
+неблокирующим backlog по принятым npm advisories; обновления не проверялись.
+Следующий шаг — [приёмка владельцем](acceptance/owner-mvp-walkthrough.md).
