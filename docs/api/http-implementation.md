@@ -175,7 +175,7 @@ Application проверяет найденную session и её signed CSRF bi
 Оба controllers возвращают обычный пустой `Response(204)` и прикрепляют
 `AuthCookieFactory::clearSessionCookies()` с исходными names/flags/paths.
 `403` current logout и `401` logout-all cookies не меняют. Подробная матрица —
-в [SC-003](../features/logout-session-revocation.md).
+в [SC-003](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/logout-session-revocation.md).
 
 ## 4.4. Реализованный Bearer authenticator и `/me`
 
@@ -406,7 +406,7 @@ newPassword и кодом PASSWORD_POLICY_VIOLATION. Неверный/malformed/
 Reset delivery использует существующий encrypted transactional outbox и relay;
 consumer допускает только соответствующие purpose/template пары и генерирует
 `/password-reset?token=...`. HTTP privacy tests проверяют отсутствие raw token,
-password/hash и внутренних диагностик; [акт SC-004](../acceptance/password-reset.md)
+password/hash и внутренних диагностик; [акт SC-004](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/password-reset.md)
 фиксирует exact contracts и сквозную доставку.
 ## SC-005: защищённая смена пароля
 
@@ -418,7 +418,7 @@ Bearer или unknown/inactive User дают 401 AUTHENTICATION_REQUIRED с chal
 wrong currentPassword — 401 INVALID_CREDENTIALS без challenge. Validation — 422
 с safe field violations; media/JSON/extra fields — общая HTTP error model.
 Новые request fingerprints, idempotency rows или email messages не создаются.
-[Contract audit](../features/password-change.md), [акт](../acceptance/password-change.md).
+[Contract audit](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/password-change.md), [акт](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/password-change.md).
 
 ## SC-008: пять endpoints
 
@@ -474,7 +474,7 @@ Invalid selection — 422 INVALID_PARTICIPANT; inactivity — 409 INACTIVE_USER.
 Safe недоступная debtReference содержит только id/isAccessible=false.
 Пагинация createdAt DESC/id DESC, default 20/max 100, opaque Base64URL cursor.
 Edit/delete/MANUAL writers на этом этапе не опубликованы.
-[Доказательства](../acceptance/create-debt.md).
+[Доказательства](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/create-debt.md).
 
 ## SC-016: создание MANUAL
 
@@ -487,7 +487,7 @@ POST /api/v1/connects/{connectId}/transfers принимает senderId/receiver
 relatedTransferId отложен до SC-018 по mvp-scope §15, неизвестные поля — 400.
 Edit/delete маршруты не экспонируются. Денежные DTO не допускают coercion
 из numeric string, bool или float. Atomic writer использует существующую
-схему без новой миграции. Проверки — features/manual-transfer.md.
+схему без новой миграции. Исторические проверки — [SC-016](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/manual-transfer.md).
 
 ## SC-013 — PUT Debt
 

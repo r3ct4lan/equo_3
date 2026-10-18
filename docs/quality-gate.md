@@ -298,7 +298,7 @@ reset link и независимой activation, unknown/malformed capability с
 202 и отсутствием секретов в SSR HTML/storage. Проверяется очистка query,
 повторное использование token, завершение другой вкладки и сохранение уже
 выданного stateless JWT до exp. Exact quotas проверяет backend HTTP suite.
-Текущие числа и результаты полного gate — [акт SC-004](acceptance/password-reset.md).
+Текущие числа и результаты полного gate — [акт SC-004](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/password-reset.md).
 Audit threshold и политика исключений не менялись.
 ## Дополнение SC-005
 
@@ -309,7 +309,7 @@ client validation, wrong-current и transport failure без automatic retry/log
 Pending form защищает от double submit. Real DB concurrency проверяет 11 serial
 orders change/change, login, refresh, reset, logout-all и current logout через
 pg_blocking_pids barrier. Полный make check-full выполнялся и остановился на прежнем
-npm audit blocker; отдельные browser E2E и smoke PASS. [Акт SC-005](acceptance/password-change.md).
+npm audit blocker; отдельные browser E2E и smoke PASS. [Акт SC-005](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/password-change.md).
 
 ## Дополнение SC-008
 
@@ -321,7 +321,7 @@ preview, copy, отсутствие capability в SSR/storage и no-store/no-ref
 
 Скрипт генерирует временный invitation signing key независимо от JWT/CSRF keys.
 Invitation paths в Nginx и browser diagnostics очищаются; trace/video отключены.
-Текущие результаты и ограничения — [акт SC-008](acceptance/connect-invitations.md).
+Текущие результаты и ограничения — [акт SC-008](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/connect-invitations.md).
 Audit threshold и политика исключений сохраняются.
 
 Изолированный backend test container получает COMPOSER_PROCESS_TIMEOUT=900,
@@ -344,7 +344,7 @@ shares/history и opposite balances → third-user denial. E2E прерывае�
 
 Audit policy/threshold не менялись. Полный gate остаётся blocked на прежних
 braces/node-forge advisories; отдельные financial/browser tests не заменяют
-release gate. [Текущие результаты](acceptance/create-debt.md).
+release gate. [Текущие результаты](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/create-debt.md).
 
 ## Дополнение SC-016
 
@@ -353,7 +353,7 @@ release gate. [Текущие результаты](acceptance/create-debt.md).
 балансами и неизменность Debt. Participants сравниваются по stable IDs.
 PHP-FPM logs содержат IP/date/method/status без URI; test-e2e.sh дополнительно
 проверяет service logs на invitation capabilities. Полные результаты и прежний
-npm audit blocker — [акт SC-016](acceptance/manual-transfer.md).
+npm audit blocker — [акт SC-016](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/manual-transfer.md).
 Audit policy/threshold и отсутствие исключений сохраняются.
 
 ## Дополнение SC-013
@@ -372,4 +372,4 @@ MANUAL сравниваются с исходными representation; automatic 
 Свежий browser прогон PASS без source drift. Полный make check-full выполнен,
 но release gate BLOCKED прежними 11 high npm advisories; browser и smoke
 проверены отдельно. Audit threshold/исключения не менялись.
-[Итог](acceptance/update-debt.md).
+[Итог](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/update-debt.md).

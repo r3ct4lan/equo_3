@@ -1,74 +1,57 @@
 # Документация Equo
 
-| Поле | Значение |
+Актуально на 2026-10-18. MVP принят владельцем для тестового использования.
+Начинайте с [продуктового контекста](product-context.md) и [правил работы](../AGENTS.md).
+Дальнейшие задачи находятся в [бэклоге](backlog.md).
+
+## Требования и принятые решения
+
+| Документ | Содержание |
 |---|---|
-| Название | Индекс проектной документации Equo |
-| Назначение | Обеспечить единый вход в комплект проектных артефактов и правила их актуализации |
-| Статус | Accepted |
-| Версия | 52 |
-| Дата актуальности | 2026-10-18 |
-| Владелец | Maksim Smolkov |
-| Источник | Нормативная документация и фактическая реализация MVP |
+| [Границы MVP](mvp-scope.md) | Каталог сценариев, Must/Should/Later/Out of scope, критерии готовности |
+| [Глоссарий](glossary/glossary.md) | Термины предметной области |
+| [Бизнес-правила](business-rules/business-rules.md) | Финансовые инварианты, доступ, жизненный цикл и ограничения |
+| [HTTP-контракты](api/http-contracts.md) | API, запросы, ответы, ошибки, идемпотентность и конкурентность |
+| [Модель сущностей](data-model/entities.md) | Сущности, поля, связи и ограничения |
+| [ER-диаграмма](data-model/er-diagram.md) | Структура данных; исходник [DOT](data-model/er-diagram.dot), версии [SVG](data-model/er-diagram.svg) и [PNG](data-model/er-diagram.png) |
+| [Архитектурные решения](adr/architecture-decisions.md) | Принятые ADR-001—019 и основания решений |
+| [Журнал вопросов и решений](open-questions.md) | Принятые решения OQ/CONS и условия их пересмотра |
 
-В этом каталоге хранится документация, необходимая для сопровождения и дальнейшей разработки MVP: термины предметной области, бизнес-правила, модель данных, API-контракты, архитектурные решения, границы и дорожная карта MVP, фактическая структура приложения, модель доступа, quality gate и журнал принятых решений. Временные материалы анализа завершённых этапов в репозитории не хранятся; запрошенные технические акты приёмки размещаются в `acceptance/`, а актуальный прогресс реализации фиксируется в дорожной карте.
+## Устройство приложения
 
-## Индекс артефактов
+| Документ | Содержание |
+|---|---|
+| [Структура backend](backend-structure.md) | Модули, слои, namespaces и допустимые зависимости |
+| [HTTP-реализация](api/http-implementation.md) | Symfony, DTO, validation, serialization и обработка ошибок |
+| [Реализованная схема](data-model/implemented-initial-schema.md) | Таблицы, mapping, миграции и ограничения |
+| [Модель доступа](security/access-model.md) | Auth, сессии, токены, cookies, ACL и криптографические профили |
+| [Frontend](frontend-foundation.md) | Nuxt, API client, session coordination, формы и UI |
 
-Перед автономной разработкой читайте [продуктовый контекст](product-context.md)
-и [правила работы](../AGENTS.md). Контекст передачи сверён 2026-10-09;
-актуальные требования остаются в нормативных артефактах ниже.
+## Разработка и эксплуатация
 
-| Артефакт | Краткое описание | Статус | Когда обновлять |
-|---|---|---|---|
-| [Глоссарий предметной области](glossary/glossary.md) | Канонические термины предметной области и их значения | Финальная согласованная версия этапа проектирования | Появился, переименован, исключён термин или изменилось его значение |
-| [Бизнес-правила](business-rules/business-rules.md) | Нормативные правила MVP со стабильными идентификаторами `BR-*` | Финальная согласованная версия этапа проектирования | Изменились поведение продукта, инварианты, права, жизненный цикл или границы MVP |
-| [Модель сущностей](data-model/entities.md) | Сущности, поля, связи, ограничения целостности и транзакционные границы | Финальная согласованная версия этапа проектирования | Изменилась персистентная модель, жизненный цикл, связь, ограничение или транзакционная граница |
-| [ER-диаграмма](data-model/er-diagram.md) | Mermaid-описание и подробные сведения о ключах, ограничениях и кардинальностях | Финальная согласованная версия этапа проектирования | Изменились сущность, поле, nullable-состояние, ключ, ограничение или кардинальность |
-| [Реализованная начальная схема](data-model/implemented-initial-schema.md) | Фактические таблицы, Doctrine records, ограничения и отложенная часть ER-модели | Accepted | Изменились реализованные таблицы, mapping, миграции, ограничения или граница текущей схемы |
-| [ER-диаграмма — DOT](data-model/er-diagram.dot) | Редактируемый исходник Graphviz | Финальная согласованная версия этапа проектирования | Изменилась ER-диаграмма; SVG и PNG нужно пересоздать в том же изменении |
-| [ER-диаграмма — SVG](data-model/er-diagram.svg) | Масштабируемая отображаемая версия | Финальная согласованная версия этапа проектирования | Изменился DOT-исходник |
-| [ER-диаграмма — PNG](data-model/er-diagram.png) | Растровая отображаемая версия | Финальная согласованная версия этапа проектирования | Изменился DOT-исходник |
-| [HTTP-контракты](api/http-contracts.md) | Маршруты, данные, ошибки, идемпотентность, конкурентность и пагинация публичного API v1 | Финальная согласованная версия этапа проектирования | Изменился публичный endpoint, данные, ошибка, заголовок, правило аутентификации или HTTP-поведение |
-| [Реализация HTTP-слоя](api/http-implementation.md) | Фактические Symfony-механизмы JSON, DTO validation, serialization, request ID и standard errors после E1-09 | Accepted | Изменились HTTP subscribers, Serializer/Validator config, error classification или правила response DTO |
-| [Модель доступа MVP](security/access-model.md) | Реализованные публичные субъекты, capability-based activation policy, password hashing, refresh rotation, Bearer `/me` и принятые token/JWT profiles | Accepted | Изменились правила доступа, token lifecycle, password hashing, authentication profile или security-конфигурация |
-| [Frontend-фундамент](frontend-foundation.md) | Фактическая Nuxt-структура, API client, `$auth`, error/session/form state и UI-правила после frontend session lifecycle | Accepted | Изменились frontend-каталоги, runtime API config, общие типы/состояния, маршрутизация или правила форм |
-| [Login и защищённая сессия](features/login-protected-session.md) | Contract audit, технический дизайн и progress `MVP-SC-002` для login, refresh, JWT, browser session lifecycle и `/me` | Implemented, verified and merged | Изменились нормативные auth contracts, выбранные зависимости, session lifecycle или план реализации `DR-E1-001—053` |
-| [Выход и отзыв сессий](features/logout-session-revocation.md) | Реализация и прогресс `MVP-SC-003`: endpoints, local cleanup, concurrency и E2E | Merged; functional PASS; release audit blocked | Изменились contracts, lifecycle, OQ-022—024, этапы SC3-02—08 или устранён release blocker |
-| [Приёмка выхода и отзыва сессий](acceptance/logout-session-revocation.md) | Свежая матрица доказательств SC-003, проверок и ограничений | Functional PASS; release BLOCKED | Повторены проверки, устранён audit blocker или принято решение владельца |
-| [Восстановление забытого пароля](features/password-reset.md) | Контракт, этапы SC4-01—06 и фактическая реализация MVP-SC-004 | Merged; functional PASS; release audit blocked | Изменился reset lifecycle или результат проверки |
-| [Приёмка восстановления пароля](acceptance/password-reset.md) | Доказательства SC-004, browser journeys, конкурентность и ограничения | Functional PASS; release BLOCKED | Повторены проверки или устранён blocker |
-| [Безопасная смена пароля](features/password-change.md) | Contract audit, этапы SC5-01—06 и реализация MVP-SC-005 | Merged; functional PASS; release audit blocked | Изменились password change или результаты проверок |
-| [Приёмка смены пароля](acceptance/password-change.md) | Доказательства SC-005, две browser sessions, concurrency и ограничения | Functional PASS; release BLOCKED | Повторены проверки или устранён blocker |
-| [Приглашение и постоянный Connect](features/connect-invitations.md) | Контракты, этапы SC8-01—06 и реализация SC-008 | Merged; functional PASS; release audit blocked | Изменился invitation lifecycle или Connect scope |
-| [Приёмка приглашений и Connect](acceptance/connect-invitations.md) | Два пользователя, idempotency, concurrency, privacy и итоговые проверки | Functional PASS; release BLOCKED | Повторены проверки или устранён blocker |
-| [Общий расход, доли, баланс и история](features/create-debt.md) | SC-011, read models SC-009/012/015 и этапы SC11-01—06 | Merged; functional PASS; release audit blocked | Изменились финансовый scope или результат проверки |
-| [Приёмка финансового этапа](acceptance/create-debt.md) | Atomicity, real DB races, ledger, ACL и browser путь двух сторон/third-user denial | Functional PASS; release BLOCKED | Повторены проверки или устранён blocker |
-| [Ручной перевод](features/manual-transfer.md) | SC-016, этапы SC16-01—05, atomic MANUAL writer, form/retry и server refresh | Merged; functional PASS; release audit blocked | Изменился MANUAL scope или результат проверки |
-| [Приёмка ручного перевода](acceptance/manual-transfer.md) | Both directions, overpayment, real races, основной browser путь и safe diagnostics | Functional PASS; release BLOCKED | Повторены проверки, устранён blocker или принято решение владельца |
-| [Исправление долга](features/update-debt.md) | SC-013, этапы SC13-01—06, atomic recalculation, edit UI и If-Match | Merged; functional PASS; release audit blocked | Изменился update scope или результат проверки |
-| [Приёмка исправления долга](acceptance/update-debt.md) | Stable identities, шесть rollback points, четыре races, stale editor и три browser accounts | Functional PASS; release BLOCKED | Повторены проверки, устранён blocker или принято решение владельца |
-| [Retention и очистка](features/retention-operations.md) | SC-022 retention matrix, bounded cleanup command, daily schedule, safe summary and deployment alert thresholds | Technical operations slice; scheduler-only cleanup process and DR-E7-055 verified; release gate remains open | Изменились retention requirements, cleanup behavior or operational evidence |
-| [Приёмка retention](acceptance/retention-operations.md) | Backend tests, migration/schema verification, protected-route auth/ACL/privacy, inactive-user, idempotency, ETag/If-Match, transaction rollback, DB uniqueness, credential-redaction, ADR-015 dependency, deployment-service and environment/key-ring matrices, readiness/dependency/worker shutdown checks | DR-E7-021—030, 042, 045—047 and 052 PASS; two npm advisories temporarily accepted; production/PO release review remains open | Повторены проверки или закрыты оставшиеся stage-7 requirements |
-| [Доказательства готовности MVP](acceptance/mvp-readiness.md) | Сводная матрица тестов и операционных проверок для 13 критериев запуска из `mvp-scope.md` §16 | DR-E7-053 PASS; production deployment и Product Owner decision остаются отдельными | Повторена проверка или изменились критерии запуска |
-| [Проверка launch blockers](acceptance/launch-blocker-review.md) | Evidence review каждого blocker раздела 16 с открытыми target deployment и SMTP checks | DR-E7-054 OPEN; source-level defects not found in reviewed evidence | Проверена целевая среда или изменились launch-blocker evidence |
-| [Допустимые ручные процессы](acceptance/manual-process-review.md) | Проверка исключений раздела 15, операторского email replay и отсутствия ручного SQL в штатном пути | DR-E7-055 PASS; retention cleanup вызывается scheduler service | Изменились scope §15 или operator runbook |
-| [Скрытые зависимости Should/Later](acceptance/no-hidden-dependencies.md) | Сверка основного пути с optional/out-of-scope сценариями, HTTP routes и UI | DR-E7-056 PASS; обязательные скрытые зависимости не найдены | Изменились обязательные зависимости, API surface или классификация сценариев |
-| [Операции email и retention](operations/email-delivery.md) | Запуск сервисов, health/readiness, graceful worker restart, безопасная диагностика/failure replay, key rotation, deployment alert thresholds and retention operations | Implemented; deployment values and production evidence remain open | Изменились deployment commands, retry/replay procedure or operations evidence |
-| [AWS staging](operations/aws-staging.md) | Развёртывание production-сборок на EC2, HTTPS, закрытые инфраструктурные порты и настройка SMTP | Running; owner confirmed registration, activation email and login; isolated operational checks PASS | Изменилась конфигурация стенда или процедура развёртывания |
-| [Доказательства AWS staging](acceptance/aws-staging.md) | Фактические результаты запуска на целевом сервере и оставшиеся ограничения | Operational checks, full CI and owner acceptance PASS; MVP accepted for test use | Проверены SMTP и оставшиеся эксплуатационные сценарии |
-| [Приёмка MVP владельцем](acceptance/owner-mvp-walkthrough.md) | Пошаговый сценарий двух аккаунтов с ожидаемыми суммами и отдельным решением владельца | Все пять шагов PASS; DR-E7-058 принят 2026-10-18 для тестового использования | Получен результат сценария или решение DR-E7-058 |
-| [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, browser E2E, audits, smoke, Compose readiness/dependency checks и GitHub Actions | Accepted; два npm GHSA временно allowlisted до исправлений | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
-| [Приёмка повторного запроса активации](acceptance/activation-resend.md) | Сквозное доказательство replacement semantics, neutral 202, rate limit и security regressions для `MVP-SC-001` | Passed | Повторена приёмка или Product Owner принял итоговое решение |
-| [Architecture Decision Records](adr/architecture-decisions.md) | Принятые ADR-001—ADR-019 | Accepted | Решение заменяется новым или выполнено условие его пересмотра; историю следует сохранять, добавляя новый ADR |
-| [Границы MVP](mvp-scope.md) | Цель, каталог `MVP-SC-*`, классификация, основной путь, зависимости и критерии запуска E1-04 | Accepted | Изменилась цель MVP, категория сценария, обязательный путь, критерий запуска или решение о границе |
-| [Дорожная карта разработки MVP](development-roadmap.md) | Семь последовательных этапов, стабильные task ID, checklists, Definition of Ready/Done, post-MVP backlog и traceability всех сценариев | MVP принят для тестового использования; backlog открыт | Завершена задача или этап, изменились зависимости/порядок, добавлена принятая feature либо изменились критерии реализации/приёмки |
-| [Структура backend](backend-structure.md) | Фактические модули, namespace, service discovery и допустимые зависимости после E1-07 | Accepted | Изменились модульные границы, каталоги, namespace, правила зависимостей или регистрация сервисов |
-| [Открытые вопросы](open-questions.md) | Единый журнал `OQ-*`; все 24 вопроса разрешены | Accepted | Обнаружен подтверждённый вопрос, принято или пересмотрено решение либо изменился связанный `CONS-*` |
+| Документ | Содержание |
+|---|---|
+| [README проекта](../README.md) | Локальный запуск WSL/Docker и основные команды |
+| [Quality gate](quality-gate.md) | Обязательные проверки, CI, изолированные тесты и политика audit |
+| [Email и retention](operations/email-delivery.md) | Очереди, диагностика, safe replay, очистка и ротация ключей |
+| [AWS staging](operations/aws-staging.md) | Развёртывание, HTTPS, SMTP, обновления и изолированные операционные проверки |
+| [Факты о целевом стенде](acceptance/aws-staging.md) | Проверенная конфигурация AWS, результаты и ограничения проверок |
+
+## Статус, приёмка и дальнейшая работа
+
+| Документ | Содержание |
+|---|---|
+| [Текущий контекст](product-context.md) | Назначение продукта, реализованный объём, статус и ограничения |
+| [Итоговая приёмка владельцем](acceptance/owner-mvp-walkthrough.md) | Пять подтверждённых шагов, принятая версия и решение о тестовом использовании |
+| [Бэклог](backlog.md) | Незавершённые задачи с сохранёнными ID и возможные эксплуатационные улучшения |
 
 ## Правила ведения
 
-- Считайте бизнес-правила и принятые ADR нормативными. Не устраняйте смысловые расхождения молча за счёт редактирования другого артефакта.
-- Сохраняйте стабильность идентификаторов требований `BR-*` и решений `ADR-*`.
-- Обновляйте редактируемый DOT-исходник и обе отображаемые версии ER-диаграммы вместе.
-- Фиксируйте нерешённые противоречия, отсутствующие метаданные, дубли и заменённые версии в [open-questions.md](open-questions.md).
-- Отмечайте checkbox в [дорожной карте](development-roadmap.md) только после реализации и проверки соответствующей задачи; нормативное поведение меняйте сначала в профильном артефакте.
+- Нормативные требования и принятые решения сохраняются; изменения поведения
+  сначала отражаются в профильных документах.
+- Сохраняйте ID требований, решений и незавершённых задач.
+- При изменении ER-диаграммы обновляйте DOT, SVG и PNG вместе.
+- Решения дополняйте в ADR и журнале вопросов с явным основанием пересмотра.
+- Держите в рабочем дереве актуальную документацию и планы предстоящей работы.
+  Завершённые планы разработки и промежуточные отчёты MVP удалены по поручению
+  владельца; их исходные версии и доказательства доступны в истории Git.

@@ -571,7 +571,7 @@ HTTP/cookie contract, stable-locator concurrency profile и frontend UX
 - **Источники и связанные CONS:** CONS-020; [`UserSession`](data-model/entities.md#9-usersession);
   [рекомендуемые ограничения БД](data-model/entities.md#14-рекомендуемые-ограничения-бд);
   [ER локальные CHECK](data-model/er-diagram.md#7-локальные-check-ограничения);
-  [`DR-E1-004`](development-roadmap.md#53-data-и-migration).
+  [`DR-E1-004`](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/development-roadmap.md#53-data-и-migration).
 - **Возможные варианты:** оставить только `expiresAt > createdAt`; добавить
   `revokedAt IS NULL OR revokedAt >= createdAt`; добавить другой terminal-state
   rule; явно подтвердить, что terminal state проверяется только доменным слоем.
@@ -655,7 +655,7 @@ HTTP/cookie contract, stable-locator concurrency profile и frontend UX
 - **Источники:** [HTTP 8.6—8.7](api/http-contracts.md#86-выход-из-текущей-сессии),
   [ADR-018](adr/architecture-decisions.md#adr-018-frontend-lifecycle-access-token-session-bootstrap-и-csrf),
   [`MVP-SC-003`](mvp-scope.md#mvp-sc-003),
-  [logout feature audit](features/logout-session-revocation.md).
+  [logout feature audit](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/logout-session-revocation.md).
 - **Возможные варианты:**
   1. после успешного request guard всегда отвечать `204` и очищать cookies,
      включая unusable token; при `403` cookies не менять; logout-all очищает
@@ -764,7 +764,7 @@ HTTP/cookie contract, stable-locator concurrency profile и frontend UX
   auth middleware, login page, component и browser E2E tests.
 - **Источники:** [ADR-018](adr/architecture-decisions.md#adr-018-frontend-lifecycle-access-token-session-bootstrap-и-csrf),
   [frontend foundation](frontend-foundation.md#7-состояние-текущего-пользователя),
-  [logout feature audit](features/logout-session-revocation.md).
+  [logout feature audit](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/logout-session-revocation.md).
 - **Возможные варианты:**
   1. current logout без confirmation, logout-all с confirmation; success
      redirect на `/login` в explicit signed-out mode, error остаётся на

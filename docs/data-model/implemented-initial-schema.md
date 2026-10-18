@@ -221,14 +221,14 @@ sessions lock order согласован с activation/login/refresh. Persistenc
 проверяют purpose isolation, точный пароль без trim, active/inactive, TTL,
 replacement, encrypted payload и rollback обеих команд. Новых таблиц, индексов
 или миграций не добавлено; применённые миграции и dev volumes не изменялись.
-[Итоговая проверка](../acceptance/password-reset.md).
+[Итоговая проверка](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/password-reset.md).
 ## SC-005: смена пароля на существующей схеме
 
 Новых таблиц, полей, индексов и миграций нет. Writer блокирует app_user,
 проверяет fresh password_hash/is_active, обновляет password_hash и отзывает все
 unfinished user_session владельца в одной transaction. Expired, previously
 revoked и чужие sessions сохраняются; UserActionToken и email outbox не меняются.
-[Доказательства атомарности и конкурентности](../acceptance/password-change.md).
+[Доказательства атомарности и конкурентности](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/password-change.md).
 
 ## SC-008: постоянная пара и приглашение
 
@@ -252,7 +252,7 @@ expires и used поддерживают lookup/retention. TTL — семь дн
 Единственность действующей ссылки обеспечивается блокировкой автора;
 истёкшие unused записи не переписываются. Accept блокирует пользователей в
 порядке UUID, затем invitation. INSERT ON CONFLICT для пары и использование
-приглашения находятся в одной транзакции. [Доказательства](../acceptance/connect-invitations.md).
+приглашения находятся в одной транзакции. [Доказательства](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/connect-invitations.md).
 
 ## Схема финансового этапа SC-011
 
@@ -286,7 +286,7 @@ Connect history (connect_id,created_at,id), active balance (connect_id,is_delete
 Все три records/mappers не имеют ORM associations с другими модулями.
 Empty-chain migration, schema parity, round trip обоих типов Transfer,
 CHECK/UNIQUE/FK, rollback и real-process concurrency проверены изолированной
-test-БД. [Матрица](../acceptance/create-debt.md).
+test-БД. [Матрица](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/create-debt.md).
 
 ## SC-016
 
@@ -310,4 +310,4 @@ Root version увеличивается один раз на реальное и
 Transfer version — только при изменении amount/isDeleted. Актуальный no-op
 не выполняет запись и сохраняет версии. Все изменения, включая новый Connect,
 выполняются одной транзакцией. Пять существующих миграций на пустой isolated
-test DB и schema parity PASS. [Матрица](../acceptance/update-debt.md).
+test DB и schema parity PASS. [Матрица](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/update-debt.md).

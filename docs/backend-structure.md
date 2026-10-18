@@ -354,7 +354,7 @@ Adapter. Существующий DoctrineEmailOutbox реализует reset p
 межмодульного `Application\Api\TokenDeliveryState`, не импортирует Domain другого
 модуля, проверяет current deliverability и очищает ciphertext при terminal state.
 Migration не нужна; изменение не вводит новые модули или универсальный mapper.
-[Декомпозиция](features/password-reset.md), [проверка](acceptance/password-reset.md).
+[Декомпозиция](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/password-reset.md), [проверка](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/password-reset.md).
 ## Реализованная смена пароля (SC-005)
 
 IdentityAccess\Application\PasswordChange владеет ChangePassword и command.
@@ -363,7 +363,7 @@ IdentityAccess\Application\PasswordChange владеет ChangePassword и comma
 Используются общие PasswordPolicy/hasher, TransactionPort, ClockPort и session
 revoke core. HTTP DTO/controller и Bearer support остаются в Adapter; Domain
 не импортирует framework, Application не зависит от HTTP. Схема не менялась.
-[Этапы](features/password-change.md), [проверка](acceptance/password-change.md).
+[Этапы](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/password-change.md), [проверка](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/password-change.md).
 
 ## Границы SC-008
 
@@ -403,7 +403,7 @@ Doctrine records используют UUID links без межмодульных
 schema listener отражает их FK при сравнении mapping. KeysetCursor реализует
 узкие ports двух query modules. Controllers/Validator DTO живут в Adapter/Http.
 
-[План](features/create-debt.md), [доказательства](acceptance/create-debt.md).
+[План](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/create-debt.md), [доказательства](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/create-debt.md).
 
 ## MANUAL writer SC-016
 
@@ -431,4 +431,4 @@ Writer сохраняет прежние IDs/createdAt, обновляет то�
 flags и создаёт только новые записи. Transfer.recalculateShare увеличивает
 version лишь при фактическом изменении суммы/флага. MANUAL не затрагивается.
 Domain не зависит от Doctrine/Symfony, Application — от HTTP.
-[Доказательства](acceptance/update-debt.md).
+[Доказательства](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/update-debt.md).

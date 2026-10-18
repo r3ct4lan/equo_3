@@ -95,7 +95,7 @@ User до sessions и атомарно отзывает только `revoked_at
 Login также сериализуется по User перед созданием новой session. Повторные
 revoke сохраняют первый timestamp; rollback атомарен. Successful `204` очищает
 обе cookies, ошибки их не меняют. JWT blacklist отсутствует: выданный access
-token действует до `exp`. Полный контракт — [SC-003](../features/logout-session-revocation.md).
+token действует до `exp`. Полный контракт — [SC-003](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/logout-session-revocation.md).
 
 ## 4. Object authorization activation token
 
@@ -202,7 +202,7 @@ SC-003 дополнительно проверяет exact logout/clear-cookie c
 recheck и atomic bulk revoke, terminal/stale credential branches, rollback,
 реальные DB/process races, local cleanup и signed-out lifecycle. Свежий набор:
 322 backend, 40 unit, 27 component и 16 browser E2E PASS; полный release gate
-блокирует dependency audit. [Акт проверки](../acceptance/logout-session-revocation.md)
+блокирует dependency audit. [Акт проверки](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/logout-session-revocation.md)
 фиксирует доказательства и ограничения.
 
 ## 10. Нормативные источники
@@ -234,7 +234,7 @@ rollback сохраняет прежнее состояние. isActive не м�
 меняют. Уже выданный stateless JWT действует до exp по ADR-018. Backend не
 раскрывает token/password/hash/SQL в public errors или logs. UI дополнительно
 очищает query/SSR payload/private secrets и local session после 204.
-[Матрица проверки](../acceptance/password-reset.md) включает реальные DB races,
+[Матрица проверки](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/password-reset.md) включает реальные DB races,
 HTTP privacy и browser lifecycle; dependency audit остаётся release blocker.
 ## Реализованная смена пароля SC-005
 
@@ -243,7 +243,7 @@ ChangePassword выполняет User → sessions: проверка fresh cred
 rate profile не добавляется. Новый пароль проверяется общей Domain policy и HTTP
 DTO. Успешный empty 204 очищает обе cookies через общую factory; JWT до exp,
 frontend очищает auth и требует повторный login. Неверный currentPassword не
-вызывает refresh/retry или local logout. [Акт](../acceptance/password-change.md).
+вызывает refresh/retry или local logout. [Акт](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/password-change.md).
 
 ## SC-008: capability и membership
 
@@ -263,7 +263,7 @@ Capability locations подавляют raw upstream error URLs; безопас�
 диагностика сохраняет request ID. Monolog processor скрывает token/hash,
 SQL/parameters и exception detail. Browser fixtures очищают invitation paths,
 trace/video отключены. Capability не сохраняется в SSR payload/storage; login
-continuation использует память вкладки. [Акт проверки](../acceptance/connect-invitations.md).
+continuation использует память вкладки. [Акт проверки](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/connect-invitations.md).
 
 ## Финансовый доступ SC-011
 
@@ -285,7 +285,7 @@ Email других участников не возвращается. Недо�
 Backend validates activity/eligibility перед commit; replay возвращает прежний
 результат только active автору. UI ограничивает выбор server-returned brief users,
 очищает прежний account state и не показывает прежние balances во время нового load.
-[Матрица ACL/privacy](../acceptance/create-debt.md).
+[Матрица ACL/privacy](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/create-debt.md).
 
 ## Ручной перевод SC-016
 
@@ -313,4 +313,4 @@ payer/author замораживает update. Payer и author неизменяе
 Debt access, сохраняя independent Transfer/Connect history и минимальный
 inaccessible debtReference. Read-only UI скрывает edit; сервер проверяет права
 самостоятельно. Late session/path responses отбрасываются.
-[Доказательства ACL и конкурентности](../acceptance/update-debt.md).
+[Доказательства ACL и конкурентности](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/update-debt.md).

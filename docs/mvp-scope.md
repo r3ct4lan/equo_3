@@ -782,29 +782,18 @@ MVP готов к запуску, когда одновременно выпол
 
 ## 21. Реализованные сценарии
 
-Первым вертикальным срезом был ограниченный MVP-SC-001: первичная регистрация
-и активация по первому email. Далее реализованы login/session (SC-002),
-logout/revoke (SC-003), reset/change password (SC-004/005), invitation и
-постоянный Connect (SC-008), общий расход и финансовое чтение
-(SC-011, SC-009/012/015), ручной перевод (SC-016) и исправление долга
-с полным перерасчётом (SC-013).
+На 2026-10-18 все 16 Must have реализованы и проверены: регистрация/активация,
+login/session, logout/revoke, reset/change password, invitation/Connect,
+общие расходы и финансовое чтение, изменение расхода, ручные переводы,
+email delivery, безопасность, consistency и retention.
 
-На 2026-10-12 основной пользовательский путь раздела 6 проходит локальную
-техническую browser проверку целиком: две стороны регистрируются/активируются,
-входят, принимают приглашение, создают расход и MANUAL, видят согласованные
-балансы и истории. [Акт SC-016](acceptance/manual-transfer.md) фиксирует
-доказательства и ограничения; [roadmap](development-roadmap.md) — статус задач.
+Полный CI и операционные проверки целевой AWS-среды успешны. Владелец подтвердил
+все пять шагов ручной приёмки и отдельно принял MVP для тестового использования
+с зафиксированными ограничениями. Подробности — в
+[текущем контексте](product-context.md), [акте владельца](acceptance/owner-mvp-walkthrough.md)
+и [AWS evidence](acceptance/aws-staging.md).
 
-SC-013 дополнительно проверяет edit, исключение/возвращение, stale writer и
-неизменность MANUAL: [акт SC-013](acceptance/update-debt.md).
-Это не закрывает критерии запуска: production deployment evidence и Product
-Owner acceptance остаются открытыми. На 2026-10-13 владелец
-временно принял два npm advisory без опубликованных исправлений; они остаются
-единственными npm audit exceptions. Текущий main snapshot прошёл quality
-workflow [#73](https://github.com/r3ct4lan/equo_3/actions/runs/38659998867):
-681 PHPUnit tests / 8,335 assertions, migrations, backend/frontend quality,
-dependency audit, application smoke и 26 browser E2E. Compose startup/stop и
-production deployment в WSL не запускались из-за отсутствия Docker CLI.
-Технический статус 16 Must have зафиксирован в [traceability matrix](development-roadmap.md#14-traceability-всех-сценариев);
-он не является Product Owner решением о запуске. Границы Must/Should/Later/Out
-и нормативные требования разделов 1—20 не менялись.
+Все незавершённые Should/Later и неблокирующий DR-E7-060 сохранены в
+[бэклоге](backlog.md). Выполненные планы и промежуточные отчёты удалены из рабочей
+документации по решению владельца; история доступна в Git. Нормативные границы,
+категории и требования разделов 1—20 не менялись.

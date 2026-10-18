@@ -160,6 +160,22 @@ the token is deliverable. The worker and outbox relay recheck the token before
 email handoff. Do not update outbox status, encrypted payload, token rows or
 financial tables manually in SQL.
 
+## Retention criteria and concurrency
+
+| Record | Eligible for physical cleanup | Active data protection |
+|---|---|---|
+| `IdempotencyRecord` | At `expiresAt` (24 hours after creation) | Result remains available through the exact 24-hour guarantee window |
+| `UserActionToken` | 30 days after use, invalidation, or expiry | Unused, non-invalidated tokens younger than 30 days after expiry remain |
+| `ConnectInvitation` | 30 days after use or expiry | Unused invitations remain until 30 days after expiry |
+| `UserSession` | 30 days after revocation or expiry | Unrevoked, unexpired sessions remain |
+| `EmailDeliveryOutbox` | 30 days after `SENT` or `FAILED` | `PENDING`/`PUBLISHED` rows remain until terminal; encrypted payload is cleared at terminal state or token expiry |
+
+Outbox rows are removed before their referenced action tokens. Cleanup never
+targets financial tables. Every record type is processed in stable timestamp
+and UUID order, with an independent batch limit from 1 to 5,000. A PostgreSQL
+transaction advisory lock prevents concurrent cleanup runs; row locks use
+`SKIP LOCKED`, so cleanup can coexist with application workers.
+
 ## Retention and key rotation
 
 The retention scheduler is the only documented operational caller of
