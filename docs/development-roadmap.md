@@ -129,8 +129,10 @@ Feature считается завершённой, когда:
 - [x] `DR-B-007` — страницы `/register` и `/activate`;
 - [x] `DR-B-008` — component, integration, concurrency и browser E2E первого
   среза;
-- [ ] `DR-B-009` — повторный запрос ссылки активации; входит в этап 6;
-- [ ] `DR-B-010` — physical retention cleanup; входит в этап 7.
+- [x] `DR-B-009` — повторный запрос ссылки активации; выполнен в этапе 6
+  (`DR-E6-002—009`), проверен backend/browser gate и включён в `main`;
+- [x] `DR-B-010` — physical retention cleanup; выполнен в этапе 7
+  (`DR-E7-001—010`), проверен тестами и AWS operational acceptance.
 
 Текущая реализация содержит production-аутентификацию, `UserSession`, login,
 refresh rotation, Bearer `/me`, защищённую browser-сессию, приглашения и Connect.
@@ -158,7 +160,7 @@ production-сессии и `Connect` сначала строится финан�
 
 | Область | Готово | Всего | Текущее состояние |
 |---|---:|---:|---|
-| Реализованный baseline | 8 | 10 | Первый ограниченный срез работает |
+| Реализованный baseline | 10 | 10 | Все задачи выполнены; DR-B-009/010 закрыты реализацией этапов 6/7 |
 | Этап 1 | 53 | 53 | Завершён |
 | Этап 2 | 45 | 45 | SC-008 merged; full CI quality gate and two-user E2E PASS |
 | Этап 3 | 70 | 70 | SC-011 merged; full CI quality gate and financial browser E2E PASS |
