@@ -1,10 +1,11 @@
 # AWS staging deployment — 2026-10-17
 
-Status: **running; owner-confirmed registration/activation/login; isolated operational checks and full CI quality gate PASS; Product Owner release decision pending**.
+Status: **running; operational checks, full CI and owner walkthrough PASS; MVP accepted for test use on 2026-10-18**.
 
 Source: `main` baseline `d113e72` plus deployment commit `b5e81da` from
 `codex/aws-staging`, merged through PR #25 as `bba048b`. Full CI evidence is
-recorded below. This is not a Product Owner release decision.
+recorded below. The separate [owner decision](owner-mvp-walkthrough.md) accepts
+version `fe5ab40` for test use with the documented limitations.
 
 ## Target and observed outcomes
 
@@ -65,11 +66,13 @@ recorded below. This is not a Product Owner release decision.
    subsequent login. This is owner-reported manual evidence for the application
    delivery journey; it does not cover delivery failures or retry behavior.
 
-## Remaining acceptance work
+## Owner acceptance and follow-up
 
-1. Complete the [owner walkthrough](owner-mvp-walkthrough.md) and record the
-   separate Product Owner decision. Backup/RPO/RTO remain owner
-   decisions; no backup schedule has been configured by this deployment.
+The owner confirmed all five [walkthrough steps](owner-mvp-walkthrough.md) and
+separately accepted the MVP for test use on 2026-10-18. DR-E7-058 is closed.
+Backup/RPO/RTO remain owner decisions; no backup schedule or external alert
+delivery has been configured. The temporary hostname and accepted dependency
+advisories remain explicit limitations of this decision.
 
 ## Operational acceptance — 2026-10-18
 
@@ -110,7 +113,8 @@ application smoke. Local `make check-full` was not run; GitHub Actions supplied
 the documented full suite. No upstream update search or dependency change was
 performed. [PR #25](https://github.com/r3ct4lan/equo_3/pull/25) merged the verified
 commit into `main` as `bba048b`. Subsequent acceptance/roadmap edits are documentation
-only. `DR-E7-054` is closed; `DR-E7-058` awaits the owner's separate decision.
+only. `DR-E7-054` is closed; the owner subsequently closed `DR-E7-058` through
+the separate acceptance recorded above.
 
 Temporary transfer archives, installer copies and deployment capture logs were
 removed from the workstation/server after setup. Runtime configuration, private
@@ -118,4 +122,4 @@ credentials, certificates and application data remain in their documented paths.
 
 See [AWS staging runbook](../operations/aws-staging.md) for launch, TLS renewal,
 private captured-mail access and external SMTP configuration. Operational and
-CI evidence closes DR-E7-054; overall MVP readiness still requires DR-E7-058.
+CI evidence closes DR-E7-054; the owner's decision closes DR-E7-058 for test use.

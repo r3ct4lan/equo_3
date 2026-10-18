@@ -5,7 +5,7 @@
 | Название | Индекс проектной документации Equo |
 | Назначение | Обеспечить единый вход в комплект проектных артефактов и правила их актуализации |
 | Статус | Accepted |
-| Версия | 51 |
+| Версия | 52 |
 | Дата актуальности | 2026-10-18 |
 | Владелец | Maksim Smolkov |
 | Источник | Нормативная документация и фактическая реализация MVP |
@@ -55,13 +55,13 @@
 | [Скрытые зависимости Should/Later](acceptance/no-hidden-dependencies.md) | Сверка основного пути с optional/out-of-scope сценариями, HTTP routes и UI | DR-E7-056 PASS; обязательные скрытые зависимости не найдены | Изменились обязательные зависимости, API surface или классификация сценариев |
 | [Операции email и retention](operations/email-delivery.md) | Запуск сервисов, health/readiness, graceful worker restart, безопасная диагностика/failure replay, key rotation, deployment alert thresholds and retention operations | Implemented; deployment values and production evidence remain open | Изменились deployment commands, retry/replay procedure or operations evidence |
 | [AWS staging](operations/aws-staging.md) | Развёртывание production-сборок на EC2, HTTPS, закрытые инфраструктурные порты и настройка SMTP | Running; owner confirmed registration, activation email and login; isolated operational checks PASS | Изменилась конфигурация стенда или процедура развёртывания |
-| [Доказательства AWS staging](acceptance/aws-staging.md) | Фактические результаты запуска на целевом сервере и оставшиеся ограничения | Operational checks and full CI PASS; DR-E7-054 closed; owner acceptance pending | Проверены SMTP и оставшиеся эксплуатационные сценарии |
-| [Приёмка MVP владельцем](acceptance/owner-mvp-walkthrough.md) | Пошаговый сценарий двух аккаунтов с ожидаемыми суммами и отдельным решением владельца | Ожидает выполнения владельцем | Получен результат сценария или решение DR-E7-058 |
+| [Доказательства AWS staging](acceptance/aws-staging.md) | Фактические результаты запуска на целевом сервере и оставшиеся ограничения | Operational checks, full CI and owner acceptance PASS; MVP accepted for test use | Проверены SMTP и оставшиеся эксплуатационные сценарии |
+| [Приёмка MVP владельцем](acceptance/owner-mvp-walkthrough.md) | Пошаговый сценарий двух аккаунтов с ожидаемыми суммами и отдельным решением владельца | Все пять шагов PASS; DR-E7-058 принят 2026-10-18 для тестового использования | Получен результат сценария или решение DR-E7-058 |
 | [Quality gate и CI](quality-gate.md) | Единые local/CI команды, style/static analysis, test DB, browser E2E, audits, smoke, Compose readiness/dependency checks и GitHub Actions | Accepted; два npm GHSA временно allowlisted до исправлений | Изменились quality tools, Make/scripts, CI jobs, audit policy или test infrastructure |
 | [Приёмка повторного запроса активации](acceptance/activation-resend.md) | Сквозное доказательство replacement semantics, neutral 202, rate limit и security regressions для `MVP-SC-001` | Passed | Повторена приёмка или Product Owner принял итоговое решение |
 | [Architecture Decision Records](adr/architecture-decisions.md) | Принятые ADR-001—ADR-019 | Accepted | Решение заменяется новым или выполнено условие его пересмотра; историю следует сохранять, добавляя новый ADR |
 | [Границы MVP](mvp-scope.md) | Цель, каталог `MVP-SC-*`, классификация, основной путь, зависимости и критерии запуска E1-04 | Accepted | Изменилась цель MVP, категория сценария, обязательный путь, критерий запуска или решение о границе |
-| [Дорожная карта разработки MVP](development-roadmap.md) | Семь последовательных этапов, стабильные task ID, checklists, Definition of Ready/Done, post-MVP backlog и traceability всех сценариев | Active | Завершена задача или этап, изменились зависимости/порядок, добавлена принятая feature либо изменились критерии реализации/приёмки |
+| [Дорожная карта разработки MVP](development-roadmap.md) | Семь последовательных этапов, стабильные task ID, checklists, Definition of Ready/Done, post-MVP backlog и traceability всех сценариев | MVP принят для тестового использования; backlog открыт | Завершена задача или этап, изменились зависимости/порядок, добавлена принятая feature либо изменились критерии реализации/приёмки |
 | [Структура backend](backend-structure.md) | Фактические модули, namespace, service discovery и допустимые зависимости после E1-07 | Accepted | Изменились модульные границы, каталоги, namespace, правила зависимостей или регистрация сервисов |
 | [Открытые вопросы](open-questions.md) | Единый журнал `OQ-*`; все 24 вопроса разрешены | Accepted | Обнаружен подтверждённый вопрос, принято или пересмотрено решение либо изменился связанный `CONS-*` |
 

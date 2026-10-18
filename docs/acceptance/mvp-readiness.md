@@ -50,6 +50,7 @@ Update 2026-10-18: [AWS staging acceptance](aws-staging.md) now records the
 production-image deployment, owner-confirmed Brevo activation delivery and
 isolated target-host failure/retry, worker shutdown and retention checks.
 [Full CI](https://github.com/r3ct4lan/equo_3/actions/runs/39123689846) passed on
-`b5e81da`, merged via PR #25 as `bba048b`. This closes DR-E7-054. The owner's
-separate release decision DR-E7-058 remains pending; its
-[walkthrough](owner-mvp-walkthrough.md) is prepared.
+`b5e81da`, merged via PR #25 as `bba048b`. This closes DR-E7-054. The owner
+subsequently confirmed all five [walkthrough](owner-mvp-walkthrough.md) steps
+and separately accepted version `fe5ab40` for test use on 2026-10-18 with the
+documented limitations. DR-E7-058 and DR-E7-057 are closed.

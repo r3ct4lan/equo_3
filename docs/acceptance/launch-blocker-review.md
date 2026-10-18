@@ -9,7 +9,8 @@
 
 DR-E7-054 is closed after review of the deployment branch full quality gate
 and target-environment evidence below. Product Owner release acceptance remains
-the separate DR-E7-058 decision.
+the separate DR-E7-058 decision, now recorded as accepted for test use on
+2026-10-18 in the [owner acceptance](owner-mvp-walkthrough.md).
 
 Update 2026-10-17: an owner-provided AWS staging server now runs the production
 builds with HTTPS, applied migrations, healthy services and a running worker and
@@ -59,4 +60,5 @@ follow-up to update packages and remove that allowlist after fixes are published
 Backup policy and RPO/RTO are recorded by `DR-E7-050` as owner/deployment
 decisions that are required before production only if the owner treats them as a
 release requirement. Product Owner launch acceptance remains the separate
-`DR-E7-058` decision. Neither is silently inferred by this blocker review.
+`DR-E7-058` decision. The owner explicitly accepted the MVP for test use with
+these limitations on 2026-10-18; see [owner acceptance](owner-mvp-walkthrough.md).
