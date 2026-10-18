@@ -1,4 +1,4 @@
-FROM php:8.4-fpm-bookworm AS development
+FROM php:8.4-fpm-bookworm AS runtime
 
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
     && apt-get -o Acquire::Retries=3 update \
@@ -17,6 +17,16 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/backend
 
 COPY backend/composer.json backend/composer.lock backend/symfony.lock ./
+
+FROM runtime AS production
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
+COPY backend ./
+RUN mkdir -p var/cache var/log \
+    && chown -R www-data:www-data var
+ENV APP_ENV=prod APP_DEBUG=0
+CMD ["php-fpm"]
+
+FROM runtime AS development
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
 COPY backend ./
