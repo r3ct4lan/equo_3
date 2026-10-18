@@ -7,10 +7,10 @@ import { ApiClientError } from '../../app/utils/api-error.ts'
 test('recovery uses shared unicode password policy and email validation', () => {
   assert.deepEqual(validateRecoveryEmail({ email: ' User@Example.test ' }), {})
   assert.ok(validateRecoveryEmail({ email: 'invalid' }).email)
-  for (const password of ['', 'short', ' '.repeat(12), '😀'.repeat(129)]) {
+  for (const password of ['', 'a'.repeat(7), '😀'.repeat(7), ' '.repeat(8), '😀'.repeat(129)]) {
     assert.ok(validateNewPassword({ newPassword: password }).newPassword)
   }
-  for (const password of ['😀'.repeat(12), 'é'.repeat(128), '  New password!  ']) {
+  for (const password of ['a'.repeat(8), '😀'.repeat(8), 'é'.repeat(128), '  ab😀d  ']) {
     assert.deepEqual(validateNewPassword({ newPassword: password }), {})
   }
 })

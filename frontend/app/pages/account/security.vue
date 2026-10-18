@@ -18,7 +18,7 @@ const { $auth } = useNuxtApp()
         Account security
       </h1>
       <p class="hero__lede">
-        Choose a new password using 12–128 characters with at least one non-space character. Saving signs you out on all devices. Sign in again with your new password.
+        Choose a new password using 8–128 characters with at least one non-space character. Saving signs you out on all devices. Sign in again with your new password.
       </p>
     </div>
     <PasswordChangeForm v-if="currentUser.state.value.status === 'authenticated'" />

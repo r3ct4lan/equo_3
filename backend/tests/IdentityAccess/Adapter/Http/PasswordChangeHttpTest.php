@@ -59,7 +59,7 @@ final class PasswordChangeHttpTest extends WebTestCase
     public function testSuccessClearsExactCookiesUsesSubjectAndLeavesJwtValid(): void
     {
         $access = $this->fixture();
-        $password = '  New password 😀  ';
+        $password = '  ab😀d  ';
         $this->post(['currentPassword' => 'Correct password!', 'newPassword' => $password], $access);
         self::assertResponseStatusCodeSame(204);
         self::assertSame('', $this->client->getResponse()->getContent());
@@ -121,8 +121,8 @@ final class PasswordChangeHttpTest extends WebTestCase
     {
         yield 'missing' => [[], 'currentPassword', 'REQUIRED'];
         yield 'empty current' => [['currentPassword' => '', 'newPassword' => 'New password!'], 'currentPassword', 'REQUIRED'];
-        yield 'short' => [['currentPassword' => 'old', 'newPassword' => 'short'], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
-        yield 'spaces' => [['currentPassword' => 'old', 'newPassword' => str_repeat(' ', 12)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'short' => [['currentPassword' => 'old', 'newPassword' => str_repeat('😀', 7)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'spaces' => [['currentPassword' => 'old', 'newPassword' => str_repeat(' ', 8)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
         yield 'unicode long' => [['currentPassword' => 'old', 'newPassword' => str_repeat('😀', 129)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
         yield 'wrong current type' => [['currentPassword' => 123, 'newPassword' => 'New password!'], 'currentPassword', 'INVALID_TYPE'];
         yield 'wrong new type' => [['currentPassword' => 'old', 'newPassword' => []], 'newPassword', 'INVALID_TYPE'];

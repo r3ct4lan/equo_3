@@ -64,8 +64,8 @@ test('enforces password length in Unicode code points and the non-space rule', (
   assert.deepEqual(validateRegistration({
     name: 'Alex',
     email: 'alex@example.test',
-    password: 'a'.repeat(11)
-  }).password, ['Use at least 12 characters.'])
+    password: '😀'.repeat(7)
+  }).password, ['Use at least 8 characters.'])
 
   assert.deepEqual(validateRegistration({
     name: 'Alex',
@@ -76,13 +76,13 @@ test('enforces password length in Unicode code points and the non-space rule', (
   assert.deepEqual(validateRegistration({
     name: 'Alex',
     email: 'alex@example.test',
-    password: ' '.repeat(12)
+    password: ' '.repeat(8)
   }).password, ['Use at least one non-space character.'])
 
   assert.deepEqual(validateRegistration({
     name: 'Alex',
     email: 'alex@example.test',
-    password: ` ${'a'.repeat(10)} `
+    password: ` ${'😀'.repeat(6)} `
   }), {})
 })
 

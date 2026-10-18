@@ -40,7 +40,7 @@ export function emailValidationMessages(email: string): string[] {
 export function passwordValidationMessages(password: string): string[] {
   if (password === '') return ['Enter a password.']
   const length = Array.from(password).length
-  if (length < 12) return ['Use at least 12 characters.']
+  if (length < 8) return ['Use at least 8 characters.']
   if (length > 128) return ['Use no more than 128 characters.']
   if (!/\S/u.test(password)) return ['Use at least one non-space character.']
   return []
@@ -134,7 +134,7 @@ export function registrationErrorPresentation(error: SafeApiError): ErrorPresent
     case 'PASSWORD_POLICY_VIOLATION':
       return {
         title: 'Password does not meet the requirements',
-        message: 'Use 12–128 characters and include at least one non-space character.',
+        message: 'Use 8–128 characters and include at least one non-space character.',
         retryable: false
       }
     case 'VALIDATION_ERROR':

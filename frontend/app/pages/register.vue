@@ -191,7 +191,7 @@ async function submitRegistration(): Promise<void> {
             id="registration-password-hint"
             class="form-help"
           >
-            Use 12–128 characters and at least one non-space character.
+            Use 8–128 characters and at least one non-space character.
           </p>
           <input
             id="registration-password"
@@ -199,7 +199,7 @@ async function submitRegistration(): Promise<void> {
             name="password"
             type="password"
             autocomplete="new-password"
-            minlength="12"
+            minlength="8"
             maxlength="128"
             required
             :aria-invalid="errorsFor('password').length > 0"
