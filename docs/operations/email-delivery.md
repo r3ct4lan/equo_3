@@ -1,9 +1,10 @@
 # Email delivery and retention runbook
 
 This runbook applies to the outbox and Messenger transports in the repository.
-Production deployment has not been exercised; production credentials, SMTP
-provider, alert thresholds, backup policy and RPO/RTO remain deployment or owner
-decisions.
+The AWS staging deployment uses production images and Brevo; observed results
+and remaining acceptance limits are in [AWS staging evidence](../acceptance/aws-staging.md).
+Production credentials, alert thresholds, backup policy and RPO/RTO remain
+deployment or owner decisions.
 
 ## Start and inspect services
 
@@ -65,7 +66,8 @@ JWT private key and active public key must form a matching RS256 pair. The
 application validates these formats when the associated services are built.
 Keep purpose-specific keys separate and rotate them according to the procedures
 below. Do not commit production environment files or copy example keys/passwords
-to a deployment. Production deployment itself has not yet been exercised.
+to a deployment. For the exercised AWS staging configuration, see the
+[staging runbook](aws-staging.md).
 
 The exact variable bindings are in `compose.yaml`; protocol profiles are in
 `docs/security/access-model.md` and ADR-008/016/017/018/019.

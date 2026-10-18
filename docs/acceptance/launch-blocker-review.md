@@ -3,13 +3,25 @@
 | Field | Value |
 |---|---|
 | Scope | Review of the launch blockers listed in [MVP scope §16](../mvp-scope.md#16-критерии-готовности-mvp-к-запуску) |
-| Result | OPEN — no source-level failure found in reviewed evidence; two target-environment checks remain unverified |
-| Date | 2026-10-15 |
+| Result | OPEN — target-environment operational checks PASS; deployment branch full quality gate review pending |
+| Date | 2026-10-18 |
 | Base | `main` at `12b68882906d636bd59f318374e558568529460e` |
 
-DR-E7-054 stays unchecked. An unverified deployment is not evidence of a code
-failure, but it is not evidence that the target environment can launch and
-operate the required services either.
+DR-E7-054 stays unchecked until the deployment branch full quality gate has
+been reviewed alongside the target-environment evidence below.
+
+Update 2026-10-17: an owner-provided AWS staging server now runs the production
+builds with HTTPS, applied migrations, healthy services and a running worker and
+retention scheduler. See [AWS staging evidence](aws-staging.md). This partially
+addresses the target-environment gap below. Brevo SMTP is now configured and
+delivered an owner-authorized test message (receipt confirmed by the owner on
+2026-10-17). The owner also confirmed registration through Equo, receipt of the
+activation email, activation via its link and login on 2026-10-17. Failure/retry
+and retention/worker scenarios were subsequently exercised on 2026-10-18 in an
+isolated project on the same EC2, using the exact staging backend image. All
+operational checks passed; see the evidence and explicit retry-timing limits in
+[AWS staging acceptance](aws-staging.md#operational-acceptance--2026-10-18).
+DR-E7-054 remains open pending the deployment branch's full quality gate review.
 
 ## Blocker matrix
 
@@ -18,10 +30,10 @@ operate the required services either.
 | Financial loss, duplicate, partial write or incorrect calculation | [Debt](create-debt.md), [manual transfer](manual-transfer.md) and [debt update](update-debt.md) acceptance cover atomicity, rollback, retries, races, calculations and ledger behavior; latest [main quality workflow](https://github.com/r3ct4lan/equo_3/actions/runs/38663790332) passed backend tests/migrations and 26 browser E2E. | No open implementation defect found in the reviewed evidence. |
 | Authentication/authorization bypass, cross-user disclosure or clear secret storage | [DR-E7-021—030 security audits](retention-operations.md#protected-route-authentication-and-acl-audit--dr-e7-021) cover protected routes, inactive users, privacy, token/cookie behavior and redaction; current backend/browser gate passed. | No open implementation defect found in the reviewed evidence. |
 | Required role cannot complete the primary user path | [MVP readiness evidence](mvp-readiness.md) and [manual transfer acceptance](manual-transfer.md) cover two users from signup through updated balances; latest browser E2E passed. | No open implementation defect found in the reviewed evidence. |
-| Durable email intent is lost or the failure backlog is unobservable/unprocessable | [Password recovery acceptance](password-reset.md) and [retention operations acceptance](retention-operations.md) cover transactional intent, retries, secret clearing, terminal failure, aggregate monitoring and guarded replay. | No code-level failure is open. Actual external SMTP configuration and delivery have not been exercised; staging delivery remains an operational release check. |
+| Durable email intent is lost or the failure backlog is unobservable/unprocessable | [Password recovery acceptance](password-reset.md) and [retention operations acceptance](retention-operations.md) cover transactional intent, retries, secret clearing, terminal failure, aggregate monitoring and guarded replay. [AWS staging evidence](aws-staging.md) records owner-confirmed Brevo delivery and isolated SMTP failure/retry, terminal failure visibility and safe replay on the target host. | Operational checks PASS with the documented accelerated final-attempt fixture; deployment full gate review pending. |
 | Required TTL, retention, rate limit, idempotency or optimistic locking is violated | [Retention operations acceptance](retention-operations.md) and the focused scenario acceptance matrices cover cleanup limits, expiry, rate limits, idempotency, ETags and locking. The latest main quality workflow passed. | No open implementation defect found in the reviewed evidence. |
 | An unhandled error leaves partial state | Atomic rollback and failure-path matrices are documented in [debt](create-debt.md), [manual transfer](manual-transfer.md), [debt update](update-debt.md), [password recovery](password-reset.md) and [retention operations](retention-operations.md). | No open implementation defect found in the reviewed evidence. |
-| Required services or background processes cannot start in the target environment | CI [full Compose smoke](https://github.com/r3ct4lan/equo_3/actions/runs/38663790332) and browser E2E pass against isolated test/development stacks. The [operations runbook](../operations/email-delivery.md) explicitly says production deployment has not been exercised. | **Open verification gap.** No target-environment deployment/startup evidence is available for backend, frontend, PostgreSQL, RabbitMQ, Redis, email worker and retention scheduler. |
+| Required services or background processes cannot start in the target environment | CI [full Compose smoke](https://github.com/r3ct4lan/equo_3/actions/runs/38663790332) and browser E2E pass against isolated test/development stacks. [AWS staging evidence](aws-staging.md) records startup, health checks, scheduler cleanup of aged fixtures and SIGTERM during an actual queued SMTP handoff. | Operational checks PASS; deployment full gate review pending. |
 
 ## Required evidence to close DR-E7-054
 
