@@ -1,0 +1,127 @@
+# Standalone staging stack. Do not combine with compose.yaml using -f.
+name: equo-staging
+
+x-logging: &logging
+  driver: local
+  options:
+    max-size: 10m
+    max-file: '3'
+
+services:
+  nginx:
+    extends:
+      file: compose.yaml
+      service: nginx
+    image: equo-staging-nginx:local
+    build:
+      context: .
+      dockerfile: docker/staging/nginx.Dockerfile
+    environment:
+      APP_HOST: ${APP_HOST:?Set APP_HOST}
+    ports: !override
+      - '80:80'
+      - '443:443'
+    volumes: !override
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/letsencrypt:/var/www/letsencrypt:ro
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q -O /dev/null http://127.0.0.1:8080/api/health']
+    logging: *logging
+
+  backend:
+    extends:
+      file: compose.yaml
+      service: backend
+    image: equo-staging-backend:local
+    build:
+      target: production
+    environment: &production-environment
+      APP_ENV: prod
+      APP_DEBUG: '0'
+    volumes: !reset []
+    logging: *logging
+
+  frontend:
+    extends:
+      file: compose.yaml
+      service: frontend
+    image: equo-staging-frontend:local
+    build:
+      dockerfile: Dockerfile.staging
+    environment:
+      NODE_ENV: production
+      CHOKIDAR_USEPOLLING: 'false'
+      WATCHPACK_POLLING: 'false'
+      NUXT_API_INTERNAL_BASE: http://nginx:8080/api
+    volumes: !reset []
+    restart: unless-stopped
+    logging: *logging
+
+  postgres:
+    extends:
+      file: compose.yaml
+      service: postgres
+    ports: !reset []
+    logging: *logging
+
+  redis:
+    extends:
+      file: compose.yaml
+      service: redis
+    ports: !reset []
+    command: [redis-server, --appendonly, 'yes']
+    logging: *logging
+
+  rabbitmq:
+    extends:
+      file: compose.yaml
+      service: rabbitmq
+    ports: !reset []
+    logging: *logging
+
+  worker:
+    extends:
+      file: compose.yaml
+      service: worker
+    image: equo-staging-backend:local
+    build:
+      target: production
+    environment: *production-environment
+    # The PHP base image defaults to SIGQUIT; the worker shell traps SIGTERM.
+    stop_signal: SIGTERM
+    volumes: !reset []
+    logging: *logging
+
+  retention:
+    extends:
+      file: compose.yaml
+      service: retention
+    image: equo-staging-backend:local
+    build:
+      target: production
+    environment: *production-environment
+    volumes: !reset []
+    logging: *logging
+
+  # Temporary capture until external SMTP is configured. Never expose its UI.
+  mailpit:
+    extends:
+      file: compose.yaml
+      service: mailpit
+    ports: !override
+      - '127.0.0.1:8025:8025'
+    environment:
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - mailpit_data:/data
+    logging: *logging
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  mailpit_data:
+
+networks:
+  equo:
+    driver: bridge

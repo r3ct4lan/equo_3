@@ -1,0 +1,74 @@
+# Disposable operational acceptance using the exact staging application image.
+# Invoked only by scripts/test-operations.py. No public ports or staging secrets.
+name: equo-ops-check
+
+x-probe: &probe
+  restart: 'no'
+  cpus: 0.5
+  mem_limit: 384m
+  volumes: !override
+    - ./scripts/operations:/probe:ro
+    - ${OPS_STATE_DIR:?Use scripts/test-operations.py}:/probe-state
+
+services:
+  backend:
+    extends: {file: compose.staging.yaml, service: backend}
+    <<: *probe
+    environment:
+      EQUO_OPS_TEST: '1'
+
+  worker:
+    extends: {file: compose.staging.yaml, service: worker}
+    <<: *probe
+    environment:
+      EQUO_OPS_TEST: '1'
+
+  retention:
+    extends: {file: compose.staging.yaml, service: retention}
+    <<: *probe
+    mem_limit: 192m
+    environment:
+      EQUO_OPS_TEST: '1'
+
+  postgres:
+    extends: {file: compose.staging.yaml, service: postgres}
+    restart: 'no'
+    mem_limit: 256m
+    cpus: 0.5
+    volumes: !reset []
+    tmpfs: [/var/lib/postgresql/data:size=128m]
+
+  redis:
+    extends: {file: compose.staging.yaml, service: redis}
+    restart: 'no'
+    mem_limit: 96m
+    cpus: 0.25
+    volumes: !reset []
+    command: [redis-server, --save, '', --appendonly, 'no']
+    tmpfs: [/data:size=16m]
+
+  rabbitmq:
+    extends: {file: compose.staging.yaml, service: rabbitmq}
+    restart: 'no'
+    mem_limit: 512m
+    cpus: 0.5
+    environment:
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: '+S 1:1'
+    volumes: !reset []
+    tmpfs: [/var/lib/rabbitmq:size=64m, /var/log/rabbitmq:size=16m]
+
+  smtp:
+    image: equo-staging-frontend:local
+    user: '0:0'
+    entrypoint: [node, /probe/smtp-sink.mjs]
+    restart: 'no'
+    mem_limit: 64m
+    cpus: 0.25
+    volumes:
+      - ./scripts/operations:/probe:ro
+      - ${OPS_STATE_DIR:?Use scripts/test-operations.py}:/probe-state
+    networks: [equo]
+
+networks:
+  equo:
+    internal: true

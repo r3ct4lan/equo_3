@@ -132,5 +132,8 @@ compose.yaml   Local development stack
 
 ## Documentation
 
+AWS staging setup (production builds, HTTPS and private infrastructure ports) is
+documented in [the staging runbook](docs/operations/aws-staging.md).
+
 The project artifacts and documentation index are available in [docs/README.md](docs/README.md).
 Email delivery, safe replay, retention and key rotation procedures are in [the operations runbook](docs/operations/email-delivery.md).
