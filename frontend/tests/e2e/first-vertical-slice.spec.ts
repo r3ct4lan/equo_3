@@ -24,7 +24,7 @@ interface ActivationAcceptanceState {
 
 const mailpitUrl = process.env.E2E_MAILPIT_URL ?? 'http://mailpit:8025'
 const baseUrl = process.env.E2E_BASE_URL ?? 'https://nginx'
-const testPassword = 'A2345678901!'
+const testPassword = 'A234567!'
 const wrongPassword = 'A2345678901?'
 let sharedActiveEmail: string | null = null
 let forwardedForCounter = 1
@@ -445,13 +445,13 @@ test('E2E-02 shows field validation, permits correction and prevents double subm
 
   await page.getByLabel('Name').fill('Validation User')
   await page.getByLabel('Email').fill('not-an-email')
-  await page.getByLabel('Password').fill('short')
+  await page.getByLabel('Password').fill('😀'.repeat(7))
   await page.getByRole('button', { name: 'Create account' }).click()
   await expect(page.getByText('Enter an email address in a valid format.')).toBeVisible()
-  await expect(page.getByText('Use at least 12 characters.')).toBeVisible()
+  await expect(page.getByText('Use at least 8 characters.')).toBeVisible()
 
   await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill('A2345678901!')
+  await page.getByLabel('Password').fill('😀'.repeat(8))
   let requests = 0
   page.on('request', (request) => {
     if (new URL(request.url()).pathname === '/api/v1/auth/register') {
@@ -1129,7 +1129,7 @@ test('recovery resets credentials, revokes independent sessions and ends sibling
     const mail = await requestRecovery(page, request, email, new Set([activation.testMessageId]))
     const url = recoveryUrlFrom(mail)
     const token = new URL(url).searchParams.get('token') ?? ''
-    const newPassword = '  New recovery password 😀  '
+    const newPassword = '  ab😀d  '
     expect((await submitRecovery(page, url, newPassword)).status()).toBe(204)
     await expect(page).toHaveURL(/\/login\?signedOut=1&passwordReset=1$/u)
     await expect(page.getByRole('status')).toContainText('Your password has been saved')
@@ -1258,7 +1258,7 @@ test('password change revokes both browser sessions, ends sibling tabs and requi
     const currentCookies = await sessionCookies(page.context())
     await page.getByRole('link', { name: 'Change password', exact: true }).click()
     await expect(page).toHaveURL(/\/account\/security$/u)
-    const newPassword = '  New account password 😀  '
+    const newPassword = '  xy😀z  '
     await page.getByLabel('Current password', { exact: true }).fill(testPassword)
     await page.getByLabel('New password', { exact: true }).fill(newPassword)
     let commands = 0
@@ -1343,7 +1343,7 @@ test('password change validation and credential or transport errors preserve aut
   await expect(page.getByLabel('Current password', { exact: true })).toHaveAttribute('aria-invalid', 'true')
   expect(commands).toBe(0)
   await page.getByLabel('Current password', { exact: true }).fill(wrongPassword)
-  await page.getByLabel('New password', { exact: true }).fill('short')
+  await page.getByLabel('New password', { exact: true }).fill('😀'.repeat(7))
   await page.getByRole('button', { name: 'Save new password', exact: true }).click()
   await expect(page.getByLabel('New password', { exact: true })).toHaveAttribute('aria-invalid', 'true')
   expect(commands).toBe(0)

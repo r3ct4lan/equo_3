@@ -58,7 +58,7 @@ async function resetPassword(): Promise<void> {
         Choose a new password
       </h1>
       <p class="hero__lede">
-        Use 12–128 characters with at least one non-space character. After saving, sign in with your new password.
+        Use 8–128 characters with at least one non-space character. After saving, sign in with your new password.
       </p>
     </div>
     <section class="panel stack">

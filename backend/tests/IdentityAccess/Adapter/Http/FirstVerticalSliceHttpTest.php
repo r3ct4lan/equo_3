@@ -175,9 +175,10 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
     /** @return iterable<string, array{string, string}> */
     public static function validPasswordBoundaryProvider(): iterable
     {
-        yield '12 code points' => [str_repeat('a', 12), 'password-min@example.test'];
+        yield '8 code points' => [str_repeat('a', 8), 'password-min@example.test'];
+        yield '8 supplementary code points' => [str_repeat('😀', 8), 'password-unicode-min@example.test'];
         yield '128 code points' => [str_repeat('я', 128), 'password-max@example.test'];
-        yield 'significant whitespace' => ['  abcdefghij  ', 'password-whitespace@example.test'];
+        yield 'significant whitespace' => ['  ab😀d  ', 'password-whitespace@example.test'];
     }
 
     #[DataProvider('invalidPasswordBoundaryProvider')]
@@ -199,9 +200,10 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
     /** @return iterable<string, array{string, string}> */
     public static function invalidPasswordBoundaryProvider(): iterable
     {
-        yield '11 code points' => [str_repeat('a', 11), 'password-short@example.test'];
+        yield '7 code points' => [str_repeat('a', 7), 'password-short@example.test'];
+        yield '7 supplementary code points' => [str_repeat('😀', 7), 'password-unicode-short@example.test'];
         yield '129 code points' => [str_repeat('a', 129), 'password-long@example.test'];
-        yield 'whitespace only' => [str_repeat(' ', 12), 'password-blank@example.test'];
+        yield 'whitespace only' => [str_repeat(' ', 8), 'password-blank@example.test'];
     }
 
     public function testUnknownRequestFieldsAreRejectedWithoutWrites(): void

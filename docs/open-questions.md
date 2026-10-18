@@ -59,7 +59,7 @@
 | [OQ-006](#oq-006) | Перечень CHECK модели нормативен и полностью повторён в ER-описании | [модель](data-model/entities.md#14-рекомендуемые-ограничения-бд), [ER](data-model/er-diagram.md#7-локальные-check-ограничения) |
 | [OQ-007](#oq-007) | `participantCount` зависит от текущего состава, но не от `User.isActive` | [BR-DEBT-011](business-rules/business-rules.md#br-debt-011-расчёт-доли), [модель](data-model/entities.md#формула), [HTTP](api/http-contracts.md#131-представление-долга) |
 | [OQ-008](#oq-008) | DELETE использует те же правила автора и заморозки, что PUT, с явными ошибками | [HTTP Debt](api/http-contracts.md#136-удаление-долга), [HTTP Transfer](api/http-contracts.md#146-удаление-ручного-трансфера) |
-| [OQ-009](#oq-009) | Принята единая password policy 12—128 Unicode code points без composition rules | [BR-USR-009](business-rules/business-rules.md#br-usr-009-единая-политика-паролей), [HTTP 9.0](api/http-contracts.md#90-политика-паролей) |
+| [OQ-009](#oq-009) | Принята единая password policy 8—128 Unicode code points без composition rules | [BR-USR-009](business-rules/business-rules.md#br-usr-009-единая-политика-паролей), [HTTP 9.0](api/http-contracts.md#90-политика-паролей) |
 | [OQ-010](#oq-010) | Принят единый профиль TTL, retention, retry и rate limits | [ADR-014](adr/architecture-decisions.md#adr-014-нормативный-операционный-профиль-безопасности-и-хранения-mvp) |
 | [OQ-011](#oq-011) | Полный `tokenHash` обязателен после HMAC во всех публичных invitation-операциях | [BR-INV-006](business-rules/business-rules.md#br-inv-006-формат-ссылки), [ADR-008](adr/architecture-decisions.md#adr-008-воспроизводимые-приглашения-в-connect), [HTTP 12.1](api/http-contracts.md#121-формат-токена-приглашения) |
 | [OQ-012](#oq-012) | Исходный отчёт получил статус `Superseded`; E1-02 является актуальным | [индекс](README.md#индекс-артефактов) |
@@ -314,8 +314,9 @@ HTTP/cookie contract, stable-locator concurrency profile и frontend UX
 - **Владелец решения:** Maksim Smolkov; роль решения: Product Owner. Специалист по безопасности участвует в будущем пересмотре политики.
 - **Контрольная точка:** Выполнено до проектирования конкретного сценария.
 - **Последствия откладывания:** Устранены; registration/change/reset используют одну backend-валидацию и один код нарушения.
-- **Итоговое решение:** Пароль содержит 12—128 Unicode code points и хотя бы один непробельный символ, не обрезается и не нормализуется; composition rules отсутствуют. Хэш создаёт Symfony PasswordHasher `auto`, открытое значение не хранится и не журналируется. Более короткий минимум и сложные классы символов отклонены соответственно как слабый и неудобный default. Обновлены глоссарий, BR-USR-009, модель, HTTP и ADR-006.
+- **Итоговое решение:** Пароль содержит 8—128 Unicode code points и хотя бы один непробельный символ, не обрезается и не нормализуется; composition rules отсутствуют. Хэш создаёт Symfony PasswordHasher `auto`, открытое значение не хранится и не журналируется. Обязательные классы символов не вводятся. Обновлены глоссарий, BR-USR-009, модель, HTTP и ADR-006.
 - **Дата и автор решения:** 2026-07-27, Codex — autonomous Block A closure.
+- **Пересмотр 2026-10-18 (MT-001):** По поручению владельца минимум снижен с 12 до 8 Unicode code points для регистрации, смены и сброса пароля. Верхняя граница 128 и остальные правила сохранены; это заменяет исходное решение о минимуме 12.
 
 <a id="oq-010"></a>
 

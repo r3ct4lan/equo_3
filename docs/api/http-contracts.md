@@ -760,7 +760,7 @@ Body и `Content-Type` не требуются; `204` не содержит body
 
 Одинаковая проверка применяется к `password` при регистрации и к `newPassword` при смене или сбросе:
 
-- длина от 12 до 128 Unicode code points;
+- длина от 8 до 128 Unicode code points;
 - хотя бы один символ не является пробельным;
 - значение проверяется без обрезания и Unicode-нормализации;
 - обязательные классы символов отсутствуют.
@@ -771,7 +771,7 @@ Backend является источником истины. Нарушение �
 {
   "field": "password",
   "code": "PASSWORD_POLICY_VIOLATION",
-  "message": "Password must contain 12 to 128 characters and at least one non-whitespace character."
+  "message": "Password must contain 8 to 128 characters and at least one non-whitespace character."
 }
 ```
 

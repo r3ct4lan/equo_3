@@ -6,7 +6,7 @@ namespace App\IdentityAccess\Domain\User;
 
 final class PasswordPolicy
 {
-    public const int MIN_LENGTH = 12;
+    public const int MIN_LENGTH = 8;
     public const int MAX_LENGTH = 128;
 
     public function assertSatisfied(string $password): void

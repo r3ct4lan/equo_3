@@ -64,7 +64,7 @@ final class PasswordResetHttpTest extends WebTestCase
         $this->user(false);
         $this->post('/password-reset-requests', ['email' => 'recovery@example.test']);
         $token = $this->capability();
-        $password = '  Unicode password 😀  ';
+        $password = '  ab😀d  ';
         $this->post('/password-reset', ['token' => $token, 'newPassword' => $password]);
         self::assertResponseStatusCodeSame(204);
         self::assertSame('', $this->client->getResponse()->getContent());
@@ -130,8 +130,8 @@ final class PasswordResetHttpTest extends WebTestCase
     public static function validationProvider(): iterable
     {
         yield 'missing' => [[], 'token', 'REQUIRED'];
-        yield 'short' => [['token' => 'x', 'newPassword' => 'short'], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
-        yield 'space' => [['token' => 'x', 'newPassword' => str_repeat(' ', 12)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'short' => [['token' => 'x', 'newPassword' => str_repeat('😀', 7)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'space' => [['token' => 'x', 'newPassword' => str_repeat(' ', 8)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
         yield 'unicode too long' => [['token' => 'x', 'newPassword' => str_repeat('😀', 129)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
         yield 'wrong type' => [['token' => 'x', 'newPassword' => 123], 'newPassword', 'INVALID_TYPE'];
     }

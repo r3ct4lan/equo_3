@@ -39,10 +39,10 @@ async function fixture(changeApi, coordinated = true) {
 
 test('password change validates only required current and shared Unicode new policy', () => {
   assert.ok(validatePasswordChange({ currentPassword: '', newPassword: 'New password!' }).currentPassword)
-  for (const password of ['short', ' '.repeat(12), '😀'.repeat(129)]) {
+  for (const password of ['a'.repeat(7), '😀'.repeat(7), ' '.repeat(8), '😀'.repeat(129)]) {
     assert.ok(validatePasswordChange({ currentPassword: ' old ', newPassword: password }).newPassword)
   }
-  for (const password of ['😀'.repeat(12), 'é'.repeat(128), '  New password!  ']) {
+  for (const password of ['a'.repeat(8), '😀'.repeat(8), 'é'.repeat(128), '  ab😀d  ']) {
     assert.deepEqual(validatePasswordChange({ currentPassword: ' old ', newPassword: password }), {})
   }
   assert.match(passwordChangeErrorPresentation({ code: 'INVALID_CREDENTIALS', status: 401, fieldErrors: {} }).title, /Current password/)

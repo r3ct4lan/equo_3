@@ -14,7 +14,7 @@ export function passwordChangeErrorPresentation(error: SafeApiError): ErrorPrese
     return { title: 'Current password is incorrect', message: 'Enter your current password and try again.', retryable: false }
   }
   if (error.code === 'VALIDATION_ERROR' || error.code === 'PASSWORD_POLICY_VIOLATION') {
-    return { title: 'Check the form', message: 'Correct the highlighted fields. Use 12–128 characters with at least one non-space character for your new password.', retryable: false }
+    return { title: 'Check the form', message: 'Correct the highlighted fields. Use 8–128 characters with at least one non-space character for your new password.', retryable: false }
   }
   if (error.status === 401 || error.code === 'ACCOUNT_INACTIVE') {
     return { title: 'Sign in again', message: 'Sign in before changing your password.', retryable: false }

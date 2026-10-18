@@ -22,9 +22,10 @@ final class PasswordPolicyTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function validPasswordProvider(): iterable
     {
-        yield '12 code points' => [str_repeat('a', 12)];
+        yield '8 code points' => [str_repeat('a', 8)];
+        yield '8 supplementary code points' => [str_repeat('😀', 8)];
         yield '128 code points' => [str_repeat('я', 128)];
-        yield 'significant outer whitespace' => ['  abcdefghij  '];
+        yield 'significant outer whitespace' => ['  ab😀d  '];
     }
 
     #[DataProvider('invalidPasswordProvider')]
@@ -38,8 +39,9 @@ final class PasswordPolicyTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function invalidPasswordProvider(): iterable
     {
-        yield '11 code points' => [str_repeat('a', 11)];
+        yield '7 code points' => [str_repeat('a', 7)];
+        yield '7 supplementary code points' => [str_repeat('😀', 7)];
         yield '129 code points' => [str_repeat('a', 129)];
-        yield 'whitespace only' => [str_repeat(' ', 12)];
+        yield 'whitespace only' => [str_repeat(' ', 8)];
     }
 }
