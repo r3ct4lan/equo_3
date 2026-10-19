@@ -111,6 +111,88 @@ final class FinancialHttpTest extends WebTestCase
         return $this->body();
     }
 
+    public function testBalanceSummaryIsPrivateEmptyAndRejectsQueryOverrides(): void
+    {
+        $this->request('GET', '/api/v1/transfers/balance-summary');
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->client->getResponse()->headers->hasCacheControlDirective('no-store'));
+        self::assertSame(['totalOwedAmount' => 0, 'totalReceivableAmount' => 0], $this->body());
+        $this->request('GET', '/api/v1/transfers/balance-summary?userId='.$this->users[1]);
+        $this->failure(400, 'INVALID_REQUEST');
+        $this->request('GET', '/api/v1/transfers/balance-summary', null);
+        $this->failure(401, 'AUTHENTICATION_REQUIRED');
+        $this->client->request('GET', '/api/v1/transfers/balance-summary', server: ['HTTP_AUTHORIZATION' => 'Bearer invalid']);
+        $this->failure(401, 'AUTHENTICATION_REQUIRED');
+    }
+
+    public function testBalanceSummaryNetsEachPairBeforeSummingAndIncludesInactiveCounterparties(): void
+    {
+        $this->create(); // Two automatic shares of 334 cents, both owed to viewer 0.
+        $this->manual($this->users[1], $this->users[0], 634); // Overpayment: viewer now owes 300 to user 1.
+        $this->manual($this->users[2], $this->users[3], 999); // Foreign pair must not affect viewer 0.
+        $this->manual($this->users[0], $this->users[1], 100000, true);
+        $this->db->executeStatement('UPDATE app_user SET is_active=false WHERE id=?', [$this->users[2]]);
+        $this->request('GET', '/api/v1/transfers/balance-summary');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['totalOwedAmount' => 300, 'totalReceivableAmount' => 334], $this->body());
+        $this->assertNoForeignEmails($this->body(), 0);
+        $this->request('GET', '/api/v1/transfers/balance-summary', 1);
+        self::assertSame(['totalOwedAmount' => 0, 'totalReceivableAmount' => 300], $this->body());
+        $this->manual($this->users[0], $this->users[1], 300); // Exactly settled pair contributes neither side.
+        $this->db->executeStatement('UPDATE transfer SET is_deleted=true WHERE receiver_id=? AND type=?', [$this->users[2], 'DEBT_SHARE']);
+        $this->request('GET', '/api/v1/transfers/balance-summary');
+        self::assertSame(['totalOwedAmount' => 0, 'totalReceivableAmount' => 0], $this->body());
+    }
+
+    public function testBalanceSummaryIncludesEveryConnectionAndUsesWideIntegerTotals(): void
+    {
+        for ($n = 0; $n < 25; ++$n) {
+            $id = Uuid::v4()->toRfc4122();
+            $this->db->insert('app_user', ['id' => $id, 'name' => 'Counterparty', 'email' => $id.'@example.test', 'password_hash' => 'test-only', 'is_active' => 1, 'created_at' => '2026-10-01 00:00:00+00']);
+            $this->manual($this->users[0], $id, 2147483647);
+        }
+        $this->request('GET', '/api/v1/transfers/balance-summary');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['totalOwedAmount' => 0, 'totalReceivableAmount' => 25 * 2147483647], $this->body());
+    }
+
+    public function testHomeExpenseLimitOrdersByCreationAndIncludesPayerOutsideSplit(): void
+    {
+        $ids = [];
+        for ($n = 0; $n < 7; ++$n) {
+            $command = [...$this->command(), 'title' => 'Expense '.$n, 'includePayerInSplit' => false];
+            $this->request('POST', '/api/v1/debts', 0, $command, Uuid::v4()->toRfc4122());
+            self::assertResponseStatusCodeSame(201);
+            $ids[] = $this->body()['id'];
+        }
+        // Same timestamps exercise the stable id tie breaker; edits never affect order.
+        $this->db->executeStatement('UPDATE debt SET created_at=?,version=2', ['2026-10-18 10:00:00+00']);
+        rsort($ids);
+        $this->db->executeStatement('UPDATE debt SET is_deleted=true WHERE id=?', [$ids[0]]);
+        foreach ([0, 1] as $viewer) {
+            $this->request('GET', '/api/v1/debts?limit=5', $viewer);
+            self::assertResponseStatusCodeSame(200);
+            self::assertSame(array_slice($ids, 1, 5), array_column($this->body()['items'], 'id'));
+        }
+        $this->db->executeStatement('UPDATE debt_participant SET is_deleted=true WHERE user_id=?', [$this->users[1]]);
+        foreach ([1, 3] as $viewer) {
+            $this->request('GET', '/api/v1/debts?limit=5', $viewer);
+            self::assertSame([], $this->body()['items']);
+        }
+    }
+
+    private function manual(string $sender, string $receiver, int $amount, bool $deleted = false): void
+    {
+        $pair = [$sender, $receiver];
+        sort($pair);
+        $connect = $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id=? AND second_user_id=?', $pair);
+        if (false === $connect) {
+            $connect = Uuid::v4()->toRfc4122();
+            $this->db->insert('connect', ['id' => $connect, 'first_user_id' => $pair[0], 'second_user_id' => $pair[1], 'created_at' => '2026-10-18 00:00:00+00']);
+        }
+        $this->db->insert('transfer', ['id' => Uuid::v4()->toRfc4122(), 'connect_id' => $connect, 'sender_id' => $sender, 'receiver_id' => $receiver, 'amount' => $amount, 'type' => 'MANUAL', 'created_by_id' => $sender, 'created_at' => '2026-10-18 00:00:00+00', 'is_deleted' => $deleted, 'version' => 1], ['is_deleted' => 'boolean']);
+    }
+
     public function testCreateReplayReadAndPerspectiveBalances(): void
     {
         $key = Uuid::v4()->toRfc4122();
@@ -304,6 +386,7 @@ final class FinancialHttpTest extends WebTestCase
 
         /** @var list<array{string, string, ?array<string, mixed>, ?string, ?string}> $commands */
         $commands = [
+            ['GET', '/api/v1/transfers/balance-summary', null, null, null],
             ['POST', '/api/v1/auth/logout-all', null, null, null],
             ['POST', '/api/v1/account/password-change', ['currentPassword' => 'test-only', 'newPassword' => 'New secure password 123!'], null, null],
             ['POST', '/api/v1/connect-invitations', null, null, null],
