@@ -4,17 +4,18 @@
 |---|---|
 | Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle, logout, password reset/change и `/me` |
 | Статус | Accepted |
-| Версия | 16 |
-| Дата актуальности | 2026-10-12 |
+| Версия | 17 |
+| Дата актуальности | 2026-10-19 |
 | Владелец | Maksim Smolkov |
-| Источник | BR-USR-001—003/007/009; BR-SEC-003—007; ADR-006/007/012/014—018; HTTP-контракты; фактическая реализация |
+| Источник | BR-USR-001—003/007/009; BR-SEC-003—007; ADR-006/007/012/014—018/020; HTTP-контракты; фактическая реализация |
 
 ## 1. Граница реализации
 
 Текущая реализация содержит публичную регистрацию, применение
 `ACTIVATE_ACCOUNT`, password recovery, login, refresh rotation, logout и
-минимальную защищённую `/me`-страницу. Login создаёт `UserSession`, выдаёт JWT
-access token в response body и устанавливает refresh/CSRF cookies. Frontend
+минимальную защищённую `/me`-страницу. Login и успешная активация создают
+`UserSession`, выдают JWT access token в response body и устанавливают
+refresh/CSRF cookies. Frontend
 хранит access token только в памяти вкладки, после hydration выполняет
 `refresh -> /me`, сериализует refresh через Web Locks и делает один
 refresh/retry для подходящего `401` защищённого запроса. Refresh endpoint
@@ -27,8 +28,8 @@ cookie с same-origin/CSRF guard. Финансовые protected endpoints ещ�
 фиктивную роль или RBAC-модель.
 
 В срезе нет RBAC-ролей. Право активации является capability: его даёт только
-действующий purpose-bound token. Успешная активация не создаёт аутентификацию и
-не определяет current user для последующего запроса.
+действующий purpose-bound token. Успешная активация создаёт новую сессию;
+её access token определяет current user для последующего запроса.
 
 ## 2. Матрица доступа
 

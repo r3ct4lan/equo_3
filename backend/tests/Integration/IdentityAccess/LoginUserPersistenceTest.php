@@ -8,6 +8,7 @@ use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineTransaction;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineUserSessionRepository;
 use App\IdentityAccess\Adapter\System\SystemClock;
+use App\IdentityAccess\Application\Login\IssueUserSession;
 use App\IdentityAccess\Application\Login\LoginCommand;
 use App\IdentityAccess\Application\Login\LoginUser;
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
@@ -144,30 +145,32 @@ final class LoginUserPersistenceTest extends KernelTestCase
     {
         return new LoginUser(
             new DoctrineIdentityRepository($this->entityManager),
-            new DoctrineUserSessionRepository($this->entityManager),
             $this->passwordHasher,
-            $accessTokenIssuer ?? new class implements AccessTokenIssuerPort {
-                public function issue(string $userId): IssuedAccessToken
-                {
-                    return new IssuedAccessToken('access-for-'.$userId, 900);
-                }
-            },
-            $this->refreshTokenCodec(),
-            new class implements CsrfTokenCodecPort {
-                public function issue(string $sessionId): string
-                {
-                    return 'csrf-for-'.$sessionId;
-                }
+            new IssueUserSession(
+                new DoctrineUserSessionRepository($this->entityManager),
+                $accessTokenIssuer ?? new class implements AccessTokenIssuerPort {
+                    public function issue(string $userId): IssuedAccessToken
+                    {
+                        return new IssuedAccessToken('access-for-'.$userId, 900);
+                    }
+                },
+                $this->refreshTokenCodec(),
+                new class implements CsrfTokenCodecPort {
+                    public function issue(string $sessionId): string
+                    {
+                        return 'csrf-for-'.$sessionId;
+                    }
 
-                public function verify(string $sessionId, string $publicToken): bool
-                {
-                    return true;
-                }
-            },
+                    public function verify(string $sessionId, string $publicToken): bool
+                    {
+                        return true;
+                    }
+                },
+                $this->uuid(),
+            ),
             $this->rateLimit(),
             new DoctrineTransaction($this->entityManager),
             new SystemClock(),
-            $this->uuid(),
         );
     }
 

@@ -82,8 +82,9 @@ final class SessionCommandRunner
                     break;
                 case 'login':
                     (new LoginUser(
-                        $identities, $sessions, $container->get(PasswordHashingPort::class), $issuer, $codec, $csrf,
-                        $container->get(RateLimitPort::class), $transaction, $clock, $container->get(UuidPort::class),
+                        $identities, $container->get(PasswordHashingPort::class),
+                        new \App\IdentityAccess\Application\Login\IssueUserSession($sessions, $issuer, $codec, $csrf, $container->get(UuidPort::class)),
+                        $container->get(RateLimitPort::class), $transaction, $clock,
                     ))->handle(new LoginCommand($input['user'].'@example.test', 'Correct password!', '192.0.2.80'));
                     break;
                 default:

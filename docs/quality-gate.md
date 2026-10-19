@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 17 |
-| Дата актуальности | 2026-10-15 |
+| Версия | 18 |
+| Дата актуальности | 2026-10-19 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
 
@@ -138,8 +138,8 @@ volumes не затрагиваются.
 RabbitMQ запускается и достигает `healthy` до старта остальных временных
 зависимостей, чтобы исключить наблюдавшийся resource/startup race Docker Desktop.
 
-Сценарии проверяют полный happy path `register -> activate -> login -> reload
--> authenticated /me`, повторный запрос активации с заменой старой capability,
+Сценарии проверяют полный happy path `register -> activate + session -> /me ->
+reload`, повторный запрос активации с заменой старой capability,
 одинаковый neutral 202 без записей для unknown/active account и UI-поведение
 429 `Retry-After` без автоматического retry или persistence write. Также
 проверяются client validation и исправление формы, защита от

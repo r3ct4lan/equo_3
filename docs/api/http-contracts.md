@@ -7,8 +7,8 @@
 | Название | Equo — HTTP-контракты API v1 |
 | Назначение | Описать публичный HTTP API первой версии Equo |
 | Статус | Финальная согласованная версия этапа проектирования |
-| Версия | 8 |
-| Дата актуальности | 2026-10-12 |
+| Версия | 9 |
+| Дата актуальности | 2026-10-19 |
 | Владелец | Maksim Smolkov |
 | Источник | `equo-05-http-contracts.md` из приложенного архива `equo-artifacts-final.zip`; решения владельца, автономное закрытие Block A и OQ-015—018, OQ-021—024 |
 
@@ -588,16 +588,15 @@ POST /api/v1/auth/activate
 ### Результат
 
 ```http
-204 No Content
+200 OK
+Set-Cookie: equo_refresh=<token>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth
+Set-Cookie: __Host-equo_csrf=<signed-session-bound-token>; Secure; SameSite=Lax; Path=/
 ```
 
-Результат:
-
-```text
-User.isActive = true
-```
-
-Сессия автоматически не создаётся.
+Тело совпадает с успешным ответом входа в §8.4: `accessToken`, `expiresIn` и
+`user` с `isActive = true`. Сервер атомарно помечает одноразовый token
+использованным, активирует `User` и создаёт новую `UserSession`. При ошибке
+сессия и cookies не выдаются. При реактивации прежние сессии не восстанавливаются.
 
 ### Ошибки
 

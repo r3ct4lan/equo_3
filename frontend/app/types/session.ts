@@ -27,6 +27,7 @@ export interface AuthSession {
   bootstrap: () => Promise<void>
   retryBootstrap: () => Promise<void>
   login: (values: LoginValues, options?: LoginOptions) => Promise<void>
+  activate: (token: string) => Promise<void>
   protectedRequest: <T>(path: string, options?: ApiRequestOptions) => Promise<T>
   logout: () => Promise<void>
   logoutAll: () => Promise<void>

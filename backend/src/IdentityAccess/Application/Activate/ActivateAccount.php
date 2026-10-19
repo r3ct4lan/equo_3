@@ -8,11 +8,15 @@ use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use App\IdentityAccess\Application\Authorization\ActivationAccessDenial;
 use App\IdentityAccess\Application\Authorization\ActivationAccessPolicy;
+use App\IdentityAccess\Application\Login\IssueUserSession;
+use App\IdentityAccess\Application\Login\LoginResult;
+use App\IdentityAccess\Application\Login\LoginUserView;
 use App\IdentityAccess\Application\Port\ActionTokenCodecPort;
 use App\IdentityAccess\Application\Port\ClockPort;
 use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
 use App\IdentityAccess\Application\Port\RateLimitPort;
 use App\IdentityAccess\Application\Port\TransactionPort;
+use RuntimeException;
 
 final readonly class ActivateAccount
 {
@@ -23,10 +27,11 @@ final readonly class ActivateAccount
         private RateLimitPort $rateLimit,
         private TransactionPort $transaction,
         private ClockPort $clock,
+        private IssueUserSession $issueUserSession,
     ) {
     }
 
-    public function handle(ActivateCommand $command): void
+    public function handle(ActivateCommand $command): LoginResult
     {
         $tokenHash = $this->tokenCodec->digest($command->token);
         $fingerprint = $tokenHash ?? 'invalid:'.hash('sha256', $command->token);
@@ -37,7 +42,8 @@ final readonly class ActivateAccount
         }
 
         $now = $this->clock->now();
-        $this->transaction->run(function () use ($tokenHash, $now): void {
+
+        return $this->transaction->run(function () use ($tokenHash, $now): LoginResult {
             $stored = null === $tokenHash ? null : $this->identityRepository->activationTokenForUpdate($tokenHash);
             $decision = $this->accessPolicy->decide($stored?->access, $now);
 
@@ -50,6 +56,15 @@ final readonly class ActivateAccount
             }
 
             $this->identityRepository->activate($stored->tokenId, $decision->userId(), $now);
+            $user = $this->identityRepository->currentUserProfile($decision->userId());
+            if (null === $user || !$user->isActive) {
+                throw new RuntimeException('Activation user state is inconsistent.');
+            }
+
+            return $this->issueUserSession->issue(
+                new LoginUserView($user->id, $user->name, $user->email, true),
+                $now,
+            );
         });
     }
 

@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth/financial экраны |
 | Статус | Implemented |
-| Версия | 14 |
-| Дата актуальности | 2026-10-12 |
+| Версия | 15 |
+| Дата актуальности | 2026-10-19 |
 | Владелец | Maksim Smolkov |
-| Источник | HTTP-контракты v4; ADR-001/006/012/017/018; реализация HTTP-слоя; модель доступа; фактический frontend |
+| Источник | HTTP-контракты; ADR-001/006/012/017/018/020; реализация HTTP-слоя; модель доступа; фактический frontend |
 
 ## 1. Граница реализации
 
@@ -239,9 +239,11 @@ ID.
 
 `/activate?token=…` считывает capability token только в памяти компонента,
 сразу заменяет URL на `/activate` и вызывает `POST /api/v1/auth/activate`.
-Success `204`, invalid/expired/used/invalidated/rate и технический retry имеют
-отдельные состояния. Token не рендерится, не попадает в Nuxt state/storage и
-очищается после terminal result или ухода со страницы.
+Success `200` передаёт новую сессию в общий координатор auth и предлагает
+открыть профиль без повторного ввода email и пароля. Invalid/expired/used/
+invalidated/rate и технический retry имеют отдельные состояния. Token не
+рендерится, не попадает в Nuxt state/storage и очищается после terminal
+result или ухода со страницы.
 
 Повторный запрос activation link встроен переиспользуемым
 `ActivationRequestForm` в activation-required state после регистрации и в
