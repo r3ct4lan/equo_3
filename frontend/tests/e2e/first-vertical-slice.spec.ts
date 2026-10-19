@@ -1850,3 +1850,98 @@ test('debt editing recalculates all shares, restores history and rejects a stale
     await memberContext.close()
   }
 })
+
+test('home dashboard separates debts, shows five recent expenses and clears on logout', async ({ page, browser, request }, testInfo) => {
+  test.setTimeout(150_000)
+  const apiPaths: string[] = []
+  page.on('request', sent => apiPaths.push(new URL(sent.url()).pathname))
+  await page.goto('/')
+  await expect(page.getByRole('link', { name: 'Create an account', exact: true })).toBeVisible()
+  await expect(page.getByText('API connection', { exact: true })).toHaveCount(0)
+  expect(apiPaths).not.toContain('/api/v1/transfers/balance-summary')
+
+  const ownerEmail = await registerAndActivate(page, request, uniqueEmail('dashboard-owner'))
+  const ownerAccess = await login(page, ownerEmail, '/', false)
+  await expect(page.getByRole('heading', { name: 'Your overview', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'You owe', exact: true })).toContainText('€0.00')
+  await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€0.00')
+  await expect(page.getByText('No expenses yet', { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toHaveCount(0)
+  const ownerProfile = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + ownerAccess } })
+  const ownerId = (await ownerProfile.json() as { id: string }).id
+  const contexts = [await newSecureContext(browser), await newSecureContext(browser)]
+  try {
+    const peers: Array<{ id: string, access: string, connectId: string }> = []
+    for (const context of contexts) {
+      const peerPage = await context.newPage()
+      const email = await registerAndActivate(peerPage, request, uniqueEmail('dashboard-peer'))
+      const access = await login(peerPage, email)
+      const profile = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + access } })
+      const id = (await profile.json() as { id: string }).id
+      const invited = await request.post(baseUrl + '/api/v1/connect-invitations', {
+        headers: { 'Authorization': 'Bearer ' + ownerAccess, 'X-Forwarded-For': nextForwardedFor() }
+      })
+      expect(invited.status()).toBe(200)
+      const token = (await invited.json() as { token: string }).token
+      const accepted = await request.post(baseUrl + '/api/v1/connect-invitations/' + token + '/accept', {
+        headers: { 'Authorization': 'Bearer ' + access, 'X-Forwarded-For': nextForwardedFor() }
+      })
+      expect(accepted.status()).toBe(201)
+      peers.push({ id, access, connectId: (await accepted.json() as { id: string }).id })
+    }
+    const created: Array<{ id: string, title: string, createdAt: string }> = []
+    for (let n = 0; n < 7; ++n) {
+      const debt = await request.post(baseUrl + '/api/v1/debts', {
+        headers: { 'Authorization': 'Bearer ' + ownerAccess, 'Idempotency-Key': randomUUID() },
+        data: {
+          title: `Dashboard expense ${n}`, description: null, totalAmount: n === 6 ? 3000 : 1000,
+          payerId: n === 6 ? peers[1]!.id : ownerId,
+          participantIds: [n === 6 ? ownerId : peers[0]!.id], includePayerInSplit: false
+        }
+      })
+      expect(debt.status()).toBe(201)
+      created.push(await debt.json() as typeof created[number])
+    }
+    const payment = await request.post(baseUrl + '/api/v1/connects/' + peers[0]!.connectId + '/transfers', {
+      headers: { 'Authorization': 'Bearer ' + ownerAccess, 'Idempotency-Key': randomUUID() },
+      data: { senderId: peers[0]!.id, receiverId: ownerId, amount: 1000 }
+    })
+    expect(payment.status()).toBe(201)
+    const latest = created.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)).slice(0, 5)
+    await page.reload()
+    await expect(page.getByRole('region', { name: 'You owe', exact: true })).toContainText('€30.00')
+    await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€50.00')
+    const rows = page.getByRole('list', { name: 'Latest expenses', exact: true }).locator('li')
+    await expect(rows).toHaveCount(5)
+    expect(await rows.locator('a').allTextContents()).toEqual(latest.map(expense => expense.title))
+    await expect(rows.first().locator('time')).toHaveAttribute('datetime', latest[0]!.createdAt)
+    await expect(rows.first()).toContainText('Paid by E2E User')
+    await expect(page.getByText('API connection', { exact: true })).toHaveCount(0)
+    await page.screenshot({ path: testInfo.outputPath('dashboard-desktop.png'), fullPage: true })
+    await page.setViewportSize({ width: 390, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath('dashboard-mobile.png'), fullPage: true })
+    await rows.first().getByRole('link').click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(latest[0]!.title)
+    await page.route('**/api/v1/transfers/balance-summary', safeRouteAbort, { times: 1 })
+    await page.goto('/')
+    await expect(page.getByRole('alert')).toContainText('Your overview could not be loaded')
+    await expect(page.getByText('€0.00', { exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Try again', exact: true }).click()
+    await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€50.00')
+    const ssr = await request.get(baseUrl + '/')
+    expect((await ssr.text()).includes('Dashboard expense')).toBe(false)
+    await page.goto('/me')
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+    await expect(page).toHaveURL(/\/login\?signedOut=1$/u)
+    await page.goto('/')
+    await expect(page.getByRole('link', { name: 'Create an account', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Your overview', exact: true })).toHaveCount(0)
+    expect(await page.locator('main').innerText()).not.toContain('Dashboard expense')
+    expect(apiPaths).not.toContain('/api/health')
+    await expectNoPersistentSecrets(page, [ownerAccess, ...peers.map(peer => peer.access), testPassword])
+  }
+  finally {
+    for (const context of contexts) await context.close()
+  }
+})

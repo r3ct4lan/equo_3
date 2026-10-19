@@ -419,6 +419,17 @@ nav {
 }
 
 @media (max-width: 36rem) {
+  .app-header__inner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-block: 0.5rem;
+  }
+
+  nav {
+    flex-wrap: wrap;
+  }
+
   .page-container {
     width: min(100% - 1.25rem, var(--page-width));
   }

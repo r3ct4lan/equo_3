@@ -76,10 +76,11 @@ session lifecycle - в `utils/auth-session.ts`.
 `app.vue` использует стандартные `NuxtLayout` и `NuxtPage`. Default layout
 содержит skip link, семантические `header/nav/main/footer`, адаптивный контейнер
 и ссылки Home, Login/Register либо My profile в зависимости от состояния
-сессии. Стартовая страница показывает нейтральное состояние приложения и после
-hydration выполняет реальный `GET /api/health`
-через `$api`. Проверка выполняется client-side, чтобы frontend healthcheck и
-SSR shell не образовывали циклическую зависимость от Nginx/API при старте.
+сессии. Главная страница (MT-002) ждёт определения сессии: гостю показывает
+регистрацию и вход, авторизованному — HomeDashboard, при ошибке bootstrap —
+безопасное сообщение с retry. Технического блока API connection и запроса
+`GET /api/health` из страницы нет; endpoint сохраняется для smoke/healthchecks.
+SSR shell не запрашивает финансовые данные и не содержит данных пользователя.
 
 Неизвестный route обрабатывается `error.vue`: клиент не видит исходное exception
 message или внутренний stack trace.
@@ -425,3 +426,27 @@ useFinancialDetail захватывает настоящий ETag через onR
 исключают двойную запись и late response другой session/path/version.
 После confirmed save — новый GET карточки; balance/history используют
 существующие свежие queries при открытии, локального сохранённого пересчёта нет.
+
+
+## MT-002 — дашборд главной
+
+`HomeDashboard` использует `useDashboard` и общий `$auth.protectedRequest`:
+сводка из `/v1/transfers/balance-summary`, последние расходы из `/v1/debts?limit=5`.
+Две суммы отображаются независимо, в EUR через существующий `formatEuro`.
+Список показывает название-ссылку, дату создания, общую сумму и плательщика;
+перенос меню и карточек на узком экране сохраняет доступность без горизонтального
+скролла. Кнопки навигации из верхнего меню не дублируются на дашборде.
+
+Загрузка client-side, без localStorage/useState persistence финансовых данных.
+Пока оба запроса не завершены, показывается loading; ошибка любого запроса
+даёт безопасное общее сообщение с явным retry, без ложных нулей или пустого списка.
+Смена статуса сессии или ID пользователя синхронно очищает локальные данные;
+generation guard отбрасывает поздние ответы/ошибки прежнего аккаунта и результаты
+после unmount. Новое открытие главной загружает актуальные данные.
+
+Компонентные тесты покрывают guest/unknown/error/authenticated, отсутствие health
+запроса, две суммы, пять ссылок и даты, pending/empty/error/retry и account switch.
+Browser journey проверяет реальный ledger, семь расходов → последние пять,
+суммы 30/50 EUR после MANUAL, reload, detail navigation, network retry,
+mobile overflow, отсутствие private data в SSR и очистку при logout.
+Итог полного gate и техническая готовность фиксируются в MT-002 в бэклоге.
