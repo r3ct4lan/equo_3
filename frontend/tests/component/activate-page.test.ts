@@ -5,23 +5,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ActivatePage from '../../app/pages/activate.vue'
 import { ApiClientError } from '../../app/utils/api-error'
 
-const { apiMock } = vi.hoisted(() => ({
-  apiMock: vi.fn()
+const { activateMock } = vi.hoisted(() => ({
+  activateMock: vi.fn()
 }))
 
 mockNuxtImport('useNuxtApp', original => () => new Proxy(original(), {
   get(target, property, receiver) {
-    return property === '$api' ? apiMock : Reflect.get(target, property, receiver)
+    return property === '$auth' ? { activate: activateMock } : Reflect.get(target, property, receiver)
   }
 }))
 
 describe('activation page', () => {
   beforeEach(() => {
-    apiMock.mockReset()
+    activateMock.mockReset()
   })
 
   it('removes the capability from the URL before showing successful activation', async () => {
-    apiMock.mockResolvedValue(null)
+    activateMock.mockResolvedValue(undefined)
 
     const wrapper = await mountSuspended(ActivatePage, {
       route: '/activate?token=v1.synthetic-test-capability'
@@ -32,17 +32,15 @@ describe('activation page', () => {
       expect(useRoute().fullPath).toBe('/activate')
       expect(wrapper.get('[role="status"]').text()).toContain('Your account is active')
     })
-    expect(apiMock).toHaveBeenCalledWith('/v1/auth/activate', {
-      method: 'POST',
-      body: { token: 'v1.synthetic-test-capability' }
-    })
+    expect(activateMock).toHaveBeenCalledWith('v1.synthetic-test-capability')
+    expect(wrapper.text()).toContain('You are signed in')
     expect(wrapper.text()).not.toContain('synthetic-test-capability')
 
     wrapper.unmount()
   })
 
   it('renders a terminal capability error with the safe activation request action', async () => {
-    apiMock.mockRejectedValue(new ApiClientError({
+    activateMock.mockRejectedValue(new ApiClientError({
       kind: 'api',
       status: 400,
       code: 'INVALID_TOKEN',
@@ -69,7 +67,7 @@ describe('activation page', () => {
     await flushPromises()
 
     await vi.waitFor(() => {
-      expect(apiMock).not.toHaveBeenCalled()
+      expect(activateMock).not.toHaveBeenCalled()
       expect(wrapper.text()).toContain('Activation link is missing')
       expect(wrapper.text()).toContain('Request another activation link')
     })

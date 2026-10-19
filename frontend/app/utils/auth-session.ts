@@ -1,6 +1,7 @@
 import type { CurrentUser, LoginRequest, LoginResponse, RefreshResponse, ApiClient, ApiRequestOptions } from '../types/api'
 import type { AuthSession, LoginOptions, LoginValues } from '../types/session'
 import { ApiClientError, type FieldErrorMap } from './api-error.ts'
+import { ACTIVATE_ENDPOINT } from './auth-flow.ts'
 
 export const LOGIN_ENDPOINT = '/v1/auth/login'
 export const REFRESH_ENDPOINT = '/v1/auth/refresh'
@@ -205,6 +206,37 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     if (started !== generation) {
       throw authenticationRequired()
     }
+    adoptSession(response)
+    await dependencies.navigateTo?.(safeRedirectPath(options.redirectTo))
+  }
+
+  async function activate(token: string): Promise<void> {
+    if (logoutPromise || resetPromise || changePromise) {
+      throw authenticationRequired()
+    }
+    const started = generation
+
+    const apply = async (): Promise<void> => {
+      if (started !== generation || logoutPromise || resetPromise || changePromise) {
+        throw authenticationRequired()
+      }
+      const response = await dependencies.api<LoginResponse>(ACTIVATE_ENDPOINT, {
+        method: 'POST',
+        body: { token }
+      })
+      if (started !== generation || logoutPromise || resetPromise || changePromise) {
+        throw authenticationRequired()
+      }
+      ++generation
+      adoptSession(response)
+    }
+
+    const locks = dependencies.navigator?.locks
+    if (locks) await locks.request(AUTH_REFRESH_LOCK, apply)
+    else await apply()
+  }
+
+  function adoptSession(response: LoginResponse): void {
     signedOut = false
     try {
       dependencies.sessionStorage?.removeItem(SIGNED_OUT_KEY)
@@ -220,7 +252,6 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
       createdAt: ''
     })
     bootstrapPromise = Promise.resolve()
-    await dependencies.navigateTo?.(safeRedirectPath(options.redirectTo))
   }
 
   async function bootstrap(): Promise<void> {
@@ -615,6 +646,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     bootstrap,
     retryBootstrap,
     login,
+    activate,
     protectedRequest,
     logout,
     logoutAll,

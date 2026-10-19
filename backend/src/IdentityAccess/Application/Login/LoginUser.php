@@ -6,32 +6,22 @@ namespace App\IdentityAccess\Application\Login;
 
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
-use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
 use App\IdentityAccess\Application\Port\ClockPort;
-use App\IdentityAccess\Application\Port\CsrfTokenCodecPort;
 use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
 use App\IdentityAccess\Application\Port\RateLimitPort;
-use App\IdentityAccess\Application\Port\RefreshTokenCodecPort;
 use App\IdentityAccess\Application\Port\TransactionPort;
-use App\IdentityAccess\Application\Port\UserSessionRepositoryPort;
-use App\IdentityAccess\Application\Port\UuidPort;
-use App\IdentityAccess\Domain\Access\UserSession;
 use App\IdentityAccess\Domain\User\EmailAddress;
 
 final readonly class LoginUser
 {
     public function __construct(
         private IdentityRepositoryPort $identityRepository,
-        private UserSessionRepositoryPort $sessionRepository,
         private PasswordHashingPort $passwordHasher,
-        private AccessTokenIssuerPort $accessTokenIssuer,
-        private RefreshTokenCodecPort $refreshTokenCodec,
-        private CsrfTokenCodecPort $csrfTokenCodec,
+        private IssueUserSession $issueUserSession,
         private RateLimitPort $rateLimit,
         private TransactionPort $transaction,
         private ClockPort $clock,
-        private UuidPort $uuid,
     ) {
     }
 
@@ -73,25 +63,9 @@ final readonly class LoginUser
             }
             $identity = $freshIdentity;
 
-            $sessionId = $this->uuid->generate();
-            $issuedRefreshToken = $this->refreshTokenCodec->issueForSession($sessionId);
-            $session = UserSession::create(
-                $sessionId,
-                $identity->id,
-                $issuedRefreshToken->tokenHash,
-                $now,
-            );
-            $this->sessionRepository->add($session);
-            $issuedAccessToken = $this->accessTokenIssuer->issue($identity->id);
-            $csrfToken = $this->csrfTokenCodec->issue($sessionId);
-
-            return new LoginResult(
-                $issuedAccessToken->accessToken,
-                $issuedAccessToken->expiresIn,
+            return $this->issueUserSession->issue(
                 new LoginUserView($identity->id, $identity->name, $identity->email, $identity->isActive),
-                $issuedRefreshToken->publicToken,
-                $csrfToken,
-                $session->expiresAt,
+                $now,
             );
         });
     }

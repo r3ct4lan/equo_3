@@ -14,6 +14,7 @@ import {
   validateLogin
 } from '../../app/utils/auth-session.ts'
 import { ApiClientError } from '../../app/utils/api-error.ts'
+import { ACTIVATE_ENDPOINT } from '../../app/utils/auth-flow.ts'
 
 function storageStub() {
   const values = new Map()
@@ -138,6 +139,36 @@ test('login stores token privately and never exposes it through current user or 
   assert.deepEqual(messages, [])
   assert.equal(localStorage.length, 0)
   assert.equal(sessionStorage.length, 0)
+})
+
+test('activation adopts a session without credentials or persistent token storage', async () => {
+  const calls = []
+  const user = currentUserState()
+  const storage = storageStub()
+  storage.setItem('equo:signed-out', 'true')
+  const auth = createAuthSession({
+    currentUser: user,
+    sessionStorage: storage,
+    navigator: { locks: locks(calls) },
+    api: async (path, options) => {
+      calls.push(['api', path, options])
+      return {
+        accessToken: 'activation.access.secret',
+        expiresIn: 900,
+        user: { id: 'u1', name: 'Alex', email: 'alex@example.test', isActive: true }
+      }
+    }
+  })
+
+  await auth.activate('one-time-capability')
+  assert.deepEqual(calls.map(call => call[0] === 'lock' ? call : ['api', call[1]]), [
+    ['lock', AUTH_REFRESH_LOCK], ['api', ACTIVATE_ENDPOINT]
+  ])
+  assert.equal(calls[1][2].body.token, 'one-time-capability')
+  assert.equal(user.state.value.status, 'authenticated')
+  assert.equal(storage.getItem('equo:signed-out'), null)
+  assert.doesNotMatch(JSON.stringify(user.state.value), /activation.access.secret/u)
+  assert.equal(storage.length, 0)
 })
 
 test('bootstrap refreshes under Web Lock then loads me once for concurrent callers', async () => {

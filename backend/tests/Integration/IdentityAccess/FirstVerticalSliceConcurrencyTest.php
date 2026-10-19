@@ -38,6 +38,7 @@ final class FirstVerticalSliceConcurrencyTest extends KernelTestCase
                     'DELETE FROM email_delivery_outbox WHERE user_action_token_id IN (SELECT id FROM user_action_token WHERE user_id = ?)',
                     [$userId],
                 );
+                $connection->executeStatement('DELETE FROM user_session WHERE user_id = ?', [$userId]);
                 $connection->executeStatement('DELETE FROM user_action_token WHERE user_id = ?', [$userId]);
                 $connection->executeStatement('DELETE FROM app_user WHERE id = ?', [$userId]);
             }
@@ -135,6 +136,7 @@ final class FirstVerticalSliceConcurrencyTest extends KernelTestCase
         self::assertSame(true, $connection->fetchOne('SELECT is_active FROM app_user WHERE id = ?', [$result->user->id]));
         self::assertNotFalse($connection->fetchOne('SELECT used_at FROM user_action_token WHERE user_id = ?', [$result->user->id]));
         self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM user_action_token WHERE user_id = ?', [$result->user->id]));
+        self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM user_session WHERE user_id = ?', [$result->user->id]));
     }
 
     public function testConcurrentActivationRequestsLeaveOneCurrentTokenAndConsistentOutbox(): void

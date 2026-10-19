@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { ActivateRequest } from '~/types/api'
-import { ACTIVATE_ENDPOINT, activationErrorPresentation } from '~/utils/auth-flow'
+import { activationErrorPresentation } from '~/utils/auth-flow'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 
 type ActivationState = 'preparing' | 'loading' | 'success' | 'missing' | 'error'
@@ -12,7 +11,7 @@ useHead({
 
 const route = useRoute()
 const router = useRouter()
-const { $api } = useNuxtApp()
+const { $auth } = useNuxtApp()
 const state = ref<ActivationState>('preparing')
 const activationError = ref<ApiClientError | null>(null)
 const resultPanel = useTemplateRef<HTMLElement>('resultPanel')
@@ -36,12 +35,7 @@ async function activateAccount(): Promise<void> {
   activationError.value = null
 
   try {
-    await $api<undefined>(ACTIVATE_ENDPOINT, {
-      method: 'POST',
-      body: {
-        token: activationToken
-      } satisfies ActivateRequest
-    })
+    await $auth.activate(activationToken)
     activationToken = null
     state.value = 'success'
   }
@@ -118,7 +112,8 @@ onBeforeUnmount(() => {
           />
           <div>
             <strong>Your account is active</strong>
-            <p>Activation is complete. Sign-in is a separate step and is not part of this screen yet.</p>
+            <p>You are signed in and can start using Equo.</p>
+            <NuxtLink to="/me">Open your account</NuxtLink>
           </div>
         </div>
 

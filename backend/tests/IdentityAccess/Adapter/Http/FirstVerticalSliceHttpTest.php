@@ -80,9 +80,15 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
 
         $this->jsonRequest('POST', '/api/v1/auth/activate', ['token' => $rawToken], ip: '192.0.2.2');
 
-        self::assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
-        self::assertSame('', (string) $this->client->getResponse()->getContent());
-        self::assertNull($this->client->getResponse()->headers->get('Set-Cookie'));
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        $activation = json_decode((string) $this->client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame($body['user']['id'], $activation['user']['id']);
+        self::assertSame('flow@example.test', $activation['user']['email']);
+        self::assertTrue($activation['user']['isActive']);
+        self::assertSame(900, $activation['expiresIn']);
+        self::assertNotEmpty($activation['accessToken']);
+        self::assertCount(2, $this->client->getResponse()->headers->getCookies());
+        self::assertSame(1, $this->countRows('user_session'));
         self::assertSame(true, $this->connection->fetchOne('SELECT is_active FROM app_user LIMIT 1'));
         self::assertNotFalse($this->connection->fetchOne('SELECT used_at FROM user_action_token LIMIT 1'));
     }
@@ -328,6 +334,8 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame($expectedStatus);
         self::assertSame($expectedCode, $this->error()['code']);
         self::assertSame(false, $this->connection->fetchOne('SELECT is_active FROM app_user ORDER BY created_at DESC LIMIT 1'));
+        self::assertSame(0, $this->countRows('user_session'));
+        self::assertSame([], $this->client->getResponse()->headers->getCookies());
     }
 
     /** @return iterable<string, array{UserActionTokenPurpose, string, int, string}> */
@@ -351,7 +359,7 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
             ip: '192.0.2.73',
             authorization: 'Bearer arbitrary-token',
         );
-        self::assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
         self::assertSame(true, $this->connection->fetchOne('SELECT is_active FROM app_user WHERE id = ?', [$first['userId']]));
         self::assertSame(false, $this->connection->fetchOne('SELECT is_active FROM app_user WHERE id = ?', [$second['userId']]));
 

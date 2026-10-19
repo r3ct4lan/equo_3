@@ -135,8 +135,12 @@ async function registerAndActivate(page: Page, request: APIRequestContext, email
   await followSecretUrl(page, activationUrl)
   const activationResponse = await activationResponsePromise
 
-  expect(activationResponse.status()).toBe(204)
+  expect(activationResponse.status()).toBe(200)
   await expect(page.getByRole('status')).toContainText('Your account is active')
+  await page.getByRole('link', { name: 'Open your account' }).click()
+  await expect(page).toHaveURL(/\/me$/u)
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+  await expect(page).toHaveURL(/\/login\?signedOut=1$/u)
 
   return email
 }
@@ -350,7 +354,7 @@ async function safeRouteAbort(route: Route): Promise<void> {
   await route.abort('connectionfailed')
 }
 
-test('E2E-01 completes register, activate, login, reload and authenticated profile', async ({ page, request }) => {
+test('E2E-01 completes register, activation sign-in, reload and authenticated profile', async ({ page, request }) => {
   const email = uniqueEmail('happy')
   const requests: string[] = []
   page.on('request', (request) => {
@@ -386,23 +390,17 @@ test('E2E-01 completes register, activate, login, reload and authenticated profi
   await followSecretUrl(page, activationUrl)
   const activationResponse = await activationResponsePromise
 
-  expect(activationResponse.status()).toBe(204)
+  expect(activationResponse.status()).toBe(200)
   await expect(page).toHaveURL(/\/activate$/u)
   await expect(page.getByRole('status')).toContainText('Your account is active')
-  await expectNoSessionOrStoredCapability(page)
+  const activationBody = await activationResponse.json() as { accessToken: string, user: { email: string, isActive: boolean } }
+  expect(activationBody.user.email).toBe(email)
+  expect(activationBody.user.isActive).toBe(true)
+  const cookiesAfterActivation = await sessionCookies(page.context())
+  expectSessionCookieAttributes(cookiesAfterActivation.refresh, cookiesAfterActivation.csrf)
+  await expectNoPersistentSecrets(page, [activationBody.accessToken, cookiesAfterActivation.refresh.value, cookiesAfterActivation.csrf.value, testPassword])
   sharedActiveEmail = email
-  await page.goto('/me')
-  await expect(page).toHaveURL(`${baseUrl}/login?redirect=/me`)
-
-  const accessToken = await login(page, email)
-  const cookiesAfterLogin = await sessionCookies(page.context())
-  expectSessionCookieAttributes(cookiesAfterLogin.refresh, cookiesAfterLogin.csrf)
-  await expectNoPersistentSecrets(page, [
-    accessToken,
-    cookiesAfterLogin.refresh.value,
-    cookiesAfterLogin.csrf.value,
-    testPassword
-  ])
+  await page.getByRole('link', { name: 'Open your account' }).click()
   await expectStorageHasNoAuthMaterial(page)
   await expect(page).toHaveURL(/\/me$/u)
   await expect(page.getByText('E2E User')).toBeVisible()
@@ -420,13 +418,13 @@ test('E2E-01 completes register, activate, login, reload and authenticated profi
 
   const cookiesAfterReload = await sessionCookies(page.context())
   expectSessionCookieAttributes(cookiesAfterReload.refresh, cookiesAfterReload.csrf)
-  expect(cookiesAfterReload.refresh.value === cookiesAfterLogin.refresh.value, 'refresh cookie must rotate on reload').toBe(false)
-  expect(cookiesAfterReload.csrf.value === cookiesAfterLogin.csrf.value, 'CSRF cookie must rotate on reload').toBe(false)
-  expect(Math.abs(cookiesAfterReload.refresh.expires - cookiesAfterLogin.refresh.expires), 'refresh expiry must not be extended').toBeLessThanOrEqual(2)
+  expect(cookiesAfterReload.refresh.value === cookiesAfterActivation.refresh.value, 'refresh cookie must rotate on reload').toBe(false)
+  expect(cookiesAfterReload.csrf.value === cookiesAfterActivation.csrf.value, 'CSRF cookie must rotate on reload').toBe(false)
+  expect(Math.abs(cookiesAfterReload.refresh.expires - cookiesAfterActivation.refresh.expires), 'refresh expiry must not be extended').toBeLessThanOrEqual(2)
   await expectNoPersistentSecrets(page, [
-    accessToken,
-    cookiesAfterLogin.refresh.value,
-    cookiesAfterLogin.csrf.value,
+    activationBody.accessToken,
+    cookiesAfterActivation.refresh.value,
+    cookiesAfterActivation.csrf.value,
     cookiesAfterReload.refresh.value,
     cookiesAfterReload.csrf.value,
     testPassword
@@ -820,7 +818,7 @@ test('E2E-09 rejects missing and invalid Bearer tokens even with refresh cookies
   })
 })
 
-test('E2E-10 replaces an activation link and completes activation, login and reload', async ({ page, request }) => {
+test('E2E-10 replaces an activation link and signs in through the new link', async ({ page, request }) => {
   const email = uniqueEmail('activation-resend')
   const consoleMessages: string[] = []
   page.on('console', message => consoleMessages.push(message.text()))
@@ -902,7 +900,7 @@ test('E2E-10 replaces an activation link and completes activation, login and rel
   )
   await followSecretUrl(page, secondActivationUrl)
   const newActivationResponse = await newActivationResponsePromise
-  expect(newActivationResponse.status()).toBe(204)
+  expect(newActivationResponse.status()).toBe(200)
   await expect(page).toHaveURL(/\/activate$/u)
   await expect(page.getByRole('status')).toContainText('Your account is active')
 
@@ -916,7 +914,8 @@ test('E2E-10 replaces an activation link and completes activation, login and rel
     outboxCount: 2
   })
 
-  const accessToken = await login(page, email)
+  const accessToken = (await newActivationResponse.json() as { accessToken: string }).accessToken
+  await page.getByRole('link', { name: 'Open your account' }).click()
   const cookies = await sessionCookies(page.context())
   await expectNoPersistentSecrets(page, [
     firstToken,
@@ -1183,7 +1182,11 @@ test('new recovery email replaces old reset link and inactive account remains in
   await expect(page.getByRole('alert')).toContainText('Account is not active')
   await followSecretUrl(page, activationUrlFrom(activation))
   await expect(page.getByRole('status')).toContainText('Your account is active')
-  await login(page, email, '/me', true, password)
+  await page.getByRole('link', { name: 'Open your account' }).click()
+  await expect(page).toHaveURL(/\/me$/u)
+  await expect(page.getByText(email)).toBeVisible()
+  await page.reload()
+  await expect(page.getByText(email)).toBeVisible()
 })
 
 test('unknown recovery stays neutral and capability is absent from SSR URL and storage', async ({ page, request }) => {

@@ -6,6 +6,7 @@ namespace App\Tests\IdentityAccess\Application\Login;
 
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
+use App\IdentityAccess\Application\Login\IssueUserSession;
 use App\IdentityAccess\Application\Login\LoginCommand;
 use App\IdentityAccess\Application\Login\LoginUser;
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
@@ -204,15 +205,17 @@ final class LoginUserTest extends TestCase
 
         return new LoginUser(
             $repository ?? $this->identityRepository(),
-            $sessionRepository ?? $this->createStub(UserSessionRepositoryPort::class),
             $passwordHasher ?? $this->passwordHasher(true),
-            $accessTokenIssuer ?? $this->accessTokenIssuer(),
-            $refreshTokenCodec ?? $this->refreshTokenCodec(),
-            $csrfTokenCodec ?? $this->csrfTokenCodec(),
+            new IssueUserSession(
+                $sessionRepository ?? $this->createStub(UserSessionRepositoryPort::class),
+                $accessTokenIssuer ?? $this->accessTokenIssuer(),
+                $refreshTokenCodec ?? $this->refreshTokenCodec(),
+                $csrfTokenCodec ?? $this->csrfTokenCodec(),
+                $this->uuid(),
+            ),
             $rateLimit,
             $this->transaction(),
             $this->clock($now),
-            $this->uuid(),
         );
     }
 

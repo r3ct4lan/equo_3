@@ -6,15 +6,24 @@ namespace App\Tests\Integration\IdentityAccess;
 
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineTransaction;
+use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineUserSessionRepository;
 use App\IdentityAccess\Adapter\Security\VersionedRequestFingerprint;
 use App\IdentityAccess\Adapter\System\SymfonyUuid;
 use App\IdentityAccess\Adapter\System\SystemClock;
+use App\IdentityAccess\Application\Activate\ActivateAccount;
+use App\IdentityAccess\Application\Activate\ActivateCommand;
 use App\IdentityAccess\Application\ActivationRequest\ActivationRequestCommand;
 use App\IdentityAccess\Application\ActivationRequest\RequestActivation;
+use App\IdentityAccess\Application\Authorization\ActivationAccessPolicy;
+use App\IdentityAccess\Application\Login\IssueUserSession;
+use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
 use App\IdentityAccess\Application\Port\ActionTokenCodecPort;
+use App\IdentityAccess\Application\Port\CsrfTokenCodecPort;
 use App\IdentityAccess\Application\Port\EmailOutboxPort;
+use App\IdentityAccess\Application\Port\IssuedAccessToken;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
 use App\IdentityAccess\Application\Port\RateLimitPort;
+use App\IdentityAccess\Application\Port\RefreshTokenCodecPort;
 use App\IdentityAccess\Application\Register\RegisterCommand;
 use App\IdentityAccess\Application\Register\RegisterUser;
 use App\IdentityAccess\Domain\User\PasswordPolicy;
@@ -207,6 +216,79 @@ final class FirstVerticalSliceTransactionTest extends KernelTestCase
 
         $connection->delete('user_action_token', ['id' => $tokenId]);
         $connection->delete('app_user', ['id' => $userId]);
+    }
+
+    public function testActivationSessionIssuanceFailureRollsBackUserTokenAndSession(): void
+    {
+        self::bootKernel();
+        $container = self::getContainer();
+        $entityManager = $container->get(EntityManagerInterface::class);
+        $connection = $entityManager->getConnection();
+        $uuid = new SymfonyUuid();
+        $userId = $uuid->generate();
+        $tokenId = $uuid->generate();
+        $issuedToken = $container->get(ActionTokenCodecPort::class)->issue();
+        $now = new DateTimeImmutable('now');
+        $connection->insert('app_user', [
+            'id' => $userId,
+            'name' => 'Rollback Session',
+            'email' => 'rollback-session-'.bin2hex(random_bytes(6)).'@example.test',
+            'password_hash' => 'test-hash',
+            'is_active' => 0,
+            'created_at' => $now->modify('-1 day')->format('Y-m-d H:i:sP'),
+        ]);
+        $connection->insert('user_action_token', [
+            'id' => $tokenId,
+            'user_id' => $userId,
+            'token_hash' => $issuedToken->tokenHash,
+            'purpose' => 'ACTIVATE_ACCOUNT',
+            'payload' => null,
+            'created_at' => $now->modify('-1 hour')->format('Y-m-d H:i:sP'),
+            'expires_at' => $now->modify('+1 hour')->format('Y-m-d H:i:sP'),
+            'used_at' => null,
+            'invalidated_at' => null,
+        ]);
+        $rateLimit = $this->createStub(RateLimitPort::class);
+        $rateLimit->method('activationRetryAfter')->willReturn(null);
+        $failingIssuer = new class($entityManager) implements AccessTokenIssuerPort {
+            public function __construct(private EntityManagerInterface $entityManager)
+            {
+            }
+
+            public function issue(string $userId): IssuedAccessToken
+            {
+                $this->entityManager->flush();
+                throw new RuntimeException('Controlled activation session failure.');
+            }
+        };
+        $handler = new ActivateAccount(
+            $container->get(ActionTokenCodecPort::class),
+            new DoctrineIdentityRepository($entityManager),
+            new ActivationAccessPolicy(),
+            $rateLimit,
+            new DoctrineTransaction($entityManager),
+            new SystemClock(),
+            new IssueUserSession(
+                new DoctrineUserSessionRepository($entityManager),
+                $failingIssuer,
+                $container->get(RefreshTokenCodecPort::class),
+                $container->get(CsrfTokenCodecPort::class),
+                $uuid,
+            ),
+        );
+
+        try {
+            $handler->handle(new ActivateCommand($issuedToken->publicToken, '192.0.2.1'));
+            self::fail('Session issuance failure must abort activation.');
+        } catch (RuntimeException $exception) {
+            self::assertSame('Controlled activation session failure.', $exception->getMessage());
+        } finally {
+            self::assertSame(false, $connection->fetchOne('SELECT is_active FROM app_user WHERE id = ?', [$userId]));
+            self::assertNull($connection->fetchOne('SELECT used_at FROM user_action_token WHERE id = ?', [$tokenId]));
+            self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM user_session WHERE user_id = ?', [$userId]));
+            $connection->delete('user_action_token', ['id' => $tokenId]);
+            $connection->delete('app_user', ['id' => $userId]);
+        }
     }
 
     public function testActivationRequestOutboxFailureRollsBackReplacementAndInvalidation(): void

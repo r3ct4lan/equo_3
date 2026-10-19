@@ -109,8 +109,8 @@ patterns, generated changes and Nginx smoke checks.
 
 `make check-full` additionally executes the auth/session browser journey in
 Chromium against a disposable HTTPS Compose project with tmpfs
-PostgreSQL/Redis/RabbitMQ and Mailpit. It covers registration, activation,
-login, refresh rotation, protected `/me`, reload, invitations between two users,
+PostgreSQL/Redis/RabbitMQ and Mailpit. It covers registration, activation with an
+authenticated session, login, refresh rotation, protected `/me`, reload, invitations between two users,
 Connect reads, expense creation/shares/balances/history, third-user financial privacy,
 cookie/storage checks and safe error cases without touching the development database or named Docker
 volumes.
