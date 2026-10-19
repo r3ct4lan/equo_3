@@ -16,6 +16,9 @@ interface TransferRepositoryPort
 
     public function balance(string $connectId, string $viewerId): int;
 
+    /** @return array{totalOwedAmount: int, totalReceivableAmount: int} */
+    public function balanceSummary(string $viewerId): array;
+
     public function save(Transfer $transfer): void;
 
     public function updateShare(Transfer $transfer): void;

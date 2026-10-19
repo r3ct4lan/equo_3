@@ -28,6 +28,38 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
         return $amount;
     }
 
+    public function balanceSummary(string $viewerId): array
+    {
+        $row = $this->db->fetchAssociative(<<<'SQL'
+            SELECT COALESCE(SUM(CASE WHEN balance < 0 THEN -balance ELSE 0 END), 0) AS owed,
+                   COALESCE(SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END), 0) AS receivable
+            FROM (
+                SELECT connect_id, SUM(CASE WHEN sender_id = :viewer THEN amount::bigint ELSE -amount::bigint END) AS balance
+                FROM transfer
+                WHERE is_deleted = false AND (sender_id = :viewer OR receiver_id = :viewer)
+                GROUP BY connect_id
+            ) AS balances
+            SQL, ['viewer' => $viewerId]);
+        if (false === $row) {
+            throw new RuntimeException('Ledger summary is unavailable.');
+        }
+
+        return [
+            'totalOwedAmount' => $this->exactSummaryAmount($row['owed']),
+            'totalReceivableAmount' => $this->exactSummaryAmount($row['receivable']),
+        ];
+    }
+
+    private function exactSummaryAmount(mixed $value): int
+    {
+        $amount = filter_var($value, FILTER_VALIDATE_INT);
+        if (false === $amount || $amount < 0 || $amount > 9007199254740991) {
+            throw new RuntimeException('Ledger summary exceeds the supported exact integer range.');
+        }
+
+        return $amount;
+    }
+
     public function find(string $id): ?Transfer
     {
         $row = $this->db->fetchAssociative('SELECT * FROM transfer WHERE id=?', [$id]);

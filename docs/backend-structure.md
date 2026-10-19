@@ -432,3 +432,22 @@ flags и создаёт только новые записи. Transfer.recalcula
 version лишь при фактическом изменении суммы/флага. MANUAL не затрагивается.
 Domain не зависит от Doctrine/Symfony, Application — от HTTP.
 [Доказательства](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/update-debt.md).
+
+
+## MT-002 — сводка главной страницы
+
+`Transfers/Adapter/Http/BalanceSummaryController` предоставляет защищённый
+`GET /api/v1/transfers/balance-summary`. `BalanceService` использует
+`TransferRepositoryPort::balanceSummary`; Doctrine adapter сначала группирует
+неудалённые Transfer по Connect, затем одним SQL-запросом считает две суммы.
+Первая страница Connect и Debt.totalAmount в этом расчёте не участвуют.
+Domain, схема, миграции и публичный межмодульный BalanceQuery не меняются.
+Существующий список Debt с limit=5 обслуживает последние расходы.
+
+Проверка серверного этапа 2026-10-19: `make check-backend` PASS,
+689 tests / 8 406 assertions, static/style/config/migrations и Composer audit PASS.
+HTTP/DB suite проверяет пустые суммы, отсутствие/невалидность Bearer, inactive
+viewer, no-store, запрет подмены viewer query-параметром, netting внутри пары,
+неактивную вторую сторону, удалённые операции, чужие пары, 25 связей и суммы
+выше int32, а также limit=5, stable ordering, payer вне split и excluded participant.
+Это серверный этап; готовность UI и полной MT-002 фиксируется в бэклоге.

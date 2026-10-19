@@ -13,6 +13,12 @@ final readonly class BalanceService implements BalanceQuery
     {
     }
 
+    /** @return array{totalOwedAmount: int, totalReceivableAmount: int} */
+    public function summary(string $viewerId): array
+    {
+        return $this->repository->balanceSummary($viewerId);
+    }
+
     public function balance(string $connectId, string $viewerId): int
     {
         return $this->repository->balance($connectId, $viewerId);
