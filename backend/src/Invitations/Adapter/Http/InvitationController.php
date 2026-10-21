@@ -7,15 +7,17 @@ namespace App\Invitations\Adapter\Http;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use App\Invitations\Application\InvitationService;
+use App\Invitations\Application\PendingInvitationService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class InvitationController
 {
-    public function __construct(private InvitationService $service, private Security $security, private string $applicationOrigin)
+    public function __construct(private InvitationService $service, private PendingInvitationService $pending, private Security $security, private string $applicationOrigin)
     {
     }
 
@@ -42,6 +44,17 @@ final readonly class InvitationController
         $result = $this->service->accept($token, $this->userId(), $request->getClientIp() ?? 'unknown');
 
         return $this->respond($result['view'], $result['created'] ? 201 : 200);
+    }
+
+    #[Route('/api/v1/connect-invitations/pending/accept', name: 'api_v1_pending_invitation_accept', methods: ['POST'], priority: 10)]
+    public function acceptPending(Request $request): Response
+    {
+        $this->emptyBody($request);
+        $result = $this->pending->accept($this->userId(), $request->getClientIp() ?? 'unknown');
+
+        return null === $result
+            ? new Response('', Response::HTTP_NO_CONTENT, ['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer'])
+            : $this->respond($result['view'], $result['created'] ? 201 : 200);
     }
 
     private function userId(): string

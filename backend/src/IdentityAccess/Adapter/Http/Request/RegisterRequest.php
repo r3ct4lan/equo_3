@@ -17,6 +17,8 @@ final readonly class RegisterRequest
         public ?string $email = null,
         #[Assert\NotBlank(message: 'Value is required.', payload: ['code' => 'REQUIRED'])]
         public ?string $password = null,
+        #[Assert\Length(max: 512)]
+        public ?string $invitationToken = null,
     ) {
     }
 }

@@ -48,6 +48,7 @@ final readonly class RegisterController
             $payload->password ?? '',
             $idempotencyKey,
             $request->getClientIp() ?? 'unknown',
+            $payload->invitationToken,
         ));
     }
 }

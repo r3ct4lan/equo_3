@@ -14,7 +14,7 @@
 | [HTTP-контракты](api/http-contracts.md) | API, запросы, ответы, ошибки, идемпотентность и конкурентность |
 | [Модель сущностей](data-model/entities.md) | Сущности, поля, связи и ограничения |
 | [ER-диаграмма](data-model/er-diagram.md) | Структура данных; исходник [DOT](data-model/er-diagram.dot), версии [SVG](data-model/er-diagram.svg) и [PNG](data-model/er-diagram.png) |
-| [Архитектурные решения](adr/architecture-decisions.md) | Принятые ADR-001—020 и основания решений |
+| [Архитектурные решения](adr/architecture-decisions.md) | Принятые ADR-001—021 и основания решений |
 | [Журнал вопросов и решений](open-questions.md) | Принятые решения OQ/CONS и условия их пересмотра |
 
 ## Устройство приложения

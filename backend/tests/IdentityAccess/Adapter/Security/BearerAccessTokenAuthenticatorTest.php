@@ -184,7 +184,7 @@ final readonly class AuthenticatorRepository implements IdentityRepositoryPort
         throw new LogicException('Authentication is read-only.');
     }
 
-    public function addRegistration(User $user, UserActionToken $token): void
+    public function addRegistration(User $user, UserActionToken $token, ?string $pendingInvitationId = null): void
     {
         throw new LogicException('Authenticator is read-only.');
     }

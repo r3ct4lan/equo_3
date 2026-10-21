@@ -4,10 +4,10 @@
 |---|---|
 | Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle, logout, password reset/change и `/me` |
 | Статус | Accepted |
-| Версия | 17 |
-| Дата актуальности | 2026-10-19 |
+| Версия | 18 |
+| Дата актуальности | 2026-10-21 |
 | Владелец | Maksim Smolkov |
-| Источник | BR-USR-001—003/007/009; BR-SEC-003—007; ADR-006/007/012/014—018/020; HTTP-контракты; фактическая реализация |
+| Источник | BR-USR-001—003/007/009; BR-SEC-003—007; ADR-006/007/012/014—018/020/021; HTTP-контракты; фактическая реализация |
 
 ## 1. Граница реализации
 
@@ -46,9 +46,17 @@ cookie с same-origin/CSRF guard. Финансовые protected endpoints ещ�
 | Любой клиент | `POST /api/v1/auth/password-reset-requests` | Запрос recovery | Public email validation и quotas; neutral 202 | `422 VALIDATION_ERROR`, `429 RATE_LIMIT_EXCEEDED` |
 | Предъявитель token | `POST /api/v1/auth/password-reset` | Password и sessions владельца | Purpose RESET_PASSWORD, current lifecycle; active/inactive допускаются | `400 INVALID_TOKEN`, соответствующий `410`, `422`, `429` |
 | Authenticated user | `POST /api/v1/account/password-change` | Собственные password и sessions | Strict Bearer, fresh active User/currentPassword под User lock; общая новая policy | `401 AUTHENTICATION_REQUIRED` с Bearer challenge, `401 INVALID_CREDENTIALS`, `422 VALIDATION_ERROR`; cookies только на успехе |
+| Authenticated user | `POST /api/v1/connect-invitations/pending/accept` | Приглашение, привязанное к его аккаунту при регистрации | Strict Bearer; те же token, active-user, self-invite и concurrency проверки, что обычное принятие | `204` без привязки; контрактная ошибка недействительной ссылки |
 | Authenticated user | Future protected API | — | Ещё не реализовано | Будущие policy/voter этапы |
 
 ## 3. Идентификация и аутентификация
+
+MT-004 сохраняет у нового аккаунта только ID проверенного приглашения.
+Открытый токен передаётся при регистрации в теле запроса, но не хранится в БД,
+URL продолжения или постоянном browser storage. После активации
+аутентифицированный пользователь может принять только привязанный к его
+аккаунту ID; сервер восстанавливает ссылку из собственной записи и повторно
+применяет все проверки. Принятие не является побочным эффектом публичного GET.
 
 У registration нет текущего пользователя: субъект анонимен. При activation
 идентифицируется не HTTP principal, а конкретный `User`, связанный с записью

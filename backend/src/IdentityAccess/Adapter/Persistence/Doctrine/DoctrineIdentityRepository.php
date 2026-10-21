@@ -129,7 +129,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
         );
     }
 
-    public function addRegistration(User $user, UserActionToken $token): void
+    public function addRegistration(User $user, UserActionToken $token, ?string $pendingInvitationId = null): void
     {
         $record = new UserRecord(
             $user->id,
@@ -138,6 +138,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             $user->passwordHash,
             $user->isActive(),
             $user->createdAt,
+            $pendingInvitationId,
         );
         $tokenRecord = new UserActionTokenRecord(
             $token->id,

@@ -23,7 +23,7 @@ interface IdentityRepositoryPort
 
     public function currentUserProfile(string $userId): ?UserView;
 
-    public function addRegistration(User $user, UserActionToken $token): void;
+    public function addRegistration(User $user, UserActionToken $token, ?string $pendingInvitationId = null): void;
 
     public function activationTokenForUpdate(string $tokenHash): ?StoredActivationToken;
 

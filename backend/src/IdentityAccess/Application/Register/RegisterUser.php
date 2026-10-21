@@ -6,6 +6,7 @@ namespace App\IdentityAccess\Application\Register;
 
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
+use App\IdentityAccess\Application\Api\PendingInvitationRegistration;
 use App\IdentityAccess\Application\Api\RegisterResult;
 use App\IdentityAccess\Application\Api\UserView;
 use App\IdentityAccess\Application\Port\ActionTokenCodecPort;
@@ -45,6 +46,7 @@ final readonly class RegisterUser
         private TransactionPort $transaction,
         private ClockPort $clock,
         private UuidPort $uuid,
+        private PendingInvitationRegistration $pendingInvitation,
     ) {
     }
 
@@ -58,11 +60,15 @@ final readonly class RegisterUser
             throw new ApplicationFailure(ApplicationFailureCode::PasswordPolicyViolation);
         }
 
-        $canonicalRequest = json_encode([
+        $canonicalFields = [
             'email' => $email->value,
             'name' => $command->name,
             'password' => $command->password,
-        ], JSON_THROW_ON_ERROR);
+        ];
+        if (null !== $command->invitationToken) {
+            $canonicalFields['invitationToken'] = $command->invitationToken;
+        }
+        $canonicalRequest = json_encode($canonicalFields, JSON_THROW_ON_ERROR);
         $now = $this->clock->now();
 
         return $this->transaction->run(function () use ($command, $email, $canonicalRequest, $now): RegisterResult {
@@ -105,7 +111,8 @@ final readonly class RegisterUser
                 $now->modify('+24 hours'),
             );
 
-            $this->identityRepository->addRegistration($user, $token);
+            $pendingInvitationId = null === $command->invitationToken ? null : $this->pendingInvitation->resolve($command->invitationToken);
+            $this->identityRepository->addRegistration($user, $token, $pendingInvitationId);
             $this->emailOutbox->enqueueActivation(
                 $this->uuid->generate(),
                 $token->id,

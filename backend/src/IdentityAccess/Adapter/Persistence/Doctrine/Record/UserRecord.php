@@ -28,6 +28,8 @@ class UserRecord
         private bool $isActive,
         #[ORM\Column(name: 'created_at', type: Types::DATETIMETZ_IMMUTABLE)]
         private DateTimeImmutable $createdAt,
+        #[ORM\Column(name: 'pending_invitation_id', type: Types::GUID, nullable: true)]
+        private ?string $pendingInvitationId = null,
     ) {
     }
 
@@ -60,6 +62,16 @@ class UserRecord
     public function createdAt(): DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function pendingInvitationId(): ?string
+    {
+        return $this->pendingInvitationId;
+    }
+
+    public function clearPendingInvitation(): void
+    {
+        $this->pendingInvitationId = null;
     }
 
     public function activate(): void
