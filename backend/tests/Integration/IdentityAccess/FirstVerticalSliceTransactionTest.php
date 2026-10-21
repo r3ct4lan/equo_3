@@ -14,6 +14,7 @@ use App\IdentityAccess\Application\Activate\ActivateAccount;
 use App\IdentityAccess\Application\Activate\ActivateCommand;
 use App\IdentityAccess\Application\ActivationRequest\ActivationRequestCommand;
 use App\IdentityAccess\Application\ActivationRequest\RequestActivation;
+use App\IdentityAccess\Application\Api\PendingInvitationRegistration;
 use App\IdentityAccess\Application\Authorization\ActivationAccessPolicy;
 use App\IdentityAccess\Application\Login\IssueUserSession;
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
@@ -137,6 +138,7 @@ final class FirstVerticalSliceTransactionTest extends KernelTestCase
             new DoctrineTransaction($entityManager),
             new SystemClock(),
             $uuid,
+            $container->get(PendingInvitationRegistration::class),
         );
 
         try {

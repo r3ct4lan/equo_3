@@ -51,6 +51,9 @@ services:
     App\IdentityAccess\Application\Port\IdentityRepositoryPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository
 
+    App\IdentityAccess\Application\Api\PendingInvitationRegistration:
+        alias: App\Invitations\Adapter\Persistence\Doctrine\InvitationRegistrationResolver
+
     App\IdentityAccess\Application\Port\ActivationRequestRepositoryPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository
 
@@ -182,6 +185,8 @@ services:
         alias: App\Infrastructure\Persistence\Doctrine\ConnectRuntime
     App\Invitations\Application\Port\InvitationRepositoryPort:
         alias: App\Invitations\Adapter\Persistence\Doctrine\DoctrineInvitationRepository
+    App\IdentityAccess\Application\Api\PendingInvitationAccess:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrinePendingInvitationAccess
     App\Invitations\Application\Port\InvitationRuntimePort:
         alias: App\Infrastructure\Persistence\Doctrine\ConnectRuntime
     App\Invitations\Application\Port\InvitationTokenPort:

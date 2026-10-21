@@ -6,6 +6,7 @@ namespace App\Tests\IdentityAccess\Application\Register;
 
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
+use App\IdentityAccess\Application\Api\PendingInvitationRegistration;
 use App\IdentityAccess\Application\Port\ActionTokenCodecPort;
 use App\IdentityAccess\Application\Port\ClockPort;
 use App\IdentityAccess\Application\Port\EmailOutboxPort;
@@ -31,14 +32,17 @@ final class RegisterUserTest extends TestCase
     {
         $now = new DateTimeImmutable('2026-08-02T10:00:00Z');
         $repository = $this->createMock(IdentityRepositoryPort::class);
+        $pending = $this->createMock(PendingInvitationRegistration::class);
+        $pending->expects(self::once())->method('resolve')->with('invitation-token')->willReturn('00000000-0000-4000-8000-000000000099');
         $repository->expects(self::once())->method('emailExists')->with('user.one+e1@example.test')->willReturn(false);
         $repository->expects(self::once())->method('addRegistration')->willReturnCallback(
-            static function (User $user, UserActionToken $token) use ($now): void {
+            static function (User $user, UserActionToken $token, ?string $pendingInvitationId) use ($now): void {
                 self::assertSame('00000000-0000-4000-8000-000000000001', $user->id);
                 self::assertSame('user.one+e1@example.test', $user->email->value);
                 self::assertFalse($user->isActive());
                 self::assertSame($user->id, $token->userId);
                 self::assertEquals($now->modify('+24 hours'), $token->expiresAt);
+                self::assertSame('00000000-0000-4000-8000-000000000099', $pendingInvitationId);
             },
         );
         $idempotency = $this->createMock(IdempotencyPort::class);
@@ -72,6 +76,7 @@ final class RegisterUserTest extends TestCase
             $this->transaction(),
             $this->clock($now),
             $this->uuid(),
+            $pending,
         );
 
         $result = $handler->handle(new RegisterCommand(
@@ -80,6 +85,7 @@ final class RegisterUserTest extends TestCase
             'A2345678901!',
             '11111111-1111-4111-8111-111111111111',
             '192.0.2.1',
+            'invitation-token',
         ));
 
         self::assertSame('user.one+e1@example.test', $result->user->email);
@@ -113,6 +119,7 @@ final class RegisterUserTest extends TestCase
             $this->transaction(),
             $this->clock($now),
             $this->uuid(),
+            $this->pendingInvitation(),
         );
 
         try {
@@ -187,5 +194,10 @@ final class RegisterUserTest extends TestCase
         );
 
         return $port;
+    }
+
+    private function pendingInvitation(): PendingInvitationRegistration
+    {
+        return $this->createStub(PendingInvitationRegistration::class);
     }
 }

@@ -12,6 +12,7 @@ final readonly class RegisterCommand
         public string $password,
         public string $idempotencyKey,
         public string $ipAddress,
+        public ?string $invitationToken = null,
     ) {
     }
 }
