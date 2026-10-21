@@ -3,6 +3,7 @@ import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RegisterPage from '../../app/pages/register.vue'
 import { ApiClientError } from '../../app/utils/api-error'
+import { forgetInvitation, rememberInvitation } from '../../app/utils/connect-invitations'
 
 const { apiMock } = vi.hoisted(() => ({
   apiMock: vi.fn()
@@ -34,6 +35,21 @@ async function validForm(wrapper: Awaited<ReturnType<typeof mountSuspended>>): P
 describe('registration page', () => {
   beforeEach(() => {
     apiMock.mockReset()
+    forgetInvitation()
+  })
+
+  it('binds an opened invitation to the new account without putting it in the page', async () => {
+    rememberInvitation('private-invitation')
+    apiMock.mockResolvedValue(validResponse)
+    const wrapper = await mountSuspended(RegisterPage, { route: '/register' })
+    await validForm(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(apiMock).toHaveBeenCalledWith('/v1/auth/register', expect.objectContaining({
+      body: expect.objectContaining({ invitationToken: 'private-invitation' })
+    }))
+    expect(wrapper.text()).not.toContain('private-invitation')
+    wrapper.unmount()
   })
 
   it('renders an accessible empty form and associates client errors with every required field', async () => {

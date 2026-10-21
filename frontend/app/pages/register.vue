@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RegisterRequest, RegisterResponse } from '~/types/api'
+import { forgetInvitation, recalledInvitation } from '~/utils/connect-invitations'
 import {
   createRegistrationAttemptKeys,
   REGISTER_ENDPOINT,
@@ -46,6 +47,7 @@ function handleFormChange(): void {
 
 async function submitRegistration(): Promise<void> {
   registration.value = null
+  const invitationToken = recalledInvitation()
 
   const outcome = await submit<RegisterResponse>(
     submittedValues => $api<RegisterResponse>(REGISTER_ENDPOINT, {
@@ -56,7 +58,8 @@ async function submitRegistration(): Promise<void> {
       body: {
         name: submittedValues.name,
         email: submittedValues.email,
-        password: submittedValues.password
+        password: submittedValues.password,
+        ...(invitationToken ? { invitationToken } : {})
       } satisfies RegisterRequest
     }),
     validateRegistration
@@ -69,6 +72,7 @@ async function submitRegistration(): Promise<void> {
   attemptKeys.complete()
   values.password = ''
   registration.value = outcome.data
+  forgetInvitation()
   await nextTick()
   successPanel.value?.focus()
 }

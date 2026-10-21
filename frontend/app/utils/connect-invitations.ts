@@ -1,6 +1,7 @@
 import type { SafeApiError, ErrorPresentation } from './auth-flow'
 
 let pendingInvitation: string | null = null
+let invitationFeedback: { kind: 'success' | 'error', message: string } | null = null
 
 export function rememberInvitation(token: string): void {
   pendingInvitation = token
@@ -10,6 +11,14 @@ export function recalledInvitation(): string | null {
 }
 export function forgetInvitation(): void {
   pendingInvitation = null
+}
+export function setInvitationFeedback(kind: 'success' | 'error', message: string): void {
+  invitationFeedback = { kind, message }
+}
+export function takeInvitationFeedback(): { kind: 'success' | 'error', message: string } | null {
+  const feedback = invitationFeedback
+  invitationFeedback = null
+  return feedback
 }
 export function invitationErrorPresentation(error: SafeApiError): ErrorPresentation {
   switch (error.code) {

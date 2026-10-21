@@ -4,20 +4,27 @@ import { useRoute } from '#app'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ActivatePage from '../../app/pages/activate.vue'
 import { ApiClientError } from '../../app/utils/api-error'
+import { takeInvitationFeedback } from '../../app/utils/connect-invitations'
 
-const { activateMock } = vi.hoisted(() => ({
-  activateMock: vi.fn()
+const { activateMock, protectedRequestMock, navigation } = vi.hoisted(() => ({
+  activateMock: vi.fn(),
+  protectedRequestMock: vi.fn(),
+  navigation: vi.fn()
 }))
 
 mockNuxtImport('useNuxtApp', original => () => new Proxy(original(), {
   get(target, property, receiver) {
-    return property === '$auth' ? { activate: activateMock } : Reflect.get(target, property, receiver)
+    return property === '$auth' ? { activate: activateMock, protectedRequest: protectedRequestMock } : Reflect.get(target, property, receiver)
   }
 }))
+mockNuxtImport('navigateTo', () => navigation)
 
 describe('activation page', () => {
   beforeEach(() => {
     activateMock.mockReset()
+    protectedRequestMock.mockReset().mockResolvedValue(undefined)
+    navigation.mockReset().mockResolvedValue(undefined)
+    takeInvitationFeedback()
   })
 
   it('removes the capability from the URL and waits for a click before activation', async () => {
@@ -40,10 +47,26 @@ describe('activation page', () => {
     await flushPromises()
 
     expect(activateMock).toHaveBeenCalledWith('v1.synthetic-test-capability')
+    expect(protectedRequestMock).toHaveBeenCalledWith('/v1/connect-invitations/pending/accept', { method: 'POST' })
     expect(wrapper.get('[role="status"]').text()).toContain('Your account is active')
     expect(wrapper.text()).toContain('You are signed in')
     expect(wrapper.text()).not.toContain('synthetic-test-capability')
 
+    wrapper.unmount()
+  })
+
+  it('continues a registered recipient to connections after activation', async () => {
+    activateMock.mockResolvedValue(undefined)
+    protectedRequestMock.mockResolvedValue({ id: 'new-connect' })
+    const wrapper = await mountSuspended(ActivatePage, { route: '/activate?token=v1.invited-capability' })
+    await flushPromises()
+    await vi.waitFor(() => {
+      expect(wrapper.get('button').text()).toBe('Activate and sign in')
+    })
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(navigation).toHaveBeenCalledWith('/connects')
+    expect(takeInvitationFeedback()).toEqual({ kind: 'success', message: 'Connection created successfully.' })
     wrapper.unmount()
   })
 
