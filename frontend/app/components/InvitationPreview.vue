@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { InvitationPreview, ConnectView } from '~/types/connects'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
-import { forgetInvitation, invitationErrorPresentation, rememberInvitation } from '~/utils/connect-invitations'
+import { forgetInvitation, invitationErrorPresentation, rememberInvitation, setInvitationFeedback } from '~/utils/connect-invitations'
 
 const props = defineProps<{ token: string | null }>()
 const { $api, $auth } = useNuxtApp()
@@ -12,7 +12,6 @@ const pending = ref(false)
 const accepting = ref(false)
 const error = ref<ApiClientError | null>(null)
 const presentation = computed(() => error.value ? invitationErrorPresentation(error.value) : null)
-const own = computed(() => preview.value?.inviter.id === state.value.user?.id)
 const endpoint = computed(() => '/v1/connect-invitations/' + encodeURIComponent(props.token ?? 'invalid'))
 
 async function load(): Promise<void> {
@@ -36,28 +35,43 @@ async function signIn(): Promise<void> {
   rememberInvitation(props.token)
   await navigateTo('/login?redirect=/connect-invitations/continue')
 }
+async function register(): Promise<void> {
+  if (!props.token) return
+  rememberInvitation(props.token)
+  await navigateTo('/register')
+}
 async function accept(): Promise<void> {
-  if (accepting.value || own.value || !preview.value?.canAccept || !props.token) return
+  if (accepting.value || !props.token) return
   accepting.value = true
   error.value = null
   try {
-    const connect = await $auth.protectedRequest<ConnectView>(endpoint.value + '/accept', { method: 'POST' })
+    await $auth.protectedRequest<ConnectView>(endpoint.value + '/accept', { method: 'POST' })
     forgetInvitation()
-    await navigateTo('/connects/' + connect.id)
+    setInvitationFeedback('success', 'Connection created successfully.')
+    await navigateTo('/connects')
   }
   catch (failure) {
-    error.value = toApiClientError(failure)
+    forgetInvitation()
+    const normalized = toApiClientError(failure)
+    setInvitationFeedback('error', invitationErrorPresentation(normalized).message)
+    await navigateTo('/connects')
   }
   finally {
     accepting.value = false
   }
 }
 onMounted(async () => {
-  await load()
   await $auth.bootstrap()
+  if (state.value.status === 'authenticated') {
+    await accept()
+  }
+  else {
+    await load()
+  }
 })
 watch(() => props.token, () => {
-  void load()
+  if (state.value.status === 'authenticated') void accept()
+  else void load()
 })
 </script>
 
@@ -70,40 +84,34 @@ watch(() => props.token, () => {
       Connect on Equo
     </h1>
     <AppLoadingState
-      v-if="pending"
+      v-if="pending || accepting || state.status === 'unknown'"
       message="Loading invitation…"
     />
     <template v-if="preview">
       <p>{{ preview.inviter.name }} invited you to connect.</p>
       <p>Valid until {{ new Date(preview.expiresAt).toLocaleDateString() }}.</p>
-      <p v-if="own">
-        This is your own invitation. Send it to someone you want to connect with.
-      </p>
-      <p v-else-if="!preview.canAccept">
+      <p v-if="!preview.canAccept">
         The sender's account must be active before you can connect.
       </p>
-      <button
+      <div
         v-else-if="state.status === 'anonymous'"
-        class="button"
-        type="button"
-        @click="signIn"
+        class="form-actions"
       >
-        Sign in to accept
-      </button>
-      <button
-        v-else-if="state.status === 'authenticated'"
-        class="button"
-        type="button"
-        :disabled="accepting"
-        :aria-busy="accepting"
-        @click="accept"
-      >
-        {{ accepting ? 'Connecting…' : 'Accept invitation' }}
-      </button>
-      <AppLoadingState
-        v-else-if="state.status === 'unknown'"
-        message="Checking your session…"
-      />
+        <button
+          class="button"
+          type="button"
+          @click="signIn"
+        >
+          Sign in to connect
+        </button>
+        <button
+          class="button button--secondary"
+          type="button"
+          @click="register"
+        >
+          Create an account
+        </button>
+      </div>
       <button
         v-else
         class="button button--secondary"

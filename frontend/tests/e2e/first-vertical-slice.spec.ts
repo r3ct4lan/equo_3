@@ -50,6 +50,17 @@ async function routeNextLoginFromUniqueIp(page: Page): Promise<void> {
   }, { times: 1 })
 }
 
+async function routeNextRegistrationFromUniqueIp(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/register', async (route) => {
+    await route.continue({
+      headers: {
+        ...route.request().headers(),
+        'x-forwarded-for': nextForwardedFor()
+      }
+    })
+  }, { times: 1 })
+}
+
 async function waitForNuxtHydration(page: Page): Promise<void> {
   await page.waitForFunction(() => {
     const root = document.querySelector('#__nuxt') as HTMLElement & {
@@ -124,6 +135,7 @@ function activationUrlFrom(message: MailpitMessage): string {
 
 async function registerAndActivate(page: Page, request: APIRequestContext, email = uniqueEmail('auth')): Promise<string> {
   await registration(page, email)
+  await routeNextRegistrationFromUniqueIp(page)
   await page.getByRole('button', { name: 'Create account' }).click()
   await expect(page.getByRole('status')).toContainText('Check your email')
 
@@ -199,7 +211,15 @@ async function ensureActiveUser(page: Page, request: APIRequestContext): Promise
     return sharedActiveEmail
   }
 
-  sharedActiveEmail = await registerAndActivate(page, request, uniqueEmail('shared-auth'))
+  const browser = page.context().browser()
+  if (!browser) throw new Error('Browser context is required to create the shared test user.')
+  const context = await browser.newContext({ ignoreHTTPSErrors: true })
+  try {
+    sharedActiveEmail = await registerAndActivate(await context.newPage(), request, uniqueEmail('shared-auth'))
+  }
+  finally {
+    await context.close()
+  }
 
   return sharedActiveEmail
 }
@@ -1429,15 +1449,11 @@ test('connect invitation joins two users and retries a lost accept response with
     await followSecretUrl(recipient, first.url)
     await waitForNuxtHydration(recipient)
     await expect(recipient.getByText('E2E User invited you to connect.', { exact: true })).toBeVisible()
-    await recipient.getByRole('button', { name: 'Sign in to accept', exact: true }).click()
+    await recipient.getByRole('button', { name: 'Sign in to connect', exact: true }).click()
     await expect(recipient).toHaveURL(/\/login\?redirect=\/connect-invitations\/continue$/u)
     await recipient.getByLabel('Email', { exact: true }).fill(recipientEmail)
     await recipient.getByLabel('Password', { exact: true }).fill(testPassword)
     await routeNextLoginFromUniqueIp(recipient)
-    await recipient.getByRole('button', { name: 'Sign in', exact: true }).click()
-    await expect(recipient).toHaveURL(/\/connect-invitations\/continue$/u)
-    await expect(recipient.getByRole('button', { name: 'Accept invitation', exact: true })).toBeVisible()
-    await expectNoPersistentSecrets(recipient, [first.token, testPassword])
     let connectionId = ''
     await recipient.route('**/api/v1/connect-invitations/*/accept', async (route) => {
       const response = await route.fetch()
@@ -1445,15 +1461,16 @@ test('connect invitation joins two users and retries a lost accept response with
       connectionId = (await response.json() as { id: string }).id
       await route.abort('failed')
     }, { times: 1 })
-    await recipient.getByRole('button', { name: 'Accept invitation', exact: true }).click()
-    await expect(recipient.getByRole('alert')).toContainText('We could not confirm the connection')
+    await recipient.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(recipient).toHaveURL(/\/connects$/u)
+    await expect(recipient.getByRole('alert')).toContainText('Try again to check the same invitation')
+    await expectNoPersistentSecrets(recipient, [first.token, testPassword])
     const retry = recipient.waitForResponse(response => new URL(response.url()).pathname.endsWith('/accept'))
-    await recipient.getByRole('button', { name: 'Try again', exact: true }).click()
+    await followSecretUrl(recipient, first.url)
     expect((await retry).status()).toBe(200)
-    await expect(recipient).toHaveURL(/\/connects\/[0-9a-f-]{36}$/u)
-    expect(new URL(recipient.url()).pathname === '/connects/' + connectionId).toBe(true)
-    await expect(recipient.getByText('No shared expenses yet', { exact: true })).toBeVisible()
-    await expect(recipient.getByText('Balance: €0.00', { exact: true })).toBeVisible()
+    await expect(recipient).toHaveURL(/\/connects$/u)
+    await expect(recipient.locator('.invitation-toast')).toContainText('Connection created successfully')
+    await expect(recipient.getByRole('link', { name: 'E2E User', exact: true })).toHaveAttribute('href', '/connects/' + connectionId)
     await expectNoPersistentSecrets(recipient, [first.token, testPassword])
     await page.reload()
     await expect(page.locator('li').filter({ hasText: 'E2E User' })).toHaveCount(1)
@@ -1471,7 +1488,8 @@ test('connect invitation joins two users and retries a lost accept response with
     const usedByOther = await request.post(baseUrl + '/api/v1/connect-invitations/' + first.token + '/accept', { headers: { 'Authorization': 'Bearer ' + otherAccess, 'X-Forwarded-For': nextForwardedFor() } })
     expect(usedByOther.status()).toBe(410)
     await followSecretUrl(page, first.url)
-    await expect(page.getByRole('alert')).toContainText('Invitation already used')
+    await expect(page).toHaveURL(/\/connects$/u)
+    await expect(page.getByRole('alert')).toContainText('This invitation has already been accepted')
   }
   finally {
     await recipientContext.close()
@@ -1481,8 +1499,80 @@ test('connect invitation joins two users and retries a lost accept response with
 test('invitation preview safely handles an unknown link without exposing the capability', async ({ page }) => {
   await page.goto('/connect-invitations/invalid')
   await expect(page.getByRole('alert')).toContainText('Invitation unavailable')
-  await expect(page.getByRole('button', { name: 'Accept invitation', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Create an account', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0)
+})
+
+test('invited newcomer registers, activates in another tab and connects automatically', async ({ page, browser, request }) => {
+  test.setTimeout(120_000)
+  const authorEmail = await registerAndActivate(page, request, uniqueEmail('inviting-author'))
+  await login(page, authorEmail)
+  await page.goto('/connects')
+  const invitationResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/connect-invitations')
+  await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
+  const invitation = await (await invitationResponse).json() as { token: string, url: string }
+
+  const recipientContext = await browser.newContext({ ignoreHTTPSErrors: true })
+  try {
+    const recipient = await recipientContext.newPage()
+    await recipient.goto(invitation.url)
+    await waitForNuxtHydration(recipient)
+    await expect(recipient.getByText('E2E User invited you to connect.', { exact: true })).toBeVisible()
+    await recipient.getByRole('button', { name: 'Create an account', exact: true }).click()
+    await expect(recipient).toHaveURL(/\/register$/u)
+    const email = uniqueEmail('invited-newcomer')
+    await recipient.getByLabel('Name').fill('Invited User')
+    await recipient.getByLabel('Email').fill(email)
+    await recipient.getByLabel('Password').fill(testPassword)
+    await routeNextRegistrationFromUniqueIp(recipient)
+    const registrationResponse = recipient.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/register')
+    await recipient.getByRole('button', { name: 'Create account', exact: true }).click()
+    expect((await registrationResponse).status()).toBe(201)
+    await expect(recipient.getByRole('status')).toContainText('Check your email')
+    await expectNoPersistentSecrets(recipient, [invitation.token, testPassword])
+
+    const activation = activationUrlFrom(await waitForMail(request, email))
+    const activationTab = await recipientContext.newPage()
+    await followSecretUrl(activationTab, activation)
+    await expect(activationTab.getByRole('button', { name: 'Activate and sign in' })).toBeVisible()
+    const pendingAccept = activationTab.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/connect-invitations/pending/accept')
+    await activationTab.getByRole('button', { name: 'Activate and sign in' }).click()
+    expect((await pendingAccept).status()).toBe(201)
+    await expect(activationTab).toHaveURL(/\/connects$/u)
+    await expect(activationTab.locator('.invitation-toast')).toContainText('Connection created successfully')
+    await expect(activationTab.getByRole('link', { name: 'E2E User', exact: true })).toBeVisible()
+    await expectNoPersistentSecrets(activationTab, [invitation.token, testPassword])
+  }
+  finally {
+    await recipientContext.close()
+  }
+})
+
+test('signed-in recipient opens an invitation and reaches connections automatically', async ({ page, browser, request }) => {
+  test.setTimeout(120_000)
+  const authorEmail = await registerAndActivate(page, request, uniqueEmail('direct-author'))
+  await login(page, authorEmail)
+  await page.goto('/connects')
+  const invitationResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/connect-invitations')
+  await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
+  const invitation = await (await invitationResponse).json() as { token: string, url: string }
+
+  const recipientContext = await browser.newContext({ ignoreHTTPSErrors: true })
+  try {
+    const recipient = await recipientContext.newPage()
+    const recipientEmail = await registerAndActivate(recipient, request, uniqueEmail('direct-recipient'))
+    await login(recipient, recipientEmail)
+    const acceptance = recipient.waitForResponse(response => new URL(response.url()).pathname.endsWith('/accept'))
+    await followSecretUrl(recipient, invitation.url)
+    expect((await acceptance).status()).toBe(201)
+    await expect(recipient).toHaveURL(/\/connects$/u)
+    await expect(recipient.locator('.invitation-toast')).toContainText('Connection created successfully')
+    await expect(recipient.getByRole('link', { name: 'E2E User', exact: true })).toBeVisible()
+    await expectNoPersistentSecrets(recipient, [invitation.token, testPassword])
+  }
+  finally {
+    await recipientContext.close()
+  }
 })
 
 test('financial expense survives a lost create response, updates both balances and stays private to participants', async ({ page, browser, request }) => {
@@ -1501,11 +1591,10 @@ test('financial expense survives a lost create response, updates both balances a
     const invited = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/connect-invitations')
     await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
     const invitation = await (await invited).json() as { url: string }
-    await followSecretUrl(recipient, invitation.url)
     const accepted = recipient.waitForResponse(response => new URL(response.url()).pathname.endsWith('/accept'))
-    await recipient.getByRole('button', { name: 'Accept invitation', exact: true }).click()
+    await followSecretUrl(recipient, invitation.url)
     const connectId = (await (await accepted).json() as { id: string }).id
-    await expect(recipient).toHaveURL(/\/connects\/[0-9a-f-]{36}$/u)
+    await expect(recipient).toHaveURL(/\/connects$/u)
     await page.goto('/debts/new')
     await waitForNuxtHydration(page)
     await expect(page.locator('input[value="' + recipientId + '"]')).toBeEnabled()
@@ -1618,11 +1707,10 @@ test('manual payment survives a lost response and refreshes both histories after
     const invited = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/connect-invitations')
     await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
     const invitation = await (await invited).json() as { url: string }
-    await followSecretUrl(other, invitation.url)
     const accepted = other.waitForResponse(response => new URL(response.url()).pathname.endsWith('/accept'))
-    await other.getByRole('button', { name: 'Accept invitation', exact: true }).click()
+    await followSecretUrl(other, invitation.url)
     const connectId = (await (await accepted).json() as { id: string }).id
-    await expect(other).toHaveURL(/\/connects\/[0-9a-f-]{36}$/u)
+    await expect(other).toHaveURL(/\/connects$/u)
     await page.goto('/debts/new')
     await waitForNuxtHydration(page)
     await expect(page.locator('input[value="' + otherId + '"]')).toBeEnabled()
@@ -1738,11 +1826,10 @@ test('debt editing recalculates all shares, restores history and rejects a stale
       const invited = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/connect-invitations')
       await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
       const invitation = await (await invited).json() as { url: string }
-      await followSecretUrl(recipient, invitation.url)
       const accepted = recipient.waitForResponse(response => new URL(response.url()).pathname.endsWith('/accept'))
-      await recipient.getByRole('button', { name: 'Accept invitation', exact: true }).click()
+      await followSecretUrl(recipient, invitation.url)
       const result = (await (await accepted).json() as { id: string }).id
-      await expect(recipient).toHaveURL(/\/connects\/[0-9a-f-]{36}$/u)
+      await expect(recipient).toHaveURL(/\/connects$/u)
       return result
     }
     const authorPayerConnect = await connectWith(payer)

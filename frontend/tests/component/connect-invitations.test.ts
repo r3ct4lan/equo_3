@@ -5,7 +5,7 @@ import CreateInvitation from '../../app/components/CreateInvitation.vue'
 import InvitationPreview from '../../app/components/InvitationPreview.vue'
 import ConnectsPage from '../../app/pages/connects/index.vue'
 import { ApiClientError } from '../../app/utils/api-error'
-import { forgetInvitation, recalledInvitation } from '../../app/utils/connect-invitations'
+import { forgetInvitation, recalledInvitation, takeInvitationFeedback } from '../../app/utils/connect-invitations'
 
 const { api, auth, navigation } = vi.hoisted(() => ({
   api: vi.fn(),
@@ -35,6 +35,7 @@ describe('Connect invitation journey', () => {
     auth.retryBootstrap.mockReset()
     navigation.mockReset().mockResolvedValue(undefined)
     forgetInvitation()
+    takeInvitationFeedback()
     useCurrentUser().setAnonymous()
   })
 
@@ -52,7 +53,16 @@ describe('Connect invitation journey', () => {
     wrapper.unmount()
   })
 
-  it('blocks duplicate acceptance and navigates only on a confirmed response', async () => {
+  it('offers registration while preserving the invitation only in memory', async () => {
+    const wrapper = await mountSuspended(InvitationPreview, { props: { token: 'private-invitation' } })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text() === 'Create an account')!.trigger('click')
+    expect(navigation).toHaveBeenCalledWith('/register')
+    expect(recalledInvitation()).toBe('private-invitation')
+    wrapper.unmount()
+  })
+
+  it('accepts once automatically for an active session and reports confirmed success', async () => {
     signedIn()
     let resolve: (value: typeof connect) => void = () => undefined
     auth.protectedRequest.mockReturnValue(new Promise<typeof connect>((done) => {
@@ -60,14 +70,13 @@ describe('Connect invitation journey', () => {
     }))
     const wrapper = await mountSuspended(InvitationPreview, { props: { token: 'private-invitation' } })
     await flushPromises()
-    await wrapper.get('button').trigger('click')
-    await wrapper.get('button').trigger('click')
     expect(auth.protectedRequest).toHaveBeenCalledTimes(1)
-    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/connect-invitations/private-invitation/accept', { method: 'POST' })
     expect(navigation).not.toHaveBeenCalled()
     resolve(connect)
     await flushPromises()
-    expect(navigation).toHaveBeenCalledWith('/connects/connection')
+    expect(navigation).toHaveBeenCalledWith('/connects')
+    expect(takeInvitationFeedback()).toEqual({ kind: 'success', message: 'Connection created successfully.' })
     wrapper.unmount()
   })
 
@@ -82,36 +91,27 @@ describe('Connect invitation journey', () => {
     wrapper.unmount()
   })
 
-  it('keeps the same invitation for explicit acceptance retry after a lost response', async () => {
+  it('reports a failed automatic acceptance without retrying or exposing the link', async () => {
     signedIn()
-    auth.protectedRequest.mockRejectedValueOnce(new ApiClientError({ kind: 'network', code: 'NETWORK_ERROR', message: 'Safe failure' }))
+    auth.protectedRequest.mockRejectedValue(new ApiClientError({ kind: 'network', code: 'NETWORK_ERROR', message: 'Unsafe private-invitation SQL details' }))
     const wrapper = await mountSuspended(InvitationPreview, { props: { token: 'private-invitation' } })
     await flushPromises()
-    await wrapper.get('button').trigger('click')
-    await flushPromises()
-    expect(navigation).not.toHaveBeenCalled()
-    const retry = wrapper.findAll('button').find(button => button.text() === 'Try again')
-    await retry!.trigger('click')
-    await flushPromises()
-    expect(auth.protectedRequest).toHaveBeenCalledTimes(2)
-    expect(auth.protectedRequest.mock.calls[0]).toEqual(auth.protectedRequest.mock.calls[1])
-    expect(navigation).toHaveBeenCalledWith('/connects/connection')
+    expect(auth.protectedRequest).toHaveBeenCalledTimes(1)
+    expect(navigation).toHaveBeenCalledWith('/connects')
+    const feedback = takeInvitationFeedback()
+    expect(feedback?.kind).toBe('error')
+    expect(feedback?.message).not.toContain('private-invitation')
+    expect(feedback?.message).not.toContain('SQL')
     wrapper.unmount()
   })
 
-  it('explains own and inactive invitations without an accept button', async () => {
-    signedIn('author')
-    const own = await mountSuspended(InvitationPreview, { props: { token: 'private-invitation' } })
-    await flushPromises()
-    expect(own.text()).toContain('your own invitation')
-    expect(own.text()).not.toContain('Accept invitation')
-    own.unmount()
-    signedIn()
+  it('does not offer registration or sign-in for an inactive sender', async () => {
     api.mockResolvedValue({ ...preview, canAccept: false })
     const inactive = await mountSuspended(InvitationPreview, { props: { token: 'private-invitation' } })
     await flushPromises()
     expect(inactive.text()).toContain('sender\'s account must be active')
-    expect(inactive.text()).not.toContain('Accept invitation')
+    expect(inactive.text()).not.toContain('Create an account')
+    expect(inactive.text()).not.toContain('Sign in to connect')
     inactive.unmount()
   })
 

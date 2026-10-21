@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import type { ConnectView } from '~/types/connects'
+import { takeInvitationFeedback } from '~/utils/connect-invitations'
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Connections · Equo' })
 const { state } = useCurrentUser()
 const { items, pending, loaded, cursor, error, load } = useFinancialList<ConnectView>(() => '/v1/connects')
+const invitationFeedback = ref<ReturnType<typeof takeInvitationFeedback>>(null)
+onMounted(() => {
+  invitationFeedback.value = takeInvitationFeedback()
+})
 </script>
 
 <template>
@@ -15,6 +20,20 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Connect
     <h1 id="connects-title">
       Your connections
     </h1>
+    <div
+      v-if="invitationFeedback"
+      class="invitation-toast"
+      :role="invitationFeedback.kind === 'error' ? 'alert' : 'status'"
+    >
+      <p>{{ invitationFeedback.message }}</p>
+      <button
+        type="button"
+        class="button button--secondary"
+        @click="invitationFeedback = null"
+      >
+        Dismiss
+      </button>
+    </div>
     <template v-if="state.status === 'authenticated'">
       <CreateInvitation />
       <AppLoadingState
