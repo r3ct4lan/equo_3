@@ -20,7 +20,7 @@ describe('activation page', () => {
     activateMock.mockReset()
   })
 
-  it('removes the capability from the URL before showing successful activation', async () => {
+  it('removes the capability from the URL and waits for a click before activation', async () => {
     activateMock.mockResolvedValue(undefined)
 
     const wrapper = await mountSuspended(ActivatePage, {
@@ -30,9 +30,17 @@ describe('activation page', () => {
 
     await vi.waitFor(() => {
       expect(useRoute().fullPath).toBe('/activate')
-      expect(wrapper.get('[role="status"]').text()).toContain('Your account is active')
+      expect(wrapper.get('button').text()).toBe('Activate and sign in')
     })
+    expect(activateMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Opening the link has not activated your account')
+    expect(wrapper.text()).not.toContain('synthetic-test-capability')
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
     expect(activateMock).toHaveBeenCalledWith('v1.synthetic-test-capability')
+    expect(wrapper.get('[role="status"]').text()).toContain('Your account is active')
     expect(wrapper.text()).toContain('You are signed in')
     expect(wrapper.text()).not.toContain('synthetic-test-capability')
 
@@ -50,6 +58,13 @@ describe('activation page', () => {
     const wrapper = await mountSuspended(ActivatePage, {
       route: '/activate?token=v1.invalid-test-capability'
     })
+    await flushPromises()
+
+    await vi.waitFor(() => {
+      expect(wrapper.get('button').text()).toBe('Activate and sign in')
+    })
+    expect(activateMock).not.toHaveBeenCalled()
+    await wrapper.get('button').trigger('click')
     await flushPromises()
 
     await vi.waitFor(() => {

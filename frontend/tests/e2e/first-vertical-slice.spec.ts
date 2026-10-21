@@ -133,6 +133,7 @@ async function registerAndActivate(page: Page, request: APIRequestContext, email
     new URL(response.url()).pathname === '/api/v1/auth/activate'
   )
   await followSecretUrl(page, activationUrl)
+  await page.getByRole('button', { name: 'Activate and sign in' }).click()
   const activationResponse = await activationResponsePromise
 
   expect(activationResponse.status()).toBe(200)
@@ -388,6 +389,20 @@ test('E2E-01 completes register, activation sign-in, reload and authenticated pr
     new URL(response.url()).pathname === '/api/v1/auth/activate'
   )
   await followSecretUrl(page, activationUrl)
+  await expect(page).toHaveURL(/\/activate$/u)
+  await expect(page.getByRole('button', { name: 'Activate and sign in' })).toBeVisible()
+  expect(requests).not.toContain('POST /api/v1/auth/activate')
+  expect(await activationAcceptanceState(request, email)).toEqual({
+    exists: true,
+    active: false,
+    tokenCount: 1,
+    unfinishedTokenCount: 1,
+    invalidatedTokenCount: 0,
+    usedTokenCount: 0,
+    outboxCount: 1
+  })
+  await expectNoSessionOrStoredCapability(page)
+  await page.getByRole('button', { name: 'Activate and sign in' }).click()
   const activationResponse = await activationResponsePromise
 
   expect(activationResponse.status()).toBe(200)
@@ -473,13 +488,16 @@ test('E2E-02 shows field validation, permits correction and prevents double subm
 test('E2E-03 rejects an unknown activation capability and stores no secret', async ({ page }) => {
   const invalidCapability = `v1.${'a'.repeat(43)}`
   await page.goto('/activate')
-  const responsePromise = page.waitForResponse(response =>
-    new URL(response.url()).pathname === '/api/v1/auth/activate'
-  )
   await page.evaluate((token) => {
     history.replaceState(null, '', `/activate?token=${encodeURIComponent(token)}`)
     location.reload()
   }, invalidCapability)
+  await expect(page).toHaveURL(/\/activate$/u)
+  await expect(page.getByRole('button', { name: 'Activate and sign in' })).toBeVisible()
+  const responsePromise = page.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/v1/auth/activate'
+  )
+  await page.getByRole('button', { name: 'Activate and sign in' }).click()
   const response = await responsePromise
 
   expect(response.status()).toBe(400)
@@ -874,6 +892,7 @@ test('E2E-10 replaces an activation link and signs in through the new link', asy
     new URL(response.url()).pathname === '/api/v1/auth/activate'
   )
   await followSecretUrl(page, firstActivationUrl)
+  await page.getByRole('button', { name: 'Activate and sign in' }).click()
   const oldActivationResponse = await oldActivationResponsePromise
   expect(oldActivationResponse.status()).toBe(410)
   expect((await oldActivationResponse.json() as { error: { code: string } }).error.code).toBe('TOKEN_INVALIDATED')
@@ -899,6 +918,7 @@ test('E2E-10 replaces an activation link and signs in through the new link', asy
     new URL(response.url()).pathname === '/api/v1/auth/activate'
   )
   await followSecretUrl(page, secondActivationUrl)
+  await page.getByRole('button', { name: 'Activate and sign in' }).click()
   const newActivationResponse = await newActivationResponsePromise
   expect(newActivationResponse.status()).toBe(200)
   await expect(page).toHaveURL(/\/activate$/u)
@@ -1181,6 +1201,7 @@ test('new recovery email replaces old reset link and inactive account remains in
   expect((await inactiveLogin).status()).toBe(403)
   await expect(page.getByRole('alert')).toContainText('Account is not active')
   await followSecretUrl(page, activationUrlFrom(activation))
+  await page.getByRole('button', { name: 'Activate and sign in' }).click()
   await expect(page.getByRole('status')).toContainText('Your account is active')
   await page.getByRole('link', { name: 'Open your account' }).click()
   await expect(page).toHaveURL(/\/me$/u)

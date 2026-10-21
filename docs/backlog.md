@@ -39,6 +39,12 @@
   атомарно активирует пользователя и создаёт новую сессию с тем же профилем
   access/refresh/CSRF, что вход. Клиент принимает сессию через общий auth
   coordinator и открывает профиль без повторного ввода email и пароля.
+  Дополнено 2026-10-19: открытие ссылки больше не отправляет запрос и не
+  создаёт сессию. После удаления токена из URL пользователь явно нажимает
+  «Activate and sign in»; только это действие применяет токен. Повторный
+  `make check-full`: 690 backend tests / 8 430 assertions, 66 frontend unit,
+  93 component tests и 27 browser E2E, включая проверку отсутствия запроса
+  до нажатия, PASS.
   `make check-full`: 690 backend tests / 8 430 assertions, 66 frontend unit,
   93 component tests, 27 browser E2E; quality, build, audit, migrations и
   smoke PASS. Проверены одноразовость ссылки, rollback выдачи сессии,
