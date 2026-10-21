@@ -2,7 +2,7 @@
 import { activationErrorPresentation } from '~/utils/auth-flow'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 
-type ActivationState = 'preparing' | 'loading' | 'success' | 'missing' | 'error'
+type ActivationState = 'preparing' | 'ready' | 'loading' | 'success' | 'missing' | 'error'
 
 useHead({
   title: 'Activate your account · Equo',
@@ -66,7 +66,8 @@ onMounted(async () => {
   }
 
   activationToken = token
-  await activateAccount()
+  state.value = 'ready'
+  await focusResult()
 })
 
 onBeforeUnmount(() => {
@@ -87,7 +88,7 @@ onBeforeUnmount(() => {
         Activate your account
       </h1>
       <p class="hero__lede">
-        Equo is checking the one-time activation link. The link value is never displayed or saved.
+        Confirm the one-time link to activate your account and sign in on this device. The link value is never displayed or saved.
       </p>
     </div>
 
@@ -97,6 +98,22 @@ onBeforeUnmount(() => {
           v-if="state === 'preparing' || state === 'loading'"
           message="Activating your account…"
         />
+
+        <div
+          v-else-if="state === 'ready'"
+          ref="resultPanel"
+          class="stack"
+          tabindex="-1"
+        >
+          <h2>Ready to activate</h2>
+          <p>Opening the link has not activated your account or signed you in.</p>
+          <button
+            type="button"
+            @click="activateAccount"
+          >
+            Activate and sign in
+          </button>
+        </div>
 
         <div
           v-else-if="state === 'success'"
