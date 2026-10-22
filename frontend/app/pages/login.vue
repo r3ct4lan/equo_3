@@ -24,16 +24,45 @@ const {
 
 const redirectTarget = computed(() => safeRedirectPath(route.query.redirect))
 const hasFieldErrors = computed(() => Object.keys(fieldErrors.value).length > 0)
+const rateLimitRemainingSeconds = ref<number | null>(null)
+let rateLimitInterval: ReturnType<typeof setInterval> | null = null
+
 const errorPresentation = computed(() => formError.value ? loginErrorPresentation(formError.value) : null)
 const summaryMessage = computed(() => errorPresentation.value?.message
   ?? (hasFieldErrors.value ? 'Correct the highlighted fields and submit again.' : null))
 const summaryTitle = computed(() => errorPresentation.value?.title ?? 'Check the form')
 
+function clearRateLimitCountdown(): void {
+  if (rateLimitInterval !== null) {
+    clearInterval(rateLimitInterval)
+    rateLimitInterval = null
+  }
+  rateLimitRemainingSeconds.value = null
+}
+
+function startRateLimitCountdown(seconds: number | null): void {
+  if (seconds === null || seconds <= 0 || !Number.isSafeInteger(seconds * 1000)) {
+    return
+  }
+
+  const deadline = performance.now() + seconds * 1000
+  rateLimitRemainingSeconds.value = seconds
+  rateLimitInterval = setInterval(() => {
+    rateLimitRemainingSeconds.value = Math.max(0, Math.ceil((deadline - performance.now()) / 1000))
+    if (rateLimitRemainingSeconds.value === 0 && rateLimitInterval !== null) {
+      clearInterval(rateLimitInterval)
+      rateLimitInterval = null
+    }
+  }, 250)
+}
+
 function handleFormChange(): void {
   clearErrors()
+  clearRateLimitCountdown()
 }
 
 async function submitLogin(): Promise<void> {
+  clearRateLimitCountdown()
   const outcome = await submit<undefined>(
     async (submittedValues) => {
       await $auth.login(submittedValues, { redirectTo: redirectTarget.value })
@@ -44,6 +73,9 @@ async function submitLogin(): Promise<void> {
 
   if (outcome.ok) {
     values.password = ''
+  }
+  else if (outcome.reason === 'request' && formError.value?.code === 'RATE_LIMIT_EXCEEDED') {
+    startRateLimitCountdown(formError.value.retryAfterSeconds)
   }
 }
 
@@ -57,6 +89,8 @@ onMounted(async () => {
     await navigateTo(redirectTarget.value)
   }
 })
+
+onUnmounted(clearRateLimitCountdown)
 </script>
 
 <template>
@@ -101,6 +135,17 @@ onMounted(async () => {
         :title="summaryTitle"
         :message="summaryMessage"
       />
+
+      <p
+        v-if="formError?.code === 'RATE_LIMIT_EXCEEDED' && rateLimitRemainingSeconds !== null"
+        class="form-help"
+        role="timer"
+        aria-live="off"
+      >
+        {{ rateLimitRemainingSeconds > 0
+          ? `Try again in ${rateLimitRemainingSeconds} ${rateLimitRemainingSeconds === 1 ? 'second' : 'seconds'}.`
+          : 'You can try again now.' }}
+      </p>
 
       <fieldset
         class="form-fields stack"

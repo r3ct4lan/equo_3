@@ -672,6 +672,35 @@ test('E2E-06 shows safe login errors and prevents duplicate login submit', async
   await technicalContext.close()
 })
 
+test('login rate-limit countdown follows elapsed time without automatic retry', async ({ page }) => {
+  await page.goto('/login')
+  await waitForNuxtHydration(page)
+  await page.clock.install()
+
+  let loginRequests = 0
+  await page.route('**/api/v1/auth/login', async (route) => {
+    ++loginRequests
+    await route.fulfill({
+      status: 429,
+      contentType: 'application/json',
+      headers: { 'Retry-After': '10' },
+      body: JSON.stringify({ error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests.' } })
+    })
+  })
+
+  await page.getByLabel('Email').fill('countdown@example.test')
+  await page.getByLabel('Password').fill(wrongPassword)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('alert')).toContainText('Too many sign-in attempts')
+  await expect(page.getByRole('timer')).toHaveText('Try again in 10 seconds.')
+
+  await page.clock.fastForward(6_100)
+  await expect(page.getByRole('timer')).toHaveText('Try again in 4 seconds.')
+  await page.clock.fastForward(4_100)
+  await expect(page.getByRole('timer')).toHaveText('You can try again now.')
+  expect(loginRequests).toBe(1)
+})
+
 test('E2E-07 coordinates refresh across two tabs without persistent secrets', async ({ context, page, request }) => {
   const email = await ensureActiveUser(page, request)
   await context.addInitScript(() => {

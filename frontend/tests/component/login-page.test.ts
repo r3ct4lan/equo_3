@@ -119,4 +119,48 @@ describe('login page', () => {
     expect(wrapper.get('button.button--secondary').text()).toBe('Try again')
     wrapper.unmount()
   })
+
+  it('uses elapsed time for the rate limit countdown and replaces it on a new 429', async () => {
+    const wrapper = await mountSuspended(LoginPage, { route: '/login' })
+    await flushPromises()
+    let elapsed = 0
+    const now = vi.spyOn(performance, 'now').mockImplementation(() => elapsed)
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+
+    try {
+      authMock.login.mockRejectedValueOnce(new ApiClientError({
+        kind: 'api', status: 429, code: 'RATE_LIMIT_EXCEEDED', message: 'Rate limited.', retryAfterSeconds: 10
+      })).mockRejectedValueOnce(new ApiClientError({
+        kind: 'api', status: 429, code: 'RATE_LIMIT_EXCEEDED', message: 'Rate limited.', retryAfterSeconds: 4
+      }))
+
+      await wrapper.get('input[name="email"]').setValue('alex@example.test')
+      await wrapper.get('input[name="password"]').setValue('secret-password')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(wrapper.get('[role="timer"]').text()).toBe('Try again in 10 seconds.')
+
+      elapsed = 6_100
+      await vi.advanceTimersByTimeAsync(250)
+      expect(wrapper.get('[role="timer"]').text()).toBe('Try again in 4 seconds.')
+
+      elapsed = 10_100
+      await vi.advanceTimersByTimeAsync(250)
+      expect(wrapper.get('[role="timer"]').text()).toBe('You can try again now.')
+      expect(vi.getTimerCount()).toBe(0)
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(wrapper.get('[role="timer"]').text()).toBe('Try again in 4 seconds.')
+
+      await wrapper.get('input[name="password"]').setValue('another-password')
+      expect(wrapper.find('[role="timer"]').exists()).toBe(false)
+      expect(vi.getTimerCount()).toBe(0)
+    }
+    finally {
+      wrapper.unmount()
+      vi.useRealTimers()
+      now.mockRestore()
+    }
+  })
 })
