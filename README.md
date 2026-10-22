@@ -125,7 +125,7 @@ documented in [docs/quality-gate.md](docs/quality-gate.md).
 backend/       Symfony 7.4 API and Messenger configuration
 frontend/      Nuxt 4 TypeScript application
 docker/nginx/  Nginx routing configuration
-docker/php/    PHP 8.4 FPM image
+docker/php/    PHP 8.4.27 FPM image
 docs/          Project documentation
 compose.yaml   Local development stack
 ```
