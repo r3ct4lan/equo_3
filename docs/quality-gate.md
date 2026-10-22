@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 19 |
+| Версия | 20 |
 | Дата актуальности | 2026-10-22 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
@@ -231,10 +231,10 @@ Workflow: [`.github/workflows/quality.yml`](../.github/workflows/quality.yml).
 | Job | Состав | Инфраструктура |
 |---|---|---|
 | `Repository quality` | common secret patterns, generated diff | Нет |
-| `Backend quality` | `composer check` | PHP 8.4 |
-| `Backend tests and migrations` | empty migration chain, schema, PHPUnit | PHP 8.4 + PostgreSQL 17 service |
+| `Backend quality` | `composer check` | PHP 8.4.27 |
+| `Backend tests and migrations` | empty migration chain, schema, PHPUnit | PHP 8.4.27 + PostgreSQL 17 service |
 | `Frontend quality and build` | `npm ci`, `npm run check` | Node.js 22 |
-| `Dependency audit` | Composer и npm audit | PHP 8.4 + Node.js 22 |
+| `Dependency audit` | Composer и npm audit | PHP 8.4.27 + Node.js 22 |
 | `Full MVP browser E2E` | auth/security, invitation, financial user journeys, privacy, retries и stale update | Изолированный HTTPS Compose + Chromium + Mailpit |
 | `Application smoke` | full Compose build/start, Nginx `/` и `/api/health` | Изолированный CI Compose stack |
 
