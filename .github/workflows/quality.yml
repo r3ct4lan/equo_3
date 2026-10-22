@@ -87,7 +87,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
-          php-version: '8.4'
+          php-version: '8.4.27'
           extensions: amqp, ctype, iconv, intl, pdo_pgsql, redis, sockets
           coverage: none
           tools: composer:v2
@@ -134,7 +134,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
-          php-version: '8.4'
+          php-version: '8.4.27'
           extensions: amqp, ctype, iconv, intl, pdo_pgsql, redis, sockets
           coverage: none
           tools: composer:v2
@@ -154,6 +154,16 @@ jobs:
       - name: Apply migrations to the empty database
         working-directory: backend
         run: composer check:migrations
+      - name: Generate ephemeral test signing keys
+        run: |
+          umask 077
+          key_dir=$(mktemp -d)
+          trap 'rm -rf "$key_dir"' EXIT
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$key_dir/private.pem" >/dev/null 2>&1
+          openssl pkey -in "$key_dir/private.pem" -pubout -out "$key_dir/public.pem" >/dev/null 2>&1
+          printf 'EQUO_JWT_SIGNING_PRIVATE_KEY=%s\n' "$(base64 -w 0 < "$key_dir/private.pem")" >> "$GITHUB_ENV"
+          printf 'EQUO_JWT_PUBLIC_KEY_RING={"v1":"%s"}\n' "$(base64 -w 0 < "$key_dir/public.pem")" >> "$GITHUB_ENV"
+          printf 'EQUO_CSRF_SIGNING_KEY_RING={"v1":"%s"}\n' "$(openssl rand -base64 32 | tr -d '\n')" >> "$GITHUB_ENV"
       - name: Run PHPUnit
         working-directory: backend
         run: composer test
@@ -194,7 +204,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
-          php-version: '8.4'
+          php-version: '8.4.27'
           coverage: none
           tools: composer:v2
       - name: Set up Node.js

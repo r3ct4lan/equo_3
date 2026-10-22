@@ -83,6 +83,13 @@
 Владелец временно принял эти два advisory. Периодическая проверка обновлений
 не требуется. Точная политика — в [quality gate](quality-gate.md) и
 [машинном allowlist](../frontend/scripts/accepted-audit-advisories.json).
+Проверка 2026-10-22: для `braces`
+([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm))
+и `node-forge`
+([GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv))
+исправленные версии в GitHub Advisory Database ещё
+не указаны; последние релизы npm — 3.0.3 и 1.4.0 соответственно. Обновить
+зависимости и удалить исключения пока невозможно; задача остаётся открытой.
 
 ## Should have
 
