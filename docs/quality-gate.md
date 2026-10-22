@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
 | Статус | Accepted |
-| Версия | 18 |
-| Дата актуальности | 2026-10-19 |
+| Версия | 19 |
+| Дата актуальности | 2026-10-22 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
 
@@ -144,7 +144,9 @@ reload`, повторный запрос активации с заменой с
 429 `Retry-After` без автоматического retry или persistence write. Также
 проверяются client validation и исправление формы, защита от
 двойного submit, unknown/used capability, safe redirect после login, login
-ошибки без enumeration, refresh координацию двух вкладок через Web Locks, один
+ошибки без enumeration, отсчёт ожидания входа по `Retry-After` после паузы
+browser timer без автоматического повтора, refresh координацию двух вкладок
+через Web Locks, один
 refresh/retry budget для protected request, отказ `/me` без valid Bearer token
 и отсутствие access/refresh/CSRF/password material в URL, body, storage,
 JS-readable cookies и browser diagnostics. При падении сохраняются screenshot и

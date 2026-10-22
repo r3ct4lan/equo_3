@@ -79,9 +79,7 @@ export function loginErrorPresentation(error: {
     case 'RATE_LIMIT_EXCEEDED':
       return {
         title: 'Too many sign-in attempts',
-        message: error.retryAfterSeconds !== null && error.retryAfterSeconds !== undefined
-          ? `Wait ${error.retryAfterSeconds} seconds before trying again.`
-          : 'Wait a little before trying again.',
+        message: 'Please wait before trying again.',
         retryable: false
       }
     case 'VALIDATION_ERROR':
