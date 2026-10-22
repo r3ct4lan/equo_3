@@ -154,6 +154,16 @@ jobs:
       - name: Apply migrations to the empty database
         working-directory: backend
         run: composer check:migrations
+      - name: Generate ephemeral test signing keys
+        run: |
+          umask 077
+          key_dir=$(mktemp -d)
+          trap 'rm -rf "$key_dir"' EXIT
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$key_dir/private.pem" >/dev/null 2>&1
+          openssl pkey -in "$key_dir/private.pem" -pubout -out "$key_dir/public.pem" >/dev/null 2>&1
+          printf 'EQUO_JWT_SIGNING_PRIVATE_KEY=%s\n' "$(base64 -w 0 < "$key_dir/private.pem")" >> "$GITHUB_ENV"
+          printf 'EQUO_JWT_PUBLIC_KEY_RING={"v1":"%s"}\n' "$(base64 -w 0 < "$key_dir/public.pem")" >> "$GITHUB_ENV"
+          printf 'EQUO_CSRF_SIGNING_KEY_RING={"v1":"%s"}\n' "$(openssl rand -base64 32 | tr -d '\n')" >> "$GITHUB_ENV"
       - name: Run PHPUnit
         working-directory: backend
         run: composer test
