@@ -118,7 +118,9 @@ services:
       dockerfile: docker/php/Dockerfile
       target: development
     command: [/usr/local/bin/equo-worker-entrypoint]
-    stop_grace_period: 90s
+    # Test emails have already been observed before teardown; keep production's
+    # 90-second drain window in compose.yaml, but bound isolated E2E cleanup.
+    stop_grace_period: 10s
     environment: *backend-environment
     depends_on:
       backend:
@@ -164,6 +166,7 @@ services:
 
   e2e:
     profiles: [e2e]
+    image: equo-3-e2e-browser:ci
     build:
       context: .
       dockerfile: docker/e2e/Dockerfile
