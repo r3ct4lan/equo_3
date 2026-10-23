@@ -72,6 +72,7 @@ final class InvitationHttpTest extends WebTestCase
         $this->request('POST', '/api/v1/connect-invitations/'.$token.'/accept', $this->access[1]);
         self::assertResponseStatusCodeSame(201);
         $connect = $this->body();
+        self::assertSame('created', $connect['invitationOutcome']);
         $id = $connect['id'];
         self::assertIsString($id);
         self::assertSame(0, $connect['balanceAmount']);
@@ -79,6 +80,14 @@ final class InvitationHttpTest extends WebTestCase
         $this->request('POST', '/api/v1/connect-invitations/'.$token.'/accept', $this->access[1]);
         self::assertResponseStatusCodeSame(200);
         self::assertSame($id, $this->body()['id']);
+        self::assertSame('confirmed', $this->body()['invitationOutcome']);
+        $this->request('POST', '/api/v1/connect-invitations', $this->access[0]);
+        $nextToken = $this->body()['token'];
+        self::assertIsString($nextToken);
+        $this->request('POST', '/api/v1/connect-invitations/'.$nextToken.'/accept', $this->access[1]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($id, $this->body()['id']);
+        self::assertSame('already_connected', $this->body()['invitationOutcome']);
         foreach ([0, 1] as $n) {
             $this->request('GET', '/api/v1/connects', $this->access[$n]);
             self::assertResponseStatusCodeSame(200);

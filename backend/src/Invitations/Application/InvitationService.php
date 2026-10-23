@@ -64,7 +64,7 @@ final readonly class InvitationService
         return ['inviter' => ['id' => $author->id, 'name' => $author->name], 'expiresAt' => self::date($i->expiresAt), 'canAccept' => $author->isActive];
     }
 
-    /** @return array{view: array<string, mixed>, created: bool} */
+    /** @return array{view: array<string, mixed>, created: bool, outcome: 'created'|'already_connected'|'confirmed'} */
     public function accept(string $token, string $acceptorId, string $ip): array
     {
         $id = $this->tokens->verify($token);
@@ -93,13 +93,17 @@ final readonly class InvitationService
                 throw new ApplicationFailure(ApplicationFailureCode::InactiveUser);
             }
             if (null !== $i->usedAt) {
-                return $this->connects->getOrCreate($i->createdById, $acceptorId, $acceptorId) + [];
+                $result = $this->connects->getOrCreate($i->createdById, $acceptorId, $acceptorId);
+                $result['outcome'] = 'confirmed';
+
+                return $result;
             }
             $now = $this->runtime->now();
             if (!$i->isAvailable($now)) {
                 throw new ApplicationFailure(ApplicationFailureCode::TokenExpired);
             }
             $result = $this->connects->getOrCreate($i->createdById, $acceptorId, $acceptorId);
+            $result['outcome'] = $result['created'] ? 'created' : 'already_connected';
             $i->accept($acceptorId, $now);
             $this->repository->save($i);
 
