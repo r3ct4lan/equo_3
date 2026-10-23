@@ -8,6 +8,13 @@ compose="docker compose -p $project_name -f $project_dir/compose.e2e.yaml"
 before=$(mktemp)
 after=$(mktemp)
 secrets_dir=$(mktemp -d)
+started_at=$(date +%s)
+
+report_duration() {
+    label=$1
+    phase_started_at=$2
+    echo "E2E timing: $label $(($(date +%s) - phase_started_at))s"
+}
 
 generate_e2e_secrets() {
     jwt_private="$secrets_dir/jwt-private.pem"
@@ -54,6 +61,7 @@ EOF
 cleanup() {
     status=$?
     trap - EXIT HUP INT TERM
+    cleanup_started_at=$(date +%s)
 
     if [ "$status" -ne 0 ]; then
         echo 'Safe API request log (queries omitted, invitation paths redacted):' >&2
@@ -62,6 +70,8 @@ cleanup() {
     fi
 
     $compose --profile e2e down --remove-orphans >/dev/null 2>&1 || true
+    report_duration cleanup "$cleanup_started_at"
+    report_duration total "$started_at"
     rm -f "$before" "$after"
     rm -rf "$secrets_dir"
     exit "$status"
@@ -73,13 +83,23 @@ cd "$project_dir"
 git status --porcelain=v1 --untracked-files=all >"$before"
 generate_e2e_secrets
 
-$compose --profile e2e build --quiet backend worker frontend e2e
+phase_started_at=$(date +%s)
+if [ "${E2E_PREBUILT_BROWSER_IMAGE:-0}" = 1 ]; then
+    $compose --profile e2e build --quiet backend worker frontend
+else
+    $compose --profile e2e build --quiet backend worker frontend e2e
+fi
+report_duration build "$phase_started_at"
+phase_started_at=$(date +%s)
 $compose up -d --wait rabbitmq
 $compose up -d --wait postgres redis mailpit
 $compose run --rm -T backend php bin/console doctrine:migrations:migrate --no-interaction
 $compose up -d --wait backend frontend nginx
 $compose up -d worker
+report_duration startup "$phase_started_at"
+phase_started_at=$(date +%s)
 $compose --profile e2e run --rm -T --no-deps e2e
+report_duration playwright "$phase_started_at"
 
 if $compose logs --no-color backend worker frontend nginx 2>/dev/null | grep -Eq '/(api/v1/)?connect-invitations/[A-Za-z0-9_-]{16,}'; then
     echo 'Service access logs exposed an invitation capability path.' >&2
