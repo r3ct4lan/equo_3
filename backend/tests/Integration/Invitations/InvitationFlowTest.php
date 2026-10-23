@@ -60,15 +60,18 @@ final class InvitationFlowTest extends KernelTestCase
         self::assertSame(['id' => $a, 'name' => 'Person 0'], $preview['inviter']);
         $accepted = $this->service->accept($first['token'], $b, '192.0.2.81');
         self::assertTrue($accepted['created']);
+        self::assertSame('created', $accepted['outcome']);
         self::assertSame($a, $accepted['view']['otherUser']['id']);
         self::assertArrayNotHasKey('email', $accepted['view']['otherUser']);
         $again = $this->service->accept($first['token'], $b, '192.0.2.81');
         self::assertFalse($again['created']);
+        self::assertSame('confirmed', $again['outcome']);
         self::assertSame($accepted['view'], $again['view']);
         $new = $this->service->create($a);
         self::assertNotSame($first['token'], $new['token']);
         $existing = $this->service->accept($new['token'], $b, '192.0.2.81');
         self::assertFalse($existing['created']);
+        self::assertSame('already_connected', $existing['outcome']);
         self::assertSame($accepted['view']['id'], $existing['view']['id']);
         self::assertSame(1, (int) $this->db->fetchOne('SELECT COUNT(*) FROM connect WHERE first_user_id IN (?,?) AND second_user_id IN (?,?)', [$a, $b, $a, $b]));
         $this->failure('TOKEN_USED', fn () => $this->service->accept($first['token'], $c, '192.0.2.81'));

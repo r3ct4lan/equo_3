@@ -43,7 +43,7 @@ final readonly class InvitationController
         $this->emptyBody($request);
         $result = $this->service->accept($token, $this->userId(), $request->getClientIp() ?? 'unknown');
 
-        return $this->respond($result['view'], $result['created'] ? 201 : 200);
+        return $this->respond($result['view'] + ['invitationOutcome' => $result['outcome']], $result['created'] ? 201 : 200);
     }
 
     #[Route('/api/v1/connect-invitations/pending/accept', name: 'api_v1_pending_invitation_accept', methods: ['POST'], priority: 10)]
@@ -54,7 +54,7 @@ final readonly class InvitationController
 
         return null === $result
             ? new Response('', Response::HTTP_NO_CONTENT, ['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer'])
-            : $this->respond($result['view'], $result['created'] ? 201 : 200);
+            : $this->respond($result['view'] + ['invitationOutcome' => $result['outcome']], $result['created'] ? 201 : 200);
     }
 
     private function userId(): string
