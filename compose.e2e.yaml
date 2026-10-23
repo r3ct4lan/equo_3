@@ -166,7 +166,6 @@ services:
 
   e2e:
     profiles: [e2e]
-    image: equo-3-e2e-browser:ci
     build:
       context: .
       dockerfile: docker/e2e/Dockerfile

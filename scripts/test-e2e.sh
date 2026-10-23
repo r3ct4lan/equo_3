@@ -84,11 +84,7 @@ git status --porcelain=v1 --untracked-files=all >"$before"
 generate_e2e_secrets
 
 phase_started_at=$(date +%s)
-if [ "${E2E_PREBUILT_BROWSER_IMAGE:-0}" = 1 ]; then
-    $compose --profile e2e build --quiet backend worker frontend
-else
-    $compose --profile e2e build --quiet backend worker frontend e2e
-fi
+$compose --profile e2e build --quiet backend worker frontend e2e
 report_duration build "$phase_started_at"
 phase_started_at=$(date +%s)
 $compose up -d --wait rabbitmq
