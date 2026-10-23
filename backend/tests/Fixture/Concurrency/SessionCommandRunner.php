@@ -23,8 +23,8 @@ use App\IdentityAccess\Application\Port\ClockPort;
 use App\IdentityAccess\Application\Port\CsrfTokenCodecPort;
 use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
 use App\IdentityAccess\Application\Port\IssuedAccessToken;
+use App\IdentityAccess\Application\Port\LoginThrottlePort;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
-use App\IdentityAccess\Application\Port\RateLimitPort;
 use App\IdentityAccess\Application\Port\RefreshTokenCodecPort;
 use App\IdentityAccess\Application\Port\TransactionPort;
 use App\IdentityAccess\Application\Port\UserSessionRepositoryPort;
@@ -84,7 +84,7 @@ final class SessionCommandRunner
                     (new LoginUser(
                         $identities, $container->get(PasswordHashingPort::class),
                         new \App\IdentityAccess\Application\Login\IssueUserSession($sessions, $issuer, $codec, $csrf, $container->get(UuidPort::class)),
-                        $container->get(RateLimitPort::class), $transaction, $clock,
+                        $container->get(LoginThrottlePort::class), $transaction, $clock,
                     ))->handle(new LoginCommand($input['user'].'@example.test', 'Correct password!', '192.0.2.80'));
                     break;
                 default:

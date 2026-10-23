@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { clearError } from '#imports'
+
 interface AppError {
   statusCode?: number
 }

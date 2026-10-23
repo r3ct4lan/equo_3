@@ -11,6 +11,4 @@ interface RateLimitPort
     public function activationRequestRetryAfter(string $ip, string $normalizedEmail): ?int;
 
     public function activationRetryAfter(string $ip, string $tokenFingerprint): ?int;
-
-    public function loginRetryAfter(string $ip, string $normalizedEmail): ?int;
 }

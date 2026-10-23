@@ -37,6 +37,15 @@ services:
     App\IdentityAccess\Application\Port\PasswordHashingPort:
         alias: App\IdentityAccess\Adapter\Security\SymfonyPasswordHasher
 
+    App\IdentityAccess\Application\Port\LoginThrottlePort:
+        alias: App\IdentityAccess\Adapter\Security\RedisLoginThrottle
+
+    App\IdentityAccess\Adapter\Security\RedisLoginThrottle:
+        arguments:
+            $redisUrl: '%env(REDIS_URL)%'
+            $failureLimit: '%env(int:EQUO_LOGIN_FAILURE_LIMIT)%'
+            $cooldownSeconds: '%env(int:EQUO_LOGIN_COOLDOWN_SECONDS)%'
+
     App\IdentityAccess\Domain\User\PasswordPolicy: ~
 
     App\IdentityAccess\Application\Port\ClockPort:
@@ -155,8 +164,6 @@ services:
             $activationRequestEmailLimiter: '@limiter.activation_request_email'
             $activationIpLimiter: '@limiter.activation_ip'
             $activationTokenLimiter: '@limiter.activation_token'
-            $loginIpLimiter: '@limiter.login_ip'
-            $loginEmailIpLimiter: '@limiter.login_email_ip'
             $passwordResetRequestIpLimiter: '@limiter.password_reset_request_ip'
             $passwordResetRequestEmailLimiter: '@limiter.password_reset_request_email'
 
