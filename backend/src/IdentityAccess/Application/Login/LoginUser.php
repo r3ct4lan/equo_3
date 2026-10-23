@@ -8,8 +8,8 @@ use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use App\IdentityAccess\Application\Port\ClockPort;
 use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
+use App\IdentityAccess\Application\Port\LoginThrottlePort;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
-use App\IdentityAccess\Application\Port\RateLimitPort;
 use App\IdentityAccess\Application\Port\TransactionPort;
 use App\IdentityAccess\Domain\User\EmailAddress;
 
@@ -19,7 +19,7 @@ final readonly class LoginUser
         private IdentityRepositoryPort $identityRepository,
         private PasswordHashingPort $passwordHasher,
         private IssueUserSession $issueUserSession,
-        private RateLimitPort $rateLimit,
+        private LoginThrottlePort $loginThrottle,
         private TransactionPort $transaction,
         private ClockPort $clock,
     ) {
@@ -28,7 +28,7 @@ final readonly class LoginUser
     public function handle(LoginCommand $command): LoginResult
     {
         $email = new EmailAddress($command->email);
-        $retryAfter = $this->rateLimit->loginRetryAfter($command->ipAddress, $email->value);
+        $retryAfter = $this->loginThrottle->retryAfter($command->ipAddress);
 
         if (null !== $retryAfter) {
             throw new ApplicationFailure(ApplicationFailureCode::RateLimitExceeded, $retryAfter);
@@ -36,37 +36,54 @@ final readonly class LoginUser
 
         $now = $this->clock->now();
 
-        return $this->transaction->run(function () use ($command, $email, $now): LoginResult {
-            $identity = $this->identityRepository->loginIdentityByEmail($email->value);
-            $passwordValid = null === $identity
-                ? $this->passwordHasher->verify($command->password, null)
-                : $identity->verifyPassword($this->passwordHasher, $command->password);
+        try {
+            $result = $this->transaction->run(function () use ($command, $email, $now): LoginResult {
+                $identity = $this->identityRepository->loginIdentityByEmail($email->value);
+                $passwordValid = null === $identity
+                    ? $this->passwordHasher->verify($command->password, null)
+                    : $identity->verifyPassword($this->passwordHasher, $command->password);
 
-            if (null === $identity || !$passwordValid) {
-                throw new ApplicationFailure(ApplicationFailureCode::InvalidCredentials);
+                if (null === $identity || !$passwordValid) {
+                    throw new ApplicationFailure(ApplicationFailureCode::InvalidCredentials);
+                }
+
+                if (!$identity->isActive) {
+                    throw new ApplicationFailure(ApplicationFailureCode::AccountInactive);
+                }
+
+                $currentUser = $this->identityRepository->currentUserForUpdate($identity->id);
+                if (null === $currentUser || !$currentUser->isActive) {
+                    throw new ApplicationFailure(ApplicationFailureCode::AccountInactive);
+                }
+
+                // A password reset may have committed while this login waited for the owner lock.
+                $freshIdentity = $this->identityRepository->loginIdentityByEmail($email->value);
+                if (null === $freshIdentity || $freshIdentity->id !== $identity->id
+                    || (!$identity->hasSameCredentialAs($freshIdentity) && !$freshIdentity->verifyPassword($this->passwordHasher, $command->password))) {
+                    throw new ApplicationFailure(ApplicationFailureCode::InvalidCredentials);
+                }
+                $identity = $freshIdentity;
+
+                return $this->issueUserSession->issue(
+                    new LoginUserView($identity->id, $identity->name, $identity->email, $identity->isActive),
+                    $now,
+                );
+            });
+        } catch (ApplicationFailure $failure) {
+            if (ApplicationFailureCode::InvalidCredentials !== $failure->failureCode) {
+                throw $failure;
             }
 
-            if (!$identity->isActive) {
-                throw new ApplicationFailure(ApplicationFailureCode::AccountInactive);
+            $retryAfter = $this->loginThrottle->recordInvalidCredentials($command->ipAddress);
+            if (null !== $retryAfter) {
+                throw new ApplicationFailure(ApplicationFailureCode::RateLimitExceeded, $retryAfter);
             }
 
-            $currentUser = $this->identityRepository->currentUserForUpdate($identity->id);
-            if (null === $currentUser || !$currentUser->isActive) {
-                throw new ApplicationFailure(ApplicationFailureCode::AccountInactive);
-            }
+            throw $failure;
+        }
 
-            // A password reset may have committed while this login waited for the owner lock.
-            $freshIdentity = $this->identityRepository->loginIdentityByEmail($email->value);
-            if (null === $freshIdentity || $freshIdentity->id !== $identity->id
-                || (!$identity->hasSameCredentialAs($freshIdentity) && !$freshIdentity->verifyPassword($this->passwordHasher, $command->password))) {
-                throw new ApplicationFailure(ApplicationFailureCode::InvalidCredentials);
-            }
-            $identity = $freshIdentity;
+        $this->loginThrottle->reset($command->ipAddress);
 
-            return $this->issueUserSession->issue(
-                new LoginUserView($identity->id, $identity->name, $identity->email, $identity->isActive),
-                $now,
-            );
-        });
+        return $result;
     }
 }

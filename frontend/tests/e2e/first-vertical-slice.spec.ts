@@ -696,9 +696,12 @@ test('login rate-limit countdown follows elapsed time without automatic retry', 
 
   await page.clock.fastForward(6_100)
   await expect(page.getByRole('timer')).toHaveText('Try again in 4 seconds.')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('timer')).toHaveText('Try again in 4 seconds.')
+  expect(loginRequests).toBe(2)
   await page.clock.fastForward(4_100)
   await expect(page.getByRole('timer')).toHaveText('You can try again now.')
-  expect(loginRequests).toBe(1)
+  expect(loginRequests).toBe(2)
 })
 
 test('E2E-07 coordinates refresh across two tabs without persistent secrets', async ({ context, page, request }) => {

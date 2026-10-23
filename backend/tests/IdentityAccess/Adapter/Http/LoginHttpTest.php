@@ -159,23 +159,21 @@ final class LoginHttpTest extends WebTestCase
         $this->assertNoCookiesOrSessions();
     }
 
-    public function testLoginEmailIpRateLimitUsesFivePerFifteenMinutes(): void
+    public function testFiveInvalidCredentialsFromSameIpStartFixedCooldown(): void
     {
-        for ($attempt = 1; $attempt <= 6; ++$attempt) {
-            $this->login('same@example.test', 'Wrong password!', '198.51.100.1');
+        for ($attempt = 1; $attempt <= 4; ++$attempt) {
+            $this->login(sprintf('unknown-%02d@example.test', $attempt), 'Wrong password!', '198.51.100.1');
+            self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
         }
 
+        $this->login('other@example.test', 'Wrong password!', '198.51.100.1');
         $this->assertRateLimitError();
+        self::assertResponseHeaderSame('Retry-After', '60');
         $this->assertNoCookiesOrSessions();
-    }
 
-    public function testLoginIpRateLimitUsesThirtyPerFifteenMinutes(): void
-    {
-        for ($attempt = 1; $attempt <= 31; ++$attempt) {
-            $this->login(sprintf('unknown-%02d@example.test', $attempt), 'Wrong password!', '198.51.100.2');
-        }
-
+        $this->login('yet-another@example.test', 'Wrong password!', '198.51.100.1');
         $this->assertRateLimitError();
+        self::assertResponseHeaderSame('Retry-After', '60');
         $this->assertNoCookiesOrSessions();
     }
 
@@ -292,7 +290,7 @@ final class LoginHttpTest extends WebTestCase
         self::assertNotNull($retryAfter);
         self::assertMatchesRegularExpression('/\A\d+\z/', $retryAfter);
         self::assertGreaterThanOrEqual(1, (int) $retryAfter);
-        self::assertLessThanOrEqual(900, (int) $retryAfter);
+        self::assertLessThanOrEqual(60, (int) $retryAfter);
     }
 
     private function countSessions(): int

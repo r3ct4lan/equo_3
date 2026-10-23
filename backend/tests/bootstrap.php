@@ -12,6 +12,6 @@ if (is_file($dotenvPath)) {
     (new Dotenv())->bootEnv($dotenvPath);
 }
 
-if ($_SERVER['APP_DEBUG']) {
+if ($_SERVER['APP_DEBUG'] ?? false) {
     umask(0000);
 }

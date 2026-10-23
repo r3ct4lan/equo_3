@@ -26,6 +26,7 @@ const redirectTarget = computed(() => safeRedirectPath(route.query.redirect))
 const hasFieldErrors = computed(() => Object.keys(fieldErrors.value).length > 0)
 const rateLimitRemainingSeconds = ref<number | null>(null)
 let rateLimitInterval: ReturnType<typeof setInterval> | null = null
+let rateLimitDeadline: number | null = null
 
 const errorPresentation = computed(() => formError.value ? loginErrorPresentation(formError.value) : null)
 const summaryMessage = computed(() => errorPresentation.value?.message
@@ -37,6 +38,7 @@ function clearRateLimitCountdown(): void {
     clearInterval(rateLimitInterval)
     rateLimitInterval = null
   }
+  rateLimitDeadline = null
   rateLimitRemainingSeconds.value = null
 }
 
@@ -45,9 +47,20 @@ function startRateLimitCountdown(seconds: number | null): void {
     return
   }
 
-  const deadline = performance.now() + seconds * 1000
-  rateLimitRemainingSeconds.value = seconds
+  const now = performance.now()
+  const candidateDeadline = now + seconds * 1000
+  rateLimitDeadline = rateLimitDeadline !== null && rateLimitDeadline > now
+    ? Math.min(rateLimitDeadline, candidateDeadline)
+    : candidateDeadline
+  rateLimitRemainingSeconds.value = Math.max(0, Math.ceil((rateLimitDeadline - now) / 1000))
+  if (rateLimitInterval !== null) {
+    clearInterval(rateLimitInterval)
+  }
   rateLimitInterval = setInterval(() => {
+    const deadline = rateLimitDeadline
+    if (deadline === null) {
+      return
+    }
     rateLimitRemainingSeconds.value = Math.max(0, Math.ceil((deadline - performance.now()) / 1000))
     if (rateLimitRemainingSeconds.value === 0 && rateLimitInterval !== null) {
       clearInterval(rateLimitInterval)
@@ -58,11 +71,12 @@ function startRateLimitCountdown(seconds: number | null): void {
 
 function handleFormChange(): void {
   clearErrors()
-  clearRateLimitCountdown()
 }
 
 async function submitLogin(): Promise<void> {
-  clearRateLimitCountdown()
+  if (rateLimitRemainingSeconds.value === 0) {
+    clearRateLimitCountdown()
+  }
   const outcome = await submit<undefined>(
     async (submittedValues) => {
       await $auth.login(submittedValues, { redirectTo: redirectTarget.value })
@@ -137,7 +151,7 @@ onUnmounted(clearRateLimitCountdown)
       />
 
       <p
-        v-if="formError?.code === 'RATE_LIMIT_EXCEEDED' && rateLimitRemainingSeconds !== null"
+        v-if="rateLimitRemainingSeconds !== null"
         class="form-help"
         role="timer"
         aria-live="off"

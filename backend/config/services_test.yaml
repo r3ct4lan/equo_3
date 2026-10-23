@@ -1,4 +1,10 @@
 services:
+    App\IdentityAccess\Application\Port\LoginThrottlePort:
+        alias: App\Tests\Fixture\Security\InMemoryLoginThrottle
+
+    App\Tests\Fixture\Security\InMemoryLoginThrottle:
+        autowire: true
+
     test.rate_limiter_cache:
         alias: cache.rate_limiter
         public: true
