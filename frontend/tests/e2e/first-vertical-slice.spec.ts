@@ -684,7 +684,11 @@ test('login rate-limit countdown follows elapsed time without automatic retry', 
       status: 429,
       contentType: 'application/json',
       headers: { 'Retry-After': '10' },
-      body: JSON.stringify({ error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests.' } })
+      body: JSON.stringify({ error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Too many requests.',
+        ...(loginRequests === 2 ? { requestId: 'repeat-login-e2e' } : {})
+      } })
     })
   })
 
@@ -697,6 +701,7 @@ test('login rate-limit countdown follows elapsed time without automatic retry', 
   await page.clock.runFor(6_100)
   await expect(page.getByRole('timer')).toHaveText('Try again in 4 seconds.')
   await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByText('Support reference: repeat-login-e2e')).toBeVisible()
   await expect(page.getByRole('timer')).toHaveText('Try again in 4 seconds.')
   expect(loginRequests).toBe(2)
   await page.clock.runFor(4_100)
