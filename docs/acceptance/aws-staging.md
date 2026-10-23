@@ -7,6 +7,41 @@ Source: `main` baseline `d113e72` plus deployment commit `b5e81da` from
 recorded below. The separate [owner decision](owner-mvp-walkthrough.md) accepts
 version `fe5ab40` for test use with the documented limitations.
 
+## Update from main — 2026-10-22
+
+- Deployed exact source `fefba6b67ab298113392bf9d7f835b00ec63b262` from `main`:
+  MT-001 through MT-005 and PHP 8.4.27. The earlier owner acceptance below
+  remains evidence for its original version; these updates await owner review.
+- [CI run 39827129393](https://github.com/r3ct4lan/equo_3/actions/runs/39827129393)
+  passed on that exact commit: repository/backend/frontend quality, backend
+  tests and migrations, dependency audit, full browser E2E and application smoke.
+  No test suite or real test email was run against staging during deployment.
+- Current public IP: `16.16.120.166`; current origin:
+  **https://equo.16-16-120-166.sslip.io/**. New certificate expires 2027-01-20;
+  `certbot.timer` is active. The previous hostname certificate/renewal entry was
+  removed after successful HTTPS checks. Old emailed links retain the old host;
+  users must sign in again on the new origin.
+- Built production images before stopping services. With all staging services
+  stopped, saved all four persistent volumes, private environment and previous
+  source under root-only `/var/backups/equo/pre-fefba6b`. Previous application
+  images retain the `pre-fefba6b` tag. This is a one-time same-server rollback
+  backup, not scheduled backup or protection against loss of the EC2 volume.
+- Replaced the source directory with a clean Git archive; removed source files
+  are not left behind. Runtime source revision is in `/opt/equo/.deployed-revision`.
+  Applied `Version20261021120000` before starting application services; the
+  subsequent migration check reports up-to-date. Persistent volumes were reused.
+- Only hostname/origin/issuer environment values changed; all other settings
+  were compared with the private backup and remained identical, including Brevo
+  credentials and signing keys. Environment file remains mode 0600.
+- Backend reports PHP 8.4.27. Seven services report healthy; worker and retention
+  are running without healthchecks. HTTPS home and login return 200; API health
+  returns `ok`; HTTP redirects with 308 to the new HTTPS origin. API and login
+  were also checked from the workstation with certificate verification enabled.
+- Email aggregate diagnostics: zero pending, published, failed, failure-transport,
+  relay errors and SMTP failures. External alerts remain unconfigured.
+- Temporary source archives and build log removed; rollback backup and image
+  tags intentionally retained. No dependency update search was performed.
+
 ## Target and observed outcomes
 
 - Owner-provided EC2 public IPv4: `13.50.14.234`.
