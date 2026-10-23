@@ -2,26 +2,41 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать единый набор обязательных локальных и CI-проверок проекта |
+| Назначение | Описать локальные проверки и обязательный полный CI gate проекта |
 | Статус | Accepted |
-| Версия | 21 |
-| Дата актуальности | 2026-10-22 |
+| Версия | 22 |
+| Дата актуальности | 2026-10-23 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
 
-## 1. Единая точка входа
+## 1. Порядок проверок
 
-Полный локальный gate запускается из корня репозитория:
+Во время разработки локально запускайте проверки только для затронутых
+компонентов и сценариев. После каждой небольшой правки полный suite не
+повторяется. Перед слиянием итоговый коммит должен пройти полный GitHub Actions
+workflow, включая browser E2E. Результаты CI доступны агенту; при падении нужно
+разобрать логи и артефакты, локально проверить исправленный участок и дождаться
+успешного CI на новом итоговом коммите. Частичные локальные проверки не заменяют
+успешный полный CI.
+
+Локальный полный прогон по умолчанию не нужен. Команды для ручной диагностики
+из корня репозитория:
 
 ```bash
 make check
 ```
 
-Полный gate с реальным browser journey auth-сессии:
+Полный gate с browser E2E:
 
 ```bash
 make check-full
 ```
+
+Запускайте их локально только по запросу владельца или если точечных проверок
+недостаточно для диагностики ошибки CI. Планируйте изменения и push так, чтобы
+не инициировать полный CI после каждой мелкой правки; повторный CI нужен после
+изменения итогового коммита. Workflow также запускается автоматически после
+push в `main`.
 
 Перед запуском должны быть установлены зависимости и поднят основной Compose
 stack:
@@ -46,8 +61,8 @@ smoke-проверки. Скрипт запоминает исходный `git 
 
 | Команда | Назначение | Изменяет source |
 |---|---|---:|
-| `make check` | Полный обязательный quality gate | Нет |
-| `make check-full` | `make check` и изолированный browser E2E auth/session | Нет |
+| `make check` | Полный локальный quality gate для диагностики | Нет |
+| `make check-full` | `make check` и изолированный browser E2E для диагностики | Нет |
 | `make check-fast` | Repository checks, backend quality, frontend lint/typecheck | Нет |
 | `make check-backend` | Backend quality, пустая test-БД, PHPUnit и audit | Нет |
 | `make check-frontend` | Lock, ESLint, typecheck, tests, build и audit | Нет |
@@ -281,7 +296,7 @@ JWT, refresh/CSRF token и password намеренно не записывают
 | Migration/schema mismatch | Добавить новую migration; не применять `schema:update --force` |
 | Audit advisory | Оценить advisory и точечно обновить dependency либо оформить временное исключение |
 | Smoke failure | Проверить `docker compose ps` и logs соответствующего service |
-| Browser E2E failure | Скачать redacted artifact, проверить screenshot и safe API paths; локально повторить `make test-e2e` |
+| Browser E2E failure | Скачать redacted artifact, проверить screenshot и safe API paths; локально проверить исправленный участок доступными точечными проверками, затем дождаться полного CI |
 | Generated diff | Перенести output в ignored path или сделать generator deterministic |
 
 ## 11. Branch protection
