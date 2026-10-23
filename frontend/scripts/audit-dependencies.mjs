@@ -37,12 +37,7 @@ if (!report.vulnerabilities || !report.metadata?.vulnerabilities) {
 
 const blockingLevels = new Set(['moderate', 'high', 'critical'])
 const vulnerabilities = report.vulnerabilities
-const resolvedIds = new Map()
-
 function advisoryIdsFor(name, visiting = new Set()) {
-  if (resolvedIds.has(name)) {
-    return resolvedIds.get(name)
-  }
   if (visiting.has(name)) {
     return new Set()
   }
@@ -69,7 +64,6 @@ function advisoryIdsFor(name, visiting = new Set()) {
     ids.add(id)
   }
 
-  resolvedIds.set(name, ids)
   return ids
 }
 
