@@ -13,6 +13,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-07-26',
   vite: {
     server: {
+      allowedHosts: ['nginx'],
       watch: {
         usePolling: process.env.CHOKIDAR_USEPOLLING === 'true',
         interval: 500

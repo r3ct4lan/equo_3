@@ -15,9 +15,9 @@ use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
 use App\IdentityAccess\Application\Port\CsrfTokenCodecPort;
 use App\IdentityAccess\Application\Port\IssuedAccessToken;
 use App\IdentityAccess\Application\Port\IssuedRefreshToken;
+use App\IdentityAccess\Application\Port\LoginThrottlePort;
 use App\IdentityAccess\Application\Port\ParsedRefreshToken;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
-use App\IdentityAccess\Application\Port\RateLimitPort;
 use App\IdentityAccess\Application\Port\RefreshTokenCodecPort;
 use App\IdentityAccess\Application\Port\UuidPort;
 use DateTimeImmutable;
@@ -203,27 +203,21 @@ final class LoginUserPersistenceTest extends KernelTestCase
         };
     }
 
-    private function rateLimit(): RateLimitPort
+    private function rateLimit(): LoginThrottlePort
     {
-        return new class implements RateLimitPort {
-            public function registrationRetryAfter(string $ip, string $normalizedEmail): ?int
+        return new class implements LoginThrottlePort {
+            public function retryAfter(string $ip): ?int
             {
                 return null;
             }
 
-            public function activationRequestRetryAfter(string $ip, string $normalizedEmail): ?int
+            public function recordInvalidCredentials(string $ip): ?int
             {
                 return null;
             }
 
-            public function activationRetryAfter(string $ip, string $tokenFingerprint): ?int
+            public function reset(string $ip): void
             {
-                return null;
-            }
-
-            public function loginRetryAfter(string $ip, string $normalizedEmail): ?int
-            {
-                return null;
             }
         };
     }

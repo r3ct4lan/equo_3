@@ -16,8 +16,8 @@ use App\IdentityAccess\Application\Port\CurrentUserState;
 use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
 use App\IdentityAccess\Application\Port\IssuedAccessToken;
 use App\IdentityAccess\Application\Port\IssuedRefreshToken;
+use App\IdentityAccess\Application\Port\LoginThrottlePort;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
-use App\IdentityAccess\Application\Port\RateLimitPort;
 use App\IdentityAccess\Application\Port\RefreshTokenCodecPort;
 use App\IdentityAccess\Application\Port\StoredLoginIdentity;
 use App\IdentityAccess\Application\Port\TransactionPort;
@@ -154,8 +154,8 @@ final class LoginUserTest extends TestCase
         $accessTokenIssuer = $this->createMock(AccessTokenIssuerPort::class);
         $accessTokenIssuer->expects(self::never())->method('issue');
 
-        $rateLimit = $this->createStub(RateLimitPort::class);
-        $rateLimit->method('loginRetryAfter')->willReturn(123);
+        $rateLimit = $this->createStub(LoginThrottlePort::class);
+        $rateLimit->method('retryAfter')->willReturn(123);
 
         try {
             $this->handler(
@@ -169,6 +169,34 @@ final class LoginUserTest extends TestCase
             self::assertSame(ApplicationFailureCode::RateLimitExceeded, $failure->failureCode);
             self::assertSame(123, $failure->retryAfter);
         }
+    }
+
+    public function testFifthInvalidCredentialReturnsRateLimitAndCountsOnlyInvalidCredentials(): void
+    {
+        $throttle = $this->createMock(LoginThrottlePort::class);
+        $throttle->expects(self::once())->method('retryAfter')->with('192.0.2.1')->willReturn(null);
+        $throttle->expects(self::once())->method('recordInvalidCredentials')->with('192.0.2.1')->willReturn(60);
+        $throttle->expects(self::never())->method('reset');
+
+        try {
+            $this->handler(passwordHasher: $this->passwordHasher(false), rateLimit: $throttle)
+                ->handle(new LoginCommand('user@example.test', 'wrong password', '192.0.2.1'));
+            self::fail('The fifth invalid credential must start the cooldown.');
+        } catch (ApplicationFailure $failure) {
+            self::assertSame(ApplicationFailureCode::RateLimitExceeded, $failure->failureCode);
+            self::assertSame(60, $failure->retryAfter);
+        }
+    }
+
+    public function testSuccessfulLoginClearsPartialFailureCount(): void
+    {
+        $throttle = $this->createMock(LoginThrottlePort::class);
+        $throttle->expects(self::once())->method('retryAfter')->willReturn(null);
+        $throttle->expects(self::never())->method('recordInvalidCredentials');
+        $throttle->expects(self::once())->method('reset')->with('192.0.2.1');
+
+        $this->handler(rateLimit: $throttle)
+            ->handle(new LoginCommand('user@example.test', 'correct password', '192.0.2.1'));
     }
 
     public function testTechnicalFailureEscapesWithoutPartialResult(): void
@@ -194,13 +222,13 @@ final class LoginUserTest extends TestCase
         ?AccessTokenIssuerPort $accessTokenIssuer = null,
         ?CsrfTokenCodecPort $csrfTokenCodec = null,
         ?RefreshTokenCodecPort $refreshTokenCodec = null,
-        ?RateLimitPort $rateLimit = null,
+        ?LoginThrottlePort $rateLimit = null,
         ?DateTimeImmutable $now = null,
     ): LoginUser {
         $now ??= new DateTimeImmutable('2026-08-08T12:00:00Z');
         if (null === $rateLimit) {
-            $rateLimit = $this->createStub(RateLimitPort::class);
-            $rateLimit->method('loginRetryAfter')->willReturn(null);
+            $rateLimit = $this->createStub(LoginThrottlePort::class);
+            $rateLimit->method('retryAfter')->willReturn(null);
         }
 
         return new LoginUser(

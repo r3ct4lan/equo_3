@@ -684,7 +684,11 @@ test('login rate-limit countdown follows elapsed time without automatic retry', 
       status: 429,
       contentType: 'application/json',
       headers: { 'Retry-After': '10' },
-      body: JSON.stringify({ error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests.' } })
+      body: JSON.stringify({ error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Too many requests.',
+        ...(loginRequests === 2 ? { requestId: 'repeat-login-e2e' } : {})
+      } })
     })
   })
 
@@ -694,11 +698,15 @@ test('login rate-limit countdown follows elapsed time without automatic retry', 
   await expect(page.getByRole('alert')).toContainText('Too many sign-in attempts')
   await expect(page.getByRole('timer')).toHaveText('Try again in 10 seconds.')
 
-  await page.clock.fastForward(6_100)
+  await page.clock.runFor(6_100)
   await expect(page.getByRole('timer')).toHaveText('Try again in 4 seconds.')
-  await page.clock.fastForward(4_100)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByText('Support reference: repeat-login-e2e')).toBeVisible()
+  await expect(page.getByRole('timer')).toHaveText('Try again in 4 seconds.')
+  expect(loginRequests).toBe(2)
+  await page.clock.runFor(4_100)
   await expect(page.getByRole('timer')).toHaveText('You can try again now.')
-  expect(loginRequests).toBe(1)
+  expect(loginRequests).toBe(2)
 })
 
 test('E2E-07 coordinates refresh across two tabs without persistent secrets', async ({ context, page, request }) => {

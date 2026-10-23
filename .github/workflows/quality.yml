@@ -42,8 +42,8 @@ env:
   EQUO_ACTIVATION_REQUEST_EMAIL_LIMIT: '3'
   EQUO_ACTIVATION_IP_LIMIT: '10'
   EQUO_ACTIVATION_TOKEN_LIMIT: '5'
-  EQUO_LOGIN_IP_LIMIT: '30'
-  EQUO_LOGIN_EMAIL_IP_LIMIT: '5'
+  EQUO_LOGIN_FAILURE_LIMIT: '5'
+  EQUO_LOGIN_COOLDOWN_SECONDS: '60'
   ACTION_TOKEN_ACTIVE_VERSION: v1
   ACTION_TOKEN_HMAC_KEYS: '{"v1":"YWN0aW9uLXRva2VuLWNpLWtleS0zMi1ieXRlcyEhISE="}'
   IDEMPOTENCY_FINGERPRINT_ACTIVE_VERSION: v1
@@ -128,6 +128,15 @@ jobs:
           --health-retries 10
         ports:
           - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+        ports:
+          - 6379:6379
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
