@@ -1593,6 +1593,20 @@ test('signed-in recipient opens an invitation and reaches connections automatica
     await expect(recipient.locator('.invitation-toast')).toContainText('Connection created successfully')
     await expect(recipient.getByRole('link', { name: 'E2E User', exact: true })).toBeVisible()
     await expectNoPersistentSecrets(recipient, [invitation.token, testPassword])
+
+    const repeatedInvitationResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/connect-invitations')
+    await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
+    const repeatedInvitation = await (await repeatedInvitationResponse).json() as { token: string, url: string }
+    expect(repeatedInvitation.token).not.toBe(invitation.token)
+    const existingAcceptance = recipient.waitForResponse(response => new URL(response.url()).pathname.endsWith('/accept'))
+    await followSecretUrl(recipient, repeatedInvitation.url)
+    const existingResponse = await existingAcceptance
+    expect(existingResponse.status()).toBe(200)
+    expect((await existingResponse.json() as { invitationOutcome: string }).invitationOutcome).toBe('already_connected')
+    await expect(recipient).toHaveURL(/\/connects$/u)
+    await expect(recipient.locator('.invitation-toast')).toContainText('You are already connected with E2E User')
+    await expect(recipient.getByRole('link', { name: 'E2E User', exact: true })).toHaveCount(1)
+    await expectNoPersistentSecrets(recipient, [repeatedInvitation.token, testPassword])
   }
   finally {
     await recipientContext.close()

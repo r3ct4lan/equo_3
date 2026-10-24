@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { activationErrorPresentation } from '~/utils/auth-flow'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
-import type { ConnectView } from '~/types/connects'
-import { invitationErrorPresentation, setInvitationFeedback } from '~/utils/connect-invitations'
+import type { InvitationAcceptance } from '~/types/connects'
+import { invitationErrorPresentation, setInvitationAcceptanceFeedback, setInvitationFeedback } from '~/utils/connect-invitations'
 
 type ActivationState = 'preparing' | 'ready' | 'loading' | 'success' | 'missing' | 'error'
 
@@ -40,9 +40,9 @@ async function activateAccount(): Promise<void> {
     await $auth.activate(activationToken)
     activationToken = null
     try {
-      const connected = await $auth.protectedRequest<ConnectView | undefined>('/v1/connect-invitations/pending/accept', { method: 'POST' })
+      const connected = await $auth.protectedRequest<InvitationAcceptance | undefined>('/v1/connect-invitations/pending/accept', { method: 'POST' })
       if (connected) {
-        setInvitationFeedback('success', 'Connection created successfully.')
+        setInvitationAcceptanceFeedback(connected)
         await navigateTo('/connects')
         return
       }

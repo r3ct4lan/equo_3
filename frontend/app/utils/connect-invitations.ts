@@ -1,7 +1,10 @@
 import type { SafeApiError, ErrorPresentation } from './auth-flow'
+import type { InvitationAcceptance } from '~/types/connects'
 
 let pendingInvitation: string | null = null
-let invitationFeedback: { kind: 'success' | 'error', message: string } | null = null
+export type InvitationFeedback = { kind: 'success' | 'info' | 'error', message: string }
+
+let invitationFeedback: InvitationFeedback | null = null
 
 export function rememberInvitation(token: string): void {
   pendingInvitation = token
@@ -12,10 +15,18 @@ export function recalledInvitation(): string | null {
 export function forgetInvitation(): void {
   pendingInvitation = null
 }
-export function setInvitationFeedback(kind: 'success' | 'error', message: string): void {
+export function setInvitationFeedback(kind: InvitationFeedback['kind'], message: string): void {
   invitationFeedback = { kind, message }
 }
-export function takeInvitationFeedback(): { kind: 'success' | 'error', message: string } | null {
+export function setInvitationAcceptanceFeedback(acceptance: InvitationAcceptance): void {
+  if (acceptance.invitationOutcome === 'already_connected') {
+    setInvitationFeedback('info', `You are already connected with ${acceptance.otherUser.name}.`)
+    return
+  }
+
+  setInvitationFeedback('success', 'Connection created successfully.')
+}
+export function takeInvitationFeedback(): InvitationFeedback | null {
   const feedback = invitationFeedback
   invitationFeedback = null
   return feedback
