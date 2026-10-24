@@ -206,6 +206,8 @@ services:
         alias: App\Connects\Adapter\Persistence\Doctrine\DoctrineConnectRepository
     App\Connects\Application\Port\ConnectRuntimePort:
         alias: App\Infrastructure\Persistence\Doctrine\ConnectRuntime
+    App\Connects\Application\Port\ConnectIdempotencyPort:
+        alias: App\Infrastructure\Idempotency\Persistence\Doctrine\DebtIdempotency
     App\Invitations\Application\Port\InvitationRepositoryPort:
         alias: App\Invitations\Adapter\Persistence\Doctrine\DoctrineInvitationRepository
     App\IdentityAccess\Application\Api\PendingInvitationAccess:

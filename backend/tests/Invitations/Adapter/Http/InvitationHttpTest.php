@@ -215,12 +215,10 @@ final class InvitationHttpTest extends WebTestCase
         yield 'unexpected' => ['otherUserId=foo'];
     }
 
-    public function testBodyIsAbsentAndUnsupportedFinancialRoutesAreNotPublished(): void
+    public function testInvitationCreationBodyIsAbsent(): void
     {
         $this->client->request('POST', '/api/v1/connect-invitations', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$this->access[0], 'CONTENT_TYPE' => 'application/json'], content: '{}');
         $this->failure(400, 'INVALID_REQUEST');
-        $this->request('POST', '/api/v1/connects', $this->access[0]);
-        self::assertResponseStatusCodeSame(405);
     }
 
     private function request(string $method, string $path, ?string $access = null): void

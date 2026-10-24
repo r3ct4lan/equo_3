@@ -74,6 +74,9 @@ services:
     test.connect_service:
         alias: App\Connects\Application\ConnectService
         public: true
+    test.create_connect:
+        alias: App\Connects\Application\CreateConnect
+        public: true
 
     test.create_debt:
         alias: App\Debts\Application\CreateDebt
