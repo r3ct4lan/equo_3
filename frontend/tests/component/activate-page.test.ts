@@ -57,7 +57,7 @@ describe('activation page', () => {
 
   it('continues a registered recipient to connections after activation', async () => {
     activateMock.mockResolvedValue(undefined)
-    protectedRequestMock.mockResolvedValue({ id: 'new-connect' })
+    protectedRequestMock.mockResolvedValue({ id: 'new-connect', invitationOutcome: 'created' })
     const wrapper = await mountSuspended(ActivatePage, { route: '/activate?token=v1.invited-capability' })
     await flushPromises()
     await vi.waitFor(() => {
