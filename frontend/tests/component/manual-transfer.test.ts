@@ -2,7 +2,9 @@ import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import CreateManualTransferForm from '../../app/components/CreateManualTransferForm.vue'
+import ManageManualTransfer from '../../app/components/ManageManualTransfer.vue'
 import ConnectCard from '../../app/pages/connects/[id].vue'
+import TransferCard from '../../app/pages/transfers/[id].vue'
 import { ApiClientError } from '../../app/utils/api-error'
 
 const { auth } = vi.hoisted(() => ({ auth: { protectedRequest: vi.fn(), bootstrap: vi.fn() } }))
@@ -206,6 +208,82 @@ describe('manual payment components', () => {
     expect(wrapper.find('form').exists()).toBe(false)
     expect(wrapper.text()).toContain('This account is inactive')
     expect(wrapper.text()).toContain('Payment · €7.00')
+    wrapper.unmount()
+  })
+})
+
+describe('manual payment correction components', () => {
+  beforeEach(() => {
+    auth.protectedRequest.mockReset().mockResolvedValue(transfer)
+    auth.bootstrap.mockReset().mockResolvedValue(undefined)
+    signedIn()
+  })
+
+  it('edits amount and direction once with the actual If-Match and then reloads', async () => {
+    let resolve: (value?: unknown) => void = () => undefined
+    auth.protectedRequest.mockImplementation((_path, options) => new Promise((done) => {
+      options?.onResponse?.({ response: { status: 200 } })
+      resolve = done
+    }))
+    const wrapper = await mountSuspended(ManageManualTransfer, { props: { transfer, etag: '"7"' } })
+    await wrapper.get('button').trigger('click')
+    await wrapper.get('#edit-payment-direction').setValue('self')
+    await wrapper.get('#edit-payment-amount').setValue('8.00')
+    await wrapper.get('form').trigger('submit')
+    await wrapper.get('form').trigger('submit')
+    expect(auth.protectedRequest).toHaveBeenCalledTimes(1)
+    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/manual', expect.objectContaining({ method: 'PUT', headers: { 'If-Match': '"7"' }, body: { senderId: 'self', receiverId: 'other', amount: 800 } }))
+    resolve()
+    await flushPromises()
+    expect(wrapper.emitted('reload')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('requires a separate irreversible confirmation before one DELETE', async () => {
+    auth.protectedRequest.mockImplementation(async (_path, options) => {
+      options?.onResponse?.({ response: { status: 204 } })
+    })
+    const wrapper = await mountSuspended(ManageManualTransfer, { props: { transfer, etag: '"7"' } })
+    await wrapper.findAll('button').find(button => button.text() === 'Remove payment')!.trigger('click')
+    expect(auth.protectedRequest).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alertdialog"]').text()).toContain('cannot be undone')
+    await wrapper.findAll('button').find(button => button.text() === 'Yes, remove payment')!.trigger('click')
+    await flushPromises()
+    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/manual', expect.objectContaining({ method: 'DELETE', headers: { 'If-Match': '"7"' } }))
+    expect(wrapper.emitted('reload')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it.each([
+    [409, 'VERSION_CONFLICT', 'Someone changed this payment'],
+    [null, 'NETWORK_ERROR', 'The result is not confirmed'],
+    [409, 'TRANSFER_FROZEN', 'This payment can no longer be changed']
+  ])('blocks %s/%s until an explicit reload', async (status, code, message) => {
+    auth.protectedRequest.mockRejectedValue(new ApiClientError({ kind: status === null ? 'network' : 'api', status: status as number | null, code: code as string, message: 'Internal detail' }))
+    const wrapper = await mountSuspended(ManageManualTransfer, { props: { transfer, etag: '"7"' } })
+    await wrapper.get('button').trigger('click')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.text()).toContain(message)
+    expect(wrapper.text()).not.toContain('Internal detail')
+    expect(wrapper.findAll('button').some(button => button.text() === 'Reload payment')).toBe(true)
+    await wrapper.findAll('button').find(button => button.text() === 'Reload payment')!.trigger('click')
+    expect(wrapper.emitted('reload')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('renders writer actions only for an editable manual response with an actual ETag', async () => {
+    auth.protectedRequest.mockImplementation(async (_path, options) => {
+      options?.onResponse?.({ response: { ok: true, headers: new Headers({ ETag: '"1"' }) } })
+      return transfer
+    })
+    const wrapper = await mountSuspended(TransferCard, { route: '/transfers/manual' })
+    signedIn()
+    await flushPromises()
+    expect(wrapper.findAll('button').some(button => button.text() === 'Edit payment')).toBe(true)
+    signedIn('other')
+    await flushPromises()
+    expect(wrapper.findAll('button').some(button => button.text() === 'Edit payment')).toBe(false)
     wrapper.unmount()
   })
 })
