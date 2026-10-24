@@ -283,13 +283,22 @@ describe('financial journey components', () => {
     wrapper.unmount()
   })
 
-  it.each([[501, 'They owe you €5.01'], [-501, 'You owe them €5.01'], [0, 'You are settled up']])('explains balance %s from the viewer perspective', async (amount, text) => {
+  it.each([
+    [501, 'Balance: €5.01', 'They owe you.', 'connect-balance__amount--positive'],
+    [-501, 'Balance: -€5.01', 'You owe them.', 'connect-balance__amount--negative'],
+    [0, 'Balance: €0.00', 'You are settled up.', null]
+  ])('shows balance %s once with its viewer-relative meaning', async (amount, balance, meaning, tone) => {
     const wrapper = await mountSuspended(ConnectBalance, {
       props: {
         amount: amount as number
       }
     })
-    expect(wrapper.text()).toContain(text)
+    expect(wrapper.get('.connect-balance__amount').text()).toBe(balance)
+    expect(wrapper.text()).toContain(meaning)
+    expect(wrapper.findAll('strong')).toHaveLength(1)
+    expect(wrapper.text().match(/€/gu)).toHaveLength(1)
+    if (tone) expect(wrapper.get('.connect-balance__amount').classes()).toContain(tone)
+    else expect(wrapper.get('.connect-balance__amount').classes()).toEqual(['connect-balance__amount'])
     wrapper.unmount()
   })
 })
