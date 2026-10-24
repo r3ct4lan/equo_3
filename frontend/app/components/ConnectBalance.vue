@@ -6,11 +6,11 @@ defineProps<{ amount: number }>()
 
 <template>
   <div class="connect-balance">
-    <p
-      class="connect-balance__amount"
-      :class="{ 'connect-balance__amount--positive': amount > 0, 'connect-balance__amount--negative': amount < 0 }"
-    >
-      Balance: <strong>{{ formatEuro(amount) }}</strong>
+    <p class="connect-balance__amount">
+      Balance: <strong
+        class="connect-balance__value"
+        :class="{ 'connect-balance__value--positive': amount > 0, 'connect-balance__value--negative': amount < 0 }"
+      >{{ formatEuro(amount) }}</strong>
     </p>
     <p v-if="amount > 0">
       They owe you.
@@ -34,11 +34,11 @@ defineProps<{ amount: number }>()
   gap: 0.25rem;
 }
 
-.connect-balance__amount--positive {
+.connect-balance__value--positive {
   color: var(--color-success);
 }
 
-.connect-balance__amount--negative {
+.connect-balance__value--negative {
   color: var(--color-error);
 }
 </style>

@@ -284,8 +284,8 @@ describe('financial journey components', () => {
   })
 
   it.each([
-    [501, 'Balance: €5.01', 'They owe you.', 'connect-balance__amount--positive'],
-    [-501, 'Balance: -€5.01', 'You owe them.', 'connect-balance__amount--negative'],
+    [501, 'Balance: €5.01', 'They owe you.', 'connect-balance__value--positive'],
+    [-501, 'Balance: -€5.01', 'You owe them.', 'connect-balance__value--negative'],
     [0, 'Balance: €0.00', 'You are settled up.', null]
   ])('shows balance %s once with its viewer-relative meaning', async (amount, balance, meaning, tone) => {
     const wrapper = await mountSuspended(ConnectBalance, {
@@ -297,8 +297,9 @@ describe('financial journey components', () => {
     expect(wrapper.text()).toContain(meaning)
     expect(wrapper.findAll('strong')).toHaveLength(1)
     expect(wrapper.text().match(/€/gu)).toHaveLength(1)
-    if (tone) expect(wrapper.get('.connect-balance__amount').classes()).toContain(tone)
-    else expect(wrapper.get('.connect-balance__amount').classes()).toEqual(['connect-balance__amount'])
+    expect(wrapper.get('.connect-balance__amount').classes()).toEqual(['connect-balance__amount'])
+    if (tone) expect(wrapper.get('.connect-balance__value').classes()).toContain(tone)
+    else expect(wrapper.get('.connect-balance__value').classes()).toEqual(['connect-balance__value'])
     wrapper.unmount()
   })
 })
