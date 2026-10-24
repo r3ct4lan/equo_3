@@ -102,7 +102,7 @@ Implementation and placement rules are documented in
 
 ## Quality gate and CI
 
-`make check` is the fast merge-oriented local entry point. It covers backend style,
+`make check` is the complete local quality gate command. It covers backend style,
 PHPStan, Symfony/Doctrine validation, migrations on an isolated empty database,
 PHPUnit, frontend lint/typecheck/tests/build, dependency audits, common secret
 patterns, generated changes and Nginx smoke checks.
@@ -115,9 +115,13 @@ Connect reads, expense creation/shares/balances/history, third-user financial pr
 cookie/storage checks and safe error cases without touching the development database or named Docker
 volumes.
 
-The equivalent GitHub Actions workflow runs for pull requests and pushes to
-`main`. Detailed commands, audit thresholds and recommended required checks are
-documented in [docs/quality-gate.md](docs/quality-gate.md).
+Agents use targeted local checks instead of these complete local commands.
+GitHub Actions runs quick checks for pull requests and pushes to `codex/backlog`
+or `main`. After
+all code, tests and documentation for a batch of backlog tasks are committed,
+the full workflow is started manually on the final `codex/backlog` commit.
+Detailed commands, audit thresholds and the merge procedure are documented in
+[docs/quality-gate.md](docs/quality-gate.md).
 
 ## Repository structure
 
