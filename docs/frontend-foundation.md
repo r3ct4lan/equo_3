@@ -393,8 +393,9 @@ hydration, не сериализуя capability. Страницы имеют no-
 
 Защищённые /debts, /debts/new, /debts/[id], /transfers/[id] используют
 существующие auth middleware и $auth.protectedRequest. Expenses добавлен в nav.
-Connect list/card показывает signed balance один раз в строке `Balance`: положительный
-зелёным, отрицательный красным, нулевой нейтрально. Отдельная подпись без повтора
+Connect list/card показывает signed balance один раз в строке `Balance`: только сумма
+положительного баланса зелёная, отрицательного красная, нулевого нейтральная.
+Слово `Balance` сохраняет основной цвет текста. Отдельная подпись без повтора
 суммы объясняет `They owe you`, `You owe them` или `You are settled up` (`MT-010`).
 История различает DEBT_SHARE/MANUAL, active/removed и safe недоступный Debt.
 
