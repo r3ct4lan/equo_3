@@ -477,7 +477,8 @@ Safe недоступная debtReference содержит только id/isAcc
 `null` для self или отсутствующей связи, ничего не создавая. Список Debt не
 вычисляет это поле и не выполняет дополнительные Connect lookup.
 Пагинация createdAt DESC/id DESC, default 20/max 100, opaque Base64URL cursor.
-Edit/delete/MANUAL writers на этом этапе не опубликованы.
+Delete Debt и MANUAL writer опубликованы последующими сценариями; edit/delete
+MANUAL остаются вне реализованного объёма.
 [Доказательства](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/create-debt.md).
 
 ## SC-016: создание MANUAL
@@ -502,3 +503,18 @@ version conflict содержит только expectedVersion/actualVersion. Re
 проверяется до раскрытия versions; неавтор-читатель — 403, outsider — hidden 404.
 Frozen/deleted — 409. Response reuse DebtViews и no-store; тело всегда содержит
 только текущих participants. Новых migrations и альтернативного API client нет.
+
+## SC-014 — DELETE Debt
+
+DELETE /api/v1/debts/{id} принимает Bearer и тот же strict strong integer
+If-Match, что PUT. Под блокировкой aggregate проверяются hidden resource ACL,
+автор, active author/payer, неудалённое состояние и версия. В одной транзакции
+Debt получает `isDeleted=true` и новую version, а все его активные DEBT_SHARE —
+`isDeleted=true` и собственную новую техническую version. DebtParticipant и
+MANUAL не меняются. Успех возвращает только 204/no-store.
+
+Список уже фильтрует удалённые Debt. Прямой GET остаётся доступен автору,
+плательщику и зафиксированным текущим участникам, возвращает новый ETag,
+`isDeleted=true` и запрещённые edit/delete actions. История Connect сохраняет
+удалённые DEBT_SHARE и активные MANUAL; баланс игнорирует удалённые записи.
+Restore и отдельный archive endpoint отсутствуют.

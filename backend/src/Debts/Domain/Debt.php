@@ -88,6 +88,25 @@ final readonly class Debt
         return new self($this->id, $update->title, $update->description, $update->totalAmount, $this->payerId, $this->createdById, $this->createdAt, $participants, false, $this->version + 1);
     }
 
+    /** @param array<string,bool> $activeUsers */
+    public function remove(string $actorId, int $expectedVersion, array $activeUsers): self
+    {
+        if ($actorId !== $this->createdById) {
+            throw new DebtUpdateRejected(DebtUpdateFailure::Forbidden);
+        }
+        if ($this->isDeleted) {
+            throw new DebtUpdateRejected(DebtUpdateFailure::Deleted);
+        }
+        if (!($activeUsers[$this->createdById] ?? false) || !($activeUsers[$this->payerId] ?? false)) {
+            throw new DebtUpdateRejected(DebtUpdateFailure::Frozen);
+        }
+        if ($expectedVersion !== $this->version) {
+            throw new DebtUpdateRejected(DebtUpdateFailure::VersionConflict);
+        }
+
+        return new self($this->id, $this->title, $this->description, $this->totalAmount, $this->payerId, $this->createdById, $this->createdAt, $this->participants, true, $this->version + 1);
+    }
+
     /** @return list<DebtParticipant> */
     public function currentParticipants(): array
     {
