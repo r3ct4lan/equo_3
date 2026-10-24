@@ -12,6 +12,19 @@ let generation = 0
 const pending = ref(false)
 const error = ref<ApiClientError | null>(null)
 const recorded = ref(false)
+const paymentDialog = useTemplateRef<HTMLDialogElement>('paymentDialog')
+const paymentTrigger = useTemplateRef<HTMLButtonElement>('paymentTrigger')
+async function openPayment(): Promise<void> {
+  if (!connect.value?.canCreateTransfer || paymentDialog.value?.open) return
+  paymentDialog.value?.showModal()
+  await nextTick()
+  paymentDialog.value?.querySelector<HTMLSelectElement>('#payment-direction')?.focus()
+}
+function closePayment(restoreFocus = true): void {
+  if (!paymentDialog.value?.open) return
+  paymentDialog.value.close()
+  if (restoreFocus) void nextTick(() => paymentTrigger.value?.focus())
+}
 async function load(): Promise<void> {
   if (state.value.status !== 'authenticated') return
   const requestGeneration = ++generation
@@ -31,6 +44,7 @@ async function load(): Promise<void> {
   }
 }
 async function refreshAfterPayment(): Promise<void> {
+  closePayment(false)
   recorded.value = true
   await load()
 }
@@ -80,12 +94,38 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
         class="button"
         to="/debts/new"
       >New expense</NuxtLink>
-      <CreateManualTransferForm
-        v-if="connect.canCreateTransfer"
-        :connect="connect"
-        @created="refreshAfterPayment"
-        @reload="load"
-      />
+      <template v-if="connect.canCreateTransfer">
+        <button
+          ref="paymentTrigger"
+          class="button"
+          type="button"
+          @click="openPayment"
+        >
+          Make a payment
+        </button>
+        <dialog
+          ref="paymentDialog"
+          class="payment-dialog"
+          aria-labelledby="payment-title"
+          @cancel.prevent="closePayment()"
+        >
+          <div class="payment-dialog__actions">
+            <button
+              class="button button--secondary"
+              type="button"
+              aria-label="Close payment form"
+              @click="closePayment()"
+            >
+              Close
+            </button>
+          </div>
+          <CreateManualTransferForm
+            :connect="connect"
+            @created="refreshAfterPayment"
+            @reload="load"
+          />
+        </dialog>
+      </template>
       <TransferHistory :connect-id="connect.id" />
     </div>
     <AppErrorState
@@ -108,3 +148,33 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
     >Your connections</NuxtLink>
   </section>
 </template>
+
+<style scoped>
+.payment-dialog {
+  width: min(calc(100% - 2rem), 42rem);
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-surface);
+  color: var(--color-text);
+}
+
+.payment-dialog::backdrop {
+  background: rgb(23 32 51 / 55%);
+}
+
+.payment-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem 1rem 0;
+}
+
+.payment-dialog :deep(.panel) {
+  max-width: none;
+  padding-top: 0;
+  border: 0;
+  box-shadow: none;
+}
+</style>
