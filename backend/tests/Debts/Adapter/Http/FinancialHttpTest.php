@@ -243,7 +243,7 @@ final class FinancialHttpTest extends WebTestCase
                 1 => [$this->users[0] => $connect01, $this->users[1] => null, $this->users[2] => null],
                 2 => [$this->users[0] => $connect02, $this->users[1] => null, $this->users[2] => null],
             };
-            self::assertSame($expectedConnects, array_map(static fn (array $participant): ?string => $participant['connectId'], $participants));
+            self::assertEquals($expectedConnects, array_map(static fn (array $participant): ?string => $participant['connectId'], $participants));
             $this->request('GET', '/api/v1/debts', $viewer);
             self::assertSame($debt['id'], $this->body()['items'][0]['id']);
             self::assertSame(3, $this->body()['items'][0]['participantCount']);

@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth/financial endpoints |
 | Статус | Accepted |
-| Версия | 14 |
-| Дата актуальности | 2026-10-12 |
+| Версия | 15 |
+| Дата актуальности | 2026-10-25 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
 
@@ -442,6 +442,22 @@ inactive — 409 INACTIVE_USER, used/expired — 410 TOKEN_USED/TOKEN_EXPIRED,
 invalid/unknown capability — 404 RESOURCE_NOT_FOUND. Bearer denial и rate limits
 используют существующие 401/429 conventions. Invitation responses имеют
 no-store/no-referrer. Nginx exact collection location предотвращает slash redirect POST.
+
+## SC-010: Connect через общий долг
+
+POST `/api/v1/connects` принимает JSON `otherUserId`/`sharedDebtId`, active
+Bearer и UUID `Idempotency-Key`. Автор и выбранная сторона должны быть разными
+активными текущими `DebtParticipant` одного доступного неудалённого Debt.
+Неизвестный, чужой, удалённый Debt и бывший участник дают одинаковый
+`404 DEBT_NOT_AVAILABLE`, не раскрывая контекст долга.
+
+Команда использует scope `user:<subject>` и operation `connect.create`. Новый
+канонический Connect возвращается как 201, уже существующая пара — как 200;
+оба ответа содержат обычный безопасный Connect view и Location. Повтор того же
+ключа и тела возвращает сохранённый статус и тело, изменённое тело —
+`409 IDEMPOTENCY_KEY_REUSED`. Debt и обе учётные записи блокируются в стабильном
+порядке, а уникальная каноническая пара исключает зеркальные дубли при гонке.
+UI не опубликован: для него бэклог требует отдельного продуктового решения.
 
 ## Финансовые endpoints SC-011
 
