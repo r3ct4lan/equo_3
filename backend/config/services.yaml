@@ -78,6 +78,18 @@ services:
     App\IdentityAccess\Application\Port\PasswordResetRateLimitPort:
         alias: App\IdentityAccess\Adapter\Security\SymfonyRateLimit
 
+    App\IdentityAccess\Application\Port\CurrentUserProfileRepositoryPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository
+
+    App\IdentityAccess\Application\Port\EmailChangeRepositoryPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineEmailChangeRepository
+
+    App\IdentityAccess\Application\Port\EmailChangeOutboxPort:
+        alias: App\Infrastructure\EmailDelivery\Persistence\Doctrine\DoctrineEmailOutbox
+
+    App\IdentityAccess\Application\Port\EmailChangeRateLimitPort:
+        alias: App\IdentityAccess\Adapter\Security\SymfonyRateLimit
+
     App\IdentityAccess\Application\Port\UserSessionRepositoryPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineUserSessionRepository
 
@@ -166,6 +178,7 @@ services:
             $activationTokenLimiter: '@limiter.activation_token'
             $passwordResetRequestIpLimiter: '@limiter.password_reset_request_ip'
             $passwordResetRequestEmailLimiter: '@limiter.password_reset_request_email'
+            $emailChangeRequestUserLimiter: '@limiter.email_change_request_user'
 
     App\Infrastructure\EmailDelivery\Messaging\SendUserActionEmailHandler:
         arguments:

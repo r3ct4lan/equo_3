@@ -7,13 +7,13 @@ namespace App\IdentityAccess\Application\CurrentUser;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use App\IdentityAccess\Application\Api\UserView;
-use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
+use App\IdentityAccess\Application\Port\CurrentUserProfileRepositoryPort;
 use App\IdentityAccess\Application\Port\TransactionPort;
 
 final readonly class RenameCurrentUser
 {
     public function __construct(
-        private IdentityRepositoryPort $repository,
+        private CurrentUserProfileRepositoryPort $repository,
         private TransactionPort $transaction,
     ) {
     }

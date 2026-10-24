@@ -88,4 +88,9 @@ class UserRecord
     {
         $this->name = $name;
     }
+
+    public function changeEmail(string $email): void
+    {
+        $this->email = $email;
+    }
 }

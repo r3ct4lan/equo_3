@@ -326,6 +326,24 @@ final class EmailDeliveryFlowTest extends KernelTestCase
         self::assertSame(['deliveryId' => $outbox->id()], get_object_vars($queue->getSent()[0]->getMessage()));
     }
 
+    public function testEmailChangeIntentSendsConfirmationLinkToNewAddress(): void
+    {
+        $outbox = $this->fixture(EmailDeliveryStatus::Published, purpose: UserActionTokenPurpose::ChangeEmail, template: 'change-email');
+        $transport = $this->createMock(TransportInterface::class);
+        $transport->expects(self::once())->method('send')->willReturnCallback(static function ($message): null {
+            self::assertInstanceOf(Email::class, $message);
+            self::assertSame('Confirm your new Equo email', $message->getSubject());
+            self::assertStringContainsString('/email-change?token=v1.public-token', (string) $message->getTextBody());
+            self::assertStringNotContainsString('/password-reset?', (string) $message->getHtmlBody());
+
+            return null;
+        });
+        $handler = new SendUserActionEmailHandler($this->entityManager, self::getContainer()->get(TokenDeliveryQuery::class), new PayloadCipher(self::PAYLOAD_KEY), $transport, 'https://equo.test', 'no-reply@equo.local');
+        $handler(new SendUserActionEmail($outbox->id()));
+        self::assertSame(EmailDeliveryStatus::Sent, $outbox->status());
+        self::assertNull($outbox->encryptedPayload());
+    }
+
     #[DataProvider('resetDeliveryFailureProvider')]
     public function testResetConsumerRejectsTerminalOrMismatchedPurposeWithoutSending(bool $expired, bool $invalidated, bool $used, string $template): void
     {

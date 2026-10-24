@@ -49,6 +49,7 @@ final readonly class SendUserActionEmailHandler
             $template = null === $state ? null : match (true) {
                 'ACTIVATE_ACCOUNT' === $state->purpose->value && 'activate-account' === $outbox->templateKey() => ['Activate your Equo account', '/activate', 'Activate account'],
                 'RESET_PASSWORD' === $state->purpose->value && 'reset-password' === $outbox->templateKey() => ['Reset your Equo password', '/password-reset', 'Choose a new password'],
+                'CHANGE_EMAIL' === $state->purpose->value && 'change-email' === $outbox->templateKey() => ['Confirm your new Equo email', '/email-change', 'Confirm new email'],
                 default => null,
             };
             if (null === $state || !$state->isDeliverableAt($now) || null === $template) {

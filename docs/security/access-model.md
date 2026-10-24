@@ -46,6 +46,9 @@ cookie с same-origin/CSRF guard. Финансовые protected endpoints ещ�
 | Любой клиент | `POST /api/v1/auth/password-reset-requests` | Запрос recovery | Public email validation и quotas; neutral 202 | `422 VALIDATION_ERROR`, `429 RATE_LIMIT_EXCEEDED` |
 | Предъявитель token | `POST /api/v1/auth/password-reset` | Password и sessions владельца | Purpose RESET_PASSWORD, current lifecycle; active/inactive допускаются | `400 INVALID_TOKEN`, соответствующий `410`, `422`, `429` |
 | Authenticated user | `POST /api/v1/account/password-change` | Собственные password и sessions | Strict Bearer, fresh active User/currentPassword под User lock; общая новая policy | `401 AUTHENTICATION_REQUIRED` с Bearer challenge, `401 INVALID_CREDENTIALS`, `422 VALIDATION_ERROR`; cookies только на успехе |
+| Authenticated user | `PATCH /api/v1/me` | Собственное отображаемое имя | Strict Bearer, active User под User lock; непустое имя | `401 AUTHENTICATION_REQUIRED`, `422 VALIDATION_ERROR` |
+| Authenticated user | `POST /api/v1/account/email-change-requests` | Новый email и `CHANGE_EMAIL` | Strict Bearer, fresh active User/currentPassword, уникальный normalized email, quota 3/час | `401 AUTHENTICATION_REQUIRED`, `401 INVALID_CREDENTIALS`, `409 EMAIL_ALREADY_IN_USE`, `422`, `429` |
+| Предъявитель token | `POST /api/v1/auth/email-change-confirmations` | Email владельца токена | Purpose `CHANGE_EMAIL`, current lifecycle, повторная уникальность; sessions сохраняются | `400 INVALID_TOKEN`, соответствующий `410`, `409 EMAIL_ALREADY_IN_USE`, `429` |
 | Authenticated user | `POST /api/v1/connect-invitations/pending/accept` | Приглашение, привязанное к его аккаунту при регистрации | Strict Bearer; те же token, active-user, self-invite и concurrency проверки, что обычное принятие | `204` без привязки; контрактная ошибка недействительной ссылки |
 | Authenticated user | Future protected API | — | Ещё не реализовано | Будущие policy/voter этапы |
 
