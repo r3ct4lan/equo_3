@@ -22,7 +22,7 @@ mockNuxtImport('useNuxtApp', original => () => new Proxy(original(), {
 mockNuxtImport('navigateTo', () => navigation)
 
 const preview = { inviter: { id: 'author', name: 'Alex' }, expiresAt: '2026-10-17T12:00:00Z', canAccept: true }
-const connect = { id: 'connection', otherUser: { id: 'author', name: 'Alex', isActive: true }, balanceAmount: 0, canCreateDebt: true, canCreateTransfer: true, createdAt: '2026-10-10T12:00:00Z' }
+const connect = { id: 'connection', otherUser: { id: 'author', name: 'Alex', isActive: true }, balanceAmount: 0, canCreateDebt: true, canCreateTransfer: true, createdAt: '2026-10-10T12:00:00Z', invitationOutcome: 'created' as const }
 function signedIn(id = 'acceptor'): void {
   useCurrentUser().setAuthenticated({ id, name: 'Person', email: 'person@example.test', isActive: true, createdAt: '2026-10-10T12:00:00Z' })
 }
@@ -77,6 +77,16 @@ describe('Connect invitation journey', () => {
     await flushPromises()
     expect(navigation).toHaveBeenCalledWith('/connects')
     expect(takeInvitationFeedback()).toEqual({ kind: 'success', message: 'Connection created successfully.' })
+    wrapper.unmount()
+  })
+
+  it('reports an existing connection as information instead of a new success', async () => {
+    signedIn()
+    auth.protectedRequest.mockResolvedValue({ ...connect, invitationOutcome: 'already_connected' })
+    const wrapper = await mountSuspended(InvitationPreview, { props: { token: 'private-invitation' } })
+    await flushPromises()
+    expect(navigation).toHaveBeenCalledWith('/connects')
+    expect(takeInvitationFeedback()).toEqual({ kind: 'info', message: 'You are already connected with Alex.' })
     wrapper.unmount()
   })
 
