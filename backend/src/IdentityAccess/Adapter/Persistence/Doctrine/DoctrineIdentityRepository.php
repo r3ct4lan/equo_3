@@ -129,6 +129,16 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
         );
     }
 
+    public function renameCurrentUser(string $userId, string $name): void
+    {
+        $record = $this->entityManager->find(UserRecord::class, $userId);
+        if (!$record instanceof UserRecord) {
+            throw new RuntimeException('Current user was not found.');
+        }
+
+        $record->rename($name);
+    }
+
     public function addRegistration(User $user, UserActionToken $token, ?string $pendingInvitationId = null): void
     {
         $record = new UserRecord(
