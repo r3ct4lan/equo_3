@@ -60,9 +60,9 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
         return $amount;
     }
 
-    public function find(string $id): ?Transfer
+    public function find(string $id, bool $forUpdate = false): ?Transfer
     {
-        $row = $this->db->fetchAssociative('SELECT * FROM transfer WHERE id=?', [$id]);
+        $row = $this->db->fetchAssociative('SELECT * FROM transfer WHERE id=?'.($forUpdate ? ' FOR UPDATE' : ''), [$id]);
 
         return false === $row ? null : $this->map($row);
     }
@@ -98,6 +98,14 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
             throw new InvalidArgumentException('Only automatic shares can be persisted by recalculation.');
         }
         $this->db->update('transfer', ['amount' => $transfer->amount, 'is_deleted' => $transfer->isDeleted, 'version' => $transfer->version], ['id' => $transfer->id, 'type' => 'DEBT_SHARE'], ['is_deleted' => 'boolean']);
+    }
+
+    public function updateManual(Transfer $transfer): void
+    {
+        if ('MANUAL' !== $transfer->type) {
+            throw new InvalidArgumentException('Only manual transfers can be persisted by this command.');
+        }
+        $this->db->update('transfer', ['sender_id' => $transfer->senderId, 'receiver_id' => $transfer->receiverId, 'amount' => $transfer->amount, 'related_transfer_id' => $transfer->relatedTransferId, 'is_deleted' => $transfer->isDeleted, 'version' => $transfer->version], ['id' => $transfer->id, 'type' => 'MANUAL'], ['is_deleted' => 'boolean']);
     }
 
     public function sharesForDebt(string $debtId): array

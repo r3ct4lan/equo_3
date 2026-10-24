@@ -477,8 +477,7 @@ Safe недоступная debtReference содержит только id/isAcc
 `null` для self или отсутствующей связи, ничего не создавая. Список Debt не
 вычисляет это поле и не выполняет дополнительные Connect lookup.
 Пагинация createdAt DESC/id DESC, default 20/max 100, opaque Base64URL cursor.
-Delete Debt и MANUAL writer опубликованы последующими сценариями; edit/delete
-MANUAL остаются вне реализованного объёма.
+Delete Debt и MANUAL writers опубликованы последующими сценариями.
 [Доказательства](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/create-debt.md).
 
 ## SC-016: создание MANUAL
@@ -490,7 +489,7 @@ POST /api/v1/connects/{connectId}/transfers принимает senderId/receiver
 422 VALIDATION_ERROR; неактивная сторона — 409 INACTIVE_USER. Ключ обязателен
 (400), изменённая команда с тем же ключом — 409 IDEMPOTENCY_KEY_REUSED.
 relatedTransferId отложен до SC-018 по mvp-scope §15, неизвестные поля — 400.
-Edit/delete маршруты не экспонируются. Денежные DTO не допускают coercion
+Денежные DTO не допускают coercion
 из numeric string, bool или float. Atomic writer использует существующую
 схему без новой миграции. Исторические проверки — [SC-016](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/manual-transfer.md).
 
@@ -518,3 +517,20 @@ MANUAL не меняются. Успех возвращает только 204/n
 `isDeleted=true` и запрещённые edit/delete actions. История Connect сохраняет
 удалённые DEBT_SHARE и активные MANUAL; баланс игнорирует удалённые записи.
 Restore и отдельный archive endpoint отсутствуют.
+
+## SC-017 — изменение и удаление MANUAL
+
+PUT/DELETE /api/v1/transfers/{id} принимают Bearer и strict strong integer
+If-Match. Под row lock сначала применяется hidden Connect-side ACL, затем
+проверяются тип MANUAL, автор, active обе стороны, неудалённое состояние и
+version. PUT принимает полное состояние senderId/receiverId/amount: разрешена
+только прежняя пара сторон в любом из двух направлений. Нормализованный no-op
+возвращает прежние version/ETag без записи; stale no-op получает
+VERSION_CONFLICT. `relatedTransferId` остаётся вне публичного тела до SC-018.
+
+DELETE отвечает 204/no-store, выставляет `isDeleted=true` и увеличивает version.
+Удалённая запись остаётся в обеих историях и прямом GET, но исключается из
+balance; восстановление отсутствует. DEBT_SHARE через оба маршрута получает
+403 AUTOMATIC_TRANSFER_IMMUTABLE. Реальные конкурентные writers сериализуются
+блокировкой строки Transfer; ожидающая команда проверяет уже зафиксированные
+version/deleted state.
