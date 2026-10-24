@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать локальные проверки и обязательный полный CI gate проекта |
 | Статус | Accepted |
-| Версия | 22 |
-| Дата актуальности | 2026-10-23 |
+| Версия | 23 |
+| Дата актуальности | 2026-10-24 |
 | Владелец | Maksim Smolkov |
 | Источник | ADR-001/011/015; Makefile; Composer/npm scripts; GitHub Actions workflow |
 
@@ -119,6 +119,10 @@ Security update 2026-10-09: Vue 3.5.43, simple-git override 4.0.2 и
 удалённый default import simple-git; `postinstall` заменяет его документированной
 named factory. Patch идемпотентен и отказывает при неизвестной структуре upstream,
 как существующий Nitro/Archiver compatibility patch. Проверяется чистым `npm ci`.
+
+Security update 2026-10-24: test-only DOM runtime `happy-dom` обновлён до
+21.0.4, исправляющей `GHSA-834v-8h66-3h79`. Advisory не добавлялся в allowlist;
+после чистого `npm ci` проходят unit/component tests, lint, typecheck и audit.
 
 `.nuxt`, `.output`, `coverage` и `node_modules` исключены из lint.
 Автоматические исправления доступны только через `npm run lint:fix` или

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { InvitationPreview, ConnectView } from '~/types/connects'
+import type { InvitationPreview, InvitationAcceptance } from '~/types/connects'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
-import { forgetInvitation, invitationErrorPresentation, rememberInvitation, setInvitationFeedback } from '~/utils/connect-invitations'
+import { forgetInvitation, invitationErrorPresentation, rememberInvitation, setInvitationAcceptanceFeedback, setInvitationFeedback } from '~/utils/connect-invitations'
 
 const props = defineProps<{ token: string | null }>()
 const { $api, $auth } = useNuxtApp()
@@ -45,9 +45,9 @@ async function accept(): Promise<void> {
   accepting.value = true
   error.value = null
   try {
-    await $auth.protectedRequest<ConnectView>(endpoint.value + '/accept', { method: 'POST' })
+    const acceptance = await $auth.protectedRequest<InvitationAcceptance>(endpoint.value + '/accept', { method: 'POST' })
     forgetInvitation()
-    setInvitationFeedback('success', 'Connection created successfully.')
+    setInvitationAcceptanceFeedback(acceptance)
     await navigateTo('/connects')
   }
   catch (failure) {
