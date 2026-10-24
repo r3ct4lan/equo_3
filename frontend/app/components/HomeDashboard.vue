@@ -48,9 +48,12 @@ function expenseDate(value: string): string {
           <p class="dashboard-amount">
             {{ formatEuro(data.balances.totalOwedAmount) }}
           </p>
-          <p class="dashboard-caption">
+          <NuxtLink
+            class="dashboard-caption dashboard-summary-link"
+            to="/connects"
+          >
             Across all your connections
-          </p>
+          </NuxtLink>
         </section>
         <section
           class="panel dashboard-balance"
@@ -62,9 +65,12 @@ function expenseDate(value: string): string {
           <p class="dashboard-amount">
             {{ formatEuro(data.balances.totalReceivableAmount) }}
           </p>
-          <p class="dashboard-caption">
+          <NuxtLink
+            class="dashboard-caption dashboard-summary-link"
+            to="/connects"
+          >
             Across all your connections
-          </p>
+          </NuxtLink>
         </section>
       </div>
 
@@ -140,6 +146,11 @@ function expenseDate(value: string): string {
   margin: 0;
   color: var(--color-muted);
   font-size: 0.95rem;
+}
+
+.dashboard-summary-link {
+  display: inline-block;
+  color: var(--color-primary);
 }
 
 .dashboard-expenses {
