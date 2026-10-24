@@ -9,7 +9,7 @@ use DateTimeImmutable;
 
 interface TransferRepositoryPort
 {
-    public function find(string $id): ?Transfer;
+    public function find(string $id, bool $forUpdate = false): ?Transfer;
 
     /** @return list<Transfer> */
     public function page(string $connectId, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array;
@@ -22,6 +22,8 @@ interface TransferRepositoryPort
     public function save(Transfer $transfer): void;
 
     public function updateShare(Transfer $transfer): void;
+
+    public function updateManual(Transfer $transfer): void;
 
     /** @return array<string,string> */
     public function sharesForDebt(string $debtId): array;

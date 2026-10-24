@@ -71,7 +71,7 @@ final class ManualTransferHttpTest extends WebTestCase
     }
 
     /** @param array<string,mixed>|null $body */
-    private function request(string $method, string $path, ?int $user = 0, ?array $body = null, ?string $key = null): void
+    private function request(string $method, string $path, ?int $user = 0, ?array $body = null, ?string $key = null, ?string $etag = null): void
     {
         $headers = null === $user ? [] : ['HTTP_AUTHORIZATION' => 'Bearer '.$this->access[$user]];
         if (null !== $body) {
@@ -79,6 +79,9 @@ final class ManualTransferHttpTest extends WebTestCase
         }
         if (null !== $key) {
             $headers['HTTP_IDEMPOTENCY_KEY'] = $key;
+        }
+        if (null !== $etag) {
+            $headers['HTTP_IF_MATCH'] = $etag;
         }
         $this->client->request($method, $path, server: $headers, content: null === $body ? null : json_encode($body, JSON_THROW_ON_ERROR));
     }
@@ -105,6 +108,15 @@ final class ManualTransferHttpTest extends WebTestCase
                 self::assertStringNotContainsString($id.'@example.test', $response);
             }
         }
+    }
+
+    /** @return array<string,mixed> */
+    private function createManual(): array
+    {
+        $this->request('POST', '/api/v1/connects/'.$this->connect().'/transfers', 0, $this->command(), Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+
+        return $this->body();
     }
 
     public function testBothDirectionsAuthorsReplayAndOverpayment(): void
@@ -230,5 +242,105 @@ final class ManualTransferHttpTest extends WebTestCase
         $body['senderId'] = $this->users[2];
         $this->request('POST', '/api/v1/connects/'.$this->connect(2).'/transfers', 0, $body, $key);
         $this->failure(409, 'IDEMPOTENCY_KEY_REUSED');
+    }
+
+    public function testUpdateSupportsAmountDirectionNoOpAndVersionCheckedBalance(): void
+    {
+        $manual = $this->createManual();
+        $path = '/api/v1/transfers/'.$manual['id'];
+        $update = ['senderId' => $this->users[0], 'receiverId' => $this->users[1], 'amount' => 900];
+        $this->request('PUT', $path, 0, $update, etag: '"1"');
+        self::assertResponseStatusCodeSame(200);
+        self::assertResponseHeaderSame('ETag', '"2"');
+        self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+        self::assertSame(2, $this->body()['version']);
+        self::assertSame(900, $this->body()['amount']);
+        self::assertSame($this->users[0], $this->body()['sender']['id']);
+        self::assertSame($this->users[1], $this->body()['receiver']['id']);
+        $this->request('GET', '/api/v1/connects/'.$this->connect(), 0);
+        self::assertSame(900, $this->body()['balanceAmount']);
+        $this->request('PUT', $path, 0, $update, etag: '"2"');
+        self::assertResponseStatusCodeSame(200);
+        self::assertResponseHeaderSame('ETag', '"2"');
+        $this->request('PUT', $path, 0, ['senderId' => $this->users[1], 'receiverId' => $this->users[0], 'amount' => 800], etag: '"1"');
+        $this->failure(409, 'VERSION_CONFLICT');
+        self::assertSame(['expectedVersion' => 1, 'actualVersion' => 2], $this->body()['error']['details']);
+        self::assertSame(2, (int) $this->db->fetchOne('SELECT version FROM transfer WHERE id=?', [$manual['id']]));
+    }
+
+    public function testDeleteSoftRemovesManualFromBalanceAndPreservesBothHistoryViews(): void
+    {
+        $manual = $this->createManual();
+        $path = '/api/v1/transfers/'.$manual['id'];
+        $this->request('DELETE', $path, 0, etag: '"1"');
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame('', $this->client->getResponse()->getContent());
+        self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+        foreach ([0, 1] as $viewer) {
+            $this->request('GET', $path, $viewer);
+            self::assertResponseStatusCodeSame(200);
+            self::assertResponseHeaderSame('ETag', '"2"');
+            self::assertTrue($this->body()['isDeleted']);
+            self::assertFalse($this->body()['canEdit']);
+            self::assertFalse($this->body()['canDelete']);
+            $this->request('GET', '/api/v1/connects/'.$this->connect(), $viewer);
+            self::assertSame(0, $this->body()['balanceAmount']);
+            $this->request('GET', '/api/v1/connects/'.$this->connect().'/transfers', $viewer);
+            self::assertCount(1, $this->body()['items']);
+            self::assertTrue($this->body()['items'][0]['isDeleted']);
+        }
+        $this->request('DELETE', $path, 0, etag: '"2"');
+        $this->failure(409, 'TRANSFER_DELETED');
+    }
+
+    public function testWritersEnforceAclActiveSidesOriginalPairAndAutomaticImmutability(): void
+    {
+        $manual = $this->createManual();
+        $path = '/api/v1/transfers/'.$manual['id'];
+        $update = ['senderId' => $this->users[0], 'receiverId' => $this->users[1], 'amount' => 900];
+        $this->request('PUT', $path, 1, $update, etag: '"1"');
+        $this->failure(403, 'FORBIDDEN');
+        $this->request('DELETE', $path, 3, etag: '"1"');
+        $this->failure(404, 'TRANSFER_NOT_AVAILABLE');
+        $wrongPair = ['senderId' => $this->users[0], 'receiverId' => $this->users[2], 'amount' => 900];
+        $this->request('PUT', $path, 0, $wrongPair, etag: '"1"');
+        $this->failure(422, 'VALIDATION_ERROR');
+        $this->db->executeStatement('UPDATE app_user SET is_active=false WHERE id=?', [$this->users[1]]);
+        $this->request('PUT', $path, 0, $update, etag: '"1"');
+        $this->failure(409, 'TRANSFER_FROZEN');
+        $this->db->executeStatement('UPDATE app_user SET is_active=true WHERE id=?', [$this->users[1]]);
+
+        $debt = ['title' => 'Automatic', 'description' => null, 'totalAmount' => 100, 'payerId' => $this->users[0], 'participantIds' => [$this->users[1]], 'includePayerInSplit' => false];
+        $this->request('POST', '/api/v1/debts', 0, $debt, Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $shareId = $this->body()['participants'][0]['transferId'];
+        self::assertIsString($shareId);
+        foreach (['PUT', 'DELETE'] as $method) {
+            $this->request($method, '/api/v1/transfers/'.$shareId, 0, 'PUT' === $method ? $update : null, etag: '"1"');
+            $this->failure(403, 'AUTOMATIC_TRANSFER_IMMUTABLE');
+        }
+        self::assertFalse((bool) $this->db->fetchOne('SELECT is_deleted FROM transfer WHERE id=?', [$manual['id']]));
+    }
+
+    public function testWritersRequireStrictIfMatchAndRejectDeferredOrUnknownFields(): void
+    {
+        $manual = $this->createManual();
+        $path = '/api/v1/transfers/'.$manual['id'];
+        $update = ['senderId' => $this->users[0], 'receiverId' => $this->users[1], 'amount' => 900];
+        foreach ([null, ''] as $etag) {
+            $this->request('PUT', $path, 0, $update, etag: $etag);
+            $this->failure(428, 'PRECONDITION_REQUIRED');
+        }
+        foreach (['1', 'W/"1"', '*', '"1","2"', '"0"', '"01"', '"2147483648"', '"1" garbage'] as $etag) {
+            $this->request('DELETE', $path, 0, etag: $etag);
+            $this->failure(400, 'INVALID_REQUEST');
+        }
+        foreach (['relatedTransferId' => null, 'createdById' => $this->users[0], 'version' => 1] as $field => $value) {
+            $this->request('PUT', $path, 0, [...$update, $field => $value], etag: '"1"');
+            $this->failure(400, 'INVALID_REQUEST');
+        }
+        $this->request('PUT', $path, null, $update, etag: '"1"');
+        $this->failure(401, 'AUTHENTICATION_REQUIRED');
+        self::assertSame(1, (int) $this->db->fetchOne('SELECT version FROM transfer WHERE id=?', [$manual['id']]));
     }
 }

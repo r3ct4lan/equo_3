@@ -44,6 +44,49 @@ final readonly class Transfer
         return new self($this->id, $this->connectId, $this->senderId, $this->receiverId, $amount, $this->type, null, $this->createdAt, $this->debtId, $this->debtParticipantId, null, $isDeleted, $this->version + 1);
     }
 
+    public function reviseManual(string $senderId, string $receiverId, int $amount, string $actorId, int $expectedVersion, bool $sidesActive): self
+    {
+        $this->assertManualChangeAllowed($actorId, $expectedVersion, $sidesActive);
+        $oldSides = [$this->senderId, $this->receiverId];
+        $newSides = [$senderId, $receiverId];
+        sort($oldSides, SORT_STRING);
+        sort($newSides, SORT_STRING);
+        if ($oldSides !== $newSides || $senderId === $receiverId) {
+            throw new ManualTransferRejected(ManualTransferFailure::InvalidSides);
+        }
+        if ($this->senderId === $senderId && $this->receiverId === $receiverId && $this->amount === $amount) {
+            return $this;
+        }
+
+        return new self($this->id, $this->connectId, $senderId, $receiverId, $amount, $this->type, $this->createdById, $this->createdAt, null, null, $this->relatedTransferId, false, $this->version + 1);
+    }
+
+    public function removeManual(string $actorId, int $expectedVersion, bool $sidesActive): self
+    {
+        $this->assertManualChangeAllowed($actorId, $expectedVersion, $sidesActive);
+
+        return new self($this->id, $this->connectId, $this->senderId, $this->receiverId, $this->amount, $this->type, $this->createdById, $this->createdAt, null, null, $this->relatedTransferId, true, $this->version + 1);
+    }
+
+    private function assertManualChangeAllowed(string $actorId, int $expectedVersion, bool $sidesActive): void
+    {
+        if ('MANUAL' !== $this->type) {
+            throw new ManualTransferRejected(ManualTransferFailure::Automatic);
+        }
+        if ($actorId !== $this->createdById) {
+            throw new ManualTransferRejected(ManualTransferFailure::Forbidden);
+        }
+        if ($this->isDeleted) {
+            throw new ManualTransferRejected(ManualTransferFailure::Deleted);
+        }
+        if (!$sidesActive) {
+            throw new ManualTransferRejected(ManualTransferFailure::Frozen);
+        }
+        if ($expectedVersion !== $this->version) {
+            throw new ManualTransferRejected(ManualTransferFailure::VersionConflict);
+        }
+    }
+
     public function assertConnectSides(string $first, string $second): void
     {
         if ($first === $second || !in_array($this->senderId, [$first, $second], true) || !in_array($this->receiverId, [$first, $second], true)) {

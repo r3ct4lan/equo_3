@@ -88,6 +88,12 @@ services:
     test.create_manual_transfer:
         alias: App\Transfers\Application\CreateManualTransfer
         public: true
+    test.update_manual_transfer:
+        alias: App\Transfers\Application\UpdateManualTransfer
+        public: true
+    test.delete_manual_transfer:
+        alias: App\Transfers\Application\DeleteManualTransfer
+        public: true
 
     test.update_debt:
         alias: App\Debts\Application\UpdateDebt

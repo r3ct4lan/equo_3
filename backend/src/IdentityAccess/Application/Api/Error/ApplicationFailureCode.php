@@ -29,6 +29,9 @@ enum ApplicationFailureCode: string
     case TransferNotAvailable = 'TRANSFER_NOT_AVAILABLE';
     case DebtFrozen = 'DEBT_FROZEN';
     case DebtDeleted = 'DEBT_DELETED';
+    case AutomaticTransferImmutable = 'AUTOMATIC_TRANSFER_IMMUTABLE';
+    case TransferFrozen = 'TRANSFER_FROZEN';
+    case TransferDeleted = 'TRANSFER_DELETED';
     case VersionConflict = 'VERSION_CONFLICT';
     case PreconditionRequired = 'PRECONDITION_REQUIRED';
     case Forbidden = 'FORBIDDEN';
