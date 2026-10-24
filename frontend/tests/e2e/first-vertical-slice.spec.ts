@@ -2116,6 +2116,84 @@ test('debt editing recalculates all shares, restores history and rejects a stale
   }
 })
 
+test('expense removal drops automatic shares while preserving payment history and a read-only direct view', async ({ page, request }) => {
+  test.setTimeout(120_000)
+  const authorEmail = await createActiveUser(request, uniqueEmail('remove-author'))
+  const peerEmail = await createActiveUser(request, uniqueEmail('remove-peer'))
+  const authorAccess = await login(page, authorEmail)
+  const peerAccess = await loginViaApi(request, peerEmail)
+  const profile = async (access: string) => {
+    const response = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + access } })
+    expect(response.status()).toBe(200)
+    return (await response.json() as { id: string }).id
+  }
+  const authorId = await profile(authorAccess)
+  const peerId = await profile(peerAccess)
+  const invited = await request.post(baseUrl + '/api/v1/connect-invitations', {
+    headers: { 'Authorization': 'Bearer ' + authorAccess, 'X-Forwarded-For': nextForwardedFor() }
+  })
+  expect(invited.status()).toBe(200)
+  const token = (await invited.json() as { token: string }).token
+  const accepted = await request.post(baseUrl + '/api/v1/connect-invitations/' + token + '/accept', {
+    headers: { 'Authorization': 'Bearer ' + peerAccess, 'X-Forwarded-For': nextForwardedFor() }
+  })
+  expect(accepted.status()).toBe(201)
+  const connectId = (await accepted.json() as { id: string }).id
+  const title = 'Removed dinner ' + Date.now()
+  const created = await request.post(baseUrl + '/api/v1/debts', {
+    headers: { 'Authorization': 'Bearer ' + authorAccess, 'Idempotency-Key': randomUUID() },
+    data: { title, description: 'Keep this historical context', totalAmount: 501, payerId: authorId, participantIds: [peerId], includePayerInSplit: false }
+  })
+  expect(created.status()).toBe(201)
+  const debt = await created.json() as { id: string, participants: Array<{ user: { id: string }, transferId: string | null }> }
+  const shareId = debt.participants.find(participant => participant.user.id === peerId)?.transferId
+  expect(typeof shareId).toBe('string')
+  const payment = await request.post(baseUrl + '/api/v1/connects/' + connectId + '/transfers', {
+    headers: { 'Authorization': 'Bearer ' + peerAccess, 'Idempotency-Key': randomUUID() },
+    data: { senderId: peerId, receiverId: authorId, amount: 100 }
+  })
+  expect(payment.status()).toBe(201)
+  const paymentId = (await payment.json() as { id: string }).id
+
+  const debtPath = '/api/v1/debts/' + debt.id
+  await page.goto('/debts/' + debt.id)
+  await waitForNuxtHydration(page)
+  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible()
+  let deleteCommands = 0
+  page.on('request', sent => {
+    if (sent.method() === 'DELETE' && new URL(sent.url()).pathname === debtPath) ++deleteCommands
+  })
+  await page.getByRole('button', { name: 'Remove expense', exact: true }).click()
+  await expect(page.getByRole('alertdialog')).toContainText('This cannot be undone')
+  expect(deleteCommands).toBe(0)
+  const removed = page.waitForResponse(response => response.request().method() === 'DELETE' && new URL(response.url()).pathname === debtPath)
+  await page.getByRole('button', { name: 'Yes, remove expense', exact: true }).click()
+  const removedResponse = await removed
+  expect(removedResponse.status()).toBe(204)
+  expect(removedResponse.request().headers()['if-match']).toBe('"1"')
+  await expect(page.getByText('Removed expense · the saved participant list is shown below.', { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Edit expense', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Remove expense', exact: true })).toHaveCount(0)
+  expect(deleteCommands).toBe(1)
+  await page.goto('/debts')
+  await expect(page.getByRole('link', { name: title, exact: true })).toHaveCount(0)
+
+  const peerDebt = await request.get(baseUrl + debtPath, { headers: { Authorization: 'Bearer ' + peerAccess } })
+  expect(peerDebt.status()).toBe(200)
+  expect(peerDebt.headers()['etag']).toBe('"2"')
+  const peerDebtBody = await peerDebt.json() as { isDeleted: boolean, canEdit: boolean, canDelete: boolean, participantCount: number }
+  expect(peerDebtBody).toMatchObject({ isDeleted: true, canEdit: false, canDelete: false, participantCount: 1 })
+  const peerConnect = await request.get(baseUrl + '/api/v1/connects/' + connectId, { headers: { Authorization: 'Bearer ' + peerAccess } })
+  expect(peerConnect.status()).toBe(200)
+  expect((await peerConnect.json() as { balanceAmount: number }).balanceAmount).toBe(100)
+  const history = await request.get(baseUrl + '/api/v1/connects/' + connectId + '/transfers', { headers: { Authorization: 'Bearer ' + peerAccess } })
+  expect(history.status()).toBe(200)
+  const operations = (await history.json() as { items: Array<{ id: string, isDeleted: boolean }> }).items
+  expect(operations.find(operation => operation.id === shareId)?.isDeleted).toBe(true)
+  expect(operations.find(operation => operation.id === paymentId)?.isDeleted).toBe(false)
+  await expectNoPersistentSecrets(page, [authorAccess, peerAccess, testPassword])
+})
+
 test('home dashboard separates debts, shows five recent expenses and clears on logout', async ({ page, request }, testInfo) => {
   test.setTimeout(150_000)
   const apiPaths: string[] = []

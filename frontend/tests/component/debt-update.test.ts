@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EditDebtForm from '../../app/components/EditDebtForm.vue'
+import DeleteDebtForm from '../../app/components/DeleteDebtForm.vue'
 import EditPage from '../../app/pages/debts/[id]/edit.vue'
 import DebtCard from '../../app/pages/debts/[id]/index.vue'
 import { ApiClientError } from '../../app/utils/api-error'
@@ -172,6 +173,67 @@ describe('debt editing and actual response ETag', () => {
     signedIn('member')
     await flushPromises()
     expect(wrapper.find('a[href="/debts/debt/edit"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('debt removal', () => {
+  beforeEach(() => {
+    auth.protectedRequest.mockReset().mockResolvedValue(undefined)
+    signedIn()
+  })
+
+  it('requires a separate confirmation, supports cancel and sends one version-checked DELETE', async () => {
+    let resolve: (value?: unknown) => void = () => undefined
+    auth.protectedRequest.mockImplementation((_path, requestOptions) => new Promise((done) => {
+      requestOptions?.onResponse?.({ response: { status: 204 } })
+      resolve = done
+    }))
+    const wrapper = await mountSuspended(DeleteDebtForm, { props: { debtId: 'debt/unsafe', etag: '"7"' } })
+    await wrapper.get('button').trigger('click')
+    expect(auth.protectedRequest).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alertdialog"]').text()).toContain('cannot be undone')
+    await wrapper.findAll('button').find(button => button.text().includes('Keep expense'))!.trigger('click')
+    expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
+    await wrapper.get('button').trigger('click')
+    const confirm = wrapper.findAll('button').find(button => button.text().includes('Yes, remove expense'))!
+    await confirm.trigger('click')
+    await confirm.trigger('click')
+    expect(auth.protectedRequest).toHaveBeenCalledTimes(1)
+    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/debts/debt%2Funsafe', expect.objectContaining({ method: 'DELETE', headers: { 'If-Match': '"7"' } }))
+    resolve()
+    await flushPromises()
+    expect(wrapper.emitted('removed')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it.each([
+    [409, 'VERSION_CONFLICT', 'Someone changed this expense'],
+    [null, 'NETWORK_ERROR', 'The result is not confirmed'],
+    [409, 'DEBT_FROZEN', 'This expense can no longer be removed']
+  ])('blocks %s/%s until an explicit reload', async (status, code, message) => {
+    auth.protectedRequest.mockRejectedValue(new ApiClientError({ kind: status === null ? 'network' : 'api', status: status as number | null, code: code as string, message: 'Internal detail' }))
+    const wrapper = await mountSuspended(DeleteDebtForm, { props: { debtId: 'debt', etag: '"7"' } })
+    await wrapper.get('button').trigger('click')
+    await wrapper.findAll('button').find(button => button.text().includes('Yes, remove expense'))!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain(message)
+    expect(wrapper.text()).not.toContain('Internal detail')
+    await wrapper.findAll('button').find(button => button.text().includes('Reload expense'))!.trigger('click')
+    expect(wrapper.emitted('reload')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('rejects an unexpected successful status as an unconfirmed removal', async () => {
+    auth.protectedRequest.mockImplementation(async (_path, requestOptions) => {
+      requestOptions?.onResponse?.({ response: { status: 200 } })
+    })
+    const wrapper = await mountSuspended(DeleteDebtForm, { props: { debtId: 'debt', etag: '"7"' } })
+    await wrapper.get('button').trigger('click')
+    await wrapper.findAll('button').find(button => button.text().includes('Yes, remove expense'))!.trigger('click')
+    await flushPromises()
+    expect(wrapper.emitted('removed')).toBeUndefined()
+    expect(wrapper.findAll('button').some(button => button.text().includes('Reload expense'))).toBe(true)
     wrapper.unmount()
   })
 })

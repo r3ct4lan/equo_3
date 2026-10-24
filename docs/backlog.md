@@ -253,18 +253,31 @@ unit/component, lint/typecheck/build прошли. В изолированном
 
 Зависимости: создание и изменение долгов.
 
-- [ ] `DR-SH-014-01` — реализовать
+- [x] `DR-SH-014-01` — реализовать
   `DELETE /debts/{debtId}` с `If-Match`.
-- [ ] `DR-SH-014-02` — применить те же author/freeze preconditions, что у
+- [x] `DR-SH-014-02` — применить те же author/freeze preconditions, что у
   update.
-- [ ] `DR-SH-014-03` — атомарно soft-delete Debt и active `DEBT_SHARE`,
+- [x] `DR-SH-014-03` — атомарно soft-delete Debt и active `DEBT_SHARE`,
   сохранив MANUAL.
-- [ ] `DR-SH-014-04` — зафиксировать состав на момент удаления и read-only
+- [x] `DR-SH-014-04` — зафиксировать состав на момент удаления и read-only
   прямую карточку.
-- [ ] `DR-SH-014-05` — исключить Debt из list, но сохранить transfers в
+- [x] `DR-SH-014-05` — исключить Debt из list, но сохранить transfers в
   history и пересчитать balance.
-- [ ] `DR-SH-014-06` — не добавлять restore/archive; покрыть ACL,
+- [x] `DR-SH-014-06` — не добавлять restore/archive; покрыть ACL,
   concurrency и E2E.
+
+Технически завершено 2026-10-25 в накопительной ветке `codex/backlog`.
+Удаление требует актуальный strong `If-Match`, доступно только активному автору
+при активном плательщике и одной транзакцией помечает Debt и все его
+`DEBT_SHARE` удалёнными. Состав фиксируется, `MANUAL` не меняются, баланс
+пересчитывается только по оставшимся активным transfers. Долг исчезает из
+списка, но остаётся доступным прежним участникам по прямой ссылке как read-only
+история; restore/archive не добавлены. UI требует отдельного необратимого
+подтверждения и при неопределённом результате или конфликте версии блокирует
+повтор до reload. Прошли backend quality и 63 профильных теста / 593 assertions,
+16 frontend component tests, frontend lint/typecheck/build и изолированный
+browser E2E полного сценария удаления. Итоговый полный GitHub Actions gate
+остаётся общим для накопительной ветки перед слиянием в `main`.
 
 ### SH-017 — изменение и удаление MANUAL (`MVP-SC-017`)
 

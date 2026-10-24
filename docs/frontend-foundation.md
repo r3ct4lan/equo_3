@@ -427,6 +427,14 @@ Connect list/card показывает signed balance один раз в стр�
 суммы объясняет `They owe you`, `You owe them` или `You are settled up` (`MT-010`).
 История различает DEBT_SHARE/MANUAL, active/removed и safe недоступный Debt.
 
+Для `MVP-SC-014` автор видит на прямой карточке активного расхода отдельное
+двухшаговое действие Remove expense. Команда использует только ETag фактического
+GET и отправляет DELETE с If-Match. Успех принимается только как 204, после чего
+карточка перезагружается как read-only removed expense. Version conflict,
+неопределённый network/5xx результат и terminal state блокируют повтор до явного
+reload; необратимое действие не выполняется при первом нажатии. Удалённый расход
+не показывается в списке, но прямые ссылки из истории продолжают работать.
+
 CreateDebtForm содержит title, description, EUR amount, payer, participants и
 payer-in-split. Decimal string преобразуется через BigInt в cents без float;
 разрешены dot/comma, до двух знаков, storage range 1—2147483647. Preview использует

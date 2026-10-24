@@ -319,6 +319,15 @@ nav {
   background: #f2f5fa;
 }
 
+.button--danger {
+  border-color: var(--color-error);
+  background: var(--color-error);
+}
+
+.button--danger:hover:not(:disabled) {
+  background: #8f1c13;
+}
+
 .form-fields {
   min-width: 0;
 }

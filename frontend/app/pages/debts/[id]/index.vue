@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { DebtView } from '~/types/finance'
 import { formatEuro } from '~/utils/money'
+import { validDebtEtag } from '~/utils/debt-update'
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Expense · Equo' })
 const route = useRoute()
 const { state } = useCurrentUser()
-const { item: debt, pending, error, load } = useFinancialDetail<DebtView>(() => '/v1/debts/' + encodeURIComponent(String(route.params.id)))
+const { item: debt, etag, pending, error, load } = useFinancialDetail<DebtView>(() => '/v1/debts/' + encodeURIComponent(String(route.params.id)))
 </script>
 
 <template>
@@ -45,6 +46,13 @@ const { item: debt, pending, error, load } = useFinancialDetail<DebtView>(() => 
         class="button"
         :to="'/debts/' + debt.id + '/edit'"
       >Edit expense</NuxtLink>
+      <DeleteDebtForm
+        v-if="debt.canDelete && !debt.isDeleted && debt.createdBy.id === state.user?.id && etag && validDebtEtag(etag)"
+        :debt-id="debt.id"
+        :etag="etag"
+        @removed="load"
+        @reload="load"
+      />
       <h2>Participants</h2>
       <ul class="stack">
         <li
