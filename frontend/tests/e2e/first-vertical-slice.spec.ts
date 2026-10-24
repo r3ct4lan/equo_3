@@ -2160,7 +2160,7 @@ test('expense removal drops automatic shares while preserving payment history an
   await waitForNuxtHydration(page)
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible()
   let deleteCommands = 0
-  page.on('request', sent => {
+  page.on('request', (sent) => {
     if (sent.method() === 'DELETE' && new URL(sent.url()).pathname === debtPath) ++deleteCommands
   })
   await page.getByRole('button', { name: 'Remove expense', exact: true }).click()
