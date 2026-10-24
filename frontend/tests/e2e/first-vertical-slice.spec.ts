@@ -1687,9 +1687,10 @@ test('financial expense survives a lost create response, updates both balances a
     expect(typeof transferId === 'string').toBe(true)
     await page.getByRole('link', { name: 'Expenses', exact: true }).click()
     await expect(page.getByRole('link', { name: title, exact: true })).toHaveCount(1)
-    for (const [viewer, expected] of [[page, 'They owe you €5.01.'], [recipient, 'You owe them €5.01.']] as const) {
+    for (const [viewer, balance, meaning] of [[page, 'Balance: €5.01', 'They owe you.'], [recipient, 'Balance: -€5.01', 'You owe them.']] as const) {
       await viewer.goto('/connects/' + connectId)
-      await expect(viewer.getByText(expected, { exact: true })).toBeVisible()
+      await expect(viewer.getByText(balance, { exact: true })).toBeVisible()
+      await expect(viewer.getByText(meaning, { exact: true })).toBeVisible()
       await expect(viewer.getByRole('link', { name: title, exact: true })).toBeVisible()
       await viewer.getByRole('link', { name: 'Expense share · €5.01', exact: true }).click()
       await expect(viewer.getByRole('heading', { name: 'Expense share · €5.01', exact: true })).toBeVisible()
@@ -1750,7 +1751,8 @@ test('manual payment survives a lost response and refreshes both histories after
     await expect(page).toHaveURL(/\/debts\/[0-9a-f-]{36}$/u)
     await page.goto('/connects/' + connectId)
     await waitForNuxtHydration(page)
-    await expect(page.getByText('They owe you €5.01.', { exact: true })).toBeVisible()
+    await expect(page.getByText('Balance: €5.01', { exact: true })).toBeVisible()
+    await expect(page.getByText('They owe you.', { exact: true })).toBeVisible()
     await page.getByLabel('Who transferred money?', { exact: true }).selectOption('other')
     await page.getByLabel('Payment amount in EUR', { exact: true }).fill('7.00')
     await expect(page.getByText(/Expected balance: -€1.99/u)).toBeVisible()
@@ -1787,12 +1789,14 @@ test('manual payment survives a lost response and refreshes both histories after
     const payment = await replay.json() as { id: string }
     expect(payment.id).toBe(transferId)
     await expect(page.getByText('Payment recorded.', { exact: true })).toBeVisible()
-    await expect(page.getByText('You owe them €1.99.', { exact: true })).toBeVisible()
+    await expect(page.getByText('Balance: -€1.99', { exact: true })).toBeVisible()
+    await expect(page.getByText('You owe them.', { exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Payment · €7.00', exact: true })).toHaveCount(1)
     expect(commands).toBe(2)
     for (const [viewer, expected] of [[page, -199], [other, 199]] as const) {
       await viewer.goto('/connects/' + connectId)
-      await expect(viewer.getByText(expected < 0 ? 'You owe them €1.99.' : 'They owe you €1.99.', { exact: true })).toBeVisible()
+      await expect(viewer.getByText(expected < 0 ? 'Balance: -€1.99' : 'Balance: €1.99', { exact: true })).toBeVisible()
+      await expect(viewer.getByText(expected < 0 ? 'You owe them.' : 'They owe you.', { exact: true })).toBeVisible()
       await expect(viewer.getByRole('link', { name: 'Expense share · €5.01', exact: true })).toBeVisible()
       await viewer.getByRole('link', { name: 'Payment · €7.00', exact: true }).click()
       await expect(viewer.getByRole('heading', { name: 'Payment · €7.00', exact: true })).toBeVisible()
@@ -1894,10 +1898,12 @@ test('debt editing recalculates all shares, restores history and rejects a stale
     await expect(member.getByText('Removed · does not affect the balance', { exact: true })).toBeVisible()
     await expect(member.getByRole('link', { name: title, exact: true })).toHaveCount(0)
     await member.goto('/connects/' + originalShare.connectId)
+    await expect(member.getByText('Balance: €0.00', { exact: true })).toBeVisible()
     await expect(member.getByText('You are settled up.', { exact: true })).toBeVisible()
     await expect(member.getByRole('link', { name: 'Expense share · €3.34', exact: true })).toBeVisible()
     await payer.goto('/connects/' + authorPayerConnect)
-    await expect(payer.getByText('They owe you €11.01.', { exact: true })).toBeVisible()
+    await expect(payer.getByText('Balance: €11.01', { exact: true })).toBeVisible()
+    await expect(payer.getByText('They owe you.', { exact: true })).toBeVisible()
     let staleCommands = 0
     staleEditor.on('request', (sent) => {
       if (sent.method() === 'PUT' && new URL(sent.url()).pathname === debtPath) ++staleCommands
@@ -1935,13 +1941,15 @@ test('debt editing recalculates all shares, restores history and rejects a stale
       await expect(viewer.getByText('3 people · €4.34 each', { exact: true })).toBeVisible()
       await expect(viewer.getByRole('link', { name: 'Edit expense', exact: true })).toHaveCount(0)
     }
-    for (const [viewer, expected] of [[payer, 'They owe you €4.34.'], [member, 'You owe them €4.34.']] as const) {
+    for (const [viewer, balance, meaning] of [[payer, 'Balance: €4.34', 'They owe you.'], [member, 'Balance: -€4.34', 'You owe them.']] as const) {
       await viewer.goto('/connects/' + originalShare.connectId)
-      await expect(viewer.getByText(expected, { exact: true })).toBeVisible()
+      await expect(viewer.getByText(balance, { exact: true })).toBeVisible()
+      await expect(viewer.getByText(meaning, { exact: true })).toBeVisible()
       await expect(viewer.getByRole('link', { name: 'Expense share · €4.34', exact: true })).toHaveCount(1)
     }
     await page.goto('/connects/' + authorPayerConnect)
-    await expect(page.getByText('You owe them €3.34.', { exact: true })).toBeVisible()
+    await expect(page.getByText('Balance: -€3.34', { exact: true })).toBeVisible()
+    await expect(page.getByText('You owe them.', { exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Expense share · €4.34', exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Payment · €1.00', exact: true })).toBeVisible()
     await expectNoPersistentSecrets(page, [authorAccess, payerAccess, memberAccess, testPassword])

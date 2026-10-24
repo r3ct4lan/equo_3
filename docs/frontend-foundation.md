@@ -393,8 +393,10 @@ hydration, не сериализуя capability. Страницы имеют no-
 
 Защищённые /debts, /debts/new, /debts/[id], /transfers/[id] используют
 существующие auth middleware и $auth.protectedRequest. Expenses добавлен в nav.
-Connect list/card показывает signed balance и объясняет, кто кому должен;
-история различает DEBT_SHARE/MANUAL, active/removed и safe недоступный Debt.
+Connect list/card показывает signed balance один раз в строке `Balance`: положительный
+зелёным, отрицательный красным, нулевой нейтрально. Отдельная подпись без повтора
+суммы объясняет `They owe you`, `You owe them` или `You are settled up` (`MT-010`).
+История различает DEBT_SHARE/MANUAL, active/removed и safe недоступный Debt.
 
 CreateDebtForm содержит title, description, EUR amount, payer, participants и
 payer-in-split. Decimal string преобразуется через BigInt в cents без float;
