@@ -83,4 +83,9 @@ class UserRecord
     {
         $this->passwordHash = $passwordHash;
     }
+
+    public function rename(string $name): void
+    {
+        $this->name = $name;
+    }
 }

@@ -111,6 +111,46 @@ final class MeHttpTest extends WebTestCase
         self::assertArrayNotHasKey('name', $inactive);
     }
 
+    public function testPatchMeChangesOnlyNameAndReturnsFreshProfile(): void
+    {
+        $userId = '87000000-0000-4000-8000-000000000306';
+        $this->insertUser($userId, 'Old Name', 'rename@example.test', true, 'Correct password!');
+        $login = $this->login('rename@example.test');
+        $sessionCount = $this->countSessions();
+
+        $body = $this->patchMe($login['accessToken'], ['name' => '  New Name 😀  ']);
+
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('  New Name 😀  ', $body['name']);
+        self::assertSame('rename@example.test', $body['email']);
+        self::assertSame('  New Name 😀  ', $this->connection->fetchOne('SELECT name FROM app_user WHERE id = ?', [$userId]));
+        self::assertSame($sessionCount, $this->countSessions());
+        self::assertSame([], $this->client->getResponse()->headers->getCookies());
+    }
+
+    #[DataProvider('invalidNameProvider')]
+    public function testPatchMeValidatesNameWithoutChangingProfile(array $payload, int $status, string $code): void
+    {
+        $userId = '87000000-0000-4000-8000-000000000307';
+        $this->insertUser($userId, 'Stable Name', 'rename-validation@example.test', true, 'Correct password!');
+        $login = $this->login('rename-validation@example.test');
+
+        $body = $this->patchMe($login['accessToken'], $payload);
+
+        self::assertResponseStatusCodeSame($status);
+        self::assertSame($code, $body['error']['code']);
+        self::assertSame('Stable Name', $this->connection->fetchOne('SELECT name FROM app_user WHERE id = ?', [$userId]));
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, int, string}> */
+    public static function invalidNameProvider(): iterable
+    {
+        yield 'missing' => [[], 422, 'VALIDATION_ERROR'];
+        yield 'blank' => [['name' => '   '], 422, 'VALIDATION_ERROR'];
+        yield 'wrong type' => [['name' => 123], 422, 'VALIDATION_ERROR'];
+        yield 'unsupported field' => [['name' => 'New', 'email' => 'new@example.test'], 400, 'INVALID_REQUEST'];
+    }
+
     #[DataProvider('invalidAuthorizationProvider')]
     public function testMeAuthenticationFailuresUseOneSafe401(?string $authorization): void
     {
@@ -244,6 +284,19 @@ final class MeHttpTest extends WebTestCase
         }
 
         $this->client->request('GET', '/api/v1/me', server: $server);
+
+        return $this->jsonBody();
+    }
+
+    /** @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function patchMe(string $accessToken, array $payload): array
+    {
+        $this->client->request('PATCH', '/api/v1/me', server: [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer '.$accessToken,
+        ], content: json_encode($payload, JSON_THROW_ON_ERROR));
 
         return $this->jsonBody();
     }

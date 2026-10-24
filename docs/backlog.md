@@ -200,7 +200,7 @@
 
 Зависимости: auth/session, security lifecycle и email delivery.
 
-- [ ] `DR-SH-006-01` — реализовать `PATCH /me` для имени.
+- [x] `DR-SH-006-01` — реализовать `PATCH /me` для имени.
 - [ ] `DR-SH-006-02` — реализовать
   `POST /account/email-change-requests` с current password.
 - [ ] `DR-SH-006-03` — сохранить новый email только в server-side payload
