@@ -79,6 +79,11 @@ class UserRecord
         $this->isActive = true;
     }
 
+    public function deactivate(): void
+    {
+        $this->isActive = false;
+    }
+
     public function replacePasswordHash(string $passwordHash): void
     {
         $this->passwordHash = $passwordHash;

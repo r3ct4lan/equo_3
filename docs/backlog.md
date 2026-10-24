@@ -226,13 +226,13 @@ gate остаётся общим для накопительной ветки п
 
 Зависимости: auth/session, Connect и сохранённая финансовая история.
 
-- [ ] `DR-SH-007-01` — реализовать `POST /account/deactivate` с current
+- [x] `DR-SH-007-01` — реализовать `POST /account/deactivate` с current
   password.
-- [ ] `DR-SH-007-02` — атомарно установить `isActive=false` и отозвать все
+- [x] `DR-SH-007-02` — атомарно установить `isActive=false` и отозвать все
   sessions.
-- [ ] `DR-SH-007-03` — блокировать новые financial commands немедленно.
-- [ ] `DR-SH-007-04` — сохранить Connect, history и balance для других сторон.
-- [ ] `DR-SH-007-05` — использовать activation-request flow для реактивации
+- [x] `DR-SH-007-03` — блокировать новые financial commands немедленно.
+- [x] `DR-SH-007-04` — сохранить Connect, history и balance для других сторон.
+- [x] `DR-SH-007-05` — использовать activation-request flow для реактивации
   без восстановления старых sessions.
 - [ ] `DR-SH-007-06` — покрыть freeze/visibility/reactivation E2E.
 

@@ -2,10 +2,10 @@
 
 | Поле | Значение |
 |---|---|
-| Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle, logout, password reset/change и `/me` |
+| Назначение | Описать реализованную модель доступа регистрации, активации, login, refresh rotation, browser session lifecycle, logout, password reset/change, деактивации и `/me` |
 | Статус | Accepted |
-| Версия | 18 |
-| Дата актуальности | 2026-10-21 |
+| Версия | 19 |
+| Дата актуальности | 2026-10-24 |
 | Владелец | Maksim Smolkov |
 | Источник | BR-USR-001—003/007/009; BR-SEC-003—007; ADR-006/007/012/014—018/020/021; HTTP-контракты; фактическая реализация |
 
@@ -22,6 +22,7 @@ refresh/retry для подходящего `401` защищённого зап�
 ротирует refresh token и выдаёт новый access token без продления срока сессии.
 Stateless Bearer firewall защищает `GET /api/v1/me`,
 `POST /api/v1/auth/logout-all`, `POST /api/v1/account/password-change`,
+`POST /api/v1/account/deactivate`,
 создание/принятие приглашения и чтение Connect. Current logout использует optional refresh
 cookie с same-origin/CSRF guard. Финансовые protected endpoints ещё не реализованы.
 Текущий этап не добавляет временный bearer header, hardcoded пользователя,
@@ -46,6 +47,7 @@ cookie с same-origin/CSRF guard. Финансовые protected endpoints ещ�
 | Любой клиент | `POST /api/v1/auth/password-reset-requests` | Запрос recovery | Public email validation и quotas; neutral 202 | `422 VALIDATION_ERROR`, `429 RATE_LIMIT_EXCEEDED` |
 | Предъявитель token | `POST /api/v1/auth/password-reset` | Password и sessions владельца | Purpose RESET_PASSWORD, current lifecycle; active/inactive допускаются | `400 INVALID_TOKEN`, соответствующий `410`, `422`, `429` |
 | Authenticated user | `POST /api/v1/account/password-change` | Собственные password и sessions | Strict Bearer, fresh active User/currentPassword под User lock; общая новая policy | `401 AUTHENTICATION_REQUIRED` с Bearer challenge, `401 INVALID_CREDENTIALS`, `422 VALIDATION_ERROR`; cookies только на успехе |
+| Authenticated user | `POST /api/v1/account/deactivate` | Собственный `User` и все sessions | Strict Bearer; fresh active User/currentPassword под User lock; `isActive=false` и bulk revoke атомарны | `401 AUTHENTICATION_REQUIRED` с Bearer challenge, `401 INVALID_CREDENTIALS`, `422 VALIDATION_ERROR`; cookies только на успехе |
 | Authenticated user | `PATCH /api/v1/me` | Собственное отображаемое имя | Strict Bearer, active User под User lock; непустое имя | `401 AUTHENTICATION_REQUIRED`, `422 VALIDATION_ERROR` |
 | Authenticated user | `POST /api/v1/account/email-change-requests` | Новый email и `CHANGE_EMAIL` | Strict Bearer, fresh active User/currentPassword, уникальный normalized email, quota 3/час | `401 AUTHENTICATION_REQUIRED`, `401 INVALID_CREDENTIALS`, `409 EMAIL_ALREADY_IN_USE`, `422`, `429` |
 | Предъявитель token | `POST /api/v1/auth/email-change-confirmations` | Email владельца токена | Purpose `CHANGE_EMAIL`, current lifecycle, повторная уникальность; sessions сохраняются | `400 INVALID_TOKEN`, соответствующий `410`, `409 EMAIL_ALREADY_IN_USE`, `429` |
@@ -108,6 +110,15 @@ Login также сериализуется по User перед создани�
 revoke сохраняют первый timestamp; rollback атомарен. Successful `204` очищает
 обе cookies, ошибки их не меняют. JWT blacklist отсутствует: выданный access
 token действует до `exp`. Полный контракт — [SC-003](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/logout-session-revocation.md).
+
+Деактивация использует тот же порядок блокировок `User -> UserSession`: под
+блокировкой повторно проверяются active state и текущий пароль, затем в одной
+транзакции устанавливается `isActive=false` и отзываются все незавершённые
+refresh sessions. После commit даже ранее выданный JWT отклоняется при fresh
+lookup пользователя. Команда не изменяет Connect, Debt, DebtParticipant или
+Transfer. Реактивация выполняется существующим публично нейтральным activation
+request и явным подтверждением `ACTIVATE_ACCOUNT`; оно создаёт одну новую
+session, а отозванные записи остаются отозванными.
 
 ## 4. Object authorization activation token
 
