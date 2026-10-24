@@ -7,6 +7,10 @@ namespace App\Tests\Fixture\Concurrency;
 use App\IdentityAccess\Application\Activate\ActivateAccount;
 use App\IdentityAccess\Application\Activate\ActivateCommand;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
+use App\IdentityAccess\Application\EmailChange\ConfirmEmailChange;
+use App\IdentityAccess\Application\EmailChange\EmailChangeConfirmationCommand;
+use App\IdentityAccess\Application\EmailChange\EmailChangeRequestCommand;
+use App\IdentityAccess\Application\EmailChange\RequestEmailChange;
 use App\IdentityAccess\Application\Login\LoginCommand;
 use App\IdentityAccess\Application\Login\LoginUser;
 use App\IdentityAccess\Application\Logout\LogoutAllSessions;
@@ -39,7 +43,7 @@ use Throwable;
 
 final class SessionCommandRunner
 {
-    /** @param array{operation: string, user: string, refresh: string, csrf: string, token?: string, newPassword?: string} $input */
+    /** @param array{operation: string, user: string, refresh: string, csrf: string, token?: string, newPassword?: string, newEmail?: string} $input */
     public static function perform(TestContainer $container, array $input): string
     {
         $identities = $container->get(IdentityRepositoryPort::class);
@@ -65,6 +69,12 @@ final class SessionCommandRunner
                     break;
                 case 'reset':
                     $container->get(ResetPassword::class)->handle(new ResetPasswordCommand($input['token'] ?? '', $input['newPassword'] ?? 'New password!', '192.0.2.81'));
+                    break;
+                case 'request-email-change':
+                    $container->get(RequestEmailChange::class)->handle(new EmailChangeRequestCommand($input['user'], 'Correct password!', $input['newEmail'] ?? 'new-'.$input['user'].'@example.test'));
+                    break;
+                case 'confirm-email-change':
+                    $container->get(ConfirmEmailChange::class)->handle(new EmailChangeConfirmationCommand($input['token'] ?? '', '192.0.2.84'));
                     break;
                 case 'request-reset':
                     $container->get(RequestPasswordReset::class)->handle(new PasswordResetRequestCommand($input['user'].'@example.test', '192.0.2.82'));

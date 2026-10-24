@@ -128,6 +128,7 @@ final class MeHttpTest extends WebTestCase
         self::assertSame([], $this->client->getResponse()->headers->getCookies());
     }
 
+    /** @param array<string, mixed> $payload */
     #[DataProvider('invalidNameProvider')]
     public function testPatchMeValidatesNameWithoutChangingProfile(array $payload, int $status, string $code): void
     {

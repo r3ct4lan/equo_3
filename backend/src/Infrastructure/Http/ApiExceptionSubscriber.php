@@ -89,6 +89,7 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
                 ApplicationFailureCode::InvalidRequest => $this->definition(Response::HTTP_BAD_REQUEST, 'INVALID_REQUEST', 'Request is invalid.'),
                 ApplicationFailureCode::IdempotencyKeyRequired => $this->definition(Response::HTTP_BAD_REQUEST, 'IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required.'),
                 ApplicationFailureCode::EmailAlreadyExists => $this->definition(Response::HTTP_CONFLICT, 'EMAIL_ALREADY_EXISTS', 'Email is already registered.'),
+                ApplicationFailureCode::EmailAlreadyInUse => $this->definition(Response::HTTP_CONFLICT, 'EMAIL_ALREADY_IN_USE', 'Email is already in use.'),
                 ApplicationFailureCode::IdempotencyKeyReused => $this->definition(Response::HTTP_CONFLICT, 'IDEMPOTENCY_KEY_REUSED', 'Idempotency-Key was already used for another request.'),
                 ApplicationFailureCode::PasswordPolicyViolation => $this->definition(Response::HTTP_UNPROCESSABLE_ENTITY, 'PASSWORD_POLICY_VIOLATION', 'Password does not satisfy the required policy.'),
                 ApplicationFailureCode::InvalidToken => $this->definition(Response::HTTP_BAD_REQUEST, 'INVALID_TOKEN', 'Token is invalid.'),

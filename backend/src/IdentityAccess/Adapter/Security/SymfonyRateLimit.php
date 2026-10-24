@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Adapter\Security;
 
+use App\IdentityAccess\Application\Port\EmailChangeRateLimitPort;
 use App\IdentityAccess\Application\Port\PasswordResetRateLimitPort;
 use App\IdentityAccess\Application\Port\RateLimitPort;
 use Symfony\Component\RateLimiter\RateLimit;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 
-final readonly class SymfonyRateLimit implements RateLimitPort, PasswordResetRateLimitPort
+final readonly class SymfonyRateLimit implements RateLimitPort, PasswordResetRateLimitPort, EmailChangeRateLimitPort
 {
     public function __construct(
         private RateLimiterFactory $registrationIpLimiter,
@@ -20,6 +21,7 @@ final readonly class SymfonyRateLimit implements RateLimitPort, PasswordResetRat
         private RateLimiterFactory $activationTokenLimiter,
         private RateLimiterFactory $passwordResetRequestIpLimiter,
         private RateLimiterFactory $passwordResetRequestEmailLimiter,
+        private RateLimiterFactory $emailChangeRequestUserLimiter,
     ) {
     }
 
@@ -56,6 +58,18 @@ final readonly class SymfonyRateLimit implements RateLimitPort, PasswordResetRat
     }
 
     public function passwordResetRetryAfter(string $ip, string $tokenFingerprint): ?int
+    {
+        return $this->activationRetryAfter($ip, $tokenFingerprint);
+    }
+
+    public function emailChangeRequestRetryAfter(string $userId): ?int
+    {
+        return $this->retryAfter([
+            $this->emailChangeRequestUserLimiter->create($this->key('user', $userId))->consume(),
+        ]);
+    }
+
+    public function emailChangeConfirmationRetryAfter(string $ip, string $tokenFingerprint): ?int
     {
         return $this->activationRetryAfter($ip, $tokenFingerprint);
     }

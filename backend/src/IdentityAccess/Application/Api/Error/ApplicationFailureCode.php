@@ -9,6 +9,7 @@ enum ApplicationFailureCode: string
     case InvalidRequest = 'INVALID_REQUEST';
     case IdempotencyKeyRequired = 'IDEMPOTENCY_KEY_REQUIRED';
     case EmailAlreadyExists = 'EMAIL_ALREADY_EXISTS';
+    case EmailAlreadyInUse = 'EMAIL_ALREADY_IN_USE';
     case IdempotencyKeyReused = 'IDEMPOTENCY_KEY_REUSED';
     case PasswordPolicyViolation = 'PASSWORD_POLICY_VIOLATION';
     case InvalidToken = 'INVALID_TOKEN';
