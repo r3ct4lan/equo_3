@@ -13,6 +13,8 @@ interface AutomaticShares
     /** @param list<array{participantId:string,userId:string,isDeleted:bool}> $participants */
     public function recalculate(string $debtId, string $payerId, array $participants, int $amount, DateTimeImmutable $now): void;
 
+    public function removeForDebt(string $debtId): void;
+
     /** @return array<string,string> Participant ID to Transfer ID */
     public function forDebt(string $debtId): array;
 }

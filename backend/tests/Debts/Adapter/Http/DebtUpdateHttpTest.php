@@ -282,4 +282,86 @@ final class DebtUpdateHttpTest extends WebTestCase
         $this->request('PUT', $path, null, $body, etag: '"3"');
         $this->failure(401, 'AUTHENTICATION_REQUIRED');
     }
+
+    public function testDeleteSoftRemovesDebtAndSharesButPreservesCompositionManualHistoryAndDirectRead(): void
+    {
+        $initial = $this->create();
+        $path = '/api/v1/debts/'.$initial['id'];
+        $share = array_values(array_filter($initial['participants'], fn (array $p): bool => $p['user']['id'] === $this->users[1]))[0];
+        $connectId = (string) $this->db->fetchOne('SELECT connect_id FROM transfer WHERE id=?', [$share['transferId']]);
+        $manualId = Uuid::v4()->toRfc4122();
+        $this->db->insert('transfer', ['id' => $manualId, 'connect_id' => $connectId, 'sender_id' => $this->users[1], 'receiver_id' => $this->users[0], 'amount' => 100, 'type' => 'MANUAL', 'created_by_id' => $this->users[1], 'created_at' => '2026-10-02 00:00:00+00', 'is_deleted' => false, 'version' => 1], ['is_deleted' => 'boolean']);
+        $participantRows = $this->db->fetchAllAssociative('SELECT id,user_id,is_deleted FROM debt_participant WHERE debt_id=? ORDER BY id', [$initial['id']]);
+
+        $this->request('DELETE', $path, 0, etag: '"1"');
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame('', $this->client->getResponse()->getContent());
+        self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+        self::assertSame(['is_deleted' => true, 'version' => 2], $this->db->fetchAssociative('SELECT is_deleted,version FROM debt WHERE id=?', [$initial['id']]));
+        self::assertEquals($participantRows, $this->db->fetchAllAssociative('SELECT id,user_id,is_deleted FROM debt_participant WHERE debt_id=? ORDER BY id', [$initial['id']]));
+        self::assertSame(0, (int) $this->db->fetchOne('SELECT count(*) FROM transfer WHERE debt_id=? AND is_deleted=false', [$initial['id']]));
+        self::assertSame(2, (int) $this->db->fetchOne('SELECT count(*) FROM transfer WHERE debt_id=? AND is_deleted=true AND version=2', [$initial['id']]));
+        self::assertSame(['is_deleted' => false, 'version' => 1], $this->db->fetchAssociative('SELECT is_deleted,version FROM transfer WHERE id=?', [$manualId]));
+
+        foreach ([0, 1, 2] as $viewer) {
+            $this->request('GET', $path, $viewer);
+            self::assertResponseStatusCodeSame(200);
+            self::assertResponseHeaderSame('ETag', '"2"');
+            self::assertTrue($this->body()['isDeleted']);
+            self::assertFalse($this->body()['canEdit']);
+            self::assertFalse($this->body()['canDelete']);
+            self::assertCount(3, $this->body()['participants']);
+            $this->request('GET', '/api/v1/debts', $viewer);
+            self::assertSame([], $this->body()['items']);
+        }
+        $this->request('GET', '/api/v1/transfers/'.$share['transferId'], 1);
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->body()['isDeleted']);
+        self::assertTrue($this->body()['debtReference']['isAccessible']);
+        self::assertTrue($this->body()['debtReference']['isDeleted']);
+        $this->request('GET', '/api/v1/transfers/'.$manualId, 1);
+        self::assertResponseStatusCodeSame(200);
+        self::assertFalse($this->body()['isDeleted']);
+        $this->request('GET', '/api/v1/connects/'.$connectId, 1);
+        self::assertSame(100, $this->body()['balanceAmount']);
+    }
+
+    public function testDeleteEnforcesAclFreezeDeletedVersionAndAuthenticationWithoutMutation(): void
+    {
+        $initial = $this->create();
+        $path = '/api/v1/debts/'.$initial['id'];
+        $this->request('DELETE', $path, 1, etag: '"1"');
+        $this->failure(403, 'FORBIDDEN');
+        $this->request('DELETE', $path, 3, etag: '"1"');
+        $this->failure(404, 'DEBT_NOT_AVAILABLE');
+        $this->request('DELETE', $path, 0, etag: '"2"');
+        $this->failure(409, 'VERSION_CONFLICT');
+        self::assertSame(['expectedVersion' => 2, 'actualVersion' => 1], $this->body()['error']['details']);
+        $this->request('DELETE', $path, null, etag: '"1"');
+        $this->failure(401, 'AUTHENTICATION_REQUIRED');
+        $otherPayer = $this->command();
+        $otherPayer['payerId'] = $this->users[1];
+        $otherPayer['participantIds'] = [$this->users[0], $this->users[2]];
+        $this->request('POST', '/api/v1/debts', 0, $otherPayer, Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $frozenPath = '/api/v1/debts/'.$this->body()['id'];
+        $this->db->executeStatement('UPDATE app_user SET is_active=false WHERE id=?', [$this->users[1]]);
+        $this->request('DELETE', $frozenPath, 0, etag: '"1"');
+        $this->failure(409, 'DEBT_FROZEN');
+        $this->db->executeStatement('UPDATE app_user SET is_active=true WHERE id=?', [$this->users[1]]);
+        $this->request('DELETE', $path, 0, etag: '"1"');
+        self::assertResponseStatusCodeSame(204);
+        $this->request('DELETE', $path, 0, etag: '"2"');
+        $this->failure(409, 'DEBT_DELETED');
+        self::assertSame(2, (int) $this->db->fetchOne('SELECT version FROM debt WHERE id=?', [$initial['id']]));
+    }
+
+    #[DataProvider('badHeaders')]
+    public function testDeleteRequiresStrictIfMatch(?string $etag, int $status, string $code): void
+    {
+        $initial = $this->create();
+        $this->request('DELETE', '/api/v1/debts/'.$initial['id'], 0, etag: $etag);
+        $this->failure($status, $code);
+        self::assertFalse((bool) $this->db->fetchOne('SELECT is_deleted FROM debt WHERE id=?', [$initial['id']]));
+    }
 }

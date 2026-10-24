@@ -73,6 +73,43 @@ final class DebtRevisionTest extends TestCase
         self::assertSame($debt, $next);
     }
 
+    public function testRemovalFreezesCompositionAndAdvancesVersion(): void
+    {
+        $debt = $this->debt();
+        $removed = $debt->remove('payer', 1, ['payer' => true]);
+
+        self::assertTrue($removed->isDeleted);
+        self::assertSame(2, $removed->version);
+        self::assertSame($debt->participants, $removed->participants);
+        self::assertSame($debt->title, $removed->title);
+        self::assertSame($debt->totalAmount, $removed->totalAmount);
+    }
+
+    /** @param array<string,bool> $active */
+    #[DataProvider('removalDenials')]
+    public function testRemovalDenials(string $actor, int $version, array $active, bool $deleted, DebtUpdateFailure $failure): void
+    {
+        $debt = $this->debt(deleted: $deleted);
+
+        try {
+            $debt->remove($actor, $version, $active);
+            self::fail('Expected removal denial.');
+        } catch (DebtUpdateRejected $e) {
+            self::assertSame($failure, $e->reason);
+        }
+        self::assertSame($deleted, $debt->isDeleted);
+        self::assertSame(1, $debt->version);
+    }
+
+    /** @return iterable<array{string,int,array<string,bool>,bool,DebtUpdateFailure}> */
+    public static function removalDenials(): iterable
+    {
+        yield ['a', 1, ['payer' => true], false, DebtUpdateFailure::Forbidden];
+        yield ['payer', 1, ['payer' => true], true, DebtUpdateFailure::Deleted];
+        yield ['payer', 1, ['payer' => false], false, DebtUpdateFailure::Frozen];
+        yield ['payer', 2, ['payer' => true], false, DebtUpdateFailure::VersionConflict];
+    }
+
     #[DataProvider('denials')]
     public function testStateVersionAndCompositionDenials(string $case, DebtUpdateFailure $failure): void
     {

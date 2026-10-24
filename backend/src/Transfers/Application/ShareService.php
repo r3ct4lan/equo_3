@@ -55,6 +55,20 @@ final readonly class ShareService implements AutomaticShares
         }
     }
 
+    public function removeForDebt(string $debtId): void
+    {
+        foreach ($this->repository->sharesForDebt($debtId) as $id) {
+            $old = $this->repository->find($id);
+            if (null === $old) {
+                throw new RuntimeException('Automatic share is missing.');
+            }
+            $next = $old->recalculateShare($old->amount, true);
+            if ($next !== $old) {
+                $this->repository->updateShare($next);
+            }
+        }
+    }
+
     public function forDebt(string $debtId): array
     {
         return $this->repository->sharesForDebt($debtId);

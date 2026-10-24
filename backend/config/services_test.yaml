@@ -92,3 +92,6 @@ services:
     test.update_debt:
         alias: App\Debts\Application\UpdateDebt
         public: true
+    test.delete_debt:
+        alias: App\Debts\Application\DeleteDebt
+        public: true
