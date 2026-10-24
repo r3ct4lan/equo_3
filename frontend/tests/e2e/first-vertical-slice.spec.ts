@@ -1753,6 +1753,8 @@ test('manual payment survives a lost response and refreshes both histories after
     await waitForNuxtHydration(page)
     await expect(page.getByText('Balance: €5.01', { exact: true })).toBeVisible()
     await expect(page.getByText('They owe you.', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
     await page.getByLabel('Who transferred money?', { exact: true }).selectOption('other')
     await page.getByLabel('Payment amount in EUR', { exact: true }).fill('7.00')
     await expect(page.getByText(/Expected balance: -€1.99/u)).toBeVisible()

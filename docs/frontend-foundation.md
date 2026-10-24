@@ -429,6 +429,14 @@ CreateManualTransferForm принимает безопасный ConnectView и 
 preview допускает переплату и смену знака. Preview не является сохранённым
 балансом. Confirmed 201 вызывает повторное чтение Connect и новый history
 mount; при ошибке чтения success остаётся подтверждённым и доступен retry чтения.
+
+По `MT-012` detail Connect открывает существующий CreateManualTransferForm
+кнопкой `Make a payment` в нативном modal `dialog`. При открытии фокус переходит
+в первое поле; Close и Escape закрывают окно и возвращают фокус на кнопку.
+Обычное закрытие не размонтирует форму, поэтому draft и frozen idempotent retry
+после неопределённого ответа сохраняются. Подтверждённый платёж закрывает dialog,
+показывает прежний success status и запускает существующее обновление данных.
+
 Network/5xx сохраняет immutable body/key и блокирует поля до explicit retry.
 Definitive rejection позволяет исправить форму с новым ключом. Pending исключает
 double submit; generation/session/Connect guards отбрасывают поздний ответ.
