@@ -22,9 +22,9 @@ const debt = {
   id: 'debt', title: 'Dinner', description: 'Food', totalAmount: 1001, payer, createdBy: self,
   participantCount: 3, shareAmount: 334, includePayerInSplit: true, canEdit: true, canDelete: true, isDeleted: false, version: 1, createdAt: '2026-10-12T12:00:00Z',
   participants: [
-    { debtParticipantId: 'p0', user: payer, isPayer: true, isAuthor: false, shareAmount: 334, transferId: null },
-    { debtParticipantId: 'p1', user: self, isPayer: false, isAuthor: true, shareAmount: 334, transferId: 's1' },
-    { debtParticipantId: 'p2', user: member, isPayer: false, isAuthor: false, shareAmount: 334, transferId: 's2' }
+    { debtParticipantId: 'p0', user: payer, isPayer: true, isAuthor: false, shareAmount: 334, transferId: null, connectId: 'connect-payer' },
+    { debtParticipantId: 'p1', user: self, isPayer: false, isAuthor: true, shareAmount: 334, transferId: 's1', connectId: null },
+    { debtParticipantId: 'p2', user: member, isPayer: false, isAuthor: false, shareAmount: 334, transferId: 's2', connectId: null }
   ]
 }
 const page = (items: unknown[]) => ({ items, pagination: { nextCursor: null, hasMore: false } })

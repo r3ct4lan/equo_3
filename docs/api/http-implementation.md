@@ -472,6 +472,10 @@ Invalid selection — 422 INVALID_PARTICIPANT; inactivity — 409 INACTIVE_USER.
 
 Все financial responses no-store. Brief users содержат только id/name/isActive.
 Safe недоступная debtReference содержит только id/isAccessible=false.
+Полное Debt view добавляет участникам viewer-relative `connectId`: repository
+ищет только canonical pair текущего пользователя с участником и возвращает
+`null` для self или отсутствующей связи, ничего не создавая. Список Debt не
+вычисляет это поле и не выполняет дополнительные Connect lookup.
 Пагинация createdAt DESC/id DESC, default 20/max 100, opaque Base64URL cursor.
 Edit/delete/MANUAL writers на этом этапе не опубликованы.
 [Доказательства](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/create-debt.md).

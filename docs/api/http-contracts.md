@@ -1359,7 +1359,8 @@ ID и hash приглашения, применяет те же проверки
       "isPayer": true,
       "isAuthor": true,
       "shareAmount": 2000,
-      "transferId": null
+      "transferId": null,
+      "connectId": null
     },
     {
       "debtParticipantId": "6d98c852-638f-4512-972c-cf2b821f7397",
@@ -1371,7 +1372,8 @@ ID и hash приглашения, применяет те же проверки
       "isPayer": false,
       "isAuthor": false,
       "shareAmount": 2000,
-      "transferId": "860f68dd-4956-498e-a422-26684f4f80ef"
+      "transferId": "860f68dd-4956-498e-a422-26684f4f80ef",
+      "connectId": "780a4f86-b83c-4949-b108-1a158ca520af"
     },
     {
       "debtParticipantId": "db6cb721-9b33-42c7-a65e-5ee9cc548d49",
@@ -1383,7 +1385,8 @@ ID и hash приглашения, применяет те же проверки
       "isPayer": false,
       "isAuthor": false,
       "shareAmount": 2000,
-      "transferId": "a670851b-c9e6-4362-8682-7e9f9bbc87b6"
+      "transferId": "a670851b-c9e6-4362-8682-7e9f9bbc87b6",
+      "connectId": "711975ae-8dc2-48ba-9b95-5bd91145fa17"
     }
   ],
   "isDeleted": false,
@@ -1395,6 +1398,11 @@ ID и hash приглашения, применяет те же проверки
 ```
 
 `participants` содержит записи текущего состава (`DebtParticipant.isDeleted = false`). У удалённого долга — состав на момент его удаления.
+
+`participants[].connectId` вычисляется для текущего пользователя: это ID его
+существующего `Connect` с участником или `null` для самого пользователя и пары,
+у которой связи нет. Чтение долга не создаёт новый `Connect`. Поле позволяет
+открыть доступную текущему пользователю связь без раскрытия чужих связей.
 
 `participantCount` и `shareAmount` рассчитываются по текущему составу независимо от `User.isActive`: деактивированный пользователь с `DebtParticipant.isDeleted = false` остаётся участником расчёта.
 

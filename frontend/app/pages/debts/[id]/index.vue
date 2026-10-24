@@ -51,7 +51,11 @@ const { item: debt, pending, error, load } = useFinancialDetail<DebtView>(() => 
           v-for="participant in debt.participants"
           :key="participant.debtParticipantId"
         >
-          {{ participant.user.name }}{{ participant.user.id === state.user?.id ? ' (you)' : '' }} · {{ formatEuro(participant.shareAmount) }}
+          <NuxtLink
+            v-if="participant.user.id !== state.user?.id && participant.connectId"
+            :to="'/connects/' + participant.connectId"
+          >{{ participant.user.name }}</NuxtLink>
+          <span v-else>{{ participant.user.name }}</span>{{ participant.user.id === state.user?.id ? ' (you)' : '' }} · {{ formatEuro(participant.shareAmount) }}
           <span v-if="participant.isPayer"> · payer</span><span v-if="participant.isAuthor"> · author</span><span v-if="!participant.user.isActive"> · inactive</span>
           <NuxtLink
             v-if="participant.transferId && (participant.user.id === state.user?.id || debt.payer.id === state.user?.id)"

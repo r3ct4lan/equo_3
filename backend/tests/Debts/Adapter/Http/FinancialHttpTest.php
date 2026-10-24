@@ -227,10 +227,23 @@ final class FinancialHttpTest extends WebTestCase
             $this->request('GET', '/api/v1/connects/'.$transfer['connectId'].'/transfers', $viewer);
             self::assertSame($transfer['id'], $this->body()['items'][0]['id']);
         }
+        $connect01 = (string) $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id IN (?,?) AND second_user_id IN (?,?)', [$this->users[0], $this->users[1], $this->users[0], $this->users[1]]);
+        $connect02 = (string) $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id IN (?,?) AND second_user_id IN (?,?)', [$this->users[0], $this->users[2], $this->users[0], $this->users[2]]);
         foreach ([0, 1, 2] as $viewer) {
             $this->request('GET', '/api/v1/debts/'.$debt['id'], $viewer);
             self::assertResponseStatusCodeSame(200);
-            self::assertSame(0 === $viewer, $this->body()['canEdit']);
+            $detail = $this->body();
+            self::assertSame(0 === $viewer, $detail['canEdit']);
+            $participants = [];
+            foreach ($detail['participants'] as $participant) {
+                $participants[$participant['user']['id']] = $participant;
+            }
+            $expectedConnects = match ($viewer) {
+                0 => [$this->users[0] => null, $this->users[1] => $connect01, $this->users[2] => $connect02],
+                1 => [$this->users[0] => $connect01, $this->users[1] => null, $this->users[2] => null],
+                2 => [$this->users[0] => $connect02, $this->users[1] => null, $this->users[2] => null],
+            };
+            self::assertSame($expectedConnects, array_map(static fn (array $participant): ?string => $participant['connectId'], $participants));
             $this->request('GET', '/api/v1/debts', $viewer);
             self::assertSame($debt['id'], $this->body()['items'][0]['id']);
             self::assertSame(3, $this->body()['items'][0]['participantCount']);
