@@ -20,7 +20,7 @@ final readonly class PendingInvitationService
     ) {
     }
 
-    /** @return array{view: array<string, mixed>, created: bool}|null */
+    /** @return array{view: array<string, mixed>, created: bool, outcome: 'created'|'already_connected'|'confirmed'}|null */
     public function accept(string $userId, string $ip): ?array
     {
         $id = $this->pending->forUser($userId);
