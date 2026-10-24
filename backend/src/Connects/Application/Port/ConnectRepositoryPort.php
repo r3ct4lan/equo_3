@@ -12,6 +12,8 @@ interface ConnectRepositoryPort
 {
     public function exists(CanonicalPair $pair): bool;
 
+    public function findPairId(CanonicalPair $pair): ?string;
+
     public function find(string $id): ?Connect;
 
     /** @return array{connect: Connect, created: bool} */

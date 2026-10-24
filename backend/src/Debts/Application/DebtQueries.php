@@ -50,7 +50,7 @@ final readonly class DebtQueries implements DebtAccess
         $last = $rows[count($rows) - 1] ?? null;
         $items = [];
         foreach ($rows as $d) {
-            $v = $this->views->detail($d, $viewerId);
+            $v = $this->views->detail($d, $viewerId, false);
             $items[] = ['id' => $v['id'], 'title' => $v['title'], 'totalAmount' => $v['totalAmount'], 'payer' => $v['payer'], 'participantCount' => $v['participantCount'], 'shareAmount' => $v['shareAmount'], 'canEdit' => $v['canEdit'], 'version' => $v['version'], 'createdAt' => $v['createdAt']];
         }
 

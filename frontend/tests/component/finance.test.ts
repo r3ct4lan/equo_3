@@ -40,9 +40,9 @@ const other = {
 }
 const debt = {
   id: 'debt', title: 'Dinner', description: 'Food', totalAmount: 1001, payer: self, createdBy: self, participantCount: 2, shareAmount: 501, includePayerInSplit: true, canEdit: true, canDelete: true, isDeleted: false, version: 1, createdAt: '2026-10-11T12:00:00Z', participants: [{
-    debtParticipantId: 'p0', user: self, isPayer: true, isAuthor: true, shareAmount: 501, transferId: null
+    debtParticipantId: 'p0', user: self, isPayer: true, isAuthor: true, shareAmount: 501, transferId: null, connectId: null
   }, {
-    debtParticipantId: 'p1', user: other, isPayer: false, isAuthor: false, shareAmount: 501, transferId: 'transfer'
+    debtParticipantId: 'p1', user: other, isPayer: false, isAuthor: false, shareAmount: 501, transferId: 'transfer', connectId: 'connect'
   }]
 }
 const transfer = {
@@ -193,6 +193,8 @@ describe('financial journey components', () => {
     expect(wrapper.text()).toContain('(inactive)')
     expect(wrapper.text()).toContain('€5.01')
     expect(wrapper.text()).not.toContain('private@example.test')
+    expect(wrapper.find('a[href="/connects/connect"]').text()).toBe('Boris')
+    expect(wrapper.find('a[href="/connects/null"]').exists()).toBe(false)
     expect(wrapper.findAll('button')).toHaveLength(0)
     wrapper.unmount()
   })
