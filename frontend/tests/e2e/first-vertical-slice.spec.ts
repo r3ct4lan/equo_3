@@ -260,6 +260,15 @@ function recoveryUrlFrom(message: MailpitMessage): string {
   return url.toString()
 }
 
+function emailChangeUrlFrom(message: MailpitMessage): string {
+  const match = message.HTML.match(/href=["']([^"']*\/email-change\?token=[^"']+)["']/u)
+  if (!match?.[1]) throw new Error('Email change message has no confirmation link.')
+  const url = new URL(match[1].replaceAll('&amp;', '&'))
+  expect(url.pathname).toBe('/email-change')
+  expect(/^v\d+\.[A-Za-z0-9_-]{43}$/u.test(url.searchParams.get('token') ?? '')).toBe(true)
+  return url.toString()
+}
+
 async function submitRecovery(page: Page, url: string, password: string): Promise<APIResponse> {
   await followSecretUrl(page, url)
   await expect(page).toHaveURL(/\/password-reset$/u)
@@ -1310,6 +1319,54 @@ test('failed server logout stays locally signed out across reload and explicit r
   expect((await responsePromise).status()).toBe(204)
   await expect(page).toHaveURL(/\/login\?signedOut=1$/u)
   expect(await page.context().cookies()).toEqual([])
+})
+
+test('profile name and confirmed email change keep the active session', async ({ page, request }) => {
+  const oldEmail = await createActiveUser(request, uniqueEmail('profile-change'))
+  const newEmail = uniqueEmail('profile-changed')
+  await login(page, oldEmail)
+
+  await page.getByLabel('Name', { exact: true }).fill('Updated E2E Name')
+  const renamed = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/me' && sent.request().method() === 'PATCH')
+  await page.getByRole('button', { name: 'Save name', exact: true }).click()
+  expect((await renamed).status()).toBe(200)
+  await expect(page.getByRole('status')).toContainText('Name saved')
+  await expect(page.getByRole('heading', { name: 'Updated E2E Name' })).toBeVisible()
+
+  await page.getByLabel('New email', { exact: true }).fill(newEmail)
+  await page.getByLabel('Current password', { exact: true }).fill(testPassword)
+  const requested = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/account/email-change-requests')
+  await page.getByRole('button', { name: 'Send confirmation email', exact: true }).click()
+  expect((await requested).status()).toBe(202)
+  await expect(page.getByText('Confirmation email scheduled. Open the link sent to your new address.', { exact: true })).toBeVisible()
+  await expect(page.getByText(oldEmail)).toBeVisible()
+
+  const confirmationUrl = emailChangeUrlFrom(await waitForMail(request, newEmail))
+  const capability = new URL(confirmationUrl).searchParams.get('token') ?? ''
+  await followSecretUrl(page, confirmationUrl)
+  await expect(page).toHaveURL(/\/email-change$/u)
+  await expect(page.getByRole('button', { name: 'Confirm new email' })).toBeVisible()
+  const confirmed = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/email-change-confirmations')
+  await page.getByRole('button', { name: 'Confirm new email' }).click()
+  expect((await confirmed).status()).toBe(204)
+  await expect(page.getByRole('status')).toContainText('Email changed')
+  await page.getByRole('link', { name: 'Open your profile' }).click()
+  await expect(page).toHaveURL(/\/me$/u)
+  await expect(page.getByText(newEmail)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Updated E2E Name' })).toBeVisible()
+
+  const oldLogin = await request.post(`${baseUrl}/api/v1/auth/login`, {
+    headers: { 'X-Forwarded-For': nextForwardedFor() }, data: { email: oldEmail, password: testPassword }
+  })
+  expect(oldLogin.status()).toBe(401)
+  const newLogin = await request.post(`${baseUrl}/api/v1/auth/login`, {
+    headers: { 'X-Forwarded-For': nextForwardedFor() }, data: { email: newEmail, password: testPassword }
+  })
+  expect(newLogin.status()).toBe(200)
+  await page.reload()
+  await waitForNuxtHydration(page)
+  await expect(page.getByText(newEmail)).toBeVisible()
+  await expectNoPersistentSecrets(page, [capability, testPassword])
 })
 
 test('password change revokes both browser sessions, ends sibling tabs and requires new login', async ({ page, browser, request }) => {

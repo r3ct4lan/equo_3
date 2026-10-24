@@ -287,6 +287,19 @@ protocol-relative paths и backslash paths заменяются на `/me`.
 публичные поля пользователя и retryable error state; token, session id, refresh
 cookie и CSRF values не рендерятся.
 
+SH-006 добавляет на `/me` две независимые формы. `ProfileNameForm` отправляет
+`PATCH /me`, сразу заменяет публичный current-user state ответом сервера и не
+затрагивает сессию. `EmailChangeForm` принимает новый адрес и текущий пароль,
+отправляет `POST /account/email-change-requests`, очищает пароль после ответа и
+оставляет текущий email видимым до подтверждения.
+
+Ссылка из письма открывает публичную `/email-change`. Страница сразу удаляет
+token и остальные query-параметры из адресной строки, хранит capability только
+в локальном состоянии компонента и выполняет подтверждение лишь после явного
+нажатия. Terminal token errors удаляют capability; сетевую ошибку можно
+повторить вручную. Успех сообщает, что новый адрес применяется к следующему
+входу, а существующие сессии продолжают работать.
+
 ## 10. Проверки
 
 ```bash
@@ -315,7 +328,6 @@ Nuxt Router и делал его Volar plugin недоступным для `vue
 
 ## 11. Сознательно отложено
 
-- change password и изменение профиля;
 - Pinia, form/validation library, UI framework и OpenAPI generator;
 - окончательный branding, уведомления, аналитика и страницы будущих модулей.
 

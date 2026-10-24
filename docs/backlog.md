@@ -209,8 +209,18 @@
   `POST /auth/email-change-confirmations` с повторной проверкой уникальности.
 - [x] `DR-SH-006-05` — атомарно сменить email, использовать token и
   определить отзыв sessions по нормативному контракту.
-- [ ] `DR-SH-006-06` — добавить profile UI, email templates, security/
+- [x] `DR-SH-006-06` — добавить profile UI, email templates, security/
   concurrency/browser tests и документацию.
+
+Технически завершено 2026-10-24 в накопительной ветке `codex/backlog`.
+Профиль позволяет изменить имя и запросить смену email с текущим паролем;
+новый нормализованный адрес хранится только в server-side payload токена на
+30 минут и применяется после явного подтверждения ссылки. Уникальность
+проверяется при запросе и повторно под блокировкой при подтверждении; sessions
+сохраняются по неизменному `User.id`. Локально прошли backend quality,
+47 целевых backend tests / 548 assertions, frontend lint/typecheck/component
+tests/build и изолированный browser E2E — 31/31. Итоговый полный GitHub Actions
+gate остаётся общим для накопительной ветки перед слиянием в `main`.
 
 ### SH-007 — деактивация и реактивация (`MVP-SC-007`)
 
