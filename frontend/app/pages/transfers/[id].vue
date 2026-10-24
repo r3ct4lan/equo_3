@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { TransferView } from '~/types/finance'
 import { formatEuro } from '~/utils/money'
+import { validTransferEtag } from '~/utils/manual-transfer'
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Operation · Equo' })
 const route = useRoute()
 const { state } = useCurrentUser()
-const { item: transfer, pending, error, load } = useFinancialDetail<TransferView>(() => '/v1/transfers/' + encodeURIComponent(String(route.params.id)))
+const { item: transfer, etag, pending, error, load } = useFinancialDetail<TransferView>(() => '/v1/transfers/' + encodeURIComponent(String(route.params.id)))
 </script>
 
 <template>
@@ -47,6 +48,12 @@ const { item: transfer, pending, error, load } = useFinancialDetail<TransferView
         Related expense unavailable
       </p>
       <time :datetime="transfer.createdAt">{{ new Date(transfer.createdAt).toLocaleString() }}</time>
+      <ManageManualTransfer
+        v-if="transfer.type === 'MANUAL' && transfer.canEdit && transfer.canDelete && transfer.createdBy?.id === state.user?.id && etag && validTransferEtag(etag)"
+        :transfer="transfer"
+        :etag="etag"
+        @reload="load"
+      />
       <NuxtLink
         class="button button--secondary"
         :to="'/connects/' + transfer.connectId"

@@ -455,7 +455,7 @@ useFinancialList/useFinancialDetail владеют loading/error/empty/paginatio
 generation guards и discard поздних ответов. Они переиспользуют общую session
 coordination, не добавляя automatic financial retry. Debt/Transfer cards показывают
 roles, shares, inactive/deleted states; links на операции доступны только их сторонам.
-Edit/delete/pay controls отсутствуют до следующих этапов.
+Доступные edit/delete/pay controls добавляются профильными сценариями ниже.
 [Проверки](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/create-debt.md).
 
 ## SC-016 — ручной перевод в карточке Connect
@@ -478,6 +478,22 @@ Definitive rejection позволяет исправить форму с нов�
 double submit; generation/session/Connect guards отбрасывают поздний ответ.
 INACTIVE_USER предлагает перечитать Connect; неактивная сторона скрывает
 writer, оставляя историю. Связи с долями, edit/delete controls не показаны.
+
+## SC-017 — исправление ручного перевода
+
+Карточка `/transfers/{id}` показывает автору активного `MANUAL` действия edit и
+remove только при наличии настоящего ETag от GET. Редактор меняет сумму и
+направление между исходными сторонами Connect; PUT отправляет этот ETag в
+`If-Match` и принимает успех только как 200. Удаление требует отдельного
+подтверждения, отправляет DELETE с тем же условием и принимает только 204.
+
+После подтверждённой команды карточка перечитывается с сервера, поэтому version,
+balance и history не пересчитываются локально. Conflict, frozen/deleted state,
+network и `5xx` блокируют повтор команды до явного reload; pending и guards
+session/resource/version отбрасывают двойные и поздние ответы. Удалённый
+`MANUAL` остаётся в истории только для чтения. `DEBT_SHARE`, неавтор и transfer
+с неактивной стороной не получают управляющих действий; сервер повторяет ACL и
+инварианты независимо от UI.
 
 ## SC-013 — исправление расхода
 

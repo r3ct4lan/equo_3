@@ -2194,6 +2194,108 @@ test('expense removal drops automatic shares while preserving payment history an
   await expectNoPersistentSecrets(page, [authorAccess, peerAccess, testPassword])
 })
 
+test('manual payment correction updates balance, rejects a stale editor and preserves removed history', async ({ page, request }) => {
+  test.setTimeout(150_000)
+  const authorEmail = await createActiveUser(request, uniqueEmail('correct-payment-author'))
+  const peerEmail = await createActiveUser(request, uniqueEmail('correct-payment-peer'))
+  const authorAccess = await login(page, authorEmail)
+  const peerAccess = await loginViaApi(request, peerEmail)
+  const profile = async (access: string) => {
+    const response = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + access } })
+    expect(response.status()).toBe(200)
+    return (await response.json() as { id: string }).id
+  }
+  const authorId = await profile(authorAccess)
+  const peerId = await profile(peerAccess)
+  const invited = await request.post(baseUrl + '/api/v1/connect-invitations', {
+    headers: { 'Authorization': 'Bearer ' + authorAccess, 'X-Forwarded-For': nextForwardedFor() }
+  })
+  expect(invited.status()).toBe(200)
+  const token = (await invited.json() as { token: string }).token
+  const accepted = await request.post(baseUrl + '/api/v1/connect-invitations/' + token + '/accept', {
+    headers: { 'Authorization': 'Bearer ' + peerAccess, 'X-Forwarded-For': nextForwardedFor() }
+  })
+  expect(accepted.status()).toBe(201)
+  const connectId = (await accepted.json() as { id: string }).id
+  const created = await request.post(baseUrl + '/api/v1/connects/' + connectId + '/transfers', {
+    headers: { 'Authorization': 'Bearer ' + authorAccess, 'Idempotency-Key': randomUUID() },
+    data: { senderId: peerId, receiverId: authorId, amount: 700 }
+  })
+  expect(created.status()).toBe(201)
+  const transferId = (await created.json() as { id: string }).id
+  const transferPath = '/api/v1/transfers/' + transferId
+  await page.goto('/transfers/' + transferId)
+  await waitForNuxtHydration(page)
+  await expect(page.getByRole('heading', { name: 'Payment · €7.00', exact: true })).toBeVisible()
+  const staleEditor = await page.context().newPage()
+  await staleEditor.goto('/transfers/' + transferId)
+  await waitForNuxtHydration(staleEditor)
+  await staleEditor.getByRole('button', { name: 'Edit payment', exact: true }).click()
+  await expect(staleEditor.getByRole('button', { name: 'Save payment changes', exact: true })).toBeEnabled()
+
+  await page.getByRole('button', { name: 'Edit payment', exact: true }).click()
+  await page.locator('#edit-payment-direction').selectOption(authorId)
+  await page.getByLabel('Payment amount in EUR', { exact: true }).fill('8.00')
+  const updated = page.waitForResponse(response => response.request().method() === 'PUT' && new URL(response.url()).pathname === transferPath)
+  await page.getByRole('button', { name: 'Save payment changes', exact: true }).click()
+  const updatedResponse = await updated
+  expect(updatedResponse.status()).toBe(200)
+  expect(updatedResponse.request().headers()['if-match']).toBe('"1"')
+  expect(updatedResponse.headers()['etag']).toBe('"2"')
+  await expect(page.getByRole('heading', { name: 'Payment · €8.00', exact: true })).toBeVisible()
+
+  await staleEditor.getByLabel('Payment amount in EUR', { exact: true }).fill('9.00')
+  const conflicted = staleEditor.waitForResponse(response => response.request().method() === 'PUT' && new URL(response.url()).pathname === transferPath)
+  await staleEditor.getByRole('button', { name: 'Save payment changes', exact: true }).click()
+  const conflict = await conflicted
+  expect(conflict.status()).toBe(409)
+  expect(conflict.request().headers()['if-match']).toBe('"1"')
+  expect((await conflict.json() as { error: { code: string } }).error.code).toBe('VERSION_CONFLICT')
+  await expect(staleEditor.getByRole('alert')).toContainText('Someone changed this payment')
+  await staleEditor.getByRole('button', { name: 'Reload payment', exact: true }).click()
+  await expect(staleEditor.getByRole('heading', { name: 'Payment · €8.00', exact: true })).toBeVisible()
+
+  const authorConnect = await request.get(baseUrl + '/api/v1/connects/' + connectId, { headers: { Authorization: 'Bearer ' + authorAccess } })
+  const peerConnect = await request.get(baseUrl + '/api/v1/connects/' + connectId, { headers: { Authorization: 'Bearer ' + peerAccess } })
+  expect((await authorConnect.json() as { balanceAmount: number }).balanceAmount).toBe(800)
+  expect((await peerConnect.json() as { balanceAmount: number }).balanceAmount).toBe(-800)
+  const peerTransfer = await request.get(baseUrl + transferPath, { headers: { Authorization: 'Bearer ' + peerAccess } })
+  expect(peerTransfer.status()).toBe(200)
+  expect(await peerTransfer.json()).toMatchObject({ amount: 800, version: 2, isDeleted: false, canEdit: false, canDelete: false, sender: { id: authorId }, receiver: { id: peerId } })
+
+  await page.getByRole('button', { name: 'Remove payment', exact: true }).click()
+  await expect(page.getByRole('alertdialog')).toContainText('will remain in history')
+  const removed = page.waitForResponse(response => response.request().method() === 'DELETE' && new URL(response.url()).pathname === transferPath)
+  await page.getByRole('button', { name: 'Yes, remove payment', exact: true }).click()
+  const removedResponse = await removed
+  expect(removedResponse.status()).toBe(204)
+  expect(removedResponse.request().headers()['if-match']).toBe('"2"')
+  await expect(page.getByText('Removed · does not affect the balance', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /edit payment|remove payment/iu })).toHaveCount(0)
+  const history = await request.get(baseUrl + '/api/v1/connects/' + connectId + '/transfers', { headers: { Authorization: 'Bearer ' + peerAccess } })
+  const operations = (await history.json() as { items: Array<{ id: string, isDeleted: boolean, version: number }> }).items
+  expect(operations.find(operation => operation.id === transferId)).toMatchObject({ isDeleted: true, version: 3 })
+  const settled = await request.get(baseUrl + '/api/v1/connects/' + connectId, { headers: { Authorization: 'Bearer ' + authorAccess } })
+  expect((await settled.json() as { balanceAmount: number }).balanceAmount).toBe(0)
+
+  const debt = await request.post(baseUrl + '/api/v1/debts', {
+    headers: { 'Authorization': 'Bearer ' + authorAccess, 'Idempotency-Key': randomUUID() },
+    data: { title: 'Immutable share', description: null, totalAmount: 100, payerId: authorId, participantIds: [peerId], includePayerInSplit: false }
+  })
+  expect(debt.status()).toBe(201)
+  const shareId = (await debt.json() as { participants: Array<{ transferId: string | null }> }).participants[0]!.transferId
+  expect(typeof shareId).toBe('string')
+  await page.goto('/transfers/' + shareId)
+  await expect(page.getByRole('heading', { name: 'Expense share · €1.00', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /edit payment|remove payment/iu })).toHaveCount(0)
+  const forbiddenShareDelete = await request.delete(baseUrl + '/api/v1/transfers/' + shareId, { headers: { 'Authorization': 'Bearer ' + authorAccess, 'If-Match': '"1"' } })
+  expect(forbiddenShareDelete.status()).toBe(403)
+  expect((await forbiddenShareDelete.json() as { error: { code: string } }).error.code).toBe('AUTOMATIC_TRANSFER_IMMUTABLE')
+  await expectNoPersistentSecrets(page, [authorAccess, peerAccess, testPassword])
+  await expectNoPersistentSecrets(staleEditor, [authorAccess, peerAccess, testPassword])
+  await staleEditor.close()
+})
+
 test('home dashboard separates debts, shows five recent expenses and clears on logout', async ({ page, request }, testInfo) => {
   test.setTimeout(150_000)
   const apiPaths: string[] = []
