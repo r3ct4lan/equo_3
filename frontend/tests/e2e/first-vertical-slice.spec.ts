@@ -1369,6 +1369,99 @@ test('profile name and confirmed email change keep the active session', async ({
   await expectNoPersistentSecrets(page, [capability, testPassword])
 })
 
+test('account deactivation freezes new operations, preserves peer history and reactivates with a new session', async ({ page, request }) => {
+  test.setTimeout(150_000)
+  const ownerEmail = await createActiveUser(request, uniqueEmail('deactivation-owner'))
+  const peerEmail = await createActiveUser(request, uniqueEmail('deactivation-peer'))
+  const ownerAccess = await login(page, ownerEmail)
+  const peerAccess = await loginViaApi(request, peerEmail)
+  const profile = async (access: string) => {
+    const response = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + access } })
+    expect(response.status()).toBe(200)
+    return (await response.json() as { id: string }).id
+  }
+  const ownerId = await profile(ownerAccess)
+  const peerId = await profile(peerAccess)
+  const invited = await request.post(baseUrl + '/api/v1/connect-invitations', {
+    headers: { 'Authorization': 'Bearer ' + ownerAccess, 'X-Forwarded-For': nextForwardedFor() }
+  })
+  expect(invited.status()).toBe(200)
+  const invitationToken = (await invited.json() as { token: string }).token
+  const accepted = await request.post(baseUrl + '/api/v1/connect-invitations/' + invitationToken + '/accept', {
+    headers: { 'Authorization': 'Bearer ' + peerAccess, 'X-Forwarded-For': nextForwardedFor() }
+  })
+  expect(accepted.status()).toBe(201)
+  const connectId = (await accepted.json() as { id: string }).id
+  const payment = await request.post(baseUrl + '/api/v1/connects/' + connectId + '/transfers', {
+    headers: { 'Authorization': 'Bearer ' + ownerAccess, 'Idempotency-Key': randomUUID() },
+    data: { senderId: ownerId, receiverId: peerId, amount: 123 }
+  })
+  expect(payment.status()).toBe(201)
+  const peerConnectBeforeResponse = await request.get(baseUrl + '/api/v1/connects/' + connectId, {
+    headers: { Authorization: 'Bearer ' + peerAccess }
+  })
+  const peerHistoryBeforeResponse = await request.get(baseUrl + '/api/v1/connects/' + connectId + '/transfers', {
+    headers: { Authorization: 'Bearer ' + peerAccess }
+  })
+  expect(peerConnectBeforeResponse.status()).toBe(200)
+  expect(peerHistoryBeforeResponse.status()).toBe(200)
+  const peerConnectBefore = await peerConnectBeforeResponse.json() as { balanceAmount: number }
+  const peerHistoryBefore = await peerHistoryBeforeResponse.json() as { items: Array<{ id: string }> }
+
+  await page.getByRole('button', { name: 'Deactivate account', exact: true }).click()
+  await page.locator('#deactivate-current-password').fill(testPassword)
+  const deactivated = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/account/deactivate')
+  await page.getByRole('button', { name: 'Confirm deactivation', exact: true }).click()
+  expect((await deactivated).status()).toBe(204)
+  await expect(page.getByRole('alert')).toContainText('Your account is deactivated')
+  expect(await page.context().cookies()).toEqual([])
+
+  const staleCommand = await request.post(baseUrl + '/api/v1/connects/' + connectId + '/transfers', {
+    headers: { 'Authorization': 'Bearer ' + ownerAccess, 'Idempotency-Key': randomUUID() },
+    data: { senderId: ownerId, receiverId: peerId, amount: 100 }
+  })
+  expect(staleCommand.status()).toBe(401)
+  const peerConnectAfterResponse = await request.get(baseUrl + '/api/v1/connects/' + connectId, {
+    headers: { Authorization: 'Bearer ' + peerAccess }
+  })
+  const peerHistoryAfterResponse = await request.get(baseUrl + '/api/v1/connects/' + connectId + '/transfers', {
+    headers: { Authorization: 'Bearer ' + peerAccess }
+  })
+  expect(peerConnectAfterResponse.status()).toBe(200)
+  expect(peerHistoryAfterResponse.status()).toBe(200)
+  const peerConnectAfter = await peerConnectAfterResponse.json() as { otherUser: { isActive: boolean }, balanceAmount: number, canCreateDebt: boolean, canCreateTransfer: boolean }
+  const peerHistoryAfter = await peerHistoryAfterResponse.json() as { items: Array<{ id: string }> }
+  expect(peerConnectAfter.otherUser.isActive).toBe(false)
+  expect(peerConnectAfter.balanceAmount).toBe(peerConnectBefore.balanceAmount)
+  expect(peerConnectAfter.canCreateDebt).toBe(false)
+  expect(peerConnectAfter.canCreateTransfer).toBe(false)
+  expect(peerHistoryAfter.items.map(item => item.id)).toEqual(peerHistoryBefore.items.map(item => item.id))
+
+  const mailBeforeRequest = await request.get(`${mailpitUrl}/api/v1/messages`)
+  expect(mailBeforeRequest.ok()).toBe(true)
+  const excludedMail = new Set((await mailBeforeRequest.json() as { messages: MailpitSummary[] }).messages
+    .filter(message => message.To.some(to => to.Address === ownerEmail))
+    .map(message => message.ID))
+  const activationRequest = await submitActivationRequest(page, ownerEmail, testPassword)
+  expect(activationRequest.status()).toBe(202)
+  const activationUrl = activationUrlFrom(await waitForMail(request, ownerEmail, excludedMail))
+  const activationCapability = new URL(activationUrl).searchParams.get('token') ?? ''
+  await followSecretUrl(page, activationUrl)
+  await expect(page.getByRole('button', { name: 'Activate and sign in', exact: true })).toBeVisible()
+  const activated = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/activate')
+  await page.getByRole('button', { name: 'Activate and sign in', exact: true }).click()
+  expect((await activated).status()).toBe(200)
+  await page.getByRole('link', { name: 'Open your account', exact: true }).click()
+  await expect(page.getByText(ownerEmail)).toBeVisible()
+  await page.getByRole('link', { name: 'Connections', exact: true }).click()
+  await expect(page).toHaveURL(/\/connects$/u)
+  await page.getByRole('link', { name: 'E2E User', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp('/connects/' + connectId + '$', 'u'))
+  await expect(page.getByRole('link', { name: 'Payment · €1.23', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Make a payment', exact: true })).toBeVisible()
+  await expectNoPersistentSecrets(page, [ownerAccess, peerAccess, invitationToken, activationCapability, testPassword])
+})
+
 test('password change revokes both browser sessions, ends sibling tabs and requires new login', async ({ page, browser, request }) => {
   const email = await createActiveUser(request, uniqueEmail('password-change'))
   const access = await login(page, email)

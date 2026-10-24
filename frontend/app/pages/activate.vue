@@ -16,6 +16,7 @@ const router = useRouter()
 const { $auth } = useNuxtApp()
 const state = ref<ActivationState>('preparing')
 const activationError = ref<ApiClientError | null>(null)
+const returningAfterDeactivation = ref(route.query.deactivated === '1')
 const resultPanel = useTemplateRef<HTMLElement>('resultPanel')
 let activationToken: string | null = null
 
@@ -155,8 +156,8 @@ onBeforeUnmount(() => {
           tabindex="-1"
         >
           <AppErrorState
-            title="Activation link is missing"
-            message="Open the complete one-time link from your activation email or request another link below."
+            :title="returningAfterDeactivation ? 'Your account is deactivated' : 'Activation link is missing'"
+            :message="returningAfterDeactivation ? 'Request a new activation link below to reactivate your account.' : 'Open the complete one-time link from your activation email or request another link below.'"
           />
         </div>
 

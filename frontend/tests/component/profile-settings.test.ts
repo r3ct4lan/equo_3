@@ -5,9 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ProfileNameForm from '../../app/components/ProfileNameForm.vue'
 import EmailChangeForm from '../../app/components/EmailChangeForm.vue'
 import EmailChangePage from '../../app/pages/email-change.vue'
+import AccountDeactivationForm from '../../app/components/AccountDeactivationForm.vue'
 import { ApiClientError } from '../../app/utils/api-error'
 
-const { apiMock, authMock } = vi.hoisted(() => ({ apiMock: vi.fn(), authMock: { protectedRequest: vi.fn() } }))
+const { apiMock, authMock } = vi.hoisted(() => ({ apiMock: vi.fn(), authMock: { protectedRequest: vi.fn(), deactivateAccount: vi.fn() } }))
 mockNuxtImport('useNuxtApp', original => () => new Proxy(original(), {
   get(target, property, receiver) {
     if (property === '$api') return apiMock
@@ -28,6 +29,7 @@ describe('profile settings', () => {
   beforeEach(() => {
     apiMock.mockReset().mockResolvedValue(undefined)
     authMock.protectedRequest.mockReset()
+    authMock.deactivateAccount.mockReset().mockResolvedValue(undefined)
     useCurrentUser().reset()
   })
 
@@ -74,6 +76,34 @@ describe('profile settings', () => {
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('Email is already in use')
     expect(wrapper.get('#profile-current-password').element).toHaveProperty('value', '')
+    wrapper.unmount()
+  })
+
+  it('requires an explicit confirmation and current password before deactivation', async () => {
+    const wrapper = await mountSuspended(AccountDeactivationForm)
+    expect(wrapper.find('form').exists()).toBe(false)
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.get('h3').text()).toContain('Confirm account deactivation')
+    await wrapper.get('form').trigger('submit')
+    expect(authMock.deactivateAccount).not.toHaveBeenCalled()
+    expect(wrapper.get('#deactivate-current-password').attributes('aria-invalid')).toBe('true')
+    await wrapper.get('#deactivate-current-password').setValue('Current password!')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(authMock.deactivateAccount).toHaveBeenCalledWith('Current password!')
+    expect(wrapper.get('#deactivate-current-password').element).toHaveProperty('value', '')
+    wrapper.unmount()
+  })
+
+  it('keeps the account form available after a wrong password and clears the secret', async () => {
+    authMock.deactivateAccount.mockRejectedValue(new ApiClientError({ kind: 'api', status: 401, code: 'INVALID_CREDENTIALS', message: 'Safe error' }))
+    const wrapper = await mountSuspended(AccountDeactivationForm)
+    await wrapper.get('button').trigger('click')
+    await wrapper.get('#deactivate-current-password').setValue('Wrong password!')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('Current password is incorrect')
+    expect(wrapper.get('#deactivate-current-password').element).toHaveProperty('value', '')
     wrapper.unmount()
   })
 

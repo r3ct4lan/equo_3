@@ -16,6 +16,17 @@ export function validateEmailChange(values: Readonly<{ currentPassword: string, 
   return errors
 }
 
+export function validateAccountDeactivation(values: Readonly<{ currentPassword: string }>): FieldErrorMap {
+  return values.currentPassword === '' ? { currentPassword: ['Enter your current password.'] } : {}
+}
+
+export function accountDeactivationErrorPresentation(error: SafeApiError): ErrorPresentation {
+  if (error.code === 'INVALID_CREDENTIALS') return { title: 'Current password is incorrect', message: 'Enter your current password and try again.', retryable: false }
+  if (error.code === 'VALIDATION_ERROR') return { title: 'Check the form', message: 'Correct the highlighted field.', retryable: false }
+  if (error.status === 401 || error.code === 'ACCOUNT_INACTIVE') return { title: 'Sign in again', message: 'Your session ended before the account could be deactivated.', retryable: false }
+  return { title: 'Account could not be deactivated', message: 'Check your connection and try again.', retryable: true }
+}
+
 export function emailChangeErrorPresentation(error: SafeApiError): ErrorPresentation {
   if (error.code === 'INVALID_CREDENTIALS') return { title: 'Current password is incorrect', message: 'Enter your current password and try again.', retryable: false }
   if (error.code === 'EMAIL_ALREADY_IN_USE') return { title: 'Email is already in use', message: 'Choose another email address.', retryable: false }
