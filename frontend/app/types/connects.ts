@@ -7,6 +7,10 @@ export interface ConnectView {
   restriction?: { code: string, message: string }
   createdAt: string
 }
+export type InvitationOutcome = 'created' | 'already_connected' | 'confirmed'
+export interface InvitationAcceptance extends ConnectView {
+  invitationOutcome: InvitationOutcome
+}
 export interface ConnectPage {
   items: ConnectView[]
   pagination: { nextCursor: string | null, hasMore: boolean }
