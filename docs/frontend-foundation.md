@@ -374,6 +374,22 @@ exact 204 очищает local auth и публикует token-free session-end
 passwordChanged=1 и предлагает войти новым паролем. Пароли не записываются
 в useState, URL, storage или BroadcastChannel. [Дизайн SC-005](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/password-change.md).
 
+## SC-007: деактивация и реактивация
+
+`AccountDeactivationForm` находится в профиле и раскрывает отдельное явное
+подтверждение с текущим паролем. Форма объясняет сохранение Connect, балансов и
+истории, а также отзыв sessions на всех устройствах. Пароль не попадает в
+`useState`, URL, storage или BroadcastChannel и очищается после результата,
+отмены и unmount.
+
+`$auth.deactivateAccount` использует общий refresh Web Lock и single-flight,
+принимает успех только с exact `204`, после чего очищает in-memory auth и cookies,
+публикует token-free `session-ended` и открывает `/activate`. Ошибка текущего
+пароля остаётся ошибкой формы без refresh; Bearer denial допускает один
+refresh/retry. Страница активации показывает состояние деактивированного аккаунта
+и переиспользует существующий нейтральный `ActivationRequestForm`; подтверждение
+ссылки создаёт обычную новую сессию через общий session coordinator.
+
 ## SC-008: приглашения и Connections
 
 `/connects` и `/connects/[id]` защищены существующим auth middleware;
