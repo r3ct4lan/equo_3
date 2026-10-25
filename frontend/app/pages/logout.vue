@@ -23,37 +23,41 @@ async function retry(): Promise<void> {
 </script>
 
 <template>
-  <section
-    class="panel stack"
+  <UiCard
+    as="section"
+    class="stack"
     aria-labelledby="logout-result-title"
     :aria-busy="pending"
   >
-    <h1 id="logout-result-title">
+    <UiText
+      id="logout-result-title"
+      variant="heading1"
+    >
       You are signed out here
-    </h1>
-    <p role="alert">
+    </UiText>
+    <UiText role="alert">
       We could not confirm sign-out {{ all ? 'on all devices' : 'on the server' }}.
       Server access may still be available. Try again when the service is reachable.
-    </p>
+    </UiText>
     <div class="form-actions">
-      <button
-        class="button"
-        type="button"
+      <UiButton
         :disabled="pending"
         @click="retry"
       >
         {{ pending ? 'Trying again…' : 'Retry sign out' }}
-      </button>
-      <NuxtLink
-        class="button button--secondary"
+      </UiButton>
+      <UiButton
+        variant="secondary"
         to="/login?signedOut=1"
-      >Go to sign in</NuxtLink>
+      >
+        Go to sign in
+      </UiButton>
     </div>
-    <p
+    <UiText
       v-if="pending"
       role="status"
     >
       Trying again…
-    </p>
-  </section>
+    </UiText>
+  </UiCard>
 </template>

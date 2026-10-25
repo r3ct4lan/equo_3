@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
 import { emailConfirmationErrorPresentation } from '~/utils/profile-settings'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 
@@ -10,7 +11,7 @@ const router = useRouter()
 const { $api } = useNuxtApp()
 const state = ref<ConfirmationState>('preparing')
 const confirmationError = ref<ApiClientError | null>(null)
-const resultPanel = useTemplateRef<HTMLElement>('resultPanel')
+const resultPanel = useTemplateRef<FocusTarget>('resultPanel')
 const presentation = computed(() => confirmationError.value ? emailConfirmationErrorPresentation(confirmationError.value) : null)
 let capability: string | null = null
 
@@ -58,17 +59,23 @@ async function confirmEmail(): Promise<void> {
     aria-labelledby="email-confirmation-title"
   >
     <div class="auth-intro stack">
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Email confirmation
-      </p>
-      <h1 id="email-confirmation-title">
+      </UiText>
+      <UiText
+        id="email-confirmation-title"
+        variant="heading1"
+      >
         Confirm your new email
-      </h1>
-      <p class="hero__lede">
+      </UiText>
+      <UiText variant="lede">
         Confirm the one-time link before Equo changes your sign-in address.
-      </p>
+      </UiText>
     </div>
-    <section class="panel stack">
+    <UiCard
+      as="section"
+      class="stack"
+    >
       <AppLoadingState
         v-if="state === 'preparing' || state === 'loading'"
         message="Confirming your email…"
@@ -79,32 +86,31 @@ async function confirmEmail(): Promise<void> {
         class="stack"
         tabindex="-1"
       >
-        <h2>Ready to confirm</h2>
-        <p>Your email has not changed yet.</p>
-        <button
-          type="button"
+        <UiText variant="heading2">
+          Ready to confirm
+        </UiText>
+        <UiText>Your email has not changed yet.</UiText>
+        <UiButton
           @click="confirmEmail"
         >
           Confirm new email
-        </button>
+        </UiButton>
       </div>
-      <div
+      <UiNotice
         v-else-if="state === 'success'"
         ref="resultPanel"
-        class="status-card status-card--success"
+        tone="success"
         role="status"
         tabindex="-1"
       >
-        <span
-          class="status-card__marker"
-          aria-hidden="true"
-        />
         <div>
           <strong>Email changed</strong>
-          <p>Use your new email the next time you sign in. Existing signed-in devices remain active.</p>
-          <NuxtLink to="/me">Open your profile</NuxtLink>
+          <UiText>Use your new email the next time you sign in. Existing signed-in devices remain active.</UiText>
+          <UiLink to="/me">
+            Open your profile
+          </UiLink>
         </div>
-      </div>
+      </UiNotice>
       <div
         v-else-if="state === 'missing'"
         ref="resultPanel"
@@ -126,17 +132,19 @@ async function confirmEmail(): Promise<void> {
           :retry-label="presentation.retryable ? 'Try confirmation again' : undefined"
           @retry="confirmEmail"
         />
-        <p
+        <UiText
           v-if="confirmationError?.requestId"
           class="support-reference"
         >
           Support reference: <code>{{ confirmationError.requestId }}</code>
-        </p>
+        </UiText>
       </div>
-      <NuxtLink
+      <UiButton
+        variant="secondary"
         to="/me"
-        class="button button--secondary"
-      >Back to profile</NuxtLink>
-    </section>
+      >
+        Back to profile
+      </UiButton>
+    </UiCard>
   </section>
 </template>

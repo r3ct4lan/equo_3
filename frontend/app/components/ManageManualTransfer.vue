@@ -122,36 +122,40 @@ onBeforeUnmount(() => ++generation)
     class="stack"
     aria-labelledby="manage-payment-title"
   >
-    <h2 id="manage-payment-title">
+    <UiText
+      id="manage-payment-title"
+      variant="heading2"
+    >
       Manage payment
-    </h2>
+    </UiText>
     <div v-if="mode === 'idle' && !blocked">
-      <button
+      <UiButton
         ref="editTrigger"
-        class="button"
-        type="button"
         @click="openEdit"
       >
         Edit payment
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         ref="deleteTrigger"
-        class="button button--danger"
-        type="button"
+        variant="danger"
         @click="openDelete"
       >
         Remove payment
-      </button>
+      </UiButton>
     </div>
-    <form
+    <UiCard
       v-if="mode === 'edit'"
-      class="panel stack"
+      as="form"
+      class="stack"
       aria-labelledby="edit-payment-title"
       @submit.prevent="save"
     >
-      <h3 id="edit-payment-title">
+      <UiText
+        id="edit-payment-title"
+        variant="heading3"
+      >
         Edit payment
-      </h3>
+      </UiText>
       <FormErrorSummary :message="message" />
       <fieldset
         class="stack"
@@ -160,9 +164,9 @@ onBeforeUnmount(() => ++generation)
         <legend class="visually-hidden">
           Payment changes
         </legend>
-        <div class="form-field">
+        <UiField>
           <label for="edit-payment-direction">Who transferred money?</label>
-          <select
+          <UiSelect
             id="edit-payment-direction"
             ref="directionInput"
             v-model="senderId"
@@ -174,86 +178,85 @@ onBeforeUnmount(() => ++generation)
             >
               {{ side.name }} → {{ sides.find(other => other.id !== side.id)?.name }}
             </option>
-          </select>
-        </div>
-        <div class="form-field">
+          </UiSelect>
+        </UiField>
+        <UiField>
           <label for="edit-payment-amount">Payment amount in EUR</label>
-          <input
+          <UiInput
             id="edit-payment-amount"
             v-model="amount"
             type="text"
             inputmode="decimal"
             required
             :aria-invalid="invalid"
-          >
-        </div>
+          />
+        </UiField>
       </fieldset>
-      <button
-        class="button"
+      <UiButton
         type="submit"
         :disabled="pending || blocked"
-        :aria-busy="pending"
+        :pending="pending"
       >
         {{ pending ? 'Saving changes…' : 'Save payment changes' }}
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         v-if="!blocked"
-        class="button button--secondary"
-        type="button"
+        variant="secondary"
         :disabled="pending"
         @click="cancel('edit')"
       >
         Cancel editing
-      </button>
-    </form>
-    <div
+      </UiButton>
+    </UiCard>
+    <UiCard
       v-if="mode === 'delete'"
-      class="panel stack"
+      as="div"
+      class="stack"
       role="alertdialog"
       aria-labelledby="remove-payment-title"
       aria-describedby="remove-payment-description"
     >
-      <h3 id="remove-payment-title">
+      <UiText
+        id="remove-payment-title"
+        variant="heading3"
+      >
         Remove this payment permanently?
-      </h3>
-      <p id="remove-payment-description">
+      </UiText>
+      <UiText id="remove-payment-description">
         This cannot be undone. The payment will remain in history but will stop affecting the balance.
-      </p>
+      </UiText>
       <FormErrorSummary :message="message" />
-      <button
+      <UiButton
         ref="deleteConfirm"
-        class="button button--danger"
-        type="button"
+        variant="danger"
         :disabled="pending || blocked"
-        :aria-busy="pending"
+        :pending="pending"
         @click="remove"
       >
         {{ pending ? 'Removing payment…' : 'Yes, remove payment' }}
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         v-if="!blocked"
-        class="button button--secondary"
-        type="button"
+        variant="secondary"
         :disabled="pending"
         @click="cancel('delete')"
       >
         Keep payment
-      </button>
-    </div>
-    <p
+      </UiButton>
+    </UiCard>
+    <UiText
       v-if="error?.requestId"
       class="support-reference"
     >
       Support reference: {{ error.requestId }}
-    </p>
-    <button
+    </UiText>
+    <UiButton
       v-if="blocked"
-      class="button button--secondary"
-      type="button"
+      variant="secondary"
       :disabled="pending"
       @click="emit('reload')"
     >
       Reload payment
-    </button>
+    </UiButton>
   </section>
 </template>

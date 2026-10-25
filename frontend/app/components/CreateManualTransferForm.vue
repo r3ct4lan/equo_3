@@ -74,26 +74,30 @@ onBeforeUnmount(clear)
 </script>
 
 <template>
-  <form
-    class="panel stack"
+  <UiCard
+    as="form"
+    class="stack"
     aria-labelledby="payment-title"
     @submit.prevent="submit"
   >
-    <h2 id="payment-title">
+    <UiText
+      id="payment-title"
+      variant="heading2"
+    >
       Record a payment
-    </h2>
-    <p>Record money already transferred between you. Either person can record either direction, including an overpayment.</p>
+    </UiText>
+    <UiText>Record money already transferred between you. Either person can record either direction, including an overpayment.</UiText>
     <FormErrorSummary :message="message" />
     <fieldset
-      class="stack payment-fields"
+      class="stack"
       :disabled="pending || uncertain || !connect.canCreateTransfer"
     >
       <legend class="visually-hidden">
         Payment details
       </legend>
-      <div class="form-field">
+      <UiField>
         <label for="payment-direction">Who transferred money?</label>
-        <select
+        <UiSelect
           id="payment-direction"
           v-model="direction"
           required
@@ -104,11 +108,11 @@ onBeforeUnmount(clear)
           <option value="other">
             {{ connect.otherUser.name }} → You
           </option>
-        </select>
-      </div>
-      <div class="form-field">
+        </UiSelect>
+      </UiField>
+      <UiField>
         <label for="payment-amount">Payment amount in EUR</label>
-        <input
+        <UiInput
           id="payment-amount"
           v-model="amount"
           type="text"
@@ -117,45 +121,43 @@ onBeforeUnmount(clear)
           placeholder="5.01"
           :aria-invalid="invalid"
           aria-describedby="payment-amount-help"
-        >
-        <p
+        />
+        <UiText
           id="payment-amount-help"
-          class="form-help"
+          variant="help"
         >
           Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.
-        </p>
-      </div>
-      <p
+        </UiText>
+      </UiField>
+      <UiText
         v-if="preview !== null"
-        class="form-help"
+        variant="help"
       >
         Expected balance: {{ formatEuro(preview) }}.
         {{ preview > 0 ? 'They would owe you.' : preview < 0 ? 'You would owe them.' : 'You would be settled up.' }}
         Your balance and operations will be refreshed after the payment is confirmed.
-      </p>
+      </UiText>
     </fieldset>
-    <p
+    <UiText
       v-if="error?.requestId"
       class="support-reference"
     >
       Support reference: {{ error.requestId }}
-    </p>
-    <button
-      class="button"
+    </UiText>
+    <UiButton
       type="submit"
       :disabled="pending || !connect.canCreateTransfer"
-      :aria-busy="pending"
+      :pending="pending"
     >
       {{ pending ? 'Saving payment…' : uncertain ? 'Retry same payment' : 'Record payment' }}
-    </button>
-    <button
+    </UiButton>
+    <UiButton
       v-if="error?.code === 'INACTIVE_USER' && !uncertain"
-      class="button button--secondary"
-      type="button"
+      variant="secondary"
       :disabled="pending"
       @click="emit('reload')"
     >
       Reload connection
-    </button>
-  </form>
+    </UiButton>
+  </UiCard>
 </template>

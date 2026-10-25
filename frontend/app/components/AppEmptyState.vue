@@ -6,10 +6,10 @@ defineProps<{
 </script>
 
 <template>
-  <div class="state-message state-message--empty">
+  <UiNotice tone="neutral">
     <div>
       <strong>{{ title }}</strong>
-      <p>{{ message }}</p>
+      <UiText>{{ message }}</UiText>
     </div>
-  </div>
+  </UiNotice>
 </template>

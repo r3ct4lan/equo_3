@@ -11,15 +11,18 @@ const { $auth } = useNuxtApp()
     aria-labelledby="security-title"
   >
     <div class="hero">
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Your account
-      </p>
-      <h1 id="security-title">
+      </UiText>
+      <UiText
+        id="security-title"
+        variant="heading1"
+      >
         Account security
-      </h1>
-      <p class="hero__lede">
+      </UiText>
+      <UiText variant="lede">
         Choose a new password using 8–128 characters with at least one non-space character. Saving signs you out on all devices. Sign in again with your new password.
-      </p>
+      </UiText>
     </div>
     <PasswordChangeForm v-if="currentUser.state.value.status === 'authenticated'" />
     <AppErrorState
@@ -33,9 +36,11 @@ const { $auth } = useNuxtApp()
       v-else-if="currentUser.state.value.status === 'unknown'"
       message="Checking your session…"
     />
-    <NuxtLink
+    <UiButton
+      variant="secondary"
       to="/me"
-      class="button button--secondary"
-    >Back to profile</NuxtLink>
+    >
+      Back to profile
+    </UiButton>
   </section>
 </template>

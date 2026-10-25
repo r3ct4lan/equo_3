@@ -63,15 +63,18 @@ onMounted(() => {
     aria-labelledby="profile-title"
   >
     <div class="hero">
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Your account
-      </p>
-      <h1 id="profile-title">
+      </UiText>
+      <UiText
+        id="profile-title"
+        variant="heading1"
+      >
         My profile
-      </h1>
-      <p class="hero__lede">
+      </UiText>
+      <UiText variant="lede">
         This protected page shows the profile confirmed by the backend.
-      </p>
+      </UiText>
     </div>
 
     <AppLoadingState
@@ -87,21 +90,25 @@ onMounted(() => {
       @retry="$auth.retryBootstrap"
     />
 
-    <section
+    <UiCard
       v-else-if="user"
-      class="panel stack"
+      as="section"
+      class="stack"
       aria-labelledby="profile-card-title"
     >
       <div>
-        <p class="eyebrow">
+        <UiText variant="eyebrow">
           Profile
-        </p>
-        <h2 id="profile-card-title">
+        </UiText>
+        <UiText
+          id="profile-card-title"
+          variant="heading2"
+        >
           {{ user.name }}
-        </h2>
+        </UiText>
       </div>
 
-      <dl class="profile-list">
+      <UiDescriptionList>
         <div>
           <dt>Email</dt>
           <dd>{{ user.email }}</dd>
@@ -114,19 +121,21 @@ onMounted(() => {
           <dt>Created</dt>
           <dd>{{ createdDate }}</dd>
         </div>
-      </dl>
-    </section>
+      </UiDescriptionList>
+    </UiCard>
     <ProfileNameForm
       v-if="user"
       :user="user"
     />
     <EmailChangeForm v-if="user" />
     <AccountDeactivationForm v-if="user" />
-    <NuxtLink
+    <UiButton
       v-if="user"
+      variant="secondary"
       to="/account/security"
-      class="button button--secondary"
-    >Change password</NuxtLink>
+    >
+      Change password
+    </UiButton>
     <LogoutActions />
   </section>
 </template>

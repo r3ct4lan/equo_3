@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
 import type { RegisterRequest, RegisterResponse } from '~/types/api'
 import { forgetInvitation, recalledInvitation } from '~/utils/connect-invitations'
 import {
@@ -30,7 +31,7 @@ const {
 
 const attemptKeys = createRegistrationAttemptKeys()
 const registration = ref<RegisterResponse | null>(null)
-const successPanel = useTemplateRef<HTMLElement>('successPanel')
+const successPanel = useTemplateRef<FocusTarget>('successPanel')
 
 const hasFieldErrors = computed(() => Object.keys(fieldErrors.value).length > 0)
 const errorPresentation = computed(() => formError.value
@@ -84,57 +85,67 @@ async function submitRegistration(): Promise<void> {
     aria-labelledby="registration-title"
   >
     <div class="auth-intro stack">
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Your Equo account
-      </p>
-      <h1 id="registration-title">
+      </UiText>
+      <UiText
+        id="registration-title"
+        variant="heading1"
+      >
         Create an account
-      </h1>
-      <p class="hero__lede">
+      </UiText>
+      <UiText variant="lede">
         Register first, then use the one-time link sent to your email to activate your account.
-      </p>
+      </UiText>
     </div>
 
     <div
       v-if="registration"
       class="stack"
     >
-      <section
+      <UiCard
         ref="successPanel"
-        class="panel stack"
+        as="section"
+        class="stack"
         role="status"
         aria-live="polite"
         tabindex="-1"
       >
-        <p class="eyebrow">
+        <UiText variant="eyebrow">
           Activation required
-        </p>
-        <h2>Check your email</h2>
-        <p>
+        </UiText>
+        <UiText variant="heading2">
+          Check your email
+        </UiText>
+        <UiText>
           We created the account for <strong>{{ registration.user.email }}</strong>, but it is not active yet.
-        </p>
-        <p>
+        </UiText>
+        <UiText>
           Open the activation email and follow its one-time link. Receiving the email does not sign you in.
-        </p>
-      </section>
+        </UiText>
+      </UiCard>
 
       <ActivationRequestForm :initial-email="registration.user.email" />
     </div>
 
-    <form
+    <UiCard
       v-else
-      class="panel stack"
+      as="form"
+      class="stack"
       novalidate
       aria-labelledby="registration-form-title"
       @submit.prevent="submitRegistration"
     >
       <div>
-        <h2 id="registration-form-title">
+        <UiText
+          id="registration-form-title"
+          variant="heading2"
+        >
           Registration details
-        </h2>
-        <p class="form-help">
+        </UiText>
+        <UiText variant="help">
           All fields are required.
-        </p>
+        </UiText>
       </div>
 
       <FormErrorSummary
@@ -150,28 +161,29 @@ async function submitRegistration(): Promise<void> {
           Account information
         </legend>
 
-        <div class="form-field">
+        <UiField>
           <label for="registration-name">Name</label>
-          <input
+          <UiInput
             id="registration-name"
             v-model="values.name"
             name="name"
             type="text"
             autocomplete="name"
             required
-            :aria-invalid="errorsFor('name').length > 0"
+            :aria-invalid="errorsFor('name').length
+              > 0"
             :aria-describedby="errorsFor('name').length > 0 ? 'registration-name-error' : undefined"
             @input="handleFormChange"
-          >
+          />
           <FormFieldError
             id="registration-name-error"
             :messages="errorsFor('name')"
           />
-        </div>
+        </UiField>
 
-        <div class="form-field">
+        <UiField>
           <label for="registration-email">Email</label>
-          <input
+          <UiInput
             id="registration-email"
             v-model="values.email"
             name="email"
@@ -179,25 +191,26 @@ async function submitRegistration(): Promise<void> {
             inputmode="email"
             autocomplete="email"
             required
-            :aria-invalid="errorsFor('email').length > 0"
+            :aria-invalid="errorsFor('email').length
+              > 0"
             :aria-describedby="errorsFor('email').length > 0 ? 'registration-email-error' : undefined"
             @input="handleFormChange"
-          >
+          />
           <FormFieldError
             id="registration-email-error"
             :messages="errorsFor('email')"
           />
-        </div>
+        </UiField>
 
-        <div class="form-field">
+        <UiField>
           <label for="registration-password">Password</label>
-          <p
+          <UiText
             id="registration-password-hint"
-            class="form-help"
+            variant="help"
           >
             Use 8–128 characters and at least one non-space character.
-          </p>
-          <input
+          </UiText>
+          <UiInput
             id="registration-password"
             v-model="values.password"
             name="password"
@@ -206,25 +219,26 @@ async function submitRegistration(): Promise<void> {
             minlength="8"
             maxlength="128"
             required
-            :aria-invalid="errorsFor('password').length > 0"
+            :aria-invalid="errorsFor('password').length
+              > 0"
             :aria-describedby="errorsFor('password').length > 0
               ? 'registration-password-hint registration-password-error'
               : 'registration-password-hint'"
             @input="handleFormChange"
-          >
+          />
           <FormFieldError
             id="registration-password-error"
             :messages="errorsFor('password')"
           />
-        </div>
+        </UiField>
       </fieldset>
 
-      <p
+      <UiText
         v-if="formError?.requestId"
         class="support-reference"
       >
         Support reference: <code>{{ formError.requestId }}</code>
-      </p>
+      </UiText>
 
       <div class="form-actions">
         <FormSubmitButton
@@ -233,16 +247,15 @@ async function submitRegistration(): Promise<void> {
         >
           Create account
         </FormSubmitButton>
-        <button
+        <UiButton
           v-if="errorPresentation?.retryable"
-          class="button button--secondary"
-          type="button"
+          variant="secondary"
           :disabled="isSubmitting"
           @click="submitRegistration"
         >
           Try the same attempt again
-        </button>
+        </UiButton>
       </div>
-    </form>
+    </UiCard>
   </section>
 </template>

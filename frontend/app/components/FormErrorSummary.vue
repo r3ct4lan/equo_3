@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
+
 const props = defineProps<{
   title?: string
   message?: string | null
 }>()
 
-const summary = useTemplateRef<HTMLElement>('summary')
+const summary = useTemplateRef<FocusTarget>('summary')
 
 watch(() => props.message, async (message) => {
   if (!message) {
@@ -26,6 +28,6 @@ watch(() => props.message, async (message) => {
     tabindex="-1"
   >
     <strong>{{ title ?? 'Check the form' }}</strong>
-    <p>{{ message }}</p>
+    <UiText>{{ message }}</UiText>
   </div>
 </template>

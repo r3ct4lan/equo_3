@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
 import { isTerminalRecoveryError, passwordResetErrorPresentation, validateNewPassword } from '~/utils/password-reset'
 
 useHead({ title: 'Choose a new password · Equo', meta: [{ name: 'referrer', content: 'no-referrer' }] })
@@ -7,7 +8,7 @@ const router = useRouter()
 const { $auth } = useNuxtApp()
 const { values, fieldErrors, formError, isSubmitting, errorsFor, clearErrors, submit } = useApiForm({ newPassword: '' })
 const state = ref<'preparing' | 'ready' | 'missing' | 'terminal' | 'success'>('preparing')
-const resultPanel = useTemplateRef<HTMLElement>('resultPanel')
+const resultPanel = useTemplateRef<FocusTarget>('resultPanel')
 const presentation = computed(() => formError.value ? passwordResetErrorPresentation(formError.value) : null)
 const summary = computed(() => presentation.value?.message ?? (Object.keys(fieldErrors.value).length ? 'Correct the highlighted field.' : null))
 let capability: string | null = null
@@ -51,17 +52,23 @@ async function resetPassword(): Promise<void> {
     aria-labelledby="reset-title"
   >
     <div class="auth-intro stack">
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Account recovery
-      </p>
-      <h1 id="reset-title">
+      </UiText>
+      <UiText
+        id="reset-title"
+        variant="heading1"
+      >
         Choose a new password
-      </h1>
-      <p class="hero__lede">
+      </UiText>
+      <UiText variant="lede">
         Use 8–128 characters with at least one non-space character. After saving, sign in with your new password.
-      </p>
+      </UiText>
     </div>
-    <section class="panel stack">
+    <UiCard
+      as="section"
+      class="stack"
+    >
       <AppLoadingState
         v-if="state === 'preparing'"
         message="Preparing recovery…"
@@ -94,7 +101,7 @@ async function resetPassword(): Promise<void> {
         tabindex="-1"
       >
         <strong>Password saved</strong>
-        <p>Sign in with your new password. If your account is inactive, activate it separately.</p>
+        <UiText>Sign in with your new password. If your account is inactive, activate it separately.</UiText>
       </div>
       <form
         v-else
@@ -114,31 +121,32 @@ async function resetPassword(): Promise<void> {
           <legend class="visually-hidden">
             New password
           </legend>
-          <div class="form-field">
+          <UiField>
             <label for="reset-password">New password</label>
-            <input
+            <UiInput
               id="reset-password"
               v-model="values.newPassword"
               name="newPassword"
               type="password"
               autocomplete="new-password"
               required
-              :aria-invalid="errorsFor('newPassword').length > 0"
+              :aria-invalid="errorsFor('newPassword').length
+                > 0"
               :aria-describedby="errorsFor('newPassword').length ? 'reset-password-error' : undefined"
               @input="clearErrors"
-            >
+            />
             <FormFieldError
               id="reset-password-error"
               :messages="errorsFor('newPassword')"
             />
-          </div>
+          </UiField>
         </fieldset>
-        <p
+        <UiText
           v-if="formError?.requestId"
           class="support-reference"
         >
           Support reference: <code>{{ formError.requestId }}</code>
-        </p>
+        </UiText>
         <FormSubmitButton
           :pending="isSubmitting"
           pending-label="Saving password…"
@@ -146,15 +154,19 @@ async function resetPassword(): Promise<void> {
           Save new password
         </FormSubmitButton>
       </form>
-      <NuxtLink
+      <UiButton
         v-if="state === 'missing' || state === 'terminal'"
+        variant="secondary"
         to="/forgot-password"
-        class="button button--secondary"
-      >Request a new recovery link</NuxtLink>
-      <NuxtLink
+      >
+        Request a new recovery link
+      </UiButton>
+      <UiButton
+        variant="secondary"
         to="/login"
-        class="button button--secondary"
-      >Back to sign in</NuxtLink>
-    </section>
+      >
+        Back to sign in
+      </UiButton>
+    </UiCard>
   </section>
 </template>
