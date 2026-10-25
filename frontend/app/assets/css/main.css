@@ -2,6 +2,7 @@
 :root {
   font-family: var(--font-family);
   font-size: var(--font-body);
+  font-weight: var(--weight-normal);
   color: var(--color-text);
   background: var(--color-background);
   line-height: var(--line-body);
@@ -101,7 +102,7 @@ p {
 
 .app-header {
   border-bottom: var(--border-width) solid var(--color-border);
-  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  background: var(--color-header-background);
 }
 
 .app-header__inner {
@@ -229,8 +230,7 @@ nav {
   margin-top: var(--space-section);
 }
 
-.state-message,
-.status-card {
+.state-message {
   display: flex;
   align-items: flex-start;
   gap: var(--space-card);
@@ -240,14 +240,13 @@ nav {
 }
 
 .state-message p,
-.status-card p,
 .form-error-summary p {
   margin: var(--space-1) 0 0;
 }
 
 .state-message--error,
 .form-error-summary {
-  border-color: color-mix(in srgb, var(--color-error) 35%, var(--color-border));
+  border-color: var(--color-error-border);
   background: var(--color-error-surface);
   color: var(--color-error);
 }
@@ -257,7 +256,7 @@ nav {
 }
 
 .state-message--success {
-  border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-border));
+  border-color: var(--color-success-border);
   background: var(--color-success-surface);
 }
 
@@ -679,7 +678,6 @@ strong, label, legend { font-weight: var(--weight-bold); }
   overflow-wrap: anywhere;
 }
 .ui-kit-token-table code { white-space: normal; }
-.ui-kit-list-specimen { list-style: none; }
 @media (max-width: 52rem) {
   .ui-kit-layout { grid-template-columns: minmax(0, 1fr); }
   .ui-kit-nav { position: static; flex-flow: row wrap; }

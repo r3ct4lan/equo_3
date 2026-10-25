@@ -397,17 +397,22 @@ async function closeDialog(): Promise<void> {
               created-at="2026-10-25T12:00:00Z"
             />
           </ol>
-          <UiCard
-            as="li"
-            class="stack ui-kit-list-specimen"
+          <ul
+            class="dashboard-expenses stack"
+            aria-label="Example operations"
           >
-            <UiLink href="#ui-cards">
-              Payment · €12.50
-            </UiLink>
-            <UiText>Alex → Sam</UiText>
-            <UiText>Removed · does not affect the balance</UiText>
-            <time datetime="2026-10-25T12:00:00Z">25 Oct 2026</time>
-          </UiCard>
+            <UiCard
+              as="li"
+              class="stack"
+            >
+              <UiLink href="#ui-cards">
+                Payment · €12.50
+              </UiLink>
+              <UiText>Alex → Sam</UiText>
+              <UiText>Removed · does not affect the balance</UiText>
+              <time datetime="2026-10-25T12:00:00Z">25 Oct 2026</time>
+            </UiCard>
+          </ul>
         </section>
 
         <section

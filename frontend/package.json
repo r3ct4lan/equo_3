@@ -10,7 +10,8 @@
     "check:lock": "npm ci --dry-run --ignore-scripts --no-audit",
     "check:quality": "npm run check:lock && npm run lint && npm run typecheck",
     "audit": "node scripts/audit-dependencies.mjs",
-    "lint": "eslint . --max-warnings=0",
+    "lint": "eslint . --max-warnings=0 && npm run lint:ui",
+    "lint:ui": "node scripts/check-ui-system.mjs",
     "lint:fix": "eslint . --fix",
     "test": "npm run test:unit && npm run test:component",
     "test:component": "vitest run --config vitest.config.ts",
@@ -21,7 +22,7 @@
   },
   "dependencies": {
     "nuxt": "4.6.2",
-    "vue": "3.5.43",
+    "vue": "3.5.44",
     "vue-router": "5.2.0"
   },
   "devDependencies": {
