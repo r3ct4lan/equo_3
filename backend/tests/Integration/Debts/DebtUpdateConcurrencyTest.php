@@ -115,4 +115,38 @@ final class DebtUpdateConcurrencyTest extends KernelTestCase
             yield [$race];
         }
     }
+
+    public function testDeleteLocksTheAggregateAndAWaitingUpdateObservesTheRemovedState(): void
+    {
+        $c = self::getContainer();
+        self::assertInstanceOf(TestContainer::class, $c);
+        $update = ['author' => $this->users[0], 'debt' => $this->debtId, 'other' => $this->users[2], 'amount' => 1201, 'version' => 1];
+        $this->db->beginTransaction();
+        $c->get('test.delete_debt')->handle($this->debtId, 1, $this->users[0]);
+        $process = proc_open([PHP_BINARY, '-r', 'require "tests/bootstrap.php"; \App\Tests\Fixture\Concurrency\DebtUpdateRunner::main();'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, dirname(__DIR__, 3));
+        self::assertIsResource($process);
+        stream_set_timeout($pipes[1], 12);
+        try {
+            $pid = (int) fgets($pipes[1]);
+            self::assertGreaterThan(0, $pid);
+            fwrite($pipes[0], json_encode($update, JSON_THROW_ON_ERROR)."\n");
+            fflush($pipes[0]);
+            $deadline = microtime(true) + 4;
+            do {
+                $blocked = (int) $this->db->fetchOne('SELECT cardinality(pg_blocking_pids(?))', [$pid]);
+            } while (0 === $blocked && microtime(true) < $deadline);
+            self::assertGreaterThan(0, $blocked, 'Update must wait for the deleting aggregate writer.');
+            $this->db->commit();
+            self::assertSame('DEBT_DELETED', trim((string) fgets($pipes[1])));
+        } finally {
+            foreach ($pipes as $pipe) {
+                fclose($pipe);
+            }
+            proc_terminate($process);
+            proc_close($process);
+        }
+        self::assertSame(['is_deleted' => true, 'version' => 2], $this->db->fetchAssociative('SELECT is_deleted,version FROM debt WHERE id=?', [$this->debtId]));
+        self::assertSame(3, (int) $this->db->fetchOne('SELECT COUNT(*) FROM debt_participant WHERE debt_id=? AND is_deleted=false', [$this->debtId]));
+        self::assertSame(2, (int) $this->db->fetchOne('SELECT COUNT(*) FROM transfer WHERE debt_id=? AND is_deleted=true AND version=2', [$this->debtId]));
+    }
 }

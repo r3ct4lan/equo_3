@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createAuthSession, AUTH_REFRESH_LOCK, PASSWORD_CHANGE_ENDPOINT, LOGIN_ENDPOINT, REFRESH_ENDPOINT, SESSION_ENDED_EVENT } from '../../app/utils/auth-session.ts'
+import { createAuthSession, ACCOUNT_DEACTIVATE_ENDPOINT, AUTH_REFRESH_LOCK, PASSWORD_CHANGE_ENDPOINT, LOGIN_ENDPOINT, REFRESH_ENDPOINT, SESSION_ENDED_EVENT } from '../../app/utils/auth-session.ts'
 import { ApiClientError } from '../../app/utils/api-error.ts'
 import { validatePasswordChange, passwordChangeErrorPresentation } from '../../app/utils/password-change.ts'
 
@@ -136,4 +136,50 @@ test('missing Web Locks cannot send the security command', async () => {
   await assert.rejects(auth.changePassword('old', 'New password!'), error => error.code === 'WEB_LOCKS_UNAVAILABLE')
   assert.deepEqual(calls, [])
   assert.deepEqual(events, [])
+})
+
+test('account deactivation uses the common lock, exact 204 and ends every local session', async () => {
+  let complete
+  const { auth, calls, events, stored } = await fixture(async (path, options) => {
+    assert.equal(path, ACCOUNT_DEACTIVATE_ENDPOINT)
+    assert.equal(options.accessToken, 'initial-access')
+    assert.deepEqual(options.body, { currentPassword: ' current ' })
+    await new Promise((resolve) => {
+      complete = resolve
+    })
+    options.onResponse({ response: { status: 204 } })
+  })
+  const pending = auth.deactivateAccount(' current ')
+  assert.equal(auth.deactivateAccount('ignored'), pending)
+  await Promise.resolve()
+  assert.deepEqual(events, [AUTH_REFRESH_LOCK])
+  complete()
+  await pending
+  assert.equal(calls.length, 1)
+  assert.deepEqual(events, [AUTH_REFRESH_LOCK, 'anonymous', { type: SESSION_ENDED_EVENT }, '/activate?deactivated=1'])
+  assert.deepEqual([...stored], [['equo:signed-out', 'true']])
+})
+
+test('account deactivation credential denial preserves the active session', async () => {
+  const { auth, calls, events, stored } = await fixture(async () => {
+    throw failure('INVALID_CREDENTIALS')
+  })
+  await assert.rejects(auth.deactivateAccount('wrong'), error => error.code === 'INVALID_CREDENTIALS')
+  assert.deepEqual(calls.map(call => call.path), [ACCOUNT_DEACTIVATE_ENDPOINT])
+  assert.deepEqual(events, [AUTH_REFRESH_LOCK])
+  assert.equal(stored.size, 0)
+})
+
+test('account deactivation refreshes an expired bearer once before applying', async () => {
+  let attempts = 0
+  const { auth, calls, events } = await fixture(async (path, options) => {
+    if (path === REFRESH_ENDPOINT) return { accessToken: 'replacement-access' }
+    if (attempts++ === 0) throw failure('AUTHENTICATION_REQUIRED')
+    assert.equal(path, ACCOUNT_DEACTIVATE_ENDPOINT)
+    assert.equal(options.accessToken, 'replacement-access')
+    options.onResponse({ response: { status: 204 } })
+  })
+  await auth.deactivateAccount('current')
+  assert.deepEqual(calls.map(call => call.path), [ACCOUNT_DEACTIVATE_ENDPOINT, REFRESH_ENDPOINT, ACCOUNT_DEACTIVATE_ENDPOINT])
+  assert.deepEqual(events, [AUTH_REFRESH_LOCK, 'anonymous', { type: SESSION_ENDED_EVENT }, '/activate?deactivated=1'])
 })

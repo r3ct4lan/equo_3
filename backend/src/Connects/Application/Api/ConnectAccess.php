@@ -10,6 +10,8 @@ interface ConnectAccess
 
     public function exists(string $firstUserId, string $secondUserId): bool;
 
+    public function findPairId(string $firstUserId, string $secondUserId): ?string;
+
     public function ensurePair(string $firstUserId, string $secondUserId): string;
 
     public function isPair(string $connectId, string $firstUserId, string $secondUserId): bool;

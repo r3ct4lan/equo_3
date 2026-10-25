@@ -48,9 +48,12 @@ function expenseDate(value: string): string {
           <p class="dashboard-amount">
             {{ formatEuro(data.balances.totalOwedAmount) }}
           </p>
-          <p class="dashboard-caption">
+          <NuxtLink
+            class="dashboard-caption dashboard-summary-link"
+            to="/connects"
+          >
             Across all your connections
-          </p>
+          </NuxtLink>
         </section>
         <section
           class="panel dashboard-balance"
@@ -62,9 +65,12 @@ function expenseDate(value: string): string {
           <p class="dashboard-amount">
             {{ formatEuro(data.balances.totalReceivableAmount) }}
           </p>
-          <p class="dashboard-caption">
+          <NuxtLink
+            class="dashboard-caption dashboard-summary-link"
+            to="/connects"
+          >
             Across all your connections
-          </p>
+          </NuxtLink>
         </section>
       </div>
 
@@ -72,9 +78,15 @@ function expenseDate(value: string): string {
         class="stack"
         aria-labelledby="recent-expenses-title"
       >
-        <h2 id="recent-expenses-title">
-          Latest expenses
-        </h2>
+        <div class="dashboard-section-heading">
+          <h2 id="recent-expenses-title">
+            Latest expenses
+          </h2>
+          <NuxtLink
+            class="button"
+            to="/debts/new"
+          >New expense</NuxtLink>
+        </div>
         <AppEmptyState
           v-if="!data.expenses.length"
           title="No expenses yet"
@@ -136,10 +148,26 @@ function expenseDate(value: string): string {
   font-size: 0.95rem;
 }
 
+.dashboard-summary-link {
+  display: inline-block;
+  color: var(--color-primary);
+}
+
 .dashboard-expenses {
   padding: 0;
   margin: 0;
   list-style: none;
+}
+
+.dashboard-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-section-heading h2 {
+  margin: 0;
 }
 
 .dashboard-expense {
@@ -169,6 +197,11 @@ function expenseDate(value: string): string {
 @media (width <= 36rem) {
   .dashboard-balances {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-section-heading {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .dashboard-expense {

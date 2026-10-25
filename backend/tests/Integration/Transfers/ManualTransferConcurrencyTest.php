@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Transfers;
 
 use App\Tests\Fixture\Concurrency\ManualTransferCommandRunner;
+use App\Transfers\Application\CreateManualTransferCommand;
+use App\Transfers\Application\UpdateManualTransferCommand;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -114,6 +116,54 @@ final class ManualTransferConcurrencyTest extends KernelTestCase
     {
         foreach (['same', 'changed body', 'different key', 'rollback', 'deactivation'] as $race) {
             yield $race => [$race];
+        }
+    }
+
+    public function testActualRowLockSerializesUpdateAndDeleteWriters(): void
+    {
+        $c = self::getContainer();
+        self::assertInstanceOf(TestContainer::class, $c);
+        [$author, $other] = $this->users;
+        $connect = (string) $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id IN (?,?) AND second_user_id IN (?,?)', [$author, $other, $author, $other]);
+        $created = $c->get('test.create_manual_transfer')->handle(new CreateManualTransferCommand($connect, $other, $author, 100, Uuid::v4()->toRfc4122()), $author)['body'];
+        $transferId = (string) $created['id'];
+
+        $this->db->beginTransaction();
+        $updated = $c->get('test.update_manual_transfer')->handle(new UpdateManualTransferCommand($transferId, $author, $other, 200, 1), $author);
+        self::assertSame(2, $updated['version']);
+        $this->assertBlockedUpdateResult(['author' => $author, 'transfer' => $transferId, 'sender' => $other, 'receiver' => $author, 'amount' => 300, 'version' => 1], 'VERSION_CONFLICT');
+        self::assertSame(['amount' => 200, 'version' => 2, 'is_deleted' => false], $this->db->fetchAssociative('SELECT amount,version,is_deleted FROM transfer WHERE id=?', [$transferId]));
+
+        $this->db->beginTransaction();
+        $c->get('test.delete_manual_transfer')->handle($transferId, 2, $author);
+        $this->assertBlockedUpdateResult(['author' => $author, 'transfer' => $transferId, 'sender' => $other, 'receiver' => $author, 'amount' => 300, 'version' => 2], 'TRANSFER_DELETED');
+        self::assertSame(['amount' => 200, 'version' => 3, 'is_deleted' => true], $this->db->fetchAssociative('SELECT amount,version,is_deleted FROM transfer WHERE id=?', [$transferId]));
+    }
+
+    /** @param array{author:string,transfer:string,sender:string,receiver:string,amount:int,version:int} $input */
+    private function assertBlockedUpdateResult(array $input, string $expected): void
+    {
+        $process = proc_open([PHP_BINARY, '-r', 'require "tests/bootstrap.php"; \App\Tests\Fixture\Concurrency\ManualTransferUpdateRunner::main();'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, dirname(__DIR__, 3));
+        self::assertIsResource($process);
+        stream_set_timeout($pipes[1], 12);
+        try {
+            $pid = (int) fgets($pipes[1]);
+            self::assertGreaterThan(0, $pid);
+            fwrite($pipes[0], json_encode($input, JSON_THROW_ON_ERROR)."\n");
+            fflush($pipes[0]);
+            $deadline = microtime(true) + 4;
+            do {
+                $blocked = (int) $this->db->fetchOne('SELECT cardinality(pg_blocking_pids(?))', [$pid]);
+            } while (0 === $blocked && microtime(true) < $deadline);
+            self::assertGreaterThan(0, $blocked, 'Contender must wait on the manual transfer row lock.');
+            $this->db->commit();
+            self::assertSame($expected, trim((string) fgets($pipes[1])));
+        } finally {
+            foreach ($pipes as $pipe) {
+                fclose($pipe);
+            }
+            proc_terminate($process);
+            proc_close($process);
         }
     }
 }

@@ -11,6 +11,7 @@ use App\IdentityAccess\Application\Api\UserView;
 use App\IdentityAccess\Application\Authorization\ActivationTokenAccess;
 use App\IdentityAccess\Application\Port\ActivationRequestAccount;
 use App\IdentityAccess\Application\Port\ActivationRequestRepositoryPort;
+use App\IdentityAccess\Application\Port\CurrentUserProfileRepositoryPort;
 use App\IdentityAccess\Application\Port\CurrentUserState;
 use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
 use App\IdentityAccess\Application\Port\StoredActivationToken;
@@ -24,7 +25,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
 use RuntimeException;
 
-final readonly class DoctrineIdentityRepository implements IdentityRepositoryPort, ActivationRequestRepositoryPort
+final readonly class DoctrineIdentityRepository implements IdentityRepositoryPort, ActivationRequestRepositoryPort, CurrentUserProfileRepositoryPort
 {
     public function __construct(private EntityManagerInterface $entityManager)
     {
@@ -127,6 +128,16 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             $record->isActive(),
             $record->createdAt(),
         );
+    }
+
+    public function renameCurrentUser(string $userId, string $name): void
+    {
+        $record = $this->entityManager->find(UserRecord::class, $userId);
+        if (!$record instanceof UserRecord) {
+            throw new RuntimeException('Current user was not found.');
+        }
+
+        $record->rename($name);
     }
 
     public function addRegistration(User $user, UserActionToken $token, ?string $pendingInvitationId = null): void

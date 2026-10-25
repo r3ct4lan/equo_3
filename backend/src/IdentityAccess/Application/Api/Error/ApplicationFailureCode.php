@@ -9,6 +9,7 @@ enum ApplicationFailureCode: string
     case InvalidRequest = 'INVALID_REQUEST';
     case IdempotencyKeyRequired = 'IDEMPOTENCY_KEY_REQUIRED';
     case EmailAlreadyExists = 'EMAIL_ALREADY_EXISTS';
+    case EmailAlreadyInUse = 'EMAIL_ALREADY_IN_USE';
     case IdempotencyKeyReused = 'IDEMPOTENCY_KEY_REUSED';
     case PasswordPolicyViolation = 'PASSWORD_POLICY_VIOLATION';
     case InvalidToken = 'INVALID_TOKEN';
@@ -28,6 +29,9 @@ enum ApplicationFailureCode: string
     case TransferNotAvailable = 'TRANSFER_NOT_AVAILABLE';
     case DebtFrozen = 'DEBT_FROZEN';
     case DebtDeleted = 'DEBT_DELETED';
+    case AutomaticTransferImmutable = 'AUTOMATIC_TRANSFER_IMMUTABLE';
+    case TransferFrozen = 'TRANSFER_FROZEN';
+    case TransferDeleted = 'TRANSFER_DELETED';
     case VersionConflict = 'VERSION_CONFLICT';
     case PreconditionRequired = 'PRECONDITION_REQUIRED';
     case Forbidden = 'FORBIDDEN';

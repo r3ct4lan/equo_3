@@ -32,5 +32,6 @@ export interface AuthSession {
   logout: () => Promise<void>
   logoutAll: () => Promise<void>
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
+  deactivateAccount: (currentPassword: string) => Promise<void>
   resetPassword: (token: string, newPassword: string) => Promise<void>
 }

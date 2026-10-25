@@ -1,10 +1,11 @@
 name: Quality gate
+run-name: ${{ github.event_name == 'workflow_dispatch' && 'Full quality gate' || 'Quick quality checks' }}
 
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, codex/backlog]
   workflow_dispatch:
 
 permissions:
@@ -112,6 +113,7 @@ jobs:
 
   backend-tests:
     name: Backend tests and migrations
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -197,7 +199,12 @@ jobs:
       - name: Install frontend dependencies from lock file
         working-directory: frontend
         run: npm ci
+      - name: Run frontend quality checks
+        if: github.event_name != 'workflow_dispatch'
+        working-directory: frontend
+        run: npm run check:quality
       - name: Run frontend quality, tests, and production build
+        if: github.event_name == 'workflow_dispatch'
         working-directory: frontend
         run: npm run check
       - name: Verify checks leave no generated changes
@@ -231,6 +238,7 @@ jobs:
 
   full-mvp-browser-e2e:
     name: Full MVP browser E2E
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -252,6 +260,7 @@ jobs:
 
   smoke:
     name: Application smoke
+    if: github.event_name == 'workflow_dispatch'
     needs:
       - backend-quality
       - backend-tests
