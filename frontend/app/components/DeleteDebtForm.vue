@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
 import { ApiClientError, toApiClientError, type ApiClientError as ApiError } from '~/utils/api-error'
 import { validDebtEtag } from '~/utils/debt-update'
 
@@ -9,8 +10,8 @@ const confirming = ref(false)
 const pending = ref(false)
 const blocked = ref(false)
 const error = ref<ApiError | null>(null)
-const trigger = ref<HTMLButtonElement | null>(null)
-const confirmButton = ref<HTMLButtonElement | null>(null)
+const trigger = ref<FocusTarget | null>(null)
+const confirmButton = ref<FocusTarget | null>(null)
 const message = computed(() => {
   if (error.value?.code === 'VERSION_CONFLICT') return 'Someone changed this expense. Reload it and review the current version before removing it.'
   if (error.value && (error.value.status === null || error.value.status >= 500)) return 'The result is not confirmed. Reload the expense before trying anything else.'

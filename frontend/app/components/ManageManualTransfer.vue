@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
 import type { CreateManualTransferBody, TransferView } from '~/types/finance'
 import { ApiClientError, toApiClientError, type ApiClientError as ApiError } from '~/utils/api-error'
 import { euroInput } from '~/utils/debt-update'
@@ -15,10 +16,10 @@ const pending = ref(false)
 const blocked = ref(false)
 const invalid = ref(false)
 const error = ref<ApiError | null>(null)
-const editTrigger = ref<HTMLButtonElement | null>(null)
-const deleteTrigger = ref<HTMLButtonElement | null>(null)
-const directionInput = ref<HTMLSelectElement | null>(null)
-const deleteConfirm = ref<HTMLButtonElement | null>(null)
+const editTrigger = ref<FocusTarget | null>(null)
+const deleteTrigger = ref<FocusTarget | null>(null)
+const directionInput = ref<FocusTarget | null>(null)
+const deleteConfirm = ref<FocusTarget | null>(null)
 let generation = 0
 const sides = computed(() => [props.transfer.sender, props.transfer.receiver])
 const updateBody = computed(() => manualTransferUpdateCommand(props.transfer, state.value.user?.id ?? '', senderId.value, amount.value))

@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth/financial экраны |
 | Статус | Implemented |
-| Версия | 16 |
-| Дата актуальности | 2026-10-22 |
+| Версия | 17 |
+| Дата актуальности | 2026-10-25 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты; ADR-001/006/012/017/018/020; реализация HTTP-слоя; модель доступа; фактический frontend |
 
@@ -217,9 +217,21 @@ Backend остаётся источником бизнес-правил. Реа�
 `aria-describedby` на `FormFieldError`. `FormErrorSummary` получает focus после
 ошибки, а `FormSubmitButton` передаёт pending через `disabled` и `aria-busy`.
 
-Общие компоненты ограничены loading, error, empty и тремя form states. Глобальный
-CSS задаёт читаемую типографику, spacing/container, focus, базовые form/error
-стили и `prefers-reduced-motion`; branding и UI framework не вводились.
+Общая UI-система описана в [аудите и правилах UI](ui-system.md).
+`UiButton` — единственная реализация кнопок и ссылок-действий с типизированными
+primary/secondary/danger; `FormSubmitButton` использует её с `type=submit`.
+`UiLink`, `UiText`, `UiCard`, native form controls, notice/spinner, dialog/toast,
+detail list и финансовые presentation components переиспользуются всеми
+страницами. `/ui-kit` показывает реальные компоненты и их состояния без API
+команд; ссылка доступна в footer. Палитра и таблица токенов читаются из темы.
+
+`assets/css/vars.css` — единый источник цветов, размеров, spacing,
+типографики, radii, shadows и motion. `main.css` содержит общие правила,
+композиции и responsive layout. ESLint запрещает обход общих primitives,
+ручные component classes, inline/scoped styles. `npm run lint:ui` проверяет
+CSS literals, ссылки на токены и присутствие всех `Ui*` в графе каталога;
+проверка включена в `npm run lint` и обычный CI. Допустимые исключения
+(media queries, visually-hidden, theme swatches) перечислены в UI-документе.
 
 ## 9. Реализованные auth-сценарии
 
