@@ -8,11 +8,16 @@ useHead({ title: 'New expense · Equo' })
     class="stack"
     aria-labelledby="new-debt-title"
   >
-    <h1 id="new-debt-title">
+    <UiText
+      id="new-debt-title"
+      variant="heading1"
+    >
       New expense
-    </h1>
-    <p>Record what was paid and share the cost equally.</p>
+    </UiText>
+    <UiText>Record what was paid and share the cost equally.</UiText>
     <CreateDebtForm />
-    <NuxtLink to="/debts">Your expenses</NuxtLink>
+    <UiLink to="/debts">
+      Your expenses
+    </UiLink>
   </section>
 </template>

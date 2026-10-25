@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import type { ButtonVariant } from '~/types/ui'
+
 withDefaults(defineProps<{
+  variant?: ButtonVariant
   pending?: boolean
   disabled?: boolean
   pendingLabel?: string
@@ -11,13 +14,13 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <button
-    class="button"
+  <UiButton
+    :variant="variant"
     type="submit"
-    :disabled="disabled || pending"
-    :aria-busy="pending"
+    :disabled="disabled"
+    :pending="pending"
+    :pending-label="pendingLabel"
   >
-    <span v-if="pending">{{ pendingLabel }}</span>
-    <slot v-else />
-  </button>
+    <slot />
+  </UiButton>
 </template>

@@ -11,24 +11,30 @@ const { $auth } = useNuxtApp()
     class="hero"
     aria-labelledby="home-title"
   >
-    <p class="eyebrow">
+    <UiText variant="eyebrow">
       Shared expenses, clearly
-    </p>
-    <h1 id="home-title">
+    </UiText>
+    <UiText
+      id="home-title"
+      variant="heading1"
+    >
       Welcome to Equo
-    </h1>
-    <p class="hero__lede">
+    </UiText>
+    <UiText variant="lede">
       Create an account, confirm your email, and get ready to make shared expenses easier to understand.
-    </p>
+    </UiText>
     <div class="hero__actions">
-      <NuxtLink
-        class="button"
+      <UiButton
         to="/register"
-      >Create an account</NuxtLink>
-      <NuxtLink
-        class="button button--secondary"
+      >
+        Create an account
+      </UiButton>
+      <UiButton
+        variant="secondary"
         to="/login"
-      >Sign in</NuxtLink>
+      >
+        Sign in
+      </UiButton>
     </div>
   </section>
   <section
@@ -36,9 +42,12 @@ const { $auth } = useNuxtApp()
     class="stack"
     aria-labelledby="home-session-title"
   >
-    <h1 id="home-session-title">
+    <UiText
+      id="home-session-title"
+      variant="heading1"
+    >
       Equo
-    </h1>
+    </UiText>
     <AppLoadingState
       v-if="state.status === 'unknown'"
       message="Checking your session…"

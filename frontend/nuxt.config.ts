@@ -1,6 +1,6 @@
 export default defineNuxtConfig({
   devtools: { enabled: true },
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/vars.css', '~/assets/css/main.css'],
   runtimeConfig: {
     apiInternalBase: '',
     public: {

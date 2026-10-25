@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
 import { accountDeactivationErrorPresentation, validateAccountDeactivation } from '~/utils/profile-settings'
 
 const { $auth } = useNuxtApp()
 const { values, fieldErrors, formError, isSubmitting, errorsFor, clearErrors, submit } = useApiForm({ currentPassword: '' })
 const confirming = ref(false)
-const trigger = useTemplateRef<HTMLButtonElement>('trigger')
-const confirmation = useTemplateRef<HTMLElement>('confirmation')
+const trigger = useTemplateRef<FocusTarget>('trigger')
+const confirmation = useTemplateRef<FocusTarget>('confirmation')
 const presentation = computed(() => formError.value ? accountDeactivationErrorPresentation(formError.value) : null)
 const summary = computed(() => presentation.value?.message ?? (Object.keys(fieldErrors.value).length ? 'Correct the highlighted field.' : null))
 
@@ -35,28 +36,31 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section
-    class="panel stack"
+  <UiCard
+    as="section"
+    class="stack"
     aria-labelledby="deactivate-title"
   >
     <div>
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Account lifecycle
-      </p>
-      <h2 id="deactivate-title">
+      </UiText>
+      <UiText
+        id="deactivate-title"
+        variant="heading2"
+      >
         Deactivate account
-      </h2>
-      <p>Pause new expenses and payments without deleting your connections, balances, or history.</p>
+      </UiText>
+      <UiText>Pause new expenses and payments without deleting your connections, balances, or history.</UiText>
     </div>
-    <button
+    <UiButton
       v-if="!confirming"
       ref="trigger"
-      type="button"
-      class="button button--secondary"
+      variant="secondary"
       @click="showConfirmation"
     >
       Deactivate account
-    </button>
+    </UiButton>
     <form
       v-else
       ref="confirmation"
@@ -68,10 +72,13 @@ onBeforeUnmount(() => {
       @keydown.esc="cancel"
     >
       <div>
-        <h3 id="deactivate-confirm-title">
+        <UiText
+          id="deactivate-confirm-title"
+          variant="heading3"
+        >
           Confirm account deactivation
-        </h3>
-        <p>You will be signed out on every device. To return, request an activation link using your email and password.</p>
+        </UiText>
+        <UiText>You will be signed out on every device. To return, request an activation link using your email and password.</UiText>
       </div>
       <FormErrorSummary
         :title="presentation?.title ?? 'Check the form'"
@@ -84,31 +91,32 @@ onBeforeUnmount(() => {
         <legend class="visually-hidden">
           Deactivation confirmation
         </legend>
-        <div class="form-field">
+        <UiField>
           <label for="deactivate-current-password">Current password</label>
-          <input
+          <UiInput
             id="deactivate-current-password"
             v-model="values.currentPassword"
             name="currentPassword"
             type="password"
             autocomplete="current-password"
             required
-            :aria-invalid="errorsFor('currentPassword').length > 0"
+            :aria-invalid="errorsFor('currentPassword').length
+              > 0"
             :aria-describedby="errorsFor('currentPassword').length ? 'deactivate-current-password-error' : undefined"
             @input="clearErrors"
-          >
+          />
           <FormFieldError
             id="deactivate-current-password-error"
             :messages="errorsFor('currentPassword')"
           />
-        </div>
+        </UiField>
       </fieldset>
-      <p
+      <UiText
         v-if="formError?.requestId"
         class="support-reference"
       >
         Support reference: <code>{{ formError.requestId }}</code>
-      </p>
+      </UiText>
       <div class="form-actions">
         <FormSubmitButton
           :pending="isSubmitting"
@@ -116,15 +124,14 @@ onBeforeUnmount(() => {
         >
           Confirm deactivation
         </FormSubmitButton>
-        <button
-          type="button"
-          class="button button--secondary"
+        <UiButton
+          variant="secondary"
           :disabled="isSubmitting"
           @click="cancel"
         >
           Cancel
-        </button>
+        </UiButton>
       </div>
     </form>
-  </section>
+  </UiCard>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
 import { activationErrorPresentation } from '~/utils/auth-flow'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 import type { InvitationAcceptance } from '~/types/connects'
@@ -17,7 +18,7 @@ const { $auth } = useNuxtApp()
 const state = ref<ActivationState>('preparing')
 const activationError = ref<ApiClientError | null>(null)
 const returningAfterDeactivation = ref(route.query.deactivated === '1')
-const resultPanel = useTemplateRef<HTMLElement>('resultPanel')
+const resultPanel = useTemplateRef<FocusTarget>('resultPanel')
 let activationToken: string | null = null
 
 const errorPresentation = computed(() => activationError.value
@@ -97,19 +98,25 @@ onBeforeUnmount(() => {
     aria-labelledby="activation-title"
   >
     <div class="auth-intro stack">
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Account activation
-      </p>
-      <h1 id="activation-title">
+      </UiText>
+      <UiText
+        id="activation-title"
+        variant="heading1"
+      >
         Activate your account
-      </h1>
-      <p class="hero__lede">
+      </UiText>
+      <UiText variant="lede">
         Confirm the one-time link to activate your account and sign in on this device. The link value is never displayed or saved.
-      </p>
+      </UiText>
     </div>
 
     <div class="stack">
-      <section class="panel stack">
+      <UiCard
+        as="section"
+        class="stack"
+      >
         <AppLoadingState
           v-if="state === 'preparing' || state === 'loading'"
           message="Activating your account…"
@@ -121,34 +128,33 @@ onBeforeUnmount(() => {
           class="stack"
           tabindex="-1"
         >
-          <h2>Ready to activate</h2>
-          <p>Opening the link has not activated your account or signed you in.</p>
-          <button
-            type="button"
+          <UiText variant="heading2">
+            Ready to activate
+          </UiText>
+          <UiText>Opening the link has not activated your account or signed you in.</UiText>
+          <UiButton
             @click="activateAccount"
           >
             Activate and sign in
-          </button>
+          </UiButton>
         </div>
 
-        <div
+        <UiNotice
           v-else-if="state === 'success'"
           ref="resultPanel"
-          class="status-card status-card--success"
+          tone="success"
           role="status"
           aria-live="polite"
           tabindex="-1"
         >
-          <span
-            class="status-card__marker"
-            aria-hidden="true"
-          />
           <div>
             <strong>Your account is active</strong>
-            <p>You are signed in and can start using Equo.</p>
-            <NuxtLink to="/me">Open your account</NuxtLink>
+            <UiText>You are signed in and can start using Equo.</UiText>
+            <UiLink to="/me">
+              Open your account
+            </UiLink>
           </div>
-        </div>
+        </UiNotice>
 
         <div
           v-else-if="state === 'missing'"
@@ -172,14 +178,14 @@ onBeforeUnmount(() => {
             :retry-label="errorPresentation.retryable ? 'Try activation again' : undefined"
             @retry="activateAccount"
           />
-          <p
+          <UiText
             v-if="activationError?.requestId"
             class="support-reference"
           >
             Support reference: <code>{{ activationError.requestId }}</code>
-          </p>
+          </UiText>
         </div>
-      </section>
+      </UiCard>
 
       <ActivationRequestForm v-if="state === 'missing' || state === 'error'" />
     </div>

@@ -1,57 +1,73 @@
 <template>
   <div class="app-shell">
-    <a
-      class="skip-link"
+    <UiLink
+      variant="skip"
       href="#main-content"
-    >Skip to content</a>
+    >
+      Skip to content
+    </UiLink>
 
     <header class="app-header">
       <div class="page-container app-header__inner">
-        <NuxtLink
-          class="brand"
+        <UiLink
+          variant="brand"
           to="/"
           aria-label="Equo home"
         >
           Equo
-        </NuxtLink>
+        </UiLink>
 
         <nav aria-label="Primary navigation">
-          <NuxtLink
-            class="nav-link"
+          <UiLink
+            variant="nav"
             to="/"
-          >Home</NuxtLink>
+          >
+            Home
+          </UiLink>
           <template v-if="session.status === 'authenticated'">
-            <NuxtLink
-              class="nav-link"
+            <UiLink
+              variant="nav"
               to="/connects"
-            >Connections</NuxtLink>
-            <NuxtLink
-              class="nav-link"
+            >
+              Connections
+            </UiLink>
+            <UiLink
+              variant="nav"
               to="/debts"
-            >Expenses</NuxtLink>
-            <NuxtLink
-              class="nav-link"
+            >
+              Expenses
+            </UiLink>
+            <UiLink
+              variant="nav"
               to="/me"
-            >My profile</NuxtLink>
+            >
+              My profile
+            </UiLink>
           </template>
           <template v-else-if="session.status === 'anonymous'">
-            <NuxtLink
-              class="nav-link"
+            <UiLink
+              variant="nav"
               to="/login"
-            >Login</NuxtLink>
-            <NuxtLink
-              class="nav-link"
+            >
+              Login
+            </UiLink>
+            <UiLink
+              variant="nav"
               to="/register"
-            >Register</NuxtLink>
+            >
+              Register
+            </UiLink>
           </template>
           <template v-else-if="session.status === 'unknown'">
             <span class="nav-status">Checking session</span>
           </template>
           <template v-else>
-            <NuxtLink
-              class="nav-link"
+            <UiLink
+              variant="nav"
               to="/login"
-            >Login</NuxtLink>
+            >
+              Login
+            </UiLink>
           </template>
         </nav>
       </div>
@@ -67,7 +83,15 @@
 
     <footer class="app-footer">
       <div class="page-container">
-        <small>Equo keeps shared expenses understandable.</small>
+        <UiText
+          as="small"
+          variant="caption"
+        >
+          Equo keeps shared expenses understandable.
+        </UiText>
+        <UiLink to="/ui-kit">
+          UI kit
+        </UiLink>
       </div>
     </footer>
   </div>

@@ -14,21 +14,17 @@ defineEmits<{
 </script>
 
 <template>
-  <div
-    class="state-message state-message--error"
-    role="alert"
-  >
+  <UiNotice tone="error">
     <div>
       <strong>{{ title }}</strong>
-      <p>{{ message }}</p>
+      <UiText>{{ message }}</UiText>
     </div>
-    <button
+    <UiButton
       v-if="retryLabel"
-      class="button button--secondary"
-      type="button"
+      variant="secondary"
       @click="$emit('retry')"
     >
       {{ retryLabel }}
-    </button>
-  </div>
+    </UiButton>
+  </UiNotice>
 </template>

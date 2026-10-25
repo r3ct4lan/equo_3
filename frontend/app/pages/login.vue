@@ -113,36 +113,43 @@ onUnmounted(clearRateLimitCountdown)
     aria-labelledby="login-title"
   >
     <div class="auth-intro stack">
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Welcome back
-      </p>
-      <h1 id="login-title">
+      </UiText>
+      <UiText
+        id="login-title"
+        variant="heading1"
+      >
         Sign in
-      </h1>
-      <p class="hero__lede">
+      </UiText>
+      <UiText variant="lede">
         Use your activated account to continue to your Equo profile.
-      </p>
-      <p
+      </UiText>
+      <UiText
         v-if="route.query.signedOut === '1'"
         role="status"
       >
         {{ (route.query.passwordReset === '1' || route.query.passwordChanged === '1') ? 'Your password has been saved. Sign in with your new password.' : 'You are signed out.' }}
-      </p>
+      </UiText>
     </div>
 
-    <form
-      class="panel stack"
+    <UiCard
+      as="form"
+      class="stack"
       novalidate
       aria-labelledby="login-form-title"
       @submit.prevent="submitLogin"
     >
       <div>
-        <h2 id="login-form-title">
+        <UiText
+          id="login-form-title"
+          variant="heading2"
+        >
           Account details
-        </h2>
-        <p class="form-help">
+        </UiText>
+        <UiText variant="help">
           Both fields are required.
-        </p>
+        </UiText>
       </div>
 
       <FormErrorSummary
@@ -150,16 +157,16 @@ onUnmounted(clearRateLimitCountdown)
         :message="summaryMessage"
       />
 
-      <p
+      <UiText
         v-if="rateLimitRemainingSeconds !== null"
-        class="form-help"
+        variant="help"
         role="timer"
         aria-live="off"
       >
         {{ rateLimitRemainingSeconds > 0
           ? `Try again in ${rateLimitRemainingSeconds} ${rateLimitRemainingSeconds === 1 ? 'second' : 'seconds'}.`
           : 'You can try again now.' }}
-      </p>
+      </UiText>
 
       <fieldset
         class="form-fields stack"
@@ -169,9 +176,9 @@ onUnmounted(clearRateLimitCountdown)
           Sign-in information
         </legend>
 
-        <div class="form-field">
+        <UiField>
           <label for="login-email">Email</label>
-          <input
+          <UiInput
             id="login-email"
             v-model="values.email"
             name="email"
@@ -179,70 +186,73 @@ onUnmounted(clearRateLimitCountdown)
             inputmode="email"
             autocomplete="email"
             required
-            :aria-invalid="errorsFor('email').length > 0"
+            :aria-invalid="errorsFor('email').length
+              > 0"
             :aria-describedby="errorsFor('email').length > 0 ? 'login-email-error' : undefined"
             @input="handleFormChange"
-          >
+          />
           <FormFieldError
             id="login-email-error"
             :messages="errorsFor('email')"
           />
-        </div>
+        </UiField>
 
-        <div class="form-field">
+        <UiField>
           <label for="login-password">Password</label>
-          <input
+          <UiInput
             id="login-password"
             v-model="values.password"
             name="password"
             type="password"
             autocomplete="current-password"
             required
-            :aria-invalid="errorsFor('password').length > 0"
+            :aria-invalid="errorsFor('password').length
+              > 0"
             :aria-describedby="errorsFor('password').length > 0 ? 'login-password-error' : undefined"
             @input="handleFormChange"
-          >
+          />
           <FormFieldError
             id="login-password-error"
             :messages="errorsFor('password')"
           />
-        </div>
+        </UiField>
       </fieldset>
 
-      <p
+      <UiText
         v-if="formError?.requestId"
         class="support-reference"
       >
         Support reference: <code>{{ formError.requestId }}</code>
-      </p>
+      </UiText>
 
       <div class="form-actions">
-        <NuxtLink
-          class="button button--secondary"
+        <UiButton
+          variant="secondary"
           to="/forgot-password"
-        >Forgot your password?</NuxtLink>
+        >
+          Forgot your password?
+        </UiButton>
         <FormSubmitButton
           :pending="isSubmitting"
           pending-label="Signing in…"
         >
           Sign in
         </FormSubmitButton>
-        <button
+        <UiButton
           v-if="errorPresentation?.retryable"
-          class="button button--secondary"
-          type="button"
+          variant="secondary"
           :disabled="isSubmitting"
           @click="retryLogin"
         >
           Try again
-        </button>
-        <NuxtLink
-          class="button button--secondary"
+        </UiButton>
+        <UiButton
+          variant="secondary"
           to="/activate"
         >
           Need another activation link?
-        </NuxtLink>
+        </UiButton>
       </div>
-    </form>
+    </UiCard>
   </section>
 </template>
