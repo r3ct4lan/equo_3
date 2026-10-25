@@ -1945,7 +1945,7 @@ test('manual payment survives a lost response and refreshes both histories after
     await expect(page.getByText('You owe them.', { exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Payment · €7.00', exact: true })).toHaveCount(1)
     expect(commands).toBe(2)
-    for (const [viewer, expected] of [[page, -199], [other, 199]] as const) {
+    for (const [viewer, expected, canManage] of [[page, -199, true], [other, 199, false]] as const) {
       await viewer.goto('/connects/' + connectId)
       await expect(viewer.getByText(expected < 0 ? 'Balance: -€1.99' : 'Balance: €1.99', { exact: true })).toBeVisible()
       await expect(viewer.getByText(expected < 0 ? 'You owe them.' : 'They owe you.', { exact: true })).toBeVisible()
@@ -1953,7 +1953,8 @@ test('manual payment survives a lost response and refreshes both histories after
       await viewer.getByRole('link', { name: 'Payment · €7.00', exact: true }).click()
       await expect(viewer.getByRole('heading', { name: 'Payment · €7.00', exact: true })).toBeVisible()
       await expect(viewer.getByText(/Recorded by/u)).toBeVisible()
-      await expect(viewer.getByRole('button', { name: /edit|delete/iu })).toHaveCount(0)
+      await expect(viewer.getByRole('button', { name: 'Edit payment', exact: true })).toHaveCount(canManage ? 1 : 0)
+      await expect(viewer.getByRole('button', { name: 'Remove payment', exact: true })).toHaveCount(canManage ? 1 : 0)
     }
     await expectNoPersistentSecrets(page, [authorAccess, otherAccess, testPassword])
     await expectNoPersistentSecrets(other, [authorAccess, otherAccess, testPassword])
