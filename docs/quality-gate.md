@@ -12,15 +12,29 @@
 ## 1. Порядок проверок
 
 Во время разработки локально запускайте проверки только для затронутых
-компонентов и сценариев. После каждой небольшой правки полный suite не
-повторяется. Перед слиянием итоговый коммит должен пройти полный GitHub Actions
-workflow, включая browser E2E. Результаты CI доступны агенту; при падении нужно
-разобрать логи и артефакты, локально проверить исправленный участок и дождаться
-успешного CI на новом итоговом коммите. Частичные локальные проверки не заменяют
-успешный полный CI.
+компонентов и сценариев. Полные локальные `make check`, `make check-full` и
+`make test-e2e` не запускаются. Push в `codex/backlog` и `main`, а также pull request выполняют быстрый
+CI: repository checks, backend quality, frontend lint/typecheck и dependency
+audit. Он помогает обнаружить проблемы во время работы над несколькими задачами
+бэклога в ветке `codex/backlog`.
 
-Локальный полный прогон по умолчанию не нужен. Команды для ручной диагностики
-из корня репозитория:
+Когда код, тесты и документация всей выбранной серии готовы, синхронизируйте
+ветку с `main` и вручную запустите полный workflow на её текущем SHA:
+
+```bash
+gh workflow run quality.yml --ref codex/backlog
+```
+
+Дождитесь успеха всех jobs, включая backend tests, frontend tests/build, smoke
+и browser E2E, и проверьте, что SHA результата равен вершине ветки. После
+полного прогона не отправляйте дополнительные коммиты. Если ошибка требует
+исправления, локально проверьте затронутый участок и запустите полный workflow
+снова на новом итоговом SHA. Сливайте накопительную ветку в `main` одним PR,
+только если `main` не изменился после синхронизации и полного прогона. Push в
+`main` выполняет быстрый CI.
+
+Полные локальные команды сохранены как ручные инструменты для владельца;
+агенты их не запускают:
 
 ```bash
 make check
@@ -32,11 +46,8 @@ make check
 make check-full
 ```
 
-Запускайте их локально только по запросу владельца или если точечных проверок
-недостаточно для диагностики ошибки CI. Планируйте изменения и push так, чтобы
-не инициировать полный CI после каждой мелкой правки; повторный CI нужен после
-изменения итогового коммита. Workflow также запускается автоматически после
-push в `main`.
+Полный GitHub Actions gate является итоговой проверкой серии задач. Быстрые
+автоматические проверки не заменяют его для изменений поведения приложения.
 
 Перед запуском должны быть установлены зависимости и поднят основной Compose
 stack:
@@ -257,26 +268,28 @@ build output должны находиться только в ignored paths.
 ## 9. GitHub Actions
 
 Workflow: [`.github/workflows/quality.yml`](../.github/workflows/quality.yml).
-Он запускается для pull request и push в `main`, а также вручную. Используются
-`contents: read`, cancellation устаревшего run, job timeouts, lock-based Composer
-и npm caches и test-only environment values.
+Для pull request и push в `codex/backlog` или `main` workflow автоматически запускает быстрый
+режим; `workflow_dispatch` запускает полный режим на выбранной ветке.
+Используются `contents: read`, cancellation устаревшего run, job timeouts,
+lock-based Composer и npm caches и test-only environment values.
 
-| Job | Состав | Инфраструктура |
-|---|---|---|
-| `Repository quality` | common secret patterns, generated diff | Нет |
-| `Backend quality` | `composer check` | PHP 8.4.27 |
-| `Backend tests and migrations` | empty migration chain, schema, PHPUnit | PHP 8.4.27 + PostgreSQL 17 service |
-| `Frontend quality and build` | `npm ci`, `npm run check` | Node.js 22 |
-| `Dependency audit` | Composer и npm audit | PHP 8.4.27 + Node.js 22 |
-| `Full MVP browser E2E` | auth/security, invitation, financial user journeys, privacy, retries и stale update | Изолированный HTTPS Compose + Chromium + Mailpit |
-| `Application smoke` | full Compose build/start, Nginx `/` и `/api/health` | Изолированный CI Compose stack |
+| Job | Автоматически | Вручную, полный gate | Инфраструктура |
+|---|---|---|---|
+| `Repository quality` | common secret patterns, generated diff | То же | Нет |
+| `Backend quality` | `composer check` | То же | PHP 8.4.27 |
+| `Backend tests and migrations` | Пропуск | empty migration chain, schema, PHPUnit | PHP 8.4.27 + PostgreSQL 17 service |
+| `Frontend quality and build` | `npm ci`, `npm run check:quality` | `npm ci`, `npm run check` | Node.js 22 |
+| `Dependency audit` | Composer и npm audit | То же | PHP 8.4.27 + Node.js 22 |
+| `Full MVP browser E2E` | Пропуск | auth/security, invitation, financial user journeys, privacy, retries и stale update | Изолированный HTTPS Compose + Chromium + Mailpit |
+| `Application smoke` | Пропуск | full Compose build/start, Nginx `/` и `/api/health` | Изолированный CI Compose stack |
 
 Backend PHPUnit job создаёт временную RSA-пару и CSRF-ключ для тестов
 активации и входа. Ключи передаются только последующим шагам job, не
 хранятся в репозитории и удаляются после генерации временных значений.
 
-CI вызывает те же Composer/npm/Make scripts, что local gate. Различаются только
-подъём инфраструктуры, test environment и степень параллелизма. Workflow не
+Полный CI вызывает те же Composer/npm/Make scripts, что локальные команды.
+Различаются только подъём инфраструктуры, test environment и степень
+параллелизма. Workflow не
 использует `pull_request_target`, production secrets или `continue-on-error`.
 Smoke job остаётся в `APP_ENV=test`; test-only `BACKEND_DATABASE_URL` указывает
 на base name, к которому Symfony добавляет `_test`, а PostgreSQL service сразу
@@ -305,17 +318,13 @@ JWT, refresh/CSRF token и password намеренно не записывают
 
 ## 11. Branch protection
 
-Branch protection этой задачей не настраивается. Для `main` рекомендуется
-потребовать следующие checks после подтверждения их точных GitHub names первым
-run:
-
-- `Repository quality`;
-- `Backend quality`;
-- `Backend tests and migrations`;
-- `Frontend quality and build`;
-- `Dependency audit`;
-- `Full MVP browser E2E`;
-- `Application smoke`.
+Branch protection этой задачей не настраивается. Если включать required checks,
+учитывайте, что backend tests, browser E2E и smoke в автоматическом PR run
+пропускаются: один лишь зелёный PR run не доказывает полный gate. Перед merge
+обязательно проверьте вручную запущенный `Full quality gate`, его успешные jobs
+и совпадение `headSha` с вершиной `codex/backlog`. Для автоматического
+принуждения к этому правилу потребуется отдельный required status; сейчас
+проверка выполняется в процессе приёмки PR.
 
 ## 12. Сознательно отложено
 

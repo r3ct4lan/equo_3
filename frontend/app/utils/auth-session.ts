@@ -9,6 +9,7 @@ export const LOGOUT_ENDPOINT = '/v1/auth/logout'
 export const LOGOUT_ALL_ENDPOINT = '/v1/auth/logout-all'
 export const PASSWORD_RESET_ENDPOINT = '/v1/auth/password-reset'
 export const PASSWORD_CHANGE_ENDPOINT = '/v1/account/password-change'
+export const ACCOUNT_DEACTIVATE_ENDPOINT = '/v1/account/deactivate'
 export const ME_ENDPOINT = '/v1/me'
 export const AUTH_REFRESH_LOCK = 'equo:auth-refresh'
 export const SESSION_ENDED_EVENT = 'session-ended'
@@ -169,6 +170,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   let logoutPromise: Promise<void> | null = null
   let resetPromise: Promise<void> | null = null
   let changePromise: Promise<void> | null = null
+  let deactivationPromise: Promise<void> | null = null
   let generation = 0
   let signedOut = dependencies.signedOut === true
   try {
@@ -189,7 +191,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   })
 
   async function login(values: LoginValues, options: LoginOptions = {}): Promise<void> {
-    if (logoutPromise || resetPromise || changePromise) {
+    if (logoutPromise || resetPromise || changePromise || deactivationPromise) {
       throw authenticationRequired()
     }
     const started = ++generation
@@ -209,20 +211,20 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   }
 
   async function activate(token: string): Promise<void> {
-    if (logoutPromise || resetPromise || changePromise) {
+    if (logoutPromise || resetPromise || changePromise || deactivationPromise) {
       throw authenticationRequired()
     }
     const started = generation
 
     const apply = async (): Promise<void> => {
-      if (started !== generation || logoutPromise || resetPromise || changePromise) {
+      if (started !== generation || logoutPromise || resetPromise || changePromise || deactivationPromise) {
         throw authenticationRequired()
       }
       const response = await dependencies.api<LoginResponse>(ACTIVATE_ENDPOINT, {
         method: 'POST',
         body: { token }
       })
-      if (started !== generation || logoutPromise || resetPromise || changePromise) {
+      if (started !== generation || logoutPromise || resetPromise || changePromise || deactivationPromise) {
         throw authenticationRequired()
       }
       ++generation
@@ -529,6 +531,60 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     return logoutAction(true)
   }
 
+  function deactivateAccount(currentPassword: string): Promise<void> {
+    if (deactivationPromise) return deactivationPromise
+    const apply = async (): Promise<void> => {
+      if (signedOut || logoutPromise || resetPromise || changePromise) throw authenticationRequired()
+      const started = generation
+      if (!accessToken) await bootstrap()
+      const locks = dependencies.navigator?.locks
+      if (!locks) {
+        throw new ApiClientError({ kind: 'unknown', code: 'WEB_LOCKS_UNAVAILABLE', message: 'Account deactivation cannot be coordinated in this browser.' })
+      }
+      await locks.request(AUTH_REFRESH_LOCK, async () => {
+        if (started !== generation || signedOut || !accessToken) throw authenticationRequired()
+        const send = async (): Promise<void> => {
+          await dependencies.api<undefined>(ACCOUNT_DEACTIVATE_ENDPOINT, {
+            method: 'POST',
+            accessToken,
+            body: { currentPassword },
+            onResponse: ({ response }) => {
+              if (response.status >= 200 && response.status < 300 && response.status !== 204) {
+                throw new ApiClientError({ kind: 'unknown', code: 'ACCOUNT_DEACTIVATION_UNCONFIRMED', message: 'Account deactivation was not confirmed.' })
+              }
+            }
+          })
+        }
+        try {
+          await send()
+        }
+        catch (error: unknown) {
+          if (!(error instanceof ApiClientError) || error.status !== 401 || error.code !== 'AUTHENTICATION_REQUIRED') throw error
+          if (started !== generation || signedOut) throw authenticationRequired()
+          try {
+            accessToken = await logoutRefresh()
+            if (started !== generation || signedOut) throw authenticationRequired()
+            await send()
+          }
+          catch (retryError: unknown) {
+            if (retryError instanceof ApiClientError && retryError.status === 401 && retryError.code !== 'INVALID_CREDENTIALS') {
+              endLocalSession()
+              await dependencies.navigateTo?.('/login?signedOut=1')
+            }
+            throw retryError
+          }
+        }
+        endLocalSession()
+        channel?.postMessage({ type: SESSION_ENDED_EVENT })
+        await dependencies.navigateTo?.('/activate?deactivated=1')
+      })
+    }
+    deactivationPromise = apply().finally(() => {
+      deactivationPromise = null
+    })
+    return deactivationPromise
+  }
+
   function logoutAction(all: boolean): Promise<void> {
     if (logoutPromise) {
       return logoutPromise
@@ -649,7 +705,8 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     logout,
     logoutAll,
     resetPassword,
-    changePassword
+    changePassword,
+    deactivateAccount
   }
 }
 

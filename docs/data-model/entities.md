@@ -928,6 +928,18 @@ Relay может повторно опубликовать одно задани
 4. установка `UserActionToken.usedAt`;
 5. установка `revokedAt` всем незавершённым `UserSession`.
 
+## Подтверждение смены email
+
+Одна транзакция:
+
+1. блокировка `User` и `UserActionToken` через `SELECT FOR UPDATE`;
+2. проверка purpose, срока, `usedAt`, `invalidatedAt` и payload;
+3. повторная проверка уникальности нового email;
+4. обновление `User.email`;
+5. установка `UserActionToken.usedAt`.
+
+`UserSession` не изменяются, поскольку они привязаны к `User.id`, а не к email.
+
 ## Выдача UserActionToken
 
 Одна транзакция:

@@ -11,4 +11,6 @@ interface ConnectRuntimePort
     public function now(): DateTimeImmutable;
 
     public function newId(): string;
+
+    public function run(callable $operation): mixed;
 }

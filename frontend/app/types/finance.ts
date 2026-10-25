@@ -16,7 +16,7 @@ export interface DebtView extends DebtSummary {
   description: string | null
   createdBy: BriefUser
   includePayerInSplit: boolean
-  participants: { debtParticipantId: string, user: BriefUser, isPayer: boolean, isAuthor: boolean, shareAmount: number, transferId: string | null }[]
+  participants: { debtParticipantId: string, user: BriefUser, isPayer: boolean, isAuthor: boolean, shareAmount: number, transferId: string | null, connectId: string | null }[]
   isDeleted: boolean
   canDelete: boolean
 }

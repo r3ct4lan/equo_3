@@ -287,6 +287,19 @@ protocol-relative paths и backslash paths заменяются на `/me`.
 публичные поля пользователя и retryable error state; token, session id, refresh
 cookie и CSRF values не рендерятся.
 
+SH-006 добавляет на `/me` две независимые формы. `ProfileNameForm` отправляет
+`PATCH /me`, сразу заменяет публичный current-user state ответом сервера и не
+затрагивает сессию. `EmailChangeForm` принимает новый адрес и текущий пароль,
+отправляет `POST /account/email-change-requests`, очищает пароль после ответа и
+оставляет текущий email видимым до подтверждения.
+
+Ссылка из письма открывает публичную `/email-change`. Страница сразу удаляет
+token и остальные query-параметры из адресной строки, хранит capability только
+в локальном состоянии компонента и выполняет подтверждение лишь после явного
+нажатия. Terminal token errors удаляют capability; сетевую ошибку можно
+повторить вручную. Успех сообщает, что новый адрес применяется к следующему
+входу, а существующие сессии продолжают работать.
+
 ## 10. Проверки
 
 ```bash
@@ -315,7 +328,6 @@ Nuxt Router и делал его Volar plugin недоступным для `vue
 
 ## 11. Сознательно отложено
 
-- change password и изменение профиля;
 - Pinia, form/validation library, UI framework и OpenAPI generator;
 - окончательный branding, уведомления, аналитика и страницы будущих модулей.
 
@@ -362,6 +374,22 @@ exact 204 очищает local auth и публикует token-free session-end
 passwordChanged=1 и предлагает войти новым паролем. Пароли не записываются
 в useState, URL, storage или BroadcastChannel. [Дизайн SC-005](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/password-change.md).
 
+## SC-007: деактивация и реактивация
+
+`AccountDeactivationForm` находится в профиле и раскрывает отдельное явное
+подтверждение с текущим паролем. Форма объясняет сохранение Connect, балансов и
+истории, а также отзыв sessions на всех устройствах. Пароль не попадает в
+`useState`, URL, storage или BroadcastChannel и очищается после результата,
+отмены и unmount.
+
+`$auth.deactivateAccount` использует общий refresh Web Lock и single-flight,
+принимает успех только с exact `204`, после чего очищает in-memory auth и cookies,
+публикует token-free `session-ended` и открывает `/activate`. Ошибка текущего
+пароля остаётся ошибкой формы без refresh; Bearer denial допускает один
+refresh/retry. Страница активации показывает состояние деактивированного аккаунта
+и переиспользует существующий нейтральный `ActivationRequestForm`; подтверждение
+ссылки создаёт обычную новую сессию через общий session coordinator.
+
 ## SC-008: приглашения и Connections
 
 `/connects` и `/connects/[id]` защищены существующим auth middleware;
@@ -393,8 +421,19 @@ hydration, не сериализуя capability. Страницы имеют no-
 
 Защищённые /debts, /debts/new, /debts/[id], /transfers/[id] используют
 существующие auth middleware и $auth.protectedRequest. Expenses добавлен в nav.
-Connect list/card показывает signed balance и объясняет, кто кому должен;
-история различает DEBT_SHARE/MANUAL, active/removed и safe недоступный Debt.
+Connect list/card показывает signed balance один раз в строке `Balance`: только сумма
+положительного баланса зелёная, отрицательного красная, нулевого нейтральная.
+Слово `Balance` сохраняет основной цвет текста. Отдельная подпись без повтора
+суммы объясняет `They owe you`, `You owe them` или `You are settled up` (`MT-010`).
+История различает DEBT_SHARE/MANUAL, active/removed и safe недоступный Debt.
+
+Для `MVP-SC-014` автор видит на прямой карточке активного расхода отдельное
+двухшаговое действие Remove expense. Команда использует только ETag фактического
+GET и отправляет DELETE с If-Match. Успех принимается только как 204, после чего
+карточка перезагружается как read-only removed expense. Version conflict,
+неопределённый network/5xx результат и terminal state блокируют повтор до явного
+reload; необратимое действие не выполняется при первом нажатии. Удалённый расход
+не показывается в списке, но прямые ссылки из истории продолжают работать.
 
 CreateDebtForm содержит title, description, EUR amount, payer, participants и
 payer-in-split. Decimal string преобразуется через BigInt в cents без float;
@@ -416,7 +455,7 @@ useFinancialList/useFinancialDetail владеют loading/error/empty/paginatio
 generation guards и discard поздних ответов. Они переиспользуют общую session
 coordination, не добавляя automatic financial retry. Debt/Transfer cards показывают
 roles, shares, inactive/deleted states; links на операции доступны только их сторонам.
-Edit/delete/pay controls отсутствуют до следующих этапов.
+Доступные edit/delete/pay controls добавляются профильными сценариями ниже.
 [Проверки](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/create-debt.md).
 
 ## SC-016 — ручной перевод в карточке Connect
@@ -426,11 +465,35 @@ CreateManualTransferForm принимает безопасный ConnectView и 
 preview допускает переплату и смену знака. Preview не является сохранённым
 балансом. Confirmed 201 вызывает повторное чтение Connect и новый history
 mount; при ошибке чтения success остаётся подтверждённым и доступен retry чтения.
+
+По `MT-012` detail Connect открывает существующий CreateManualTransferForm
+кнопкой `Make a payment` в нативном modal `dialog`. При открытии фокус переходит
+в первое поле; Close и Escape закрывают окно и возвращают фокус на кнопку.
+Обычное закрытие не размонтирует форму, поэтому draft и frozen idempotent retry
+после неопределённого ответа сохраняются. Подтверждённый платёж закрывает dialog,
+показывает прежний success status и запускает существующее обновление данных.
+
 Network/5xx сохраняет immutable body/key и блокирует поля до explicit retry.
 Definitive rejection позволяет исправить форму с новым ключом. Pending исключает
 double submit; generation/session/Connect guards отбрасывают поздний ответ.
 INACTIVE_USER предлагает перечитать Connect; неактивная сторона скрывает
 writer, оставляя историю. Связи с долями, edit/delete controls не показаны.
+
+## SC-017 — исправление ручного перевода
+
+Карточка `/transfers/{id}` показывает автору активного `MANUAL` действия edit и
+remove только при наличии настоящего ETag от GET. Редактор меняет сумму и
+направление между исходными сторонами Connect; PUT отправляет этот ETag в
+`If-Match` и принимает успех только как 200. Удаление требует отдельного
+подтверждения, отправляет DELETE с тем же условием и принимает только 204.
+
+После подтверждённой команды карточка перечитывается с сервера, поэтому version,
+balance и history не пересчитываются локально. Conflict, frozen/deleted state,
+network и `5xx` блокируют повтор команды до явного reload; pending и guards
+session/resource/version отбрасывают двойные и поздние ответы. Удалённый
+`MANUAL` остаётся в истории только для чтения. `DEBT_SHARE`, неавтор и transfer
+с неактивной стороной не получают управляющих действий; сервер повторяет ACL и
+инварианты независимо от UI.
 
 ## SC-013 — исправление расхода
 
@@ -448,15 +511,25 @@ useFinancialDetail захватывает настоящий ETag через onR
 После confirmed save — новый GET карточки; balance/history используют
 существующие свежие queries при открытии, локального сохранённого пересчёта нет.
 
+По `MT-009` карточка долга использует viewer-relative `participants[].connectId`:
+имя другого участника становится ссылкой `/connects/{connectId}`, только если у
+текущего пользователя есть соответствующий Connect. Собственное имя и участники
+без такой связи остаются текстом; чтение карточки не создаёт новые Connect.
+
 
 ## MT-002 — дашборд главной
 
 `HomeDashboard` использует `useDashboard` и общий `$auth.protectedRequest`:
 сводка из `/v1/transfers/balance-summary`, последние расходы из `/v1/debts?limit=5`.
 Две суммы отображаются независимо, в EUR через существующий `formatEuro`.
+По `MT-011` подпись `Across all your connections` под каждой суммой является
+ссылкой на `/connects`, поэтому обе стороны сводки ведут к подробному списку.
 Список показывает название-ссылку, дату создания, общую сумму и плательщика;
 перенос меню и карточек на узком экране сохраняет доступность без горизонтального
-скролла. Кнопки навигации из верхнего меню не дублируются на дашборде.
+скролла. По `MT-008` в заголовке Latest expenses доступна кнопка New expense,
+которая открывает существующую форму `/debts/new`; на узком экране заголовок и
+кнопка располагаются вертикально. Остальные кнопки верхнего меню на дашборде
+не дублируются.
 
 Загрузка client-side, без localStorage/useState persistence финансовых данных.
 Пока оба запроса не завершены, показывается loading; ошибка любого запроса

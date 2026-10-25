@@ -116,6 +116,12 @@ onMounted(() => {
         </div>
       </dl>
     </section>
+    <ProfileNameForm
+      v-if="user"
+      :user="user"
+    />
+    <EmailChangeForm v-if="user" />
+    <AccountDeactivationForm v-if="user" />
     <NuxtLink
       v-if="user"
       to="/account/security"

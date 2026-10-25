@@ -4,8 +4,8 @@
 |---|---|
 | Назначение | Описать фактическую Symfony-реализацию HTTP-соглашений API v1 и реализованных auth/financial endpoints |
 | Статус | Accepted |
-| Версия | 14 |
-| Дата актуальности | 2026-10-12 |
+| Версия | 15 |
+| Дата актуальности | 2026-10-25 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты v2; ADR-012; ADR-015; OQ-015; фактическая реализация |
 
@@ -443,6 +443,22 @@ invalid/unknown capability — 404 RESOURCE_NOT_FOUND. Bearer denial и rate lim
 используют существующие 401/429 conventions. Invitation responses имеют
 no-store/no-referrer. Nginx exact collection location предотвращает slash redirect POST.
 
+## SC-010: Connect через общий долг
+
+POST `/api/v1/connects` принимает JSON `otherUserId`/`sharedDebtId`, active
+Bearer и UUID `Idempotency-Key`. Автор и выбранная сторона должны быть разными
+активными текущими `DebtParticipant` одного доступного неудалённого Debt.
+Неизвестный, чужой, удалённый Debt и бывший участник дают одинаковый
+`404 DEBT_NOT_AVAILABLE`, не раскрывая контекст долга.
+
+Команда использует scope `user:<subject>` и operation `connect.create`. Новый
+канонический Connect возвращается как 201, уже существующая пара — как 200;
+оба ответа содержат обычный безопасный Connect view и Location. Повтор того же
+ключа и тела возвращает сохранённый статус и тело, изменённое тело —
+`409 IDEMPOTENCY_KEY_REUSED`. Debt и обе учётные записи блокируются в стабильном
+порядке, а уникальная каноническая пара исключает зеркальные дубли при гонке.
+UI не опубликован: для него бэклог требует отдельного продуктового решения.
+
 ## Финансовые endpoints SC-011
 
 | Endpoint | Доступ и результат |
@@ -472,8 +488,12 @@ Invalid selection — 422 INVALID_PARTICIPANT; inactivity — 409 INACTIVE_USER.
 
 Все financial responses no-store. Brief users содержат только id/name/isActive.
 Safe недоступная debtReference содержит только id/isAccessible=false.
+Полное Debt view добавляет участникам viewer-relative `connectId`: repository
+ищет только canonical pair текущего пользователя с участником и возвращает
+`null` для self или отсутствующей связи, ничего не создавая. Список Debt не
+вычисляет это поле и не выполняет дополнительные Connect lookup.
 Пагинация createdAt DESC/id DESC, default 20/max 100, opaque Base64URL cursor.
-Edit/delete/MANUAL writers на этом этапе не опубликованы.
+Delete Debt и MANUAL writers опубликованы последующими сценариями.
 [Доказательства](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/acceptance/create-debt.md).
 
 ## SC-016: создание MANUAL
@@ -485,7 +505,7 @@ POST /api/v1/connects/{connectId}/transfers принимает senderId/receiver
 422 VALIDATION_ERROR; неактивная сторона — 409 INACTIVE_USER. Ключ обязателен
 (400), изменённая команда с тем же ключом — 409 IDEMPOTENCY_KEY_REUSED.
 relatedTransferId отложен до SC-018 по mvp-scope §15, неизвестные поля — 400.
-Edit/delete маршруты не экспонируются. Денежные DTO не допускают coercion
+Денежные DTO не допускают coercion
 из numeric string, bool или float. Atomic writer использует существующую
 схему без новой миграции. Исторические проверки — [SC-016](https://github.com/r3ct4lan/equo_3/blob/dc0b1234f00b3fcbd3526a8080b01098b8468947/docs/features/manual-transfer.md).
 
@@ -498,3 +518,35 @@ version conflict содержит только expectedVersion/actualVersion. Re
 проверяется до раскрытия versions; неавтор-читатель — 403, outsider — hidden 404.
 Frozen/deleted — 409. Response reuse DebtViews и no-store; тело всегда содержит
 только текущих participants. Новых migrations и альтернативного API client нет.
+
+## SC-014 — DELETE Debt
+
+DELETE /api/v1/debts/{id} принимает Bearer и тот же strict strong integer
+If-Match, что PUT. Под блокировкой aggregate проверяются hidden resource ACL,
+автор, active author/payer, неудалённое состояние и версия. В одной транзакции
+Debt получает `isDeleted=true` и новую version, а все его активные DEBT_SHARE —
+`isDeleted=true` и собственную новую техническую version. DebtParticipant и
+MANUAL не меняются. Успех возвращает только 204/no-store.
+
+Список уже фильтрует удалённые Debt. Прямой GET остаётся доступен автору,
+плательщику и зафиксированным текущим участникам, возвращает новый ETag,
+`isDeleted=true` и запрещённые edit/delete actions. История Connect сохраняет
+удалённые DEBT_SHARE и активные MANUAL; баланс игнорирует удалённые записи.
+Restore и отдельный archive endpoint отсутствуют.
+
+## SC-017 — изменение и удаление MANUAL
+
+PUT/DELETE /api/v1/transfers/{id} принимают Bearer и strict strong integer
+If-Match. Под row lock сначала применяется hidden Connect-side ACL, затем
+проверяются тип MANUAL, автор, active обе стороны, неудалённое состояние и
+version. PUT принимает полное состояние senderId/receiverId/amount: разрешена
+только прежняя пара сторон в любом из двух направлений. Нормализованный no-op
+возвращает прежние version/ETag без записи; stale no-op получает
+VERSION_CONFLICT. `relatedTransferId` остаётся вне публичного тела до SC-018.
+
+DELETE отвечает 204/no-store, выставляет `isDeleted=true` и увеличивает version.
+Удалённая запись остаётся в обеих историях и прямом GET, но исключается из
+balance; восстановление отсутствует. DEBT_SHARE через оба маршрута получает
+403 AUTOMATIC_TRANSFER_IMMUTABLE. Реальные конкурентные writers сериализуются
+блокировкой строки Transfer; ожидающая команда проверяет уже зафиксированные
+version/deleted state.

@@ -40,9 +40,9 @@ const other = {
 }
 const debt = {
   id: 'debt', title: 'Dinner', description: 'Food', totalAmount: 1001, payer: self, createdBy: self, participantCount: 2, shareAmount: 501, includePayerInSplit: true, canEdit: true, canDelete: true, isDeleted: false, version: 1, createdAt: '2026-10-11T12:00:00Z', participants: [{
-    debtParticipantId: 'p0', user: self, isPayer: true, isAuthor: true, shareAmount: 501, transferId: null
+    debtParticipantId: 'p0', user: self, isPayer: true, isAuthor: true, shareAmount: 501, transferId: null, connectId: null
   }, {
-    debtParticipantId: 'p1', user: other, isPayer: false, isAuthor: false, shareAmount: 501, transferId: 'transfer'
+    debtParticipantId: 'p1', user: other, isPayer: false, isAuthor: false, shareAmount: 501, transferId: 'transfer', connectId: 'connect'
   }]
 }
 const transfer = {
@@ -193,6 +193,8 @@ describe('financial journey components', () => {
     expect(wrapper.text()).toContain('(inactive)')
     expect(wrapper.text()).toContain('€5.01')
     expect(wrapper.text()).not.toContain('private@example.test')
+    expect(wrapper.find('a[href="/connects/connect"]').text()).toBe('Boris')
+    expect(wrapper.find('a[href="/connects/null"]').exists()).toBe(false)
     expect(wrapper.findAll('button')).toHaveLength(0)
     wrapper.unmount()
   })
@@ -281,13 +283,23 @@ describe('financial journey components', () => {
     wrapper.unmount()
   })
 
-  it.each([[501, 'They owe you €5.01'], [-501, 'You owe them €5.01'], [0, 'You are settled up']])('explains balance %s from the viewer perspective', async (amount, text) => {
+  it.each([
+    [501, 'Balance: €5.01', 'They owe you.', 'connect-balance__value--positive'],
+    [-501, 'Balance: -€5.01', 'You owe them.', 'connect-balance__value--negative'],
+    [0, 'Balance: €0.00', 'You are settled up.', null]
+  ])('shows balance %s once with its viewer-relative meaning', async (amount, balance, meaning, tone) => {
     const wrapper = await mountSuspended(ConnectBalance, {
       props: {
         amount: amount as number
       }
     })
-    expect(wrapper.text()).toContain(text)
+    expect(wrapper.get('.connect-balance__amount').text()).toBe(balance)
+    expect(wrapper.text()).toContain(meaning)
+    expect(wrapper.findAll('strong')).toHaveLength(1)
+    expect(wrapper.text().match(/€/gu)).toHaveLength(1)
+    expect(wrapper.get('.connect-balance__amount').classes()).toEqual(['connect-balance__amount'])
+    if (tone) expect(wrapper.get('.connect-balance__value').classes()).toContain(tone)
+    else expect(wrapper.get('.connect-balance__value').classes()).toEqual(['connect-balance__value'])
     wrapper.unmount()
   })
 })

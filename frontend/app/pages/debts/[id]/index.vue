@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { DebtView } from '~/types/finance'
 import { formatEuro } from '~/utils/money'
+import { validDebtEtag } from '~/utils/debt-update'
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Expense · Equo' })
 const route = useRoute()
 const { state } = useCurrentUser()
-const { item: debt, pending, error, load } = useFinancialDetail<DebtView>(() => '/v1/debts/' + encodeURIComponent(String(route.params.id)))
+const { item: debt, etag, pending, error, load } = useFinancialDetail<DebtView>(() => '/v1/debts/' + encodeURIComponent(String(route.params.id)))
 </script>
 
 <template>
@@ -45,13 +46,24 @@ const { item: debt, pending, error, load } = useFinancialDetail<DebtView>(() => 
         class="button"
         :to="'/debts/' + debt.id + '/edit'"
       >Edit expense</NuxtLink>
+      <DeleteDebtForm
+        v-if="debt.canDelete && !debt.isDeleted && debt.createdBy.id === state.user?.id && etag && validDebtEtag(etag)"
+        :debt-id="debt.id"
+        :etag="etag"
+        @removed="load"
+        @reload="load"
+      />
       <h2>Participants</h2>
       <ul class="stack">
         <li
           v-for="participant in debt.participants"
           :key="participant.debtParticipantId"
         >
-          {{ participant.user.name }}{{ participant.user.id === state.user?.id ? ' (you)' : '' }} · {{ formatEuro(participant.shareAmount) }}
+          <NuxtLink
+            v-if="participant.user.id !== state.user?.id && participant.connectId"
+            :to="'/connects/' + participant.connectId"
+          >{{ participant.user.name }}</NuxtLink>
+          <span v-else>{{ participant.user.name }}</span>{{ participant.user.id === state.user?.id ? ' (you)' : '' }} · {{ formatEuro(participant.shareAmount) }}
           <span v-if="participant.isPayer"> · payer</span><span v-if="participant.isAuthor"> · author</span><span v-if="!participant.user.isActive"> · inactive</span>
           <NuxtLink
             v-if="participant.transferId && (participant.user.id === state.user?.id || debt.payer.id === state.user?.id)"

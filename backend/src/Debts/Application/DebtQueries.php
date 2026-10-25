@@ -37,6 +37,17 @@ final readonly class DebtQueries implements DebtAccess
         return ['id' => $debtId, 'isAccessible' => true, 'title' => $d->title, 'isDeleted' => $d->isDeleted];
     }
 
+    public function allowsManualConnect(string $debtId, string $firstUserId, string $secondUserId): bool
+    {
+        $debt = CreateDebtCommand::isUuid($debtId) ? $this->repository->find($debtId, true) : null;
+        if (null === $debt || $debt->isDeleted) {
+            return false;
+        }
+        $current = array_map(static fn ($participant): string => $participant->userId, $debt->currentParticipants());
+
+        return in_array($firstUserId, $current, true) && in_array($secondUserId, $current, true);
+    }
+
     /** @return array{items:list<array<string,mixed>>,pagination:array{nextCursor:?string,hasMore:bool}} */
     public function page(string $viewerId, int $limit = 20, ?string $cursor = null): array
     {
@@ -50,7 +61,7 @@ final readonly class DebtQueries implements DebtAccess
         $last = $rows[count($rows) - 1] ?? null;
         $items = [];
         foreach ($rows as $d) {
-            $v = $this->views->detail($d, $viewerId);
+            $v = $this->views->detail($d, $viewerId, false);
             $items[] = ['id' => $v['id'], 'title' => $v['title'], 'totalAmount' => $v['totalAmount'], 'payer' => $v['payer'], 'participantCount' => $v['participantCount'], 'shareAmount' => $v['shareAmount'], 'canEdit' => $v['canEdit'], 'version' => $v['version'], 'createdAt' => $v['createdAt']];
         }
 

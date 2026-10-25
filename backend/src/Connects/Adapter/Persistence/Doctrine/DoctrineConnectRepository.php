@@ -22,6 +22,13 @@ final readonly class DoctrineConnectRepository implements ConnectRepositoryPort
         return false !== $this->db->fetchOne('SELECT 1 FROM connect WHERE first_user_id=? AND second_user_id=?', [$pair->first, $pair->second]);
     }
 
+    public function findPairId(CanonicalPair $pair): ?string
+    {
+        $id = $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id=? AND second_user_id=?', [$pair->first, $pair->second]);
+
+        return false === $id ? null : (string) $id;
+    }
+
     public function find(string $id): ?Connect
     {
         $row = $this->db->fetchAssociative('SELECT * FROM connect WHERE id = ?', [$id]);
