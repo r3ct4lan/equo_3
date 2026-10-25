@@ -16,20 +16,13 @@
 }
 
 html {
-  min-width: var(--viewport-min);
+  min-width: min(100%, var(--viewport-min));
   background: var(--color-background);
 }
 
 body {
   min-height: 100vh;
   margin: 0;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
 }
 
 fieldset {
@@ -44,11 +37,11 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-a {
-  color: var(--color-primary);
+a:where(:not([data-slot="button"])) {
+  color: var(--color-link);
 }
 
-:focus-visible {
+:focus-visible:not([data-slot="button"], [data-slot="input"], [data-slot="textarea"], [data-slot="native-select"]) {
   outline: var(--focus-width) solid var(--color-focus);
   outline-offset: var(--focus-width);
 }
@@ -62,6 +55,7 @@ p {
 .ui-heading-1 {
   margin-bottom: var(--space-4);
   font-size: var(--font-heading-1);
+  font-family: var(--font-family-heading);
   line-height: var(--line-heading-1);
   letter-spacing: var(--tracking-heading);
   font-weight: var(--weight-bold);
@@ -70,6 +64,7 @@ p {
 .ui-heading-2 {
   margin-bottom: var(--space-3);
   font-size: var(--font-heading-2);
+  font-family: var(--font-family-heading);
   line-height: var(--line-heading-2);
   font-weight: var(--weight-bold);
 }
@@ -175,6 +170,7 @@ nav {
 }
 
 .hero__lede {
+  margin-bottom: var(--space-4);
   max-width: var(--lede-width);
   color: var(--color-muted);
   font-size: var(--font-lede);
@@ -194,21 +190,14 @@ nav {
 
 .eyebrow {
   margin-bottom: var(--space-control);
-  color: var(--color-primary);
+  color: var(--color-link);
   font-size: var(--font-eyebrow);
   font-weight: var(--weight-heavy);
   letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
 }
 
-.panel {
-  max-width: var(--panel-width);
-  padding: var(--space-panel);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-medium);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-surface);
-}
+.panel { max-width: var(--panel-width); }
 
 .auth-grid {
   display: grid;
@@ -279,47 +268,10 @@ nav {
   animation: spin var(--duration-spin) linear infinite;
 }
 
-.button {
-  display: inline-flex;
-  min-height: var(--control-height);
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-control) var(--space-4);
-  border: var(--border-width) solid var(--color-primary);
-  border-radius: var(--radius-small);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  font-weight: var(--weight-action);
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.button:hover:not(:disabled, [aria-disabled="true"]) {
-  background: var(--color-primary-strong);
-}
-
-.button:is(:disabled, [aria-disabled="true"]) {
+.button[aria-disabled="true"] {
+  pointer-events: none;
   cursor: not-allowed;
   opacity: var(--opacity-disabled);
-}
-
-.button--secondary {
-  border-color: var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-.button--secondary:hover:not(:disabled, [aria-disabled="true"]) {
-  background: var(--color-surface-hover);
-}
-
-.button--danger {
-  border-color: var(--color-error);
-  background: var(--color-error);
-}
-
-.button--danger:hover:not(:disabled, [aria-disabled="true"]) {
-  background: var(--color-error-strong);
 }
 
 .form-fields {
@@ -333,20 +285,6 @@ nav {
 
 .form-field label {
   font-weight: var(--weight-bold);
-}
-
-.ui-control {
-  width: 100%;
-  min-height: var(--control-height);
-  padding: var(--space-control) var(--space-3);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-small);
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-.form-field [aria-invalid="true"] {
-  border-color: var(--color-error);
 }
 
 .field-errors {
@@ -507,7 +445,7 @@ nav {
 
 .dashboard-summary-link {
   display: inline-block;
-  color: var(--color-primary);
+  color: var(--color-link);
 }
 
 .dashboard-expenses {
@@ -623,15 +561,15 @@ nav {
 .ui-heading-3 {
   margin-block: 0 var(--space-3);
   font-size: var(--font-heading-3);
+  font-family: var(--font-family-heading);
   font-weight: var(--weight-bold);
 }
 
 strong, label, legend { font-weight: var(--weight-bold); }
-.ui-control:disabled, .ui-checkbox:disabled {
+.ui-checkbox:disabled {
   opacity: var(--opacity-disabled);
   cursor: not-allowed;
 }
-.ui-control[aria-invalid="true"] { border-color: var(--color-error); }
 .panel > :last-child { margin-bottom: 0; }
 
 .ui-kit-layout {

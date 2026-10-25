@@ -1,15 +1,18 @@
 <script setup lang="ts">
+import { NativeSelect as RegistrySelect } from '~/components/ui/native-select'
+
 const model = defineModel<string>({ default: '' })
-const select = useTemplateRef<HTMLSelectElement>('select')
-defineExpose({ focus: () => select.value?.focus() })
+const select = useTemplateRef<{ $el: HTMLElement }>('select')
+defineExpose({ focus: () => select.value?.$el.querySelector('select')?.focus() })
 </script>
 
 <template>
-  <select
+  <RegistrySelect
     ref="select"
-    v-model="model"
-    class="ui-control"
+    :model-value="model"
+    class="w-full"
+    @update:model-value="model = String($event)"
   >
     <slot />
-  </select>
+  </RegistrySelect>
 </template>

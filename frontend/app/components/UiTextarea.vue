@@ -1,13 +1,16 @@
 <script setup lang="ts">
+import { Textarea as RegistryTextarea } from '~/components/ui/textarea'
+
 const model = defineModel<string>({ default: '' })
-const input = useTemplateRef<HTMLTextAreaElement>('input')
-defineExpose({ focus: () => input.value?.focus() })
+const input = useTemplateRef<{ $el: HTMLTextAreaElement }>('input')
+defineExpose({ focus: () => input.value?.$el.focus() })
 </script>
 
 <template>
-  <textarea
+  <RegistryTextarea
     ref="input"
-    v-model="model"
+    :model-value="model"
     class="ui-control"
+    @update:model-value="model = String($event)"
   />
 </template>

@@ -27,17 +27,24 @@ export default {
       primitive: 'Use the shared UI component instead of <{{name}}> (docs/ui-system.md).',
       ownedClass: 'The {{name}} class belongs to {{owner}}. Use that component and its typed props.',
       inlineStyle: 'Put visual values in vars.css and shared CSS; inline styles are reserved for theme swatches.',
-      localStyle: 'Keep styles in assets/css and use vars.css tokens.'
+      localStyle: 'Keep styles in assets/css and use vars.css tokens.',
+      registry: 'Use the typed Ui* facade in application pages and domain components; registry sources are shown directly only in /ui-kit.'
     }
   },
   create(context) {
     const file = basename(context.filename)
+    const facade = /\/app\/components\/Ui[^/]+\.vue$/.test(context.filename.replaceAll('\\', '/'))
+    // Registry sources own native primitives; application pages still use the typed facades.
+    if (context.filename.replaceAll('\\', '/').includes('/app/components/ui/')) return {}
     const services = context.sourceCode.parserServices
     const owned = owners => (Array.isArray(owners) ? owners : [owners]).includes(file)
     if (!services.defineTemplateBodyVisitor) return {}
     return services.defineTemplateBodyVisitor({
       VElement(node) {
         const name = node.rawName
+        if (name.startsWith('Shadcn') && file !== 'ui-kit.vue' && !facade) {
+          context.report({ node, messageId: 'registry' })
+        }
         if (elements[name] && !owned(elements[name])) {
           context.report({ node, messageId: 'primitive', data: { name } })
         }
@@ -57,6 +64,11 @@ export default {
         }
       }
     }, {
+      ImportDeclaration(node) {
+        if (/components\/ui(?:\/|$)/.test(String(node.source.value)) && file !== 'ui-kit.vue' && !facade) {
+          context.report({ node, messageId: 'registry' })
+        }
+      },
       Program(node) {
         const fragment = services.getDocumentFragment?.()
         if (fragment?.children.some(child => child.type === 'VElement' && child.name === 'style')) {
