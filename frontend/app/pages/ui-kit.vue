@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import type { DialogTarget, FocusTarget } from '~/types/ui'
 import themeSource from '~/assets/css/vars.css?raw'
+import preset from '../../components.json'
+import { uiThemeTokens } from '~/utils/ui-theme'
+import { Button as PresetButton } from '~/components/ui/button'
+import { Card as PresetCard, CardHeader as PresetCardHeader, CardTitle as PresetCardTitle, CardDescription as PresetCardDescription, CardAction as PresetCardAction, CardContent as PresetCardContent, CardFooter as PresetCardFooter } from '~/components/ui/card'
+import { NativeSelect as PresetSelect, NativeSelectOptGroup as PresetOptGroup, NativeSelectOption as PresetOption } from '~/components/ui/native-select'
+import { RiStarLine } from '@remixicon/vue'
 
-useHead({ title: 'UI kit · Equo', meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
+const dark = ref(false)
+useHead({ title: 'UI kit · Equo', meta: [{ name: 'robots', content: 'noindex, nofollow' }], htmlAttrs: { class: () => dark.value ? 'dark' : '' } })
 
 const sections = [
-  ['tokens', 'Theme tokens'], ['typography', 'Typography'], ['buttons', 'Buttons & links'],
+  ['preset', 'Installed preset'], ['tokens', 'Theme tokens'], ['typography', 'Typography'], ['buttons', 'Buttons & links'],
   ['forms', 'Form controls'], ['cards', 'Cards & financial data'], ['states', 'Feedback & states'],
   ['overlays', 'Dialog & toast']
 ] as const
-const tokens = [...themeSource.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(match => ({
-  name: match[1]!, value: match[2]!
-}))
-const colors = tokens.filter(token => token.name.startsWith('--color-'))
+const tokens = computed(() => uiThemeTokens(themeSource, dark.value))
+const colors = computed(() => tokens.value.filter(token => token.name.startsWith('--color-')))
 const variants = ['primary', 'secondary', 'danger'] as const
 const draft = reactive({ name: '', email: '', password: '', direction: 'you', description: '', included: true, people: ['alex'] })
 const formDisabled = ref(false)
@@ -43,6 +48,15 @@ async function closeDialog(): Promise<void> {
       <UiText variant="help">
         Examples use fictional data. Actions on this page only change the examples.
       </UiText>
+      <div class="hero__actions">
+        <UiButton
+          variant="secondary"
+          :aria-pressed="dark"
+          @click="dark = !dark"
+        >
+          {{ dark ? 'Preview light theme' : 'Preview dark theme' }}
+        </UiButton>
+      </div>
     </header>
 
     <div class="ui-kit-layout">
@@ -60,6 +74,80 @@ async function closeDialog(): Promise<void> {
       </nav>
 
       <div class="stack stack--large ui-kit-content">
+        <section
+          id="ui-preset"
+          class="stack"
+          aria-labelledby="preset-heading"
+        >
+          <UiText
+            id="preset-heading"
+            variant="heading2"
+          >
+            Installed preset
+          </UiText>
+          <UiText>Preset a6OvgsF6 · {{ preset.style }} · {{ preset.tailwind.baseColor }} · {{ preset.font }} / {{ preset.fontHeading }} · {{ preset.iconLibrary }}</UiText>
+          <PresetCard>
+            <PresetCardHeader>
+              <PresetCardTitle>Shared expenses, in your style</PresetCardTitle>
+              <PresetCardDescription>The same preset now styles the shared application components.</PresetCardDescription>
+              <PresetCardAction>
+                <RiStarLine
+                  aria-label="Remix icon sample"
+                  role="img"
+                />
+              </PresetCardAction>
+            </PresetCardHeader>
+            <PresetCardContent class="stack">
+              <div class="form-actions">
+                <PresetButton
+                  v-for="variant in ['default', 'outline', 'secondary', 'ghost', 'destructive', 'link'] as const"
+                  :key="variant"
+                  :variant="variant"
+                  type="button"
+                >
+                  {{ variant }}
+                </PresetButton>
+              </div>
+              <div class="form-actions">
+                <PresetButton
+                  v-for="size in ['xs', 'sm', 'default', 'lg'] as const"
+                  :key="size"
+                  :size="size"
+                  type="button"
+                >
+                  {{ size }}
+                </PresetButton>
+                <PresetButton
+                  v-for="size in ['icon-xs', 'icon-sm', 'icon', 'icon-lg'] as const"
+                  :key="size"
+                  :size="size"
+                  type="button"
+                  :aria-label="'Favorite example ' + size"
+                >
+                  <RiStarLine />
+                </PresetButton>
+              </div>
+              <PresetSelect
+                v-model="draft.direction"
+                class="w-full"
+                aria-label="Preset grouped select"
+              >
+                <PresetOptGroup label="Payment directions">
+                  <PresetOption value="you">
+                    You → Alex
+                  </PresetOption><PresetOption value="other">
+                    Alex → You
+                  </PresetOption>
+                </PresetOptGroup>
+              </PresetSelect>
+            </PresetCardContent>
+            <PresetCardFooter>
+              <UiText variant="help">
+                Roboto body · Instrument Sans headings · local fonts · pointer buttons
+              </UiText>
+            </PresetCardFooter>
+          </PresetCard>
+        </section>
         <section
           id="ui-tokens"
           class="stack"

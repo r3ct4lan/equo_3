@@ -19,3 +19,13 @@ test('catalog guard follows composed specimens and detects a shared primitive mi
   ])
   assert.deepEqual(auditCatalog(components, '<AppErrorState />'), ['UiMissing'])
 })
+
+test('catalog guard follows aliased registry components and requires specimens for their subcomponents', () => {
+  const components = new Map([
+    ['UiButton', '<script>import { Button as RegistryButton } from \'~/components/ui/button\'</script><RegistryButton />'],
+    ['Button', '<div data-slot="button" />'],
+    ['CardTitle', '<div data-slot="card-title" />']
+  ])
+  assert.deepEqual(auditCatalog(components, '<UiButton />'), ['CardTitle'])
+  assert.deepEqual(auditCatalog(components, '<script>import { CardTitle as PresetTitle } from \'~/components/ui/card\'</script><UiButton /><PresetTitle />'), [])
+})

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { NuxtLink } from '#components'
+import { Button as RegistryButton } from '~/components/ui/button'
 import type { ButtonVariant, LinkTo } from '~/types/ui'
 
 const props = withDefaults(defineProps<{
@@ -20,6 +21,7 @@ const props = withDefaults(defineProps<{
 
 const root = useTemplateRef<HTMLElement | { $el: HTMLElement }>('root')
 const blocked = computed(() => props.disabled || props.pending)
+const registryVariants = { primary: 'default', secondary: 'secondary', danger: 'destructive' } as const
 defineExpose({ focus: () => {
   const element = root.value
   if (element) ('focus' in element ? element : element.$el).focus()
@@ -34,9 +36,10 @@ function guardClick(event: MouseEvent): void {
 </script>
 
 <template>
-  <component
-    :is="to !== undefined ? NuxtLink : 'button'"
+  <RegistryButton
     ref="root"
+    :as="to !== undefined ? NuxtLink : 'button'"
+    :variant="registryVariants[variant]"
     class="button"
     :class="'button--' + variant"
     :to="to !== undefined && !blocked ? to : undefined"
@@ -49,5 +52,5 @@ function guardClick(event: MouseEvent): void {
   >
     <span v-if="pending && pendingLabel">{{ pendingLabel }}</span>
     <slot v-else />
-  </component>
+  </RegistryButton>
 </template>

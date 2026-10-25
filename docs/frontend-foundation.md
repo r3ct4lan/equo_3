@@ -4,7 +4,7 @@
 |---|---|
 | Назначение | Описать фактическую Nuxt 4 структуру, общие механизмы и реализованные auth/financial экраны |
 | Статус | Implemented |
-| Версия | 17 |
+| Версия | 18 |
 | Дата актуальности | 2026-10-25 |
 | Владелец | Maksim Smolkov |
 | Источник | HTTP-контракты; ADR-001/006/012/017/018/020; реализация HTTP-слоя; модель доступа; фактический frontend |
@@ -232,6 +232,14 @@ detail list и финансовые presentation components переисполь
 CSS literals, ссылки на токены и присутствие всех `Ui*` в графе каталога;
 проверка включена в `npm run lint` и обычный CI. Допустимые исключения
 (media queries, visually-hidden, theme swatches) перечислены в UI-документе.
+
+По поручению владельца подключён shadcn-vue preset `a6OvgsF6` (Luma / Zinc /
+teal / Roboto + Instrument Sans / Remix Icon). Tailwind Vite plugin и
+`shadcn-nuxt` регистрируют registry sources с префиксом `Shadcn`; app использует
+их через прежние типизированные `Ui*`. Тема остаётся в `vars.css`, Tailwind
+mapping — в `tailwind.css`, fonts поставляются локально. `/ui-kit` показывает
+registry variants/subcomponents и локальный dark preview. Подробности,
+границы генератора и результаты проверок — в [UI-001-04](ui-system.md#ui-001-04--пресет-владельца).
 
 ## 9. Реализованные auth-сценарии
 

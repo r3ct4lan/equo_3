@@ -29,14 +29,22 @@ export function auditStyles(source, tokens) {
 export function auditCatalog(components, catalog) {
   const visited = new Set()
   function visit(source) {
+    const aliases = new Map()
+    for (const [, imports] of source.matchAll(/import\s*\{([^}]+)\}\s*from\s*['"]~\/components\/ui\/[^'"]+['"]/g)) {
+      for (const specifier of imports.split(',')) {
+        const [name, alias = name] = specifier.trim().split(/\s+as\s+/)
+        aliases.set(alias, name)
+      }
+    }
     for (const [, name] of source.matchAll(/<([A-Z]\w*)\b/g)) {
-      if (visited.has(name) || !components.has(name)) continue
-      visited.add(name)
-      visit(components.get(name))
+      const component = aliases.get(name) ?? name
+      if (visited.has(component) || !components.has(component)) continue
+      visited.add(component)
+      visit(components.get(component))
     }
   }
   visit(catalog)
-  return [...components.keys()].filter(name => name.startsWith('Ui') && !visited.has(name))
+  return [...components.keys()].filter(name => (name.startsWith('Ui') || components.get(name).includes('data-slot=')) && !visited.has(name))
 }
 
 async function check() {
@@ -50,8 +58,8 @@ async function check() {
     errors.push(...auditStyles(source, tokens).map(error => `${file}: ${error}`))
   }
   const components = new Map()
-  for (const file of await readdir(resolve(root, 'app/components'))) {
-    if (file.endsWith('.vue')) components.set(file.slice(0, -4), await readFile(resolve(root, 'app/components', file), 'utf8'))
+  for (const file of await readdir(resolve(root, 'app/components'), { recursive: true })) {
+    if (file.endsWith('.vue')) components.set(file.split('/').at(-1).slice(0, -4), await readFile(resolve(root, 'app/components', file), 'utf8'))
   }
   const catalog = await readFile(resolve(root, 'app/pages/ui-kit.vue'), 'utf8')
   errors.push(...auditCatalog(components, catalog).map(name => `${name} has no specimen in /ui-kit`))

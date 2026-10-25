@@ -31,6 +31,8 @@
 3. `UI-001-03` — защита от повторов, проверки взаимодействий и регрессий,
    сборка и визуальная проверка каталога, документация правил расширения:
    выполнен; результаты и границы проверки приведены ниже.
+4. `UI-001-04` — установить пресет владельца `a6OvgsF6` и подключить его
+   к общим компонентам и каталогу: выполнен; подробности ниже.
 
 Техническая проверка и визуальное одобрение владельца — разные результаты.
 Новая визуальная концепция и продуктовая приёмка не подразумеваются аудитом.
@@ -85,7 +87,7 @@ queries, где native CSS custom properties неприменимы; одноп�
 `app/types/ui.ts`, shared component/CSS и каталог. Page/domain component не
 создаёт собственную реализацию кнопки, control, heading, card или notice.
 
-## Результаты технической проверки
+## Результаты UI-001-01—03 (до установки пресета)
 
 - Проверены все Vue-исходники приложения; собственные button/link actions,
   headings/body, controls, cards, notices и modal заменены общей системой.
@@ -117,3 +119,68 @@ queries, где native CSS custom properties неприменимы; одноп�
 для этого изменения. Перед merge необходим полный gate на итоговом SHA
 по `quality-gate.md`; визуальное одобрение владельца остаётся отдельным шагом.
 Новая тема/визуальная концепция этим аудитом не утверждается.
+
+## UI-001-04 — пресет владельца
+
+По новому поручению владельца выполнен
+`npx shadcn-vue@latest init --preset a6OvgsF6 --template nuxt --pointer`
+в существующем frontend. На момент установки CLI — **2.8.2**. Предварительно
+подключены Tailwind 4.3.3 / Vite plugin и `shadcn-nuxt` 2.8.2 по
+[Nuxt-инструкции shadcn-vue](https://www.shadcn-vue.com/docs/installation/nuxt).
+
+Фактический пресет: `reka-luma`, база Zinc, teal primary, Roboto для текста,
+Instrument Sans для заголовков, Remix Icon, `pointer: true`, light/dark.
+`components.json` сохраняет результат генератора и пути registry.
+
+### Интеграция
+
+- Registry-исходники Button, Card и его subcomponents, Input, Textarea,
+  NativeSelect/OptGroup/Option находятся в `app/components/ui/`.
+  `shadcn-nuxt` использует префикс `Shadcn`, без конфликта с существующими `Ui*`.
+- Существующие `UiButton`, `UiCard`, `UiInput`, `UiTextarea`, `UiSelect`
+  используют registry-реализации. Primary/secondary/danger преобразуются
+  в default/secondary/destructive. Сохраняются native submit semantics,
+  aria/error связи, string models, disabled/pending и программный фокус.
+  У Card добавлен `as`, чтобы формы и элементы списков сохраняли свои HTML-теги.
+- Остальные shared components используют те же theme aliases; native checkbox
+  сохраняет boolean/array models. Native dialog сохраняет Escape и возврат фокуса.
+  Бизнес-формы, API client и session coordination не заменялись.
+- Все значения темы и app aliases находятся в `vars.css` (**133 токена**).
+  `tailwind.css` содержит imports и mapping семантических Tailwind utilities.
+  Registry helpers сохранены в `assets/css/vendor/shadcn.css` с MIT license.
+  Это управляемый исходник библиотеки; ограничения app CSS не переписывают
+  библиотечные utilities. Шрифты поставляются локально через Fontsource,
+  включая notices в `public/licenses/`, без Google Fonts requests.
+- Каталог показывает все 17 app `Ui*` и 18 registry-компонентов, размеры и
+  варианты Luma, и переключает light/dark локально для предварительного просмотра.
+  Значения таблицы токенов следуют выбранной теме и CSS cascade без дублей.
+  Это не сохранённая настройка темы пользователя.
+- ESLint разрешает primitives в registry, но запрещает прямое использование
+  registry в feature pages/domain components в обход `Ui*`; исключение — каталог.
+  Catalog guard обходит registry imports/aliases и проверяет subcomponents.
+- Устранена горизонтальная прокрутка на 320px при classic vertical scrollbar:
+  `html` учитывает доступную ширину вместо безусловного минимума 20rem.
+  Browser-проверка сравнивает `scrollWidth` с `clientWidth`, а не с `innerWidth`.
+
+### Зависимости и проверки
+
+CLI автоматически добавил себя в runtime dependencies. Он удалён после
+генерации: для приложения нужны только registry sources и styles, а CLI
+вносил новые не принятые advisory через инструменты преобразования исходников.
+Сохранён только его MIT CSS asset; оставшийся optional Stylus peer обновлён
+до совместимой версии без уязвимой цепочки. Audit allowlist не расширялся.
+Ранее зафиксированные версии пакетов не менялись; новые зависимости закреплены
+lockfile. Установка шла в отдельном Docker-контейнере с собственным volume
+зависимостей, работающий Compose stack не переустанавливался.
+
+Прошли lint/UI guards, strict typecheck, **77 unit / 123 component tests**,
+lock consistency, dependency audit по принятой политике, production build
+и standalone startup (`/ui-kit` — HTTP 200). Отдельно прошёл один изолированный
+browser test `tests/e2e/ui-kit.spec.ts` против production-сборки: desktop/320px,
+dark preview, form models и modal/Escape/focus. Полный локальный E2E не запускался.
+В браузере дополнительно проверены локальные шрифты и отсутствие горизонтальной
+прокрутки с 15px scrollbar: `clientWidth=305`, `scrollWidth=305` при viewport 320.
+
+Полный GitHub Actions gate, merge и развёртывание не выполнялись.
+Выбор пресета владельцем разрешает интеграцию; итоговая визуальная приёмка
+всего приложения остаётся отдельным решением.
