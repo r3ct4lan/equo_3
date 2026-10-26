@@ -71,6 +71,36 @@ cleanup; operators inspect its logs and must not invoke cleanup manually.
 `EQUO_RETENTION_BATCH_SIZE` controls the maximum rows handled per record type
 and is limited to 1–5,000.
 
+## PHP debugging with Xdebug
+
+The development PHP image includes Xdebug 3.5.3 with step debugging enabled.
+The production image does not install Xdebug. Rebuild and recreate the local
+backend after changing its image:
+
+```bash
+docker compose build backend
+docker compose up -d --no-deps backend
+docker compose exec backend php --ri xdebug
+```
+
+Configure the IDE to listen on port `9003` and map `/var/www/backend` to the
+local `backend/` directory. Xdebug connects to `host.docker.internal` (the
+Docker Desktop host); it does not require publishing a container port.
+For an IDE running inside WSL, override the client host with a reachable WSL
+address through `XDEBUG_CONFIG` in a local Compose override and recreate the
+backend.
+
+Debugging starts only with an explicit trigger. For browser/API requests, use
+an Xdebug helper extension or the `XDEBUG_TRIGGER=1` cookie. For a CLI command:
+
+```bash
+docker compose exec -e XDEBUG_TRIGGER=1 backend php bin/console about
+```
+
+To disable Xdebug for a particular command, use
+`docker compose exec -e XDEBUG_MODE=off backend php bin/console about`.
+No diagnostic endpoint or debugger log file is enabled.
+
 ## Frontend runtime configuration
 
 The browser calls the API through the same Nginx origin. The committed defaults
