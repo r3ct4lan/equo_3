@@ -27,6 +27,11 @@ ENV APP_ENV=prod APP_DEBUG=0
 CMD ["php-fpm"]
 
 FROM runtime AS development
+RUN pecl install xdebug-3.5.3 \
+    && docker-php-ext-enable xdebug \
+    && rm -rf /tmp/pear
+COPY docker/php/xdebug.ini /usr/local/etc/php/conf.d/zz-xdebug.ini
+
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
 COPY backend ./
