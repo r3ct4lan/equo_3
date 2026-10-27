@@ -7,53 +7,50 @@ namespace App\IdentityAccess\Adapter\Security;
 use App\IdentityAccess\Application\Port\EmailChangeRateLimitPort;
 use App\IdentityAccess\Application\Port\PasswordResetRateLimitPort;
 use App\IdentityAccess\Application\Port\RateLimitPort;
-use Symfony\Component\RateLimiter\RateLimit;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use App\Infrastructure\RateLimit\RequestLimiter;
 
 final readonly class SymfonyRateLimit implements RateLimitPort, PasswordResetRateLimitPort, EmailChangeRateLimitPort
 {
     public function __construct(
-        private RateLimiterFactory $registrationIpLimiter,
-        private RateLimiterFactory $registrationEmailLimiter,
-        private RateLimiterFactory $activationRequestIpLimiter,
-        private RateLimiterFactory $activationRequestEmailLimiter,
-        private RateLimiterFactory $activationIpLimiter,
-        private RateLimiterFactory $activationTokenLimiter,
-        private RateLimiterFactory $passwordResetRequestIpLimiter,
-        private RateLimiterFactory $passwordResetRequestEmailLimiter,
-        private RateLimiterFactory $emailChangeRequestUserLimiter,
+        private RequestLimiter $limiter,
+        private int $registrationIpLimit,
+        private int $registrationEmailLimit,
+        private int $activationRequestIpLimit,
+        private int $activationRequestEmailLimit,
+        private int $activationIpLimit,
+        private int $activationTokenLimit,
     ) {
     }
 
     public function registrationRetryAfter(string $ip, string $normalizedEmail): ?int
     {
-        return $this->retryAfter([
-            $this->registrationIpLimiter->create($this->key('ip', $ip))->consume(),
-            $this->registrationEmailLimiter->create($this->key('email', $normalizedEmail))->consume(),
+        return $this->limiter->consume([
+            'registration:ip:'.$ip => $this->registrationIpLimit,
+            'registration:email:'.$normalizedEmail => $this->registrationEmailLimit,
         ]);
     }
 
     public function activationRequestRetryAfter(string $ip, string $normalizedEmail): ?int
     {
-        return $this->retryAfter([
-            $this->activationRequestIpLimiter->create($this->key('ip', $ip))->consume(),
-            $this->activationRequestEmailLimiter->create($this->key('email', $normalizedEmail))->consume(),
+        return $this->limiter->consume([
+            'activation-request:ip:'.$ip => $this->activationRequestIpLimit,
+            'activation-request:email:'.$normalizedEmail => $this->activationRequestEmailLimit,
         ]);
     }
 
     public function activationRetryAfter(string $ip, string $tokenFingerprint): ?int
     {
-        return $this->retryAfter([
-            $this->activationIpLimiter->create($this->key('ip', $ip))->consume(),
-            $this->activationTokenLimiter->create($this->key('token', $tokenFingerprint))->consume(),
+        return $this->limiter->consume([
+            'action:ip:'.$ip => $this->activationIpLimit,
+            'action:token:'.$tokenFingerprint => $this->activationTokenLimit,
         ]);
     }
 
     public function passwordResetRequestRetryAfter(string $ip, string $normalizedEmail): ?int
     {
-        return $this->retryAfter([
-            $this->passwordResetRequestIpLimiter->create($this->key('ip', $ip))->consume(),
-            $this->passwordResetRequestEmailLimiter->create($this->key('email', $normalizedEmail))->consume(),
+        return $this->limiter->consume([
+            'password-reset-request:ip:'.$ip => 20,
+            'password-reset-request:email:'.$normalizedEmail => 3,
         ]);
     }
 
@@ -64,36 +61,11 @@ final readonly class SymfonyRateLimit implements RateLimitPort, PasswordResetRat
 
     public function emailChangeRequestRetryAfter(string $userId): ?int
     {
-        return $this->retryAfter([
-            $this->emailChangeRequestUserLimiter->create($this->key('user', $userId))->consume(),
-        ]);
+        return $this->limiter->consume(['email-change:user:'.$userId => 3]);
     }
 
     public function emailChangeConfirmationRetryAfter(string $ip, string $tokenFingerprint): ?int
     {
         return $this->activationRetryAfter($ip, $tokenFingerprint);
-    }
-
-    /** @param list<RateLimit> $limits */
-    private function retryAfter(array $limits): ?int
-    {
-        $retryAfter = null;
-        $now = microtime(true);
-
-        foreach ($limits as $limit) {
-            if ($limit->isAccepted()) {
-                continue;
-            }
-
-            $seconds = max(1, (int) ceil((float) $limit->getRetryAfter()->format('U.u') - $now));
-            $retryAfter = null === $retryAfter ? $seconds : max($retryAfter, $seconds);
-        }
-
-        return $retryAfter;
-    }
-
-    private function key(string $dimension, string $value): string
-    {
-        return $dimension.':'.hash('sha256', $value);
     }
 }

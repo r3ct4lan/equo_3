@@ -374,7 +374,7 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
         self::assertSame('INVALID_TOKEN', $this->error()['code']);
     }
 
-    public function testRegistrationIpRateLimitUsesFivePerHourBoundary(): void
+    public function testRegistrationIpRateLimitUsesFivePerNinetySecondsBoundary(): void
     {
         for ($attempt = 1; $attempt <= 6; ++$attempt) {
             $this->register(
@@ -384,7 +384,10 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
             );
         }
 
-        $this->assertRateLimitError(3600);
+        $this->assertRateLimitError(90);
+        $initial = (int) $this->client->getResponse()->headers->get('Retry-After');
+        $this->register('retry@example.test', Uuid::v4()->toRfc4122(), '198.51.100.1');
+        $this->assertRateLimitError($initial);
         self::assertSame(5, $this->countRows('app_user'));
     }
 
@@ -398,11 +401,14 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
             );
         }
 
-        $this->assertRateLimitError(86_400);
+        $this->assertRateLimitError(90);
+        $initial = (int) $this->client->getResponse()->headers->get('Retry-After');
+        $this->register('email-limit@example.test', Uuid::v4()->toRfc4122(), '198.51.100.14');
+        $this->assertRateLimitError($initial);
         self::assertSame(1, $this->countRows('app_user'));
     }
 
-    public function testActivationIpRateLimitUsesTenPerFifteenMinutesBoundary(): void
+    public function testActivationIpRateLimitUsesTenPerNinetySecondsBoundary(): void
     {
         $codec = self::getContainer()->get(ActionTokenCodecPort::class);
 
@@ -415,11 +421,11 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
             );
         }
 
-        $this->assertRateLimitError(900);
+        $this->assertRateLimitError(90);
         self::assertSame(0, $this->countRows('app_user'));
     }
 
-    public function testActivationTokenRateLimitUsesFivePerFifteenMinutesAcrossIps(): void
+    public function testActivationTokenRateLimitUsesFivePerNinetySecondsAcrossIps(): void
     {
         $rawToken = self::getContainer()->get(ActionTokenCodecPort::class)->issue()->publicToken;
 
@@ -432,7 +438,7 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
             );
         }
 
-        $this->assertRateLimitError(900);
+        $this->assertRateLimitError(90);
         self::assertSame(0, $this->countRows('app_user'));
     }
 

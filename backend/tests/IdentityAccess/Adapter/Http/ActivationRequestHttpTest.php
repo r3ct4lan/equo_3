@@ -178,7 +178,7 @@ final class ActivationRequestHttpTest extends WebTestCase
 
         $error = $this->requestActivation(' email-limit@example.test ', self::PASSWORD, '198.51.100.10');
 
-        $this->assertRateLimitError($error, 3_600);
+        $this->assertRateLimitError($error, 90);
         self::assertSame(3, $this->countRows('user_action_token'));
         self::assertSame(3, $this->countRows('email_delivery_outbox'));
         self::assertStringNotContainsString(self::PASSWORD, (string) $this->client->getResponse()->getContent());
@@ -204,7 +204,7 @@ final class ActivationRequestHttpTest extends WebTestCase
             '203.0.113.21',
         );
 
-        $this->assertRateLimitError($error, 3_600);
+        $this->assertRateLimitError($error, 90);
         self::assertSame(0, $this->countRows('app_user'));
         self::assertSame(0, $this->countRows('user_action_token'));
         self::assertSame(0, $this->countRows('email_delivery_outbox'));
