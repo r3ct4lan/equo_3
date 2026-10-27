@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Fixture\Security;
 
-use App\Infrastructure\RateLimit\RequestLimiter;
+use App\Infrastructure\Application\Api\RequestLimiter;
 
 final class InMemoryRequestLimiter implements RequestLimiter
 {

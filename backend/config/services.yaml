@@ -46,7 +46,7 @@ services:
             $failureLimit: '%env(int:EQUO_LOGIN_FAILURE_LIMIT)%'
             $cooldownSeconds: 90
 
-    App\Infrastructure\RateLimit\RequestLimiter:
+    App\Infrastructure\Application\Api\RequestLimiter:
         alias: App\Infrastructure\RateLimit\RedisRequestLimiter
     App\Infrastructure\RateLimit\RedisRequestLimiter:
         arguments:

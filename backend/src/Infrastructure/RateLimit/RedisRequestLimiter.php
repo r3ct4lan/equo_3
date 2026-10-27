@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\RateLimit;
 
+use App\Infrastructure\Application\Api\RequestLimiter;
 use Redis;
 use RuntimeException;
 use Symfony\Component\Cache\Adapter\RedisAdapter;

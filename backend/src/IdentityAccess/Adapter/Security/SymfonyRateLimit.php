@@ -7,7 +7,7 @@ namespace App\IdentityAccess\Adapter\Security;
 use App\IdentityAccess\Application\Port\EmailChangeRateLimitPort;
 use App\IdentityAccess\Application\Port\PasswordResetRateLimitPort;
 use App\IdentityAccess\Application\Port\RateLimitPort;
-use App\Infrastructure\RateLimit\RequestLimiter;
+use App\Infrastructure\Application\Api\RequestLimiter;
 
 final readonly class SymfonyRateLimit implements RateLimitPort, PasswordResetRateLimitPort, EmailChangeRateLimitPort
 {

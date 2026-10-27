@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Infrastructure\RateLimit;
+namespace App\Infrastructure\Application\Api;
 
 interface RequestLimiter
 {
