@@ -530,8 +530,12 @@ nav {
 
 
 .ui-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: min(calc(100% - var(--space-8)), var(--dialog-width));
   max-height: calc(100dvh - var(--space-8));
+  overflow: auto;
   padding: 0;
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-medium);

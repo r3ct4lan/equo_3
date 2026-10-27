@@ -1911,6 +1911,21 @@ test('manual payment survives a lost response and refreshes both histories after
     await expect(page.getByText('They owe you.', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
+    for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 400 }]) {
+      await page.setViewportSize(viewport)
+      const bounds = await page.getByRole('dialog').boundingBox()
+      expect(bounds).not.toBeNull()
+      expect(Math.abs(bounds!.x + bounds!.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(1)
+      expect(Math.abs(bounds!.y + bounds!.height / 2 - viewport.height / 2)).toBeLessThanOrEqual(1)
+      expect(bounds!.x).toBeGreaterThanOrEqual(16)
+      expect(bounds!.y).toBeGreaterThanOrEqual(16)
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width - 16)
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height - 16)
+      if (viewport.height === 400) {
+        expect(await page.getByRole('dialog').evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
+      }
+    }
+    await page.setViewportSize({ width: 1280, height: 720 })
     await page.getByLabel('Who transferred money?', { exact: true }).selectOption('other')
     await page.getByLabel('Payment amount in EUR', { exact: true }).fill('7.00')
     await expect(page.getByText(/Expected balance: -€1.99/u)).toBeVisible()
