@@ -18,9 +18,12 @@ async function saved(): Promise<void> {
     class="stack"
     aria-labelledby="edit-expense-title"
   >
-    <h1 id="edit-expense-title">
+    <UiText
+      id="edit-expense-title"
+      variant="heading1"
+    >
       Edit expense
-    </h1>
+    </UiText>
     <AppLoadingState
       v-if="pending || state.status === 'unknown'"
       message="Loading expense…"
@@ -50,18 +53,19 @@ async function saved(): Promise<void> {
       title="Editing unavailable"
       message="Reload the expense before saving changes."
     />
-    <button
+    <UiButton
       v-if="error || (debt && canEdit && !validDebtEtag(etag))"
-      class="button button--secondary"
-      type="button"
+      variant="secondary"
       :disabled="pending"
       @click="load()"
     >
       Reload expense
-    </button>
-    <NuxtLink
-      class="button button--secondary"
+    </UiButton>
+    <UiButton
+      variant="secondary"
       :to="'/debts/' + encodeURIComponent(String(route.params.id))"
-    >Back to expense</NuxtLink>
+    >
+      Back to expense
+    </UiButton>
   </section>
 </template>

@@ -24,51 +24,55 @@ async function saveName(): Promise<void> {
 </script>
 
 <template>
-  <form
-    class="panel stack"
+  <UiCard
+    as="form"
+    class="stack"
     novalidate
     aria-label="Change profile name"
     @submit.prevent="saveName"
   >
     <div>
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Profile details
-      </p>
-      <h2>Display name</h2>
+      </UiText>
+      <UiText variant="heading2">
+        Display name
+      </UiText>
     </div>
     <FormErrorSummary
       title="Check the name"
       :message="summary"
     />
-    <div class="form-field">
+    <UiField>
       <label for="profile-name">Name</label>
-      <input
+      <UiInput
         id="profile-name"
         v-model="values.name"
         name="name"
         autocomplete="name"
         :disabled="isSubmitting"
         required
-        :aria-invalid="errorsFor('name').length > 0"
+        :aria-invalid="errorsFor('name').length
+          > 0"
         :aria-describedby="errorsFor('name').length ? 'profile-name-error' : undefined"
         @input="clearErrors(); saved = false"
-      >
+      />
       <FormFieldError
         id="profile-name-error"
         :messages="errorsFor('name')"
       />
-    </div>
-    <p
+    </UiField>
+    <UiText
       v-if="saved"
       role="status"
     >
       Name saved.
-    </p>
+    </UiText>
     <FormSubmitButton
       :pending="isSubmitting"
       pending-label="Saving name…"
     >
       Save name
     </FormSubmitButton>
-  </form>
+  </UiCard>
 </template>

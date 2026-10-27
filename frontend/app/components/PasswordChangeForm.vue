@@ -30,9 +30,10 @@ async function changePassword(): Promise<void> {
   >
     Password saved. Sign in with your new password.
   </div>
-  <form
+  <UiCard
     v-else
-    class="panel stack"
+    as="form"
+    class="stack"
     novalidate
     aria-label="Change password"
     @submit.prevent="changePassword"
@@ -48,54 +49,56 @@ async function changePassword(): Promise<void> {
       <legend class="visually-hidden">
         Password details
       </legend>
-      <div class="form-field">
+      <UiField>
         <label for="change-current-password">Current password</label>
-        <input
+        <UiInput
           id="change-current-password"
           v-model="values.currentPassword"
           name="currentPassword"
           type="password"
           autocomplete="current-password"
           required
-          :aria-invalid="errorsFor('currentPassword').length > 0"
+          :aria-invalid="errorsFor('currentPassword').length
+            > 0"
           :aria-describedby="errorsFor('currentPassword').length ? 'change-current-error' : undefined"
           @input="clearErrors"
-        >
+        />
         <FormFieldError
           id="change-current-error"
           :messages="errorsFor('currentPassword')"
         />
-      </div>
-      <div class="form-field">
+      </UiField>
+      <UiField>
         <label for="change-new-password">New password</label>
-        <input
+        <UiInput
           id="change-new-password"
           v-model="values.newPassword"
           name="newPassword"
           type="password"
           autocomplete="new-password"
           required
-          :aria-invalid="errorsFor('newPassword').length > 0"
+          :aria-invalid="errorsFor('newPassword').length
+            > 0"
           :aria-describedby="errorsFor('newPassword').length ? 'change-new-error' : undefined"
           @input="clearErrors"
-        >
+        />
         <FormFieldError
           id="change-new-error"
           :messages="errorsFor('newPassword')"
         />
-      </div>
+      </UiField>
     </fieldset>
-    <p
+    <UiText
       v-if="formError?.requestId"
       class="support-reference"
     >
       Support reference: <code>{{ formError.requestId }}</code>
-    </p>
+    </UiText>
     <FormSubmitButton
       :pending="isSubmitting"
       pending-label="Saving password…"
     >
       Save new password
     </FormSubmitButton>
-  </form>
+  </UiCard>
 </template>

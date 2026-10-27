@@ -76,50 +76,50 @@ watch(() => props.token, () => {
 </script>
 
 <template>
-  <section
-    class="panel stack"
+  <UiCard
+    as="section"
+    class="stack"
     aria-labelledby="invitation-title"
   >
-    <h1 id="invitation-title">
+    <UiText
+      id="invitation-title"
+      variant="heading1"
+    >
       Connect on Equo
-    </h1>
+    </UiText>
     <AppLoadingState
       v-if="pending || accepting || state.status === 'unknown'"
       message="Loading invitation…"
     />
     <template v-if="preview">
-      <p>{{ preview.inviter.name }} invited you to connect.</p>
-      <p>Valid until {{ new Date(preview.expiresAt).toLocaleDateString() }}.</p>
-      <p v-if="!preview.canAccept">
+      <UiText>{{ preview.inviter.name }} invited you to connect.</UiText>
+      <UiText>Valid until {{ new Date(preview.expiresAt).toLocaleDateString() }}.</UiText>
+      <UiText v-if="!preview.canAccept">
         The sender's account must be active before you can connect.
-      </p>
+      </UiText>
       <div
         v-else-if="state.status === 'anonymous'"
         class="form-actions"
       >
-        <button
-          class="button"
-          type="button"
+        <UiButton
           @click="signIn"
         >
           Sign in to connect
-        </button>
-        <button
-          class="button button--secondary"
-          type="button"
+        </UiButton>
+        <UiButton
+          variant="secondary"
           @click="register"
         >
           Create an account
-        </button>
+        </UiButton>
       </div>
-      <button
+      <UiButton
         v-else
-        class="button button--secondary"
-        type="button"
+        variant="secondary"
         @click="$auth.retryBootstrap()"
       >
         Try session again
-      </button>
+      </UiButton>
     </template>
     <AppErrorState
       v-if="presentation"
@@ -127,19 +127,20 @@ watch(() => props.token, () => {
       :message="presentation.message"
       :request-id="error?.requestId"
     />
-    <button
+    <UiButton
       v-if="presentation?.retryable"
-      class="button button--secondary"
-      type="button"
+      variant="secondary"
       :disabled="pending || accepting"
       @click="preview ? accept() : load()"
     >
       Try again
-    </button>
-    <NuxtLink
+    </UiButton>
+    <UiButton
       v-if="state.status === 'authenticated'"
-      class="button button--secondary"
+      variant="secondary"
       to="/connects"
-    >Your connections</NuxtLink>
-  </section>
+    >
+      Your connections
+    </UiButton>
+  </UiCard>
 </template>

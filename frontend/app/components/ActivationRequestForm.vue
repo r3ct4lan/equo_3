@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
+
 const props = withDefaults(defineProps<{
   initialEmail?: string
 }>(), {
@@ -19,8 +21,8 @@ const {
   dispose
 } = useActivationRequest(props.initialEmail)
 
-const successPanel = useTemplateRef<HTMLElement>('successPanel')
-const emailInput = useTemplateRef<HTMLInputElement>('emailInput')
+const successPanel = useTemplateRef<FocusTarget>('successPanel')
+const emailInput = useTemplateRef<FocusTarget>('emailInput')
 const hasFieldErrors = computed(() => Object.keys(fieldErrors.value).length > 0)
 const summaryMessage = computed(() => errorPresentation.value?.message
   ?? (hasFieldErrors.value ? 'Correct the highlighted fields and submit again.' : null))
@@ -49,48 +51,47 @@ onBeforeUnmount(dispose)
 </script>
 
 <template>
-  <section
-    class="panel stack"
+  <UiCard
+    as="section"
+    class="stack"
     aria-labelledby="activation-request-title"
   >
     <div>
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Activation email
-      </p>
-      <h2 id="activation-request-title">
+      </UiText>
+      <UiText
+        id="activation-request-title"
+        variant="heading2"
+      >
         Request another activation link
-      </h2>
-      <p class="form-help">
+      </UiText>
+      <UiText variant="help">
         Enter the email and current password for the account. The result does not confirm whether the account exists or an email was sent.
-      </p>
+      </UiText>
     </div>
 
-    <div
+    <UiNotice
       v-if="succeeded"
       ref="successPanel"
-      class="status-card status-card--success"
+      tone="success"
       role="status"
       aria-live="polite"
       tabindex="-1"
     >
-      <span
-        class="status-card__marker"
-        aria-hidden="true"
-      />
       <div class="stack">
         <div>
           <strong>Request received</strong>
-          <p>If the details can be used for activation, we will send instructions to the email address you provided.</p>
+          <UiText>If the details can be used for activation, we will send instructions to the email address you provided.</UiText>
         </div>
-        <button
-          class="button button--secondary"
-          type="button"
+        <UiButton
+          variant="secondary"
           @click="requestAnother"
         >
           Request another link
-        </button>
+        </UiButton>
       </div>
-    </div>
+    </UiNotice>
 
     <form
       v-else
@@ -112,9 +113,9 @@ onBeforeUnmount(dispose)
           Activation request details
         </legend>
 
-        <div class="form-field">
+        <UiField>
           <label for="activation-request-email">Email</label>
-          <input
+          <UiInput
             id="activation-request-email"
             ref="emailInput"
             v-model="values.email"
@@ -123,42 +124,44 @@ onBeforeUnmount(dispose)
             inputmode="email"
             autocomplete="email"
             required
-            :aria-invalid="errorsFor('email').length > 0"
+            :aria-invalid="errorsFor('email').length
+              > 0"
             :aria-describedby="errorsFor('email').length > 0 ? 'activation-request-email-error' : undefined"
             @input="handleFormChange"
-          >
+          />
           <FormFieldError
             id="activation-request-email-error"
             :messages="errorsFor('email')"
           />
-        </div>
+        </UiField>
 
-        <div class="form-field">
+        <UiField>
           <label for="activation-request-password">Current password</label>
-          <input
+          <UiInput
             id="activation-request-password"
             v-model="values.password"
             name="password"
             type="password"
             autocomplete="current-password"
             required
-            :aria-invalid="errorsFor('password').length > 0"
+            :aria-invalid="errorsFor('password').length
+              > 0"
             :aria-describedby="errorsFor('password').length > 0 ? 'activation-request-password-error' : undefined"
             @input="handleFormChange"
-          >
+          />
           <FormFieldError
             id="activation-request-password-error"
             :messages="errorsFor('password')"
           />
-        </div>
+        </UiField>
       </fieldset>
 
-      <p
+      <UiText
         v-if="formError?.requestId"
         class="support-reference"
       >
         Support reference: <code>{{ formError.requestId }}</code>
-      </p>
+      </UiText>
 
       <div class="form-actions">
         <FormSubmitButton
@@ -167,16 +170,15 @@ onBeforeUnmount(dispose)
         >
           Request activation link
         </FormSubmitButton>
-        <button
+        <UiButton
           v-if="errorPresentation?.retryable"
-          class="button button--secondary"
-          type="button"
+          variant="secondary"
           :disabled="isSubmitting"
           @click="handleSubmit"
         >
           Try again
-        </button>
+        </UiButton>
       </div>
     </form>
-  </section>
+  </UiCard>
 </template>

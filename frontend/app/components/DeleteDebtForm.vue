@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
 import { ApiClientError, toApiClientError, type ApiClientError as ApiError } from '~/utils/api-error'
 import { validDebtEtag } from '~/utils/debt-update'
 
@@ -9,8 +10,8 @@ const confirming = ref(false)
 const pending = ref(false)
 const blocked = ref(false)
 const error = ref<ApiError | null>(null)
-const trigger = ref<HTMLButtonElement | null>(null)
-const confirmButton = ref<HTMLButtonElement | null>(null)
+const trigger = ref<FocusTarget | null>(null)
+const confirmButton = ref<FocusTarget | null>(null)
 const message = computed(() => {
   if (error.value?.code === 'VERSION_CONFLICT') return 'Someone changed this expense. Reload it and review the current version before removing it.'
   if (error.value && (error.value.status === null || error.value.status >= 500)) return 'The result is not confirmed. Reload the expense before trying anything else.'
@@ -66,67 +67,70 @@ async function remove(): Promise<void> {
     class="stack"
     aria-labelledby="remove-expense-title"
   >
-    <h2 id="remove-expense-title">
+    <UiText
+      id="remove-expense-title"
+      variant="heading2"
+    >
       Remove expense
-    </h2>
-    <p>This removes its automatic shares from every balance. Payment history remains available.</p>
-    <button
+    </UiText>
+    <UiText>This removes its automatic shares from every balance. Payment history remains available.</UiText>
+    <UiButton
       v-if="!confirming && !blocked"
       ref="trigger"
-      class="button button--danger"
-      type="button"
+      variant="danger"
       @click="openConfirmation"
     >
       Remove expense
-    </button>
-    <div
+    </UiButton>
+    <UiCard
       v-if="confirming"
-      class="panel stack"
+      as="div"
+      class="stack"
       role="alertdialog"
       aria-labelledby="remove-confirm-title"
       aria-describedby="remove-confirm-description"
     >
-      <h3 id="remove-confirm-title">
+      <UiText
+        id="remove-confirm-title"
+        variant="heading3"
+      >
         Remove this expense permanently?
-      </h3>
-      <p id="remove-confirm-description">
+      </UiText>
+      <UiText id="remove-confirm-description">
         This cannot be undone. The saved expense and participant list will remain read-only.
-      </p>
+      </UiText>
       <FormErrorSummary :message="message" />
-      <p
+      <UiText
         v-if="error?.requestId"
         class="support-reference"
       >
         Support reference: {{ error.requestId }}
-      </p>
-      <button
+      </UiText>
+      <UiButton
         ref="confirmButton"
-        class="button button--danger"
-        type="button"
+        variant="danger"
         :disabled="pending || blocked"
-        :aria-busy="pending"
+        :pending="pending"
         @click="remove"
       >
         {{ pending ? 'Removing expense…' : 'Yes, remove expense' }}
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         v-if="!blocked"
-        class="button button--secondary"
-        type="button"
+        variant="secondary"
         :disabled="pending"
         @click="cancel"
       >
         Keep expense
-      </button>
-    </div>
-    <button
+      </UiButton>
+    </UiCard>
+    <UiButton
       v-if="blocked"
-      class="button button--secondary"
-      type="button"
+      variant="secondary"
       :disabled="pending"
       @click="emit('reload')"
     >
       Reload expense
-    </button>
+    </UiButton>
   </section>
 </template>
