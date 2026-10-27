@@ -140,51 +140,51 @@ onBeforeUnmount(() => {
       message="Try again before creating an expense."
       :request-id="optionsError.requestId"
     />
-    <button
+    <UiButton
       v-if="optionsError"
-      class="button button--secondary"
-      type="button"
+      variant="secondary"
       @click="loadPeople()"
     >
       Reload people
-    </button>
-    <form
-      class="panel stack"
+    </UiButton>
+    <UiCard
+      as="form"
+      class="stack"
       @submit.prevent="submit"
     >
       <FormErrorSummary :message="invalid ? 'Enter a title, a positive amount and at least one participant other than the payer. You must be the payer or a participant.' : errorMessage" />
       <fieldset
-        class="stack expense-fields"
+        class="stack"
         :disabled="pending || uncertain || loading || !!optionsError"
       >
         <legend class="visually-hidden">
           Expense details
         </legend>
-        <div class="form-field">
+        <UiField>
           <label for="debt-title">Title</label>
-          <input
+          <UiInput
             id="debt-title"
             v-model="values.title"
             required
             :aria-invalid="invalid && !values.title.trim()"
             aria-describedby="title-errors"
-          >
+          />
           <FormFieldError
             id="title-errors"
             :messages="error?.fieldErrors.title"
           />
-        </div>
-        <div class="form-field">
+        </UiField>
+        <UiField>
           <label for="debt-description">Description (optional)</label>
-          <textarea
+          <UiTextarea
             id="debt-description"
             v-model="values.description"
             rows="3"
           />
-        </div>
-        <div class="form-field">
+        </UiField>
+        <UiField>
           <label for="debt-amount">Amount in EUR</label>
-          <input
+          <UiInput
             id="debt-amount"
             v-model="values.amount"
             type="text"
@@ -193,21 +193,21 @@ onBeforeUnmount(() => {
             required
             :aria-invalid="invalid && parseEuroCents(values.amount) === null"
             aria-describedby="amount-help amount-errors"
-          >
-          <p
+          />
+          <UiText
             id="amount-help"
-            class="form-help"
+            variant="help"
           >
             Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.
-          </p>
+          </UiText>
           <FormFieldError
             id="amount-errors"
             :messages="error?.fieldErrors.totalAmount"
           />
-        </div>
-        <div class="form-field">
+        </UiField>
+        <UiField>
           <label for="debt-payer">Who paid?</label>
-          <select
+          <UiSelect
             id="debt-payer"
             v-model="values.payerId"
             required
@@ -219,59 +219,55 @@ onBeforeUnmount(() => {
             >
               {{ user.name }}{{ user.id === state.user?.id ? ' (you)' : '' }}
             </option>
-          </select>
-        </div>
+          </UiSelect>
+        </UiField>
         <fieldset class="stack">
           <legend>Share with</legend>
-          <p v-if="!participantOptions.length">
+          <UiText v-if="!participantOptions.length">
             Connect with someone before sharing an expense.
-          </p>
+          </UiText>
           <label
             v-for="user in participantOptions"
             :key="user.id"
             class="checkbox-label"
           >
-            <input
+            <UiCheckbox
               v-model="values.participantIds"
-              type="checkbox"
               :value="user.id"
-            >
+            />
             {{ user.name }}{{ user.id === state.user?.id ? ' (you)' : '' }}
           </label>
         </fieldset>
-        <label class="checkbox-label"><input
+        <label class="checkbox-label"><UiCheckbox
           v-model="values.includePayerInSplit"
-          type="checkbox"
-        > Include the payer in the split</label>
-        <p class="form-help">
+        /> Include the payer in the split</label>
+        <UiText variant="help">
           If someone else paid, include yourself as a participant.
-        </p>
-        <p v-if="share">
+        </UiText>
+        <UiText v-if="share">
           Each share: {{ formatEuro(share) }}. Shares round up to the next cent.
-        </p>
+        </UiText>
       </fieldset>
-      <p
+      <UiText
         v-if="error?.requestId"
         class="support-reference"
       >
         Support reference: {{ error.requestId }}
-      </p>
-      <button
-        class="button"
+      </UiText>
+      <UiButton
         type="submit"
         :disabled="pending || loading || !!optionsError"
-        :aria-busy="pending"
+        :pending="pending"
       >
         {{ pending ? 'Saving expense…' : uncertain ? 'Retry same expense' : 'Create expense' }}
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         v-if="error && !uncertain && ['INACTIVE_USER', 'INVALID_PARTICIPANT'].includes(error.code)"
-        class="button button--secondary"
-        type="button"
+        variant="secondary"
         @click="loadPeople()"
       >
         Reload people
-      </button>
-    </form>
+      </UiButton>
+    </UiCard>
   </div>
 </template>

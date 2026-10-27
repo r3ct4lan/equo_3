@@ -1,4 +1,5 @@
 import { createConfigForNuxt } from '@nuxt/eslint-config'
+import uiComponentRule from './scripts/ui-component-rule.mjs'
 
 export default createConfigForNuxt({
   features: {
@@ -16,4 +17,8 @@ export default createConfigForNuxt({
     'coverage/**',
     'node_modules/**'
   ]
+}).append({
+  files: ['app/**/*.vue'],
+  plugins: { 'equo-ui': { rules: { components: uiComponentRule } } },
+  rules: { 'equo-ui/components': 'error' }
 })

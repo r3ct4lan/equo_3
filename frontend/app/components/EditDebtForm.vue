@@ -109,15 +109,19 @@ onBeforeUnmount(clear)
 </script>
 
 <template>
-  <form
-    class="panel stack"
+  <UiCard
+    as="form"
+    class="stack"
     aria-labelledby="edit-fields-title"
     @submit.prevent="submit"
   >
-    <h2 id="edit-fields-title">
+    <UiText
+      id="edit-fields-title"
+      variant="heading2"
+    >
       Change expense
-    </h2>
-    <p>Paid by {{ debt.payer.name }}. The payer cannot be changed.</p>
+    </UiText>
+    <UiText>Paid by {{ debt.payer.name }}. The payer cannot be changed.</UiText>
     <FormErrorSummary :message="message" />
     <AppLoadingState
       v-if="loading"
@@ -135,102 +139,96 @@ onBeforeUnmount(clear)
       <legend class="visually-hidden">
         Expense details
       </legend>
-      <div class="form-field">
-        <label for="edit-title">Title</label><input
+      <UiField>
+        <label for="edit-title">Title</label><UiInput
           id="edit-title"
           v-model="values.title"
           required
-        >
-      </div>
-      <div class="form-field">
-        <label for="edit-description">Description (optional)</label><textarea
+        />
+      </UiField>
+      <UiField>
+        <label for="edit-description">Description (optional)</label><UiTextarea
           id="edit-description"
           v-model="values.description"
           rows="3"
         />
-      </div>
-      <div class="form-field">
+      </UiField>
+      <UiField>
         <label for="edit-amount">Amount in EUR</label>
-        <input
+        <UiInput
           id="edit-amount"
           v-model="values.amount"
           type="text"
           inputmode="decimal"
           required
           aria-describedby="edit-amount-help"
-        >
-        <p
+        />
+        <UiText
           id="edit-amount-help"
-          class="form-help"
+          variant="help"
         >
           Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.
-        </p>
-      </div>
+        </UiText>
+      </UiField>
       <fieldset class="stack">
         <legend>Share with</legend>
-        <p>Keep or remove current participants. Adding a previously removed person restores their original record.</p>
+        <UiText>Keep or remove current participants. Adding a previously removed person restores their original record.</UiText>
         <label
           v-for="user in people"
           :key="user.id"
           class="checkbox-label"
         >
-          <input
+          <UiCheckbox
             v-model="values.participantIds"
-            type="checkbox"
             :value="user.id"
             :disabled="user.id === debt.createdBy.id && user.id !== debt.payer.id"
-          >
+          />
           {{ user.name }}{{ user.id === state.user?.id ? ' (you)' : '' }}{{ user.isActive ? '' : ' (inactive)' }}
           · {{ currentIds.has(user.id) ? values.participantIds.includes(user.id) ? 'Current participant' : 'Will be removed' : values.participantIds.includes(user.id) ? 'Will be added or restored' : 'Add or restore' }}
         </label>
       </fieldset>
-      <label class="checkbox-label"><input
+      <label class="checkbox-label"><UiCheckbox
         v-model="values.includePayerInSplit"
-        type="checkbox"
-      > Include the payer in the split</label>
-      <p v-if="share">
+      /> Include the payer in the split</label>
+      <UiText v-if="share">
         Each share: {{ formatEuro(share) }}. Every current share will be recalculated.
-      </p>
+      </UiText>
     </fieldset>
-    <p
+    <UiText
       v-if="error?.requestId"
       class="support-reference"
     >
       Support reference: {{ error.requestId }}
-    </p>
-    <button
-      class="button"
+    </UiText>
+    <UiButton
       type="submit"
       :disabled="pending || blocked || loading || optionsError || !validDebtEtag(etag)"
-      :aria-busy="pending"
+      :pending="pending"
     >
       {{ pending ? 'Saving changes…' : 'Save changes' }}
-    </button>
-    <button
+    </UiButton>
+    <UiButton
       v-if="blocked"
-      class="button button--secondary"
-      type="button"
+      variant="secondary"
       :disabled="pending"
       @click="emit('reload')"
     >
       Reload expense and discard draft
-    </button>
-    <button
+    </UiButton>
+    <UiButton
       v-if="optionsError || ['INACTIVE_USER', 'INVALID_PARTICIPANT'].includes(error?.code ?? '')"
-      class="button button--secondary"
-      type="button"
+      variant="secondary"
       :disabled="pending || blocked"
       @click="loadPeople()"
     >
       Reload people
-    </button>
-    <button
-      class="button button--secondary"
-      type="button"
+    </UiButton>
+    <UiButton
+      variant="secondary"
       :disabled="pending"
       @click="emit('cancel')"
     >
       Cancel editing
-    </button>
-  </form>
+    </UiButton>
+  </UiCard>
 </template>

@@ -17,23 +17,24 @@ onMounted(() => {
     class="stack"
     aria-labelledby="connects-title"
   >
-    <h1 id="connects-title">
-      Your connections
-    </h1>
-    <div
-      v-if="invitationFeedback"
-      class="invitation-toast"
-      :role="invitationFeedback.kind === 'error' ? 'alert' : 'status'"
+    <UiText
+      id="connects-title"
+      variant="heading1"
     >
-      <p>{{ invitationFeedback.message }}</p>
-      <button
-        type="button"
-        class="button button--secondary"
+      Your connections
+    </UiText>
+    <UiToast
+      v-if="invitationFeedback"
+      :tone="invitationFeedback.kind === 'error' ? 'error' : 'info'"
+    >
+      <UiText>{{ invitationFeedback.message }}</UiText>
+      <UiButton
+        variant="secondary"
         @click="invitationFeedback = null"
       >
         Dismiss
-      </button>
-    </div>
+      </UiButton>
+    </UiToast>
     <template v-if="state.status === 'authenticated'">
       <CreateInvitation />
       <AppLoadingState
@@ -49,42 +50,44 @@ onMounted(() => {
         v-if="items.length"
         class="stack"
       >
-        <li
+        <UiCard
           v-for="connect in items"
           :key="connect.id"
-          class="panel stack"
+          as="li"
+          class="stack"
         >
-          <NuxtLink :to="'/connects/' + connect.id">{{ connect.otherUser.name }}</NuxtLink>
+          <UiLink :to="'/connects/' + connect.id">
+            {{ connect.otherUser.name }}
+          </UiLink>
           <ConnectBalance :amount="connect.balanceAmount" />
-          <p v-if="!connect.otherUser.isActive">
+          <UiText v-if="!connect.otherUser.isActive">
             This account is inactive.
-          </p>
-        </li>
+          </UiText>
+        </UiCard>
       </ul>
-      <button
+      <UiButton
         v-if="cursor"
-        class="button button--secondary"
-        type="button"
+        variant="secondary"
         :disabled="pending"
         @click="load(true)"
       >
         Load more
-      </button>
+      </UiButton>
       <AppErrorState
         v-if="error"
         title="Connections could not be loaded"
         message="Try again to load your connections."
         :request-id="error.requestId"
       />
-      <button
+      <UiButton
         v-if="error"
-        class="button button--secondary"
-        type="button"
+        variant="secondary"
         :disabled="pending"
-        @click="load(items.length > 0)"
+        @click="load(items.length
+          > 0)"
       >
         Try again
-      </button>
+      </UiButton>
     </template>
     <AppLoadingState
       v-else

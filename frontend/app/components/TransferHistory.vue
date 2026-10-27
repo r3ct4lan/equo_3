@@ -11,9 +11,12 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
     class="stack"
     aria-labelledby="history-title"
   >
-    <h2 id="history-title">
+    <UiText
+      id="history-title"
+      variant="heading2"
+    >
       Operations
-    </h2>
+    </UiText>
     <AppLoadingState
       v-if="pending"
       message="Loading operations…"
@@ -27,49 +30,53 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
       v-if="items.length"
       class="stack"
     >
-      <li
+      <UiCard
         v-for="transfer in items"
         :key="transfer.id"
-        class="panel stack"
+        as="li"
+        class="stack"
       >
-        <NuxtLink :to="'/transfers/' + transfer.id">{{ transfer.type === 'DEBT_SHARE' ? 'Expense share' : 'Payment' }} · {{ formatEuro(transfer.amount) }}</NuxtLink>
-        <p>{{ transfer.sender.name }} → {{ transfer.receiver.name }}</p>
-        <p v-if="transfer.isDeleted">
+        <UiLink :to="'/transfers/' + transfer.id">
+          {{ transfer.type === 'DEBT_SHARE' ? 'Expense share' : 'Payment' }} · {{ formatEuro(transfer.amount) }}
+        </UiLink>
+        <UiText>{{ transfer.sender.name }} → {{ transfer.receiver.name }}</UiText>
+        <UiText v-if="transfer.isDeleted">
           Removed · does not affect the balance
-        </p>
-        <NuxtLink
+        </UiText>
+        <UiLink
           v-if="transfer.debtReference?.isAccessible"
           :to="'/debts/' + transfer.debtReference.id"
-        >{{ transfer.debtReference.title }}{{ transfer.debtReference.isDeleted ? ' (removed)' : '' }}</NuxtLink>
-        <p v-else-if="transfer.debtReference">
+        >
+          {{ transfer.debtReference.title }}{{ transfer.debtReference.isDeleted ? ' (removed)' : '' }}
+        </UiLink>
+        <UiText v-else-if="transfer.debtReference">
           Related expense unavailable
-        </p>
+        </UiText>
         <time :datetime="transfer.createdAt">{{ new Date(transfer.createdAt).toLocaleString() }}</time>
-      </li>
+      </UiCard>
     </ul>
-    <button
+    <UiButton
       v-if="cursor"
-      class="button button--secondary"
-      type="button"
+      variant="secondary"
       :disabled="pending"
       @click="load(true)"
     >
       Load more operations
-    </button>
+    </UiButton>
     <AppErrorState
       v-if="error"
       title="Operations could not be loaded"
       message="Try again to load the history."
       :request-id="error.requestId"
     />
-    <button
+    <UiButton
       v-if="error"
-      class="button button--secondary"
-      type="button"
+      variant="secondary"
       :disabled="pending"
-      @click="load(items.length > 0)"
+      @click="load(items.length
+        > 0)"
     >
       Try again
-    </button>
+    </UiButton>
   </section>
 </template>
