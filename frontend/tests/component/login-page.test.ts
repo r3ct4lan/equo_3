@@ -37,6 +37,7 @@ describe('login page', () => {
     expect(wrapper.get('label[for="login-password"]').text()).toBe('Password')
     expect(wrapper.get('input[name="password"]').attributes('autocomplete')).toBe('current-password')
     expect(wrapper.get('a[href="/activate"]').text()).toBe('Need another activation link?')
+    expect(wrapper.get('form a[href="/register"]').text()).toBe('Create an account')
 
     await wrapper.get('form').trigger('submit')
 

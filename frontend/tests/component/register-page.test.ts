@@ -60,6 +60,7 @@ describe('registration page', () => {
     expect(wrapper.get('label[for="registration-email"]').text()).toBe('Email')
     expect(wrapper.get('label[for="registration-password"]').text()).toBe('Password')
     expect(wrapper.get('button[type="submit"]').text()).toBe('Create account')
+    expect(wrapper.get('form a[href="/login"]').text()).toBe('Sign in')
 
     await wrapper.get('form').trigger('submit')
 

@@ -9,26 +9,29 @@ describe('navigation session states', () => {
     useCurrentUser().reset()
   })
 
-  it('shows neutral navigation while session is unknown', async () => {
+  it('keeps the home brand without a menu while session is unknown', async () => {
     const wrapper = await mountSuspended(DefaultLayout)
     useCurrentUser().reset()
     await nextTick()
 
-    expect(wrapper.text()).toContain('Checking session')
-    expect(wrapper.text()).not.toContain('My profile')
+    expect(wrapper.get('header a[href="/"]').text()).toBe('Equo')
+    expect(wrapper.find('nav').exists()).toBe(false)
+    expect(wrapper.find('footer a[href="/ui-kit"]').exists()).toBe(false)
     wrapper.unmount()
   })
 
-  it('shows login and register when anonymous', async () => {
+  it('does not show the guest menu or a UI kit footer link when anonymous', async () => {
     useCurrentUser().setAnonymous()
     const wrapper = await mountSuspended(DefaultLayout)
 
-    expect(wrapper.text()).toContain('Login')
-    expect(wrapper.text()).toContain('Register')
+    expect(wrapper.find('nav').exists()).toBe(false)
+    expect(wrapper.find('header a[href="/login"]').exists()).toBe(false)
+    expect(wrapper.find('header a[href="/register"]').exists()).toBe(false)
+    expect(wrapper.find('footer a[href="/ui-kit"]').exists()).toBe(false)
     wrapper.unmount()
   })
 
-  it('shows profile when authenticated and does not claim logout on error', async () => {
+  it('preserves authenticated navigation and hides the menu on session error', async () => {
     useCurrentUser().setAuthenticated({
       id: 'u1',
       name: 'Alex',
@@ -37,7 +40,10 @@ describe('navigation session states', () => {
       createdAt: '2026-08-08T12:00:00Z'
     })
     const authenticated = await mountSuspended(DefaultLayout)
-    expect(authenticated.text()).toContain('My profile')
+    expect(authenticated.get('nav a[href="/connects"]').text()).toBe('Connections')
+    expect(authenticated.get('nav a[href="/debts"]').text()).toBe('Expenses')
+    expect(authenticated.get('nav a[href="/me"]').text()).toBe('My profile')
+    expect(authenticated.find('nav a[href="/"]').exists()).toBe(false)
     authenticated.unmount()
 
     useCurrentUser().setError(new ApiClientError({
@@ -46,8 +52,7 @@ describe('navigation session states', () => {
       message: 'Unable to reach the service.'
     }))
     const error = await mountSuspended(DefaultLayout)
-    expect(error.text()).toContain('Login')
-    expect(error.text()).not.toContain('Logout')
+    expect(error.find('nav').exists()).toBe(false)
     error.unmount()
   })
 })

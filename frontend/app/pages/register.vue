@@ -208,7 +208,7 @@ async function submitRegistration(): Promise<void> {
             id="registration-password-hint"
             variant="help"
           >
-            Use 8–128 characters and at least one non-space character.
+            Use 8–128 characters. Letters and special symbols are optional. Your password cannot contain only spaces.
           </UiText>
           <UiInput
             id="registration-password"
@@ -256,6 +256,12 @@ async function submitRegistration(): Promise<void> {
           Try the same attempt again
         </UiButton>
       </div>
+      <UiText>
+        Already have an account?
+        <UiLink to="/login">
+          Sign in
+        </UiLink>
+      </UiText>
     </UiCard>
   </section>
 </template>

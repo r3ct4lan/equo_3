@@ -253,6 +253,12 @@ onUnmounted(clearRateLimitCountdown)
           Need another activation link?
         </UiButton>
       </div>
+      <UiText>
+        Don't have an account?
+        <UiLink to="/register">
+          Create an account
+        </UiLink>
+      </UiText>
     </UiCard>
   </section>
 </template>

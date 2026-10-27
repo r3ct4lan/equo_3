@@ -17,58 +17,28 @@
           Equo
         </UiLink>
 
-        <nav aria-label="Primary navigation">
+        <nav
+          v-if="session.status === 'authenticated'"
+          aria-label="Primary navigation"
+        >
           <UiLink
             variant="nav"
-            to="/"
+            to="/connects"
           >
-            Home
+            Connections
           </UiLink>
-          <template v-if="session.status === 'authenticated'">
-            <UiLink
-              variant="nav"
-              to="/connects"
-            >
-              Connections
-            </UiLink>
-            <UiLink
-              variant="nav"
-              to="/debts"
-            >
-              Expenses
-            </UiLink>
-            <UiLink
-              variant="nav"
-              to="/me"
-            >
-              My profile
-            </UiLink>
-          </template>
-          <template v-else-if="session.status === 'anonymous'">
-            <UiLink
-              variant="nav"
-              to="/login"
-            >
-              Login
-            </UiLink>
-            <UiLink
-              variant="nav"
-              to="/register"
-            >
-              Register
-            </UiLink>
-          </template>
-          <template v-else-if="session.status === 'unknown'">
-            <span class="nav-status">Checking session</span>
-          </template>
-          <template v-else>
-            <UiLink
-              variant="nav"
-              to="/login"
-            >
-              Login
-            </UiLink>
-          </template>
+          <UiLink
+            variant="nav"
+            to="/debts"
+          >
+            Expenses
+          </UiLink>
+          <UiLink
+            variant="nav"
+            to="/me"
+          >
+            My profile
+          </UiLink>
         </nav>
       </div>
     </header>
@@ -89,9 +59,6 @@
         >
           Equo keeps shared expenses understandable.
         </UiText>
-        <UiLink to="/ui-kit">
-          UI kit
-        </UiLink>
       </div>
     </footer>
   </div>
