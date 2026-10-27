@@ -144,6 +144,16 @@ final class FinancialHttpTest extends WebTestCase
         self::assertSame(['totalOwedAmount' => 0, 'totalReceivableAmount' => 0], $this->body());
     }
 
+    public function testBalanceSummaryKeepsOppositeConnectionsSeparate(): void
+    {
+        $this->manual($this->users[2], $this->users[0], 1000);
+        $this->manual($this->users[0], $this->users[1], 700);
+
+        $this->request('GET', '/api/v1/transfers/balance-summary');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['totalOwedAmount' => 1000, 'totalReceivableAmount' => 700], $this->body());
+    }
+
     public function testBalanceSummaryIncludesEveryConnectionAndUsesWideIntegerTotals(): void
     {
         for ($n = 0; $n < 25; ++$n) {

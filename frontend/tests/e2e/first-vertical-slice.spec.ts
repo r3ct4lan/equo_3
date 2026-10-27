@@ -2344,7 +2344,7 @@ test('home dashboard separates debts, shows five recent expenses and clears on l
       const debt = await request.post(baseUrl + '/api/v1/debts', {
         headers: { 'Authorization': 'Bearer ' + ownerAccess, 'Idempotency-Key': randomUUID() },
         data: {
-          title: `Dashboard expense ${n}`, description: null, totalAmount: n === 6 ? 3000 : 1000,
+          title: `Dashboard expense ${n}`, description: null, totalAmount: 1000,
           payerId: n === 6 ? peers[1]!.id : ownerId,
           participantIds: [n === 6 ? ownerId : peers[0]!.id], includePayerInSplit: false
         }
@@ -2354,13 +2354,13 @@ test('home dashboard separates debts, shows five recent expenses and clears on l
     }
     const payment = await request.post(baseUrl + '/api/v1/connects/' + peers[0]!.connectId + '/transfers', {
       headers: { 'Authorization': 'Bearer ' + ownerAccess, 'Idempotency-Key': randomUUID() },
-      data: { senderId: peers[0]!.id, receiverId: ownerId, amount: 1000 }
+      data: { senderId: peers[0]!.id, receiverId: ownerId, amount: 5300 }
     })
     expect(payment.status()).toBe(201)
     const latest = created.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)).slice(0, 5)
     await page.reload()
-    await expect(page.getByRole('region', { name: 'You owe', exact: true })).toContainText('€30.00')
-    await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€50.00')
+    await expect(page.getByRole('region', { name: 'You owe', exact: true })).toContainText('€10.00')
+    await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€7.00')
     const rows = page.getByRole('list', { name: 'Latest expenses', exact: true }).locator('li')
     await expect(rows).toHaveCount(5)
     expect(await rows.locator('a').allTextContents()).toEqual(latest.map(expense => expense.title))
@@ -2378,7 +2378,7 @@ test('home dashboard separates debts, shows five recent expenses and clears on l
     await expect(page.getByRole('alert')).toContainText('Your overview could not be loaded')
     await expect(page.getByText('€0.00', { exact: true })).toHaveCount(0)
     await page.getByRole('button', { name: 'Try again', exact: true }).click()
-    await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€50.00')
+    await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€7.00')
     const ssr = await request.get(baseUrl + '/')
     expect((await ssr.text()).includes('Dashboard expense')).toBe(false)
     await page.goto('/me')
