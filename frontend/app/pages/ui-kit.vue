@@ -267,6 +267,17 @@ async function closeDialog(): Promise<void> {
             Buttons &amp; links
           </UiText>
           <UiCard class="stack">
+            <div class="form-actions">
+              <UiButton icon="add">
+                New expense
+              </UiButton>
+              <UiButton
+                icon="add"
+                disabled
+              >
+                New expense disabled
+              </UiButton>
+            </div>
             <UiButton compact>
               A longer action label that can wrap when needed
             </UiButton>

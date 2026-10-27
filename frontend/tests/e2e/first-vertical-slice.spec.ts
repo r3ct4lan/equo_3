@@ -401,6 +401,20 @@ test('single card actions stay bounded and readable', async ({ page, request }) 
   }
 })
 
+test('new expense icon is decorative across button states', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await page.goto('/ui-kit')
+  const action = page.getByRole('button', { name: 'New expense', exact: true })
+  const disabled = page.getByRole('button', { name: 'New expense disabled', exact: true })
+  await expect(action.locator('svg[aria-hidden="true"]')).toHaveCount(1)
+  await expect(disabled.locator('svg[aria-hidden="true"]')).toHaveCount(1)
+  await expect(disabled).toBeDisabled()
+  await action.hover()
+  await action.focus()
+  await expect(action).toBeFocused()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})
+
 test('login primary action precedes recovery links on desktop and mobile', async ({ page }) => {
   for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport)

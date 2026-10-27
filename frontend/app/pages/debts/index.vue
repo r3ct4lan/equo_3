@@ -21,6 +21,7 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<DebtSum
     </UiText>
     <template v-if="state.status === 'authenticated'">
       <UiButton
+        icon="add"
         to="/debts/new"
       >
         New expense

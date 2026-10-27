@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { NuxtLink } from '#components'
+import { RiAddLine } from '@remixicon/vue'
 import { Button as RegistryButton } from '~/components/ui/button'
 import type { ButtonVariant, LinkTo } from '~/types/ui'
 
@@ -11,6 +12,7 @@ const props = withDefaults(defineProps<{
   pending?: boolean
   pendingLabel?: string
   compact?: boolean
+  icon?: 'add'
 }>(), {
   variant: 'primary',
   type: 'button',
@@ -51,6 +53,11 @@ function guardClick(event: MouseEvent): void {
     :aria-busy="pending"
     @click.capture="guardClick"
   >
+    <RiAddLine
+      v-if="icon === 'add'"
+      aria-hidden="true"
+      focusable="false"
+    />
     <span v-if="pending && pendingLabel">{{ pendingLabel }}</span>
     <slot v-else />
   </RegistryButton>

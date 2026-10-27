@@ -63,6 +63,7 @@ const { data, pending, error, load } = useDashboard()
             Latest expenses
           </UiText>
           <UiButton
+            icon="add"
             to="/debts/new"
           >
             New expense

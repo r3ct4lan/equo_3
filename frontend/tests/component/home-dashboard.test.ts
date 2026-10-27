@@ -81,6 +81,7 @@ describe('home dashboard', () => {
     expect(connectionSummaryLinks).toHaveLength(2)
     expect(connectionSummaryLinks.every(link => link.text() === 'Across all your connections')).toBe(true)
     expect(wrapper.get('a[href="/debts/new"]').text()).toBe('New expense')
+    expect(wrapper.get('a[href="/debts/new"] svg').attributes('aria-hidden')).toBe('true')
     expect(wrapper.findAll('ol li')).toHaveLength(5)
     expect(wrapper.get('a[href="/debts/expense-0"]').text()).toBe('Dinner 0')
     expect(wrapper.get('time').attributes('datetime')).toBe('2026-10-18T12:00:00Z')

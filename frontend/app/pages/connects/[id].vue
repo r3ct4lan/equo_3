@@ -98,6 +98,7 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
       </UiText>
       <UiButton
         v-if="connect.canCreateDebt"
+        icon="add"
         to="/debts/new"
       >
         New expense
