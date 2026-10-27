@@ -593,7 +593,7 @@
 - Пароль: 8—128 Unicode code points, минимум один непробельный символ, без trim/normalization/composition rules; backend authoritative; Symfony PasswordHasher `auto`; открытое значение не хранится и не журналируется.
 - `UserActionToken` случайный, purpose-bound, одноразовый и хранится как хэш. Invitation использует HMAC и обязательную сверку полного `tokenHash`.
 - Email другого пользователя не возвращается в финансовых read-моделях. Недоступный ресурс может быть скрыт через одинаковый `404`; недоступный связанный долг не раскрывает название и состояние.
-- Нормативные sliding-window rate limits и `Retry-After` из ADR-014 обязательны.
+- Нормативные rate limits и `Retry-After` из ADR-014 обязательны.
 
 ### 13.2. Целостность и конкурентность
 

@@ -336,7 +336,7 @@ HTTP/cookie contract, stable-locator concurrency profile и frontend UX
 - **Владелец решения:** Maksim Smolkov; роль решения: архитектор. Product Owner, DevOps и специалист по безопасности участвуют в будущем пересмотре ADR-014.
 - **Контрольная точка:** Выполнено до начала реализации.
 - **Последствия откладывания:** Устранены; security, retention, retry и rate-limit тесты получили точные значения.
-- **Итоговое решение:** Принят ADR-014: access 15 минут, refresh 30 дней, action tokens 24 часа/30 минут, invitation 7 дней, idempotency 24 часа, terminal retention 30 дней, конечные email retry и sliding-window rate limits. `IdempotencyRecord.expiresAt` обязателен и равен `createdAt + 24 hours`. Неограниченные повторы, бессрочное хранение и значения только в environment отклонены как непроверяемые или небезопасные. Обновлены бизнес-правила, модель, ER, HTTP и ADR-006—009/013.
+- **Итоговое решение:** Принят ADR-014: access 15 минут, refresh 30 дней, action tokens 24 часа/30 минут, invitation 7 дней, idempotency 24 часа, terminal retention 30 дней, конечные email retry и первоначальные sliding-window rate limits. Последние пересмотрены владельцем 2026-10-26: актуален профиль 90-секундных блокировок в ADR-014. `IdempotencyRecord.expiresAt` обязателен и равен `createdAt + 24 hours`. Неограниченные повторы, бессрочное хранение и значения только в environment отклонены как непроверяемые или небезопасные. Обновлены бизнес-правила, модель, ER, HTTP и ADR-006—009/013.
 - **Дата и автор решения:** 2026-07-27, Codex — autonomous Block A closure.
 
 <a id="oq-011"></a>

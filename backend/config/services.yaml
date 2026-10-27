@@ -44,7 +44,13 @@ services:
         arguments:
             $redisUrl: '%env(REDIS_URL)%'
             $failureLimit: '%env(int:EQUO_LOGIN_FAILURE_LIMIT)%'
-            $cooldownSeconds: '%env(int:EQUO_LOGIN_COOLDOWN_SECONDS)%'
+            $cooldownSeconds: 90
+
+    App\Infrastructure\RateLimit\RequestLimiter:
+        alias: App\Infrastructure\RateLimit\RedisRequestLimiter
+    App\Infrastructure\RateLimit\RedisRequestLimiter:
+        arguments:
+            $redisUrl: '%env(REDIS_URL)%'
 
     App\IdentityAccess\Domain\User\PasswordPolicy: ~
 
@@ -173,15 +179,12 @@ services:
 
     App\IdentityAccess\Adapter\Security\SymfonyRateLimit:
         arguments:
-            $registrationIpLimiter: '@limiter.registration_ip'
-            $registrationEmailLimiter: '@limiter.registration_email'
-            $activationRequestIpLimiter: '@limiter.activation_request_ip'
-            $activationRequestEmailLimiter: '@limiter.activation_request_email'
-            $activationIpLimiter: '@limiter.activation_ip'
-            $activationTokenLimiter: '@limiter.activation_token'
-            $passwordResetRequestIpLimiter: '@limiter.password_reset_request_ip'
-            $passwordResetRequestEmailLimiter: '@limiter.password_reset_request_email'
-            $emailChangeRequestUserLimiter: '@limiter.email_change_request_user'
+            $registrationIpLimit: '%env(int:EQUO_REGISTRATION_IP_LIMIT)%'
+            $registrationEmailLimit: '%env(int:EQUO_REGISTRATION_EMAIL_LIMIT)%'
+            $activationRequestIpLimit: '%env(int:EQUO_ACTIVATION_REQUEST_IP_LIMIT)%'
+            $activationRequestEmailLimit: '%env(int:EQUO_ACTIVATION_REQUEST_EMAIL_LIMIT)%'
+            $activationIpLimit: '%env(int:EQUO_ACTIVATION_IP_LIMIT)%'
+            $activationTokenLimit: '%env(int:EQUO_ACTIVATION_TOKEN_LIMIT)%'
 
     App\Infrastructure\EmailDelivery\Messaging\SendUserActionEmailHandler:
         arguments:
@@ -222,10 +225,6 @@ services:
         arguments:
             $activeVersion: '%env(EQUO_INVITATION_SIGNING_VERSION)%'
             $encodedKeyRing: '%env(EQUO_INVITATION_SIGNING_KEYS)%'
-    App\Invitations\Adapter\Security\InvitationRateLimit:
-        arguments:
-            $invitationIpLimiter: '@limiter.invitation_ip'
-            $invitationIdLimiter: '@limiter.invitation_id'
 
     App\Invitations\Adapter\Http\InvitationController:
         arguments:
