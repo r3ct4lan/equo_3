@@ -177,6 +177,10 @@ closure, выполняет browser bootstrap `refresh -> /me`, сериализ
 retry после access-token `401`. Token не попадает в `useState`, SSR payload,
 storage, URL или cross-tab messages.
 
+Вход использует тот же Web Lock, когда он доступен: незавершённый bootstrap
+не должен завершиться ошибкой refresh параллельно с созданием новой сессии
+и перезаписать состояние входа.
+
 Refresh требует Web Locks API: если браузер не может скоординировать refresh,
 операция завершается безопасной ошибкой без отправки refresh request.
 `BroadcastChannel` используется только для token-free события `session-ended`.
