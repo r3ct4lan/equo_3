@@ -133,7 +133,8 @@ test('login stores token privately and never exposes it through current user or 
   assert.equal('accessToken' in auth, false)
   await auth.login({ email: 'login@example.test', password: 'password' }, { redirectTo: '/me' })
 
-  assert.equal(calls[0][1], LOGIN_ENDPOINT)
+  assert.deepEqual(calls[0], ['lock', AUTH_REFRESH_LOCK])
+  assert.equal(calls[1][1], LOGIN_ENDPOINT)
   assert.equal(user.state.value.status, 'authenticated')
   assert.doesNotMatch(JSON.stringify(user.state.value), /access\.secret/u)
   assert.deepEqual(messages, [])
@@ -169,6 +170,55 @@ test('activation adopts a session without credentials or persistent token storag
   assert.equal(storage.getItem('equo:signed-out'), null)
   assert.doesNotMatch(JSON.stringify(user.state.value), /activation.access.secret/u)
   assert.equal(storage.length, 0)
+})
+
+test('login waits for an in-flight bootstrap refresh before issuing session cookies', async () => {
+  let releaseRefresh
+  let signalRefreshStarted
+  const refreshStarted = new Promise((resolve) => {
+    signalRefreshStarted = resolve
+  })
+  const pendingRefresh = new Promise((_resolve, reject) => {
+    releaseRefresh = reject
+  })
+  let lockTail = Promise.resolve()
+  const calls = []
+  const user = currentUserState()
+  const auth = createAuthSession({
+    currentUser: user,
+    navigator: {
+      locks: {
+        request(_name, callback) {
+          const result = lockTail.then(callback)
+          lockTail = result.catch(() => {})
+          return result
+        }
+      }
+    },
+    api: async (path) => {
+      calls.push(path)
+      if (path === REFRESH_ENDPOINT) {
+        signalRefreshStarted()
+        return await pendingRefresh
+      }
+      assert.equal(path, LOGIN_ENDPOINT)
+      return {
+        accessToken: 'access.test',
+        expiresIn: 900,
+        user: { id: 'u1', name: 'User', email: 'u@example.test', isActive: true }
+      }
+    }
+  })
+
+  const bootstrap = auth.bootstrap()
+  await refreshStarted
+  const login = auth.login({ email: 'u@example.test', password: 'password' })
+  await Promise.resolve()
+  assert.deepEqual(calls, [REFRESH_ENDPOINT])
+  releaseRefresh(apiError(401, 'INVALID_REFRESH_TOKEN'))
+  await Promise.all([bootstrap, login])
+  assert.deepEqual(calls, [REFRESH_ENDPOINT, LOGIN_ENDPOINT])
+  assert.equal(user.state.value.status, 'authenticated')
 })
 
 test('bootstrap refreshes under Web Lock then loads me once for concurrent callers', async () => {

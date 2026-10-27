@@ -15,7 +15,7 @@ final class InMemoryLoginThrottle implements LoginThrottlePort
     public function __construct(
         private readonly ClockPort $clock,
         private readonly int $failureLimit = 5,
-        private readonly int $cooldownSeconds = 60,
+        private readonly int $cooldownSeconds = 90,
     ) {
     }
 

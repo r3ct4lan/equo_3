@@ -168,12 +168,12 @@ final class LoginHttpTest extends WebTestCase
 
         $this->login('other@example.test', 'Wrong password!', '198.51.100.1');
         $this->assertRateLimitError();
-        self::assertResponseHeaderSame('Retry-After', '60');
+        self::assertResponseHeaderSame('Retry-After', '90');
         $this->assertNoCookiesOrSessions();
 
         $this->login('yet-another@example.test', 'Wrong password!', '198.51.100.1');
         $this->assertRateLimitError();
-        self::assertResponseHeaderSame('Retry-After', '60');
+        self::assertResponseHeaderSame('Retry-After', '90');
         $this->assertNoCookiesOrSessions();
     }
 
@@ -290,7 +290,7 @@ final class LoginHttpTest extends WebTestCase
         self::assertNotNull($retryAfter);
         self::assertMatchesRegularExpression('/\A\d+\z/', $retryAfter);
         self::assertGreaterThanOrEqual(1, (int) $retryAfter);
-        self::assertLessThanOrEqual(60, (int) $retryAfter);
+        self::assertLessThanOrEqual(90, (int) $retryAfter);
     }
 
     private function countSessions(): int

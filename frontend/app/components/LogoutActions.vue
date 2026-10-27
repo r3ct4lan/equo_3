@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
+
 const { $auth } = useNuxtApp()
 const currentUser = useCurrentUser()
 const isSubmitting = ref(false)
 const confirming = ref(false)
 const confirmation = useTemplateRef<HTMLDivElement>('confirmation')
-const allButton = useTemplateRef<HTMLButtonElement>('allButton')
+const allButton = useTemplateRef<FocusTarget>('allButton')
 
 async function confirmAll(): Promise<void> {
   confirming.value = true
@@ -37,30 +39,29 @@ async function signOut(all: boolean): Promise<void> {
 </script>
 
 <template>
-  <section
+  <UiCard
     v-if="currentUser.state.value.status === 'authenticated' || isSubmitting"
-    class="panel stack"
+    as="section"
+    class="stack"
     aria-label="Sign out"
     :aria-busy="isSubmitting"
   >
     <div class="form-actions">
-      <button
-        class="button button--secondary"
-        type="button"
+      <UiButton
+        variant="secondary"
         :disabled="isSubmitting || confirming"
         @click="signOut(false)"
       >
         {{ isSubmitting ? 'Signing out…' : 'Sign out' }}
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         ref="allButton"
-        class="button button--secondary"
-        type="button"
+        variant="secondary"
         :disabled="isSubmitting || confirming"
         @click="confirmAll"
       >
         Sign out on all devices
-      </button>
+      </UiButton>
     </div>
     <div
       v-if="confirming"
@@ -71,34 +72,34 @@ async function signOut(all: boolean): Promise<void> {
       tabindex="-1"
       @keydown.esc="cancelAll"
     >
-      <h2 id="logout-confirm-title">
+      <UiText
+        id="logout-confirm-title"
+        variant="heading2"
+      >
         Sign out on all devices?
-      </h2>
-      <p>You will need to sign in again. Other devices may remain signed in for up to 15 minutes.</p>
+      </UiText>
+      <UiText>You will need to sign in again. Other devices may remain signed in for up to 15 minutes.</UiText>
       <div class="form-actions">
-        <button
-          class="button"
-          type="button"
+        <UiButton
           :disabled="isSubmitting"
           @click="signOut(true)"
         >
           Confirm sign out
-        </button>
-        <button
-          class="button button--secondary"
-          type="button"
+        </UiButton>
+        <UiButton
+          variant="secondary"
           :disabled="isSubmitting"
           @click="cancelAll"
         >
           Cancel
-        </button>
+        </UiButton>
       </div>
     </div>
-    <p
+    <UiText
       v-if="isSubmitting"
       role="status"
     >
       Signing out…
-    </p>
-  </section>
+    </UiText>
+  </UiCard>
 </template>

@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 
 final class InMemoryLoginThrottleTest extends TestCase
 {
-    public function testPartialFailuresExpireAfterSixtySecondsWithoutErrors(): void
+    public function testPartialFailuresExpireAfterNinetySecondsWithoutErrors(): void
     {
         $clock = new class implements ClockPort {
             public DateTimeImmutable $time;
@@ -31,17 +31,17 @@ final class InMemoryLoginThrottleTest extends TestCase
         for ($attempt = 0; $attempt < 4; ++$attempt) {
             self::assertNull($throttle->recordInvalidCredentials('192.0.2.1'));
         }
-        $clock->time = $clock->time->modify('+60 seconds');
+        $clock->time = $clock->time->modify('+90 seconds');
         self::assertNull($throttle->recordInvalidCredentials('192.0.2.1'));
         for ($attempt = 0; $attempt < 3; ++$attempt) {
             self::assertNull($throttle->recordInvalidCredentials('192.0.2.1'));
         }
-        self::assertSame(60, $throttle->recordInvalidCredentials('192.0.2.1'));
+        self::assertSame(90, $throttle->recordInvalidCredentials('192.0.2.1'));
 
         $clock->time = $clock->time->modify('+25 seconds');
-        self::assertSame(35, $throttle->retryAfter('192.0.2.1'));
-        self::assertSame(35, $throttle->recordInvalidCredentials('192.0.2.1'));
-        $clock->time = $clock->time->modify('+35 seconds');
+        self::assertSame(65, $throttle->retryAfter('192.0.2.1'));
+        self::assertSame(65, $throttle->recordInvalidCredentials('192.0.2.1'));
+        $clock->time = $clock->time->modify('+65 seconds');
         self::assertNull($throttle->retryAfter('192.0.2.1'));
         self::assertNull($throttle->recordInvalidCredentials('192.0.2.1'));
     }

@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import type { FocusTarget } from '~/types/ui'
 import { PASSWORD_RESET_REQUEST_ENDPOINT, passwordResetErrorPresentation, validateRecoveryEmail } from '~/utils/password-reset'
 
 useHead({ title: 'Recover your account · Equo' })
 const { $api } = useNuxtApp()
 const { values, fieldErrors, formError, isSubmitting, errorsFor, clearErrors, submit } = useApiForm({ email: '' })
 const succeeded = ref(false)
-const resultPanel = useTemplateRef<HTMLElement>('resultPanel')
+const resultPanel = useTemplateRef<FocusTarget>('resultPanel')
 const presentation = computed(() => formError.value ? passwordResetErrorPresentation(formError.value) : null)
 const summary = computed(() => presentation.value?.message ?? (Object.keys(fieldErrors.value).length ? 'Enter a valid email address.' : null))
 let controller: AbortController | null = null
@@ -33,30 +34,36 @@ onBeforeUnmount(() => controller?.abort())
     aria-labelledby="recovery-title"
   >
     <div class="auth-intro stack">
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Account recovery
-      </p>
-      <h1 id="recovery-title">
+      </UiText>
+      <UiText
+        id="recovery-title"
+        variant="heading1"
+      >
         Forgot your password?
-      </h1>
-      <p class="hero__lede">
+      </UiText>
+      <UiText variant="lede">
         Enter your email to request a link for choosing a new password.
-      </p>
+      </UiText>
     </div>
-    <section class="panel stack">
-      <div
+    <UiCard
+      as="section"
+      class="stack"
+    >
+      <UiNotice
         v-if="succeeded"
         ref="resultPanel"
-        class="status-card status-card--success"
+        tone="success"
         role="status"
         aria-live="polite"
         tabindex="-1"
       >
         <div>
           <strong>Request received</strong>
-          <p>If an account uses this address, we will send recovery instructions. The link expires in 30 minutes.</p>
+          <UiText>If an account uses this address, we will send recovery instructions. The link expires in 30 minutes.</UiText>
         </div>
-      </div>
+      </UiNotice>
       <form
         v-else
         class="stack"
@@ -75,9 +82,9 @@ onBeforeUnmount(() => controller?.abort())
           <legend class="visually-hidden">
             Recovery email
           </legend>
-          <div class="form-field">
+          <UiField>
             <label for="recovery-email">Email</label>
-            <input
+            <UiInput
               id="recovery-email"
               v-model="values.email"
               name="email"
@@ -85,22 +92,23 @@ onBeforeUnmount(() => controller?.abort())
               inputmode="email"
               autocomplete="email"
               required
-              :aria-invalid="errorsFor('email').length > 0"
+              :aria-invalid="errorsFor('email').length
+                > 0"
               :aria-describedby="errorsFor('email').length ? 'recovery-email-error' : undefined"
               @input="clearErrors"
-            >
+            />
             <FormFieldError
               id="recovery-email-error"
               :messages="errorsFor('email')"
             />
-          </div>
+          </UiField>
         </fieldset>
-        <p
+        <UiText
           v-if="formError?.requestId"
           class="support-reference"
         >
           Support reference: <code>{{ formError.requestId }}</code>
-        </p>
+        </UiText>
         <FormSubmitButton
           :pending="isSubmitting"
           pending-label="Requesting link…"
@@ -108,10 +116,12 @@ onBeforeUnmount(() => controller?.abort())
           Send recovery link
         </FormSubmitButton>
       </form>
-      <NuxtLink
+      <UiButton
+        variant="secondary"
         to="/login"
-        class="button button--secondary"
-      >Back to sign in</NuxtLink>
-    </section>
+      >
+        Back to sign in
+      </UiButton>
+    </UiCard>
   </section>
 </template>

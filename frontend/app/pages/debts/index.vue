@@ -13,14 +13,18 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<DebtSum
     class="stack"
     aria-labelledby="debts-title"
   >
-    <h1 id="debts-title">
+    <UiText
+      id="debts-title"
+      variant="heading1"
+    >
       Your expenses
-    </h1>
+    </UiText>
     <template v-if="state.status === 'authenticated'">
-      <NuxtLink
-        class="button"
+      <UiButton
         to="/debts/new"
-      >New expense</NuxtLink>
+      >
+        New expense
+      </UiButton>
       <AppLoadingState
         v-if="pending"
         message="Loading expenses…"
@@ -34,43 +38,45 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<DebtSum
         v-if="items.length"
         class="stack"
       >
-        <li
+        <UiCard
           v-for="debt in items"
           :key="debt.id"
-          class="panel stack"
+          as="li"
+          class="stack"
         >
-          <NuxtLink :to="'/debts/' + debt.id">{{ debt.title }}</NuxtLink>
-          <p>{{ formatEuro(debt.totalAmount) }} · paid by {{ debt.payer.name }}</p>
-          <p>{{ debt.participantCount }} people · {{ formatEuro(debt.shareAmount) }} each</p>
-          <p v-if="!debt.payer.isActive">
+          <UiLink :to="'/debts/' + debt.id">
+            {{ debt.title }}
+          </UiLink>
+          <UiText>{{ formatEuro(debt.totalAmount) }} · paid by {{ debt.payer.name }}</UiText>
+          <UiText>{{ debt.participantCount }} people · {{ formatEuro(debt.shareAmount) }} each</UiText>
+          <UiText v-if="!debt.payer.isActive">
             Payer inactive
-          </p>
-        </li>
+          </UiText>
+        </UiCard>
       </ul>
-      <button
+      <UiButton
         v-if="cursor"
-        class="button button--secondary"
-        type="button"
+        variant="secondary"
         :disabled="pending"
         @click="load(true)"
       >
         Load more expenses
-      </button>
+      </UiButton>
       <AppErrorState
         v-if="error"
         title="Expenses could not be loaded"
         message="Try again to load your expenses."
         :request-id="error.requestId"
       />
-      <button
+      <UiButton
         v-if="error"
-        class="button button--secondary"
-        type="button"
+        variant="secondary"
         :disabled="pending"
-        @click="load(items.length > 0)"
+        @click="load(items.length
+          > 0)"
       >
         Try again
-      </button>
+      </UiButton>
     </template>
     <AppLoadingState
       v-else

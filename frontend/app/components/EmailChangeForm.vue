@@ -25,18 +25,21 @@ async function requestChange(): Promise<void> {
 </script>
 
 <template>
-  <form
-    class="panel stack"
+  <UiCard
+    as="form"
+    class="stack"
     novalidate
     aria-label="Change email"
     @submit.prevent="requestChange"
   >
     <div>
-      <p class="eyebrow">
+      <UiText variant="eyebrow">
         Sign-in address
-      </p>
-      <h2>Change email</h2>
-      <p>Your current email stays active until you confirm the link sent to the new address.</p>
+      </UiText>
+      <UiText variant="heading2">
+        Change email
+      </UiText>
+      <UiText>Your current email stays active until you confirm the link sent to the new address.</UiText>
     </div>
     <FormErrorSummary
       :title="presentation?.title ?? 'Check the form'"
@@ -49,60 +52,62 @@ async function requestChange(): Promise<void> {
       <legend class="visually-hidden">
         Email change details
       </legend>
-      <div class="form-field">
+      <UiField>
         <label for="profile-new-email">New email</label>
-        <input
+        <UiInput
           id="profile-new-email"
           v-model="values.newEmail"
           name="newEmail"
           type="email"
           autocomplete="email"
           required
-          :aria-invalid="errorsFor('newEmail').length > 0"
+          :aria-invalid="errorsFor('newEmail').length
+            > 0"
           :aria-describedby="errorsFor('newEmail').length ? 'profile-new-email-error' : undefined"
           @input="clearErrors(); scheduled = false"
-        >
+        />
         <FormFieldError
           id="profile-new-email-error"
           :messages="errorsFor('newEmail')"
         />
-      </div>
-      <div class="form-field">
+      </UiField>
+      <UiField>
         <label for="profile-current-password">Current password</label>
-        <input
+        <UiInput
           id="profile-current-password"
           v-model="values.currentPassword"
           name="currentPassword"
           type="password"
           autocomplete="current-password"
           required
-          :aria-invalid="errorsFor('currentPassword').length > 0"
+          :aria-invalid="errorsFor('currentPassword').length
+            > 0"
           :aria-describedby="errorsFor('currentPassword').length ? 'profile-current-password-error' : undefined"
           @input="clearErrors(); scheduled = false"
-        >
+        />
         <FormFieldError
           id="profile-current-password-error"
           :messages="errorsFor('currentPassword')"
         />
-      </div>
+      </UiField>
     </fieldset>
-    <p
+    <UiText
       v-if="scheduled"
       role="status"
     >
       Confirmation email scheduled. Open the link sent to your new address.
-    </p>
-    <p
+    </UiText>
+    <UiText
       v-if="formError?.requestId"
       class="support-reference"
     >
       Support reference: <code>{{ formError.requestId }}</code>
-    </p>
+    </UiText>
     <FormSubmitButton
       :pending="isSubmitting"
       pending-label="Sending confirmation…"
     >
       Send confirmation email
     </FormSubmitButton>
-  </form>
+  </UiCard>
 </template>

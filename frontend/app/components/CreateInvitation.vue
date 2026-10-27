@@ -52,57 +52,57 @@ async function share(): Promise<void> {
 </script>
 
 <template>
-  <section
-    class="panel stack"
+  <UiCard
+    as="section"
+    class="stack"
     aria-labelledby="invite-title"
   >
-    <h2 id="invite-title">
+    <UiText
+      id="invite-title"
+      variant="heading2"
+    >
       Invite someone
-    </h2>
-    <p>Send a one-use invitation to someone you know. It stays valid for seven days.</p>
-    <button
-      class="button"
-      type="button"
+    </UiText>
+    <UiText>Send a one-use invitation to someone you know. It stays valid for seven days.</UiText>
+    <UiButton
       :disabled="pending"
-      :aria-busy="pending"
+      :pending="pending"
       @click="create"
     >
       {{ pending ? 'Preparing invitation…' : 'Get invitation' }}
-    </button>
+    </UiButton>
     <div
       v-if="link"
       class="stack"
     >
-      <p>Invitation ready. Valid until {{ new Date(link.expiresAt).toLocaleDateString() }}.</p>
+      <UiText>Invitation ready. Valid until {{ new Date(link.expiresAt).toLocaleDateString() }}.</UiText>
       <div class="form-actions">
-        <button
-          class="button button--secondary"
-          type="button"
+        <UiButton
+          variant="secondary"
           @click="copy"
         >
           Copy invitation
-        </button>
-        <button
+        </UiButton>
+        <UiButton
           v-if="canShare"
-          class="button button--secondary"
-          type="button"
+          variant="secondary"
           @click="share"
         >
           Share invitation
-        </button>
+        </UiButton>
       </div>
     </div>
-    <p
+    <UiText
       v-if="feedback"
       role="status"
     >
       {{ feedback }}
-    </p>
+    </UiText>
     <AppErrorState
       v-if="presentation"
       :title="presentation.title"
       :message="presentation.message"
       :request-id="error?.requestId"
     />
-  </section>
+  </UiCard>
 </template>

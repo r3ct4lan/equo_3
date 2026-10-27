@@ -107,7 +107,7 @@ describe('home dashboard', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('No expenses yet')
     expect(wrapper.get('a[href="/debts/new"]').text()).toBe('New expense')
-    expect(wrapper.findAll('.dashboard-amount').map(node => node.text())).toEqual(['€0.00', '€0.00'])
+    expect(wrapper.findAll('.ui-amount').map(node => node.text())).toEqual(['€0.00', '€0.00'])
     wrapper.unmount()
   })
 

@@ -15,38 +15,46 @@ const { item: transfer, etag, pending, error, load } = useFinancialDetail<Transf
     class="stack"
     aria-labelledby="transfer-title"
   >
-    <h1 id="transfer-title">
+    <UiText
+      id="transfer-title"
+      variant="heading1"
+    >
       Operation
-    </h1>
+    </UiText>
     <AppLoadingState
       v-if="pending || state.status === 'unknown'"
       message="Loading operation…"
     />
-    <div
+    <UiCard
       v-if="transfer && state.status === 'authenticated'"
-      class="panel stack"
+      as="div"
+      class="stack"
     >
-      <h2>{{ transfer.type === 'DEBT_SHARE' ? 'Expense share' : 'Payment' }} · {{ formatEuro(transfer.amount) }}</h2>
-      <p>{{ transfer.sender.name }} → {{ transfer.receiver.name }}</p>
-      <p v-if="!transfer.sender.isActive || !transfer.receiver.isActive">
+      <UiText variant="heading2">
+        {{ transfer.type === 'DEBT_SHARE' ? 'Expense share' : 'Payment' }} · {{ formatEuro(transfer.amount) }}
+      </UiText>
+      <UiText>{{ transfer.sender.name }} → {{ transfer.receiver.name }}</UiText>
+      <UiText v-if="!transfer.sender.isActive || !transfer.receiver.isActive">
         One of these accounts is inactive.
-      </p>
-      <p v-if="transfer.createdBy">
+      </UiText>
+      <UiText v-if="transfer.createdBy">
         Recorded by {{ transfer.createdBy.name }}
-      </p>
-      <p
+      </UiText>
+      <UiText
         v-if="transfer.isDeleted"
         role="status"
       >
         Removed · does not affect the balance
-      </p>
-      <NuxtLink
+      </UiText>
+      <UiLink
         v-if="transfer.debtReference?.isAccessible"
         :to="'/debts/' + transfer.debtReference.id"
-      >{{ transfer.debtReference.title }}{{ transfer.debtReference.isDeleted ? ' (removed)' : '' }}</NuxtLink>
-      <p v-else-if="transfer.debtReference">
+      >
+        {{ transfer.debtReference.title }}{{ transfer.debtReference.isDeleted ? ' (removed)' : '' }}
+      </UiLink>
+      <UiText v-else-if="transfer.debtReference">
         Related expense unavailable
-      </p>
+      </UiText>
       <time :datetime="transfer.createdAt">{{ new Date(transfer.createdAt).toLocaleString() }}</time>
       <ManageManualTransfer
         v-if="transfer.type === 'MANUAL' && transfer.canEdit && transfer.canDelete && transfer.createdBy?.id === state.user?.id && etag && validTransferEtag(etag)"
@@ -54,25 +62,30 @@ const { item: transfer, etag, pending, error, load } = useFinancialDetail<Transf
         :etag="etag"
         @reload="load"
       />
-      <NuxtLink
-        class="button button--secondary"
+      <UiButton
+        variant="secondary"
         :to="'/connects/' + transfer.connectId"
-      >Connection and history</NuxtLink>
-    </div>
+      >
+        Connection and history
+      </UiButton>
+    </UiCard>
     <AppErrorState
       v-if="error"
       :title="error.code === 'TRANSFER_NOT_AVAILABLE' ? 'Operation unavailable' : 'Operation could not be loaded'"
       message="Return to your connections or try again."
       :request-id="error.requestId"
     />
-    <button
-      v-if="error && (error.status === null || error.status >= 500)"
-      class="button button--secondary"
-      type="button"
+    <UiButton
+      v-if="error && (error.status === null || error.status
+        >= 500)"
+      variant="secondary"
+
       @click="load()"
     >
       Try again
-    </button>
-    <NuxtLink to="/connects">Your connections</NuxtLink>
+    </UiButton>
+    <UiLink to="/connects">
+      Your connections
+    </UiLink>
   </section>
 </template>

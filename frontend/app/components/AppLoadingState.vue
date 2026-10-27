@@ -7,16 +7,11 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <div
-    class="state-message"
-    role="status"
+  <UiNotice
     aria-live="polite"
-    aria-busy="true"
+    busy
   >
-    <span
-      class="spinner"
-      aria-hidden="true"
-    />
+    <UiSpinner />
     <span>{{ message }}</span>
-  </div>
+  </UiNotice>
 </template>
