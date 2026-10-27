@@ -371,6 +371,25 @@ async function safeRouteAbort(route: Route): Promise<void> {
   await route.abort('connectionfailed')
 }
 
+test('login primary action precedes recovery links on desktop and mobile', async ({ page }) => {
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/login')
+    await waitForNuxtHydration(page)
+    const password = page.getByLabel('Password', { exact: true })
+    await password.focus()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('link', { name: 'Forgot your password?', exact: true })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('link', { name: 'Need another activation link?', exact: true })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('link', { name: 'Create an account', exact: true })).toBeFocused()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+})
+
 test('E2E-01 completes register, activation sign-in, reload and authenticated profile', async ({ page, request }) => {
   const email = uniqueEmail('happy')
   const requests: string[] = []

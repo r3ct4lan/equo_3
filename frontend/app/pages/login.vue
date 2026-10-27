@@ -226,18 +226,18 @@ onUnmounted(clearRateLimitCountdown)
       </UiText>
 
       <div class="form-actions">
-        <UiButton
-          variant="secondary"
-          to="/forgot-password"
-        >
-          Forgot your password?
-        </UiButton>
         <FormSubmitButton
           :pending="isSubmitting"
           pending-label="Signing in…"
         >
           Sign in
         </FormSubmitButton>
+        <UiButton
+          variant="secondary"
+          to="/forgot-password"
+        >
+          Forgot your password?
+        </UiButton>
         <UiButton
           v-if="errorPresentation?.retryable"
           variant="secondary"
