@@ -195,18 +195,26 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
       throw authenticationRequired()
     }
     const started = ++generation
-    const response = await dependencies.api<LoginResponse>(LOGIN_ENDPOINT, {
-      method: 'POST',
-      body: {
-        email: values.email,
-        password: values.password
-      } satisfies LoginRequest
-    })
+    const apply = async (): Promise<void> => {
+      if (started !== generation || logoutPromise || resetPromise || changePromise || deactivationPromise) {
+        throw authenticationRequired()
+      }
+      const response = await dependencies.api<LoginResponse>(LOGIN_ENDPOINT, {
+        method: 'POST',
+        body: {
+          email: values.email,
+          password: values.password
+        } satisfies LoginRequest
+      })
 
-    if (started !== generation) {
-      throw authenticationRequired()
+      if (started !== generation) {
+        throw authenticationRequired()
+      }
+      adoptSession(response)
     }
-    adoptSession(response)
+    const locks = dependencies.navigator?.locks
+    if (locks) await locks.request(AUTH_REFRESH_LOCK, apply)
+    else await apply()
     await dependencies.navigateTo?.(safeRedirectPath(options.redirectTo))
   }
 
