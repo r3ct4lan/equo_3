@@ -104,6 +104,7 @@ onBeforeUnmount(dispose)
       <FormErrorSummary
         :title="summaryTitle"
         :message="summaryMessage"
+        :request-id="formError?.requestId"
       />
 
       <fieldset
@@ -156,13 +157,6 @@ onBeforeUnmount(dispose)
           />
         </UiField>
       </fieldset>
-
-      <UiText
-        v-if="formError?.requestId"
-        class="support-reference"
-      >
-        Support reference: <code>{{ formError.requestId }}</code>
-      </UiText>
 
       <div class="form-actions">
         <FormSubmitButton

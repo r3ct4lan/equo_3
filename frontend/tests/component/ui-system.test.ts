@@ -2,9 +2,21 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { describe, expect, it, vi } from 'vitest'
 import UiButton from '../../app/components/UiButton.vue'
 import FormSubmitButton from '../../app/components/FormSubmitButton.vue'
+import FormErrorSummary from '../../app/components/FormErrorSummary.vue'
+import AppErrorState from '../../app/components/AppErrorState.vue'
 import UiKit from '../../app/pages/ui-kit.vue'
 
 describe('shared UI interactions', () => {
+  it('keeps safe request references inside error notices and rejects unsafe values', async () => {
+    for (const component of [FormErrorSummary, AppErrorState]) {
+      const wrapper = await mountSuspended(component, { props: { message: 'Try again.', requestId: 'request-123' } })
+      expect(wrapper.get('.support-reference').text()).toBe('Support reference: request-123')
+      await wrapper.setProps({ requestId: 'secret/token with spaces' })
+      expect(wrapper.find('.support-reference').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('secret/token')
+      wrapper.unmount()
+    }
+  })
   it('uses a non-submitting default action and blocks repeat actions while pending', async () => {
     const click = vi.fn()
     const wrapper = await mountSuspended(UiButton, { attrs: { onClick: click }, slots: { default: 'Save' } })

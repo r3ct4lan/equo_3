@@ -44,6 +44,7 @@ async function requestChange(): Promise<void> {
     <FormErrorSummary
       :title="presentation?.title ?? 'Check the form'"
       :message="summary"
+      :request-id="formError?.requestId"
     />
     <fieldset
       class="form-fields stack"
@@ -96,12 +97,6 @@ async function requestChange(): Promise<void> {
       role="status"
     >
       Confirmation email scheduled. Open the link sent to your new address.
-    </UiText>
-    <UiText
-      v-if="formError?.requestId"
-      class="support-reference"
-    >
-      Support reference: <code>{{ formError.requestId }}</code>
     </UiText>
     <FormSubmitButton
       compact

@@ -7,7 +7,7 @@ const { $auth } = useNuxtApp()
 const currentUser = useCurrentUser()
 const { values, fieldErrors, formError, isSubmitting, errorsFor, clearErrors, submit } = useApiForm({ name: props.user.name })
 const saved = ref(false)
-const summary = computed(() => formError.value?.message ?? (Object.keys(fieldErrors.value).length ? 'Correct the highlighted field.' : null))
+const summary = computed(() => formError.value ? 'Your name could not be saved. Please try again.' : (Object.keys(fieldErrors.value).length ? 'Correct the highlighted field.' : null))
 
 async function saveName(): Promise<void> {
   saved.value = false
@@ -42,6 +42,7 @@ async function saveName(): Promise<void> {
     <FormErrorSummary
       title="Check the name"
       :message="summary"
+      :request-id="formError?.requestId"
     />
     <UiField>
       <label for="profile-name">Name</label>

@@ -152,7 +152,10 @@ onBeforeUnmount(() => {
       class="stack"
       @submit.prevent="submit"
     >
-      <FormErrorSummary :message="invalid ? 'Enter a title, a positive amount and at least one participant other than the payer. You must be the payer or a participant.' : errorMessage" />
+      <FormErrorSummary
+        :message="invalid ? 'Enter a title, a positive amount and at least one participant other than the payer. You must be the payer or a participant.' : errorMessage"
+        :request-id="error?.requestId"
+      />
       <fieldset
         class="stack"
         :disabled="pending || uncertain || loading || !!optionsError"
@@ -249,12 +252,6 @@ onBeforeUnmount(() => {
           Each share: {{ formatEuro(share) }}. Shares round up to the next cent.
         </UiText>
       </fieldset>
-      <UiText
-        v-if="error?.requestId"
-        class="support-reference"
-      >
-        Support reference: {{ error.requestId }}
-      </UiText>
       <UiButton
         type="submit"
         :disabled="pending || loading || !!optionsError"

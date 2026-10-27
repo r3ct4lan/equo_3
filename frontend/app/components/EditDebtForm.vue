@@ -122,7 +122,10 @@ onBeforeUnmount(clear)
       Change expense
     </UiText>
     <UiText>Paid by {{ debt.payer.name }}. The payer cannot be changed.</UiText>
-    <FormErrorSummary :message="message" />
+    <FormErrorSummary
+      :message="message"
+      :request-id="error?.requestId"
+    />
     <AppLoadingState
       v-if="loading"
       message="Loading available people…"
@@ -195,12 +198,6 @@ onBeforeUnmount(clear)
         Each share: {{ formatEuro(share) }}. Every current share will be recalculated.
       </UiText>
     </fieldset>
-    <UiText
-      v-if="error?.requestId"
-      class="support-reference"
-    >
-      Support reference: {{ error.requestId }}
-    </UiText>
     <UiButton
       type="submit"
       :disabled="pending || blocked || loading || optionsError || !validDebtEtag(etag)"

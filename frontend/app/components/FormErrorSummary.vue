@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { FocusTarget } from '~/types/ui'
+import { safeRequestId } from '~/utils/api-error'
 
 const props = defineProps<{
   title?: string
   message?: string | null
+  requestId?: string | null
 }>()
 
 const summary = useTemplateRef<FocusTarget>('summary')
@@ -29,5 +31,11 @@ watch(() => props.message, async (message) => {
   >
     <strong>{{ title ?? 'Check the form' }}</strong>
     <UiText>{{ message }}</UiText>
+    <UiText
+      v-if="safeRequestId(requestId)"
+      class="support-reference"
+    >
+      Support reference: <code>{{ safeRequestId(requestId) }}</code>
+    </UiText>
   </div>
 </template>

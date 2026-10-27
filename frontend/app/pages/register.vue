@@ -172,6 +172,7 @@ async function submitRegistration(): Promise<void> {
       <FormErrorSummary
         :title="summaryTitle"
         :message="summaryMessage"
+        :request-id="formError?.requestId"
       />
 
       <fieldset
@@ -253,13 +254,6 @@ async function submitRegistration(): Promise<void> {
           />
         </UiField>
       </fieldset>
-
-      <UiText
-        v-if="formError?.requestId"
-        class="support-reference"
-      >
-        Support reference: <code>{{ formError.requestId }}</code>
-      </UiText>
 
       <div class="form-actions">
         <FormSubmitButton

@@ -150,7 +150,7 @@ describe('registration page', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Email has invalid format.')
-    expect(wrapper.text()).toContain('Support reference:')
+    expect(wrapper.get('[role="alert"]').text()).toContain('Support reference: 01KZ1TESTREQUEST00000000000')
     expect(wrapper.get('input[name="email"]').element).toHaveProperty('value', 'alex@example.test')
     expect(wrapper.get('input[name="password"]').element).toHaveProperty('value', 'A2345678901!')
     expect(wrapper.get('input[name="email"]').attributes('aria-describedby')).toContain('registration-email-error')

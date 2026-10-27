@@ -87,7 +87,10 @@ onBeforeUnmount(clear)
       Record a payment
     </UiText>
     <UiText>Record money already transferred between you. Either person can record either direction, including an overpayment.</UiText>
-    <FormErrorSummary :message="message" />
+    <FormErrorSummary
+      :message="message"
+      :request-id="error?.requestId"
+    />
     <fieldset
       class="stack"
       :disabled="pending || uncertain || !connect.canCreateTransfer"
@@ -139,12 +142,6 @@ onBeforeUnmount(clear)
         Your balance and operations will be refreshed after the payment is confirmed.
       </UiText>
     </fieldset>
-    <UiText
-      v-if="error?.requestId"
-      class="support-reference"
-    >
-      Support reference: {{ error.requestId }}
-    </UiText>
     <UiButton
       type="submit"
       :disabled="pending || !connect.canCreateTransfer"

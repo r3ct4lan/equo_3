@@ -99,13 +99,10 @@ async function remove(): Promise<void> {
       <UiText id="remove-confirm-description">
         This cannot be undone. The saved expense and participant list will remain read-only.
       </UiText>
-      <FormErrorSummary :message="message" />
-      <UiText
-        v-if="error?.requestId"
-        class="support-reference"
-      >
-        Support reference: {{ error.requestId }}
-      </UiText>
+      <FormErrorSummary
+        :message="message"
+        :request-id="error?.requestId"
+      />
       <UiButton
         ref="confirmButton"
         variant="danger"

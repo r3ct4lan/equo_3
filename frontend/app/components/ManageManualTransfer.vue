@@ -157,7 +157,10 @@ onBeforeUnmount(() => ++generation)
       >
         Edit payment
       </UiText>
-      <FormErrorSummary :message="message" />
+      <FormErrorSummary
+        :message="message"
+        :request-id="error?.requestId"
+      />
       <fieldset
         class="stack"
         :disabled="pending || blocked"
@@ -227,7 +230,10 @@ onBeforeUnmount(() => ++generation)
       <UiText id="remove-payment-description">
         This cannot be undone. The payment will remain in history but will stop affecting the balance.
       </UiText>
-      <FormErrorSummary :message="message" />
+      <FormErrorSummary
+        :message="message"
+        :request-id="error?.requestId"
+      />
       <UiButton
         ref="deleteConfirm"
         variant="danger"
@@ -246,12 +252,6 @@ onBeforeUnmount(() => ++generation)
         Keep payment
       </UiButton>
     </UiCard>
-    <UiText
-      v-if="error?.requestId"
-      class="support-reference"
-    >
-      Support reference: {{ error.requestId }}
-    </UiText>
     <UiButton
       v-if="blocked"
       variant="secondary"

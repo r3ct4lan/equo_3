@@ -74,6 +74,7 @@ onBeforeUnmount(() => controller?.abort())
         <FormErrorSummary
           :title="presentation?.title ?? 'Check the form'"
           :message="summary"
+          :request-id="formError?.requestId"
         />
         <fieldset
           class="form-fields stack"
@@ -103,12 +104,6 @@ onBeforeUnmount(() => controller?.abort())
             />
           </UiField>
         </fieldset>
-        <UiText
-          v-if="formError?.requestId"
-          class="support-reference"
-        >
-          Support reference: <code>{{ formError.requestId }}</code>
-        </UiText>
         <FormSubmitButton
           :pending="isSubmitting"
           pending-label="Requesting link…"

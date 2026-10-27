@@ -114,6 +114,7 @@ async function resetPassword(): Promise<void> {
         <FormErrorSummary
           :title="presentation?.title ?? 'Check the form'"
           :message="summary"
+          :request-id="formError?.requestId"
         />
         <fieldset
           class="form-fields stack"
@@ -142,12 +143,6 @@ async function resetPassword(): Promise<void> {
             />
           </UiField>
         </fieldset>
-        <UiText
-          v-if="formError?.requestId"
-          class="support-reference"
-        >
-          Support reference: <code>{{ formError.requestId }}</code>
-        </UiText>
         <FormSubmitButton
           :pending="isSubmitting"
           pending-label="Saving password…"
