@@ -1,5 +1,5 @@
 services:
-    App\Infrastructure\RateLimit\RequestLimiter:
+    App\Infrastructure\Application\Api\RequestLimiter:
         alias: App\Tests\Fixture\Security\InMemoryRequestLimiter
     App\Tests\Fixture\Security\InMemoryRequestLimiter: ~
     App\IdentityAccess\Application\Port\LoginThrottlePort:

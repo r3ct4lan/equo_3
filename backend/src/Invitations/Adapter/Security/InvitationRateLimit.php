@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Invitations\Adapter\Security;
 
-use App\Infrastructure\RateLimit\RequestLimiter;
+use App\Infrastructure\Application\Api\RequestLimiter;
 use App\Invitations\Application\Port\InvitationRateLimitPort;
 
 final readonly class InvitationRateLimit implements InvitationRateLimitPort
