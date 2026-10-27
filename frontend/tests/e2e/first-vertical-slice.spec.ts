@@ -371,6 +371,36 @@ async function safeRouteAbort(route: Route): Promise<void> {
   await route.abort('connectionfailed')
 }
 
+test('single card actions stay bounded and readable', async ({ page, request }) => {
+  const email = await createActiveUser(request, uniqueEmail('compact-actions'))
+  await login(page, email)
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 320, height: 720 }]) {
+    await page.setViewportSize(viewport)
+    for (const [path, labels] of [
+      ['/connects', ['Get invitation']],
+      ['/me', ['Save name', 'Send confirmation email', 'Deactivate account']]
+    ] as const) {
+      await page.goto(path)
+      for (const label of labels) {
+        const button = page.getByRole('button', { name: label, exact: true })
+        await expect(button).toBeVisible()
+        const dimensions = await button.evaluate((element) => {
+          const style = getComputedStyle(element)
+          const rect = element.getBoundingClientRect()
+          return { width: rect.width, height: rect.height, max: parseFloat(style.fontSize) * 18, fits: element.scrollWidth <= element.clientWidth }
+        })
+        expect(dimensions.width).toBeLessThanOrEqual(dimensions.max + 1)
+        expect(dimensions.height).toBeGreaterThanOrEqual(44)
+        expect(dimensions.fits).toBe(true)
+      }
+    }
+    await page.goto('/ui-kit')
+    const longAction = page.getByRole('button', { name: 'A longer action label that can wrap when needed' })
+    expect(await longAction.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+})
+
 test('login primary action precedes recovery links on desktop and mobile', async ({ page }) => {
   for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport)

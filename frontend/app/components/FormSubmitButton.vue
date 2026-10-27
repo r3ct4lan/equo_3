@@ -6,6 +6,7 @@ withDefaults(defineProps<{
   pending?: boolean
   disabled?: boolean
   pendingLabel?: string
+  compact?: boolean
 }>(), {
   pending: false,
   disabled: false,
@@ -20,6 +21,7 @@ withDefaults(defineProps<{
     :disabled="disabled"
     :pending="pending"
     :pending-label="pendingLabel"
+    :compact="compact"
   >
     <slot />
   </UiButton>

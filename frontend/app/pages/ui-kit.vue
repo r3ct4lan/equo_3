@@ -267,6 +267,9 @@ async function closeDialog(): Promise<void> {
             Buttons &amp; links
           </UiText>
           <UiCard class="stack">
+            <UiButton compact>
+              A longer action label that can wrap when needed
+            </UiButton>
             <div
               v-for="variant in variants"
               :key="variant"

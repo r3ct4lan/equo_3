@@ -69,6 +69,7 @@ async function saveName(): Promise<void> {
       Name saved.
     </UiText>
     <FormSubmitButton
+      compact
       :pending="isSubmitting"
       pending-label="Saving name…"
     >

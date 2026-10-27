@@ -56,6 +56,7 @@ onBeforeUnmount(() => {
     <UiButton
       v-if="!confirming"
       ref="trigger"
+      compact
       variant="secondary"
       @click="showConfirmation"
     >

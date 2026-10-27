@@ -10,6 +10,7 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   pending?: boolean
   pendingLabel?: string
+  compact?: boolean
 }>(), {
   variant: 'primary',
   type: 'button',
@@ -41,7 +42,7 @@ function guardClick(event: MouseEvent): void {
     :as="to !== undefined ? NuxtLink : 'button'"
     :variant="registryVariants[variant]"
     class="button"
-    :class="'button--' + variant"
+    :class="['button--' + variant, { 'button--compact': compact }]"
     :to="to !== undefined && !blocked ? to : undefined"
     :type="to === undefined ? type : undefined"
     :disabled="to === undefined ? blocked : undefined"

@@ -104,6 +104,8 @@ CSS custom properties cannot be used in media query conditions. */
   --viewport-min: 20rem;
   --panel-width: 48rem;
   --dialog-width: 42rem;
+  --compact-action-width: 18em;
+  --compact-action-min-height: 2.75rem;
   --toast-width: 24rem;
   --hero-width: 50rem;
   --lede-width: 42rem;

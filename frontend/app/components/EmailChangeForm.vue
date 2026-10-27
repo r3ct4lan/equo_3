@@ -104,6 +104,7 @@ async function requestChange(): Promise<void> {
       Support reference: <code>{{ formError.requestId }}</code>
     </UiText>
     <FormSubmitButton
+      compact
       :pending="isSubmitting"
       pending-label="Sending confirmation…"
     >

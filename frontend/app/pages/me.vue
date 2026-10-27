@@ -131,6 +131,7 @@ onMounted(() => {
     <AccountDeactivationForm v-if="user" />
     <UiButton
       v-if="user"
+      compact
       variant="secondary"
       to="/account/security"
     >

@@ -555,6 +555,14 @@ nav {
   cursor: pointer;
 }
 
+.button--compact {
+  align-self: flex-start;
+  width: min(100%, var(--compact-action-width));
+  min-height: var(--compact-action-min-height);
+  height: auto;
+  white-space: normal;
+}
+
 .ui-dialog::backdrop {
   background: var(--color-backdrop);
 }
