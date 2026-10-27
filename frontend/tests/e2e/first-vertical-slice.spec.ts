@@ -646,10 +646,16 @@ test('E2E-06 shows safe login errors and prevents duplicate login submit', async
   })
   await page.getByLabel('Email').fill(activeEmail)
   await page.getByLabel('Password').fill(testPassword)
-  await page.getByRole('button', { name: 'Sign in' }).evaluate((button: HTMLButtonElement) => {
+  const signIn = page.getByRole('button', { name: 'Sign in' })
+  await expect(signIn).toBeEnabled()
+  const successfulLogin = page.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/v1/auth/login'
+  )
+  await signIn.evaluate((button: HTMLButtonElement) => {
     button.click()
     button.click()
   })
+  expect((await successfulLogin).status()).toBe(200)
   await expect(page).toHaveURL(/\/me$/u)
   expect(loginRequests).toBe(1)
   expect(await page.locator('body').textContent().then(text => text?.includes(testPassword) ?? false), 'password must not be rendered').toBe(false)
