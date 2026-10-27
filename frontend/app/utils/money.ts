@@ -1,4 +1,13 @@
 export const MAX_AMOUNT_CENTS = 2147483647
+export function limitFractionDigits(text: string): string {
+  const separator = text.search(/[.,]/u)
+  if (separator < 0) return text
+  let digits = 0
+  return text.slice(0, separator + 1) + [...text.slice(separator + 1)].filter((character) => {
+    if (!/\d/u.test(character)) return true
+    return ++digits <= 2
+  }).join('')
+}
 export function parseEuroCents(text: string): number | null {
   const match = /^(\d{1,8})(?:[.,](\d{1,2}))?$/u.exec(text.trim())
   if (!match) return null

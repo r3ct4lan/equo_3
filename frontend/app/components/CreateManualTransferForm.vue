@@ -115,6 +115,7 @@ onBeforeUnmount(clear)
         <UiInput
           id="payment-amount"
           v-model="amount"
+          money
           type="text"
           inputmode="decimal"
           required

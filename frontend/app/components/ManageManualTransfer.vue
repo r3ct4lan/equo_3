@@ -186,6 +186,7 @@ onBeforeUnmount(() => ++generation)
           <UiInput
             id="edit-payment-amount"
             v-model="amount"
+            money
             type="text"
             inputmode="decimal"
             required

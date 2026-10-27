@@ -187,6 +187,7 @@ onBeforeUnmount(() => {
           <UiInput
             id="debt-amount"
             v-model="values.amount"
+            money
             type="text"
             inputmode="decimal"
             placeholder="10.01"

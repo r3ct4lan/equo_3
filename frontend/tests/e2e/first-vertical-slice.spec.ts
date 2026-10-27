@@ -371,6 +371,32 @@ async function safeRouteAbort(route: Route): Promise<void> {
   await route.abort('connectionfailed')
 }
 
+test('money input limits fractional digits while preserving editing', async ({ page, request }) => {
+  const email = await createActiveUser(request, uniqueEmail('money-input'))
+  await login(page, email)
+  await page.goto('/debts/new')
+  await waitForNuxtHydration(page)
+  await expect(page.getByRole('button', { name: 'Create expense', exact: true })).toBeEnabled()
+  const amount = page.getByLabel('Amount in EUR', { exact: true })
+  await amount.pressSequentially('10.0123')
+  await expect(amount).toHaveValue('10.01')
+  await amount.fill('')
+  await page.keyboard.insertText('123,4567')
+  await expect(amount).toHaveValue('123,45')
+  await amount.fill('10.01')
+  await amount.evaluate((element: HTMLInputElement) => element.setSelectionRange(3, 3))
+  await amount.pressSequentially('9')
+  await expect(amount).toHaveValue('10.01')
+  await amount.evaluate((element: HTMLInputElement) => element.setSelectionRange(0, 0))
+  await page.keyboard.insertText('2')
+  await expect(amount).toHaveValue('210.01')
+  expect(await amount.evaluate((element: HTMLInputElement) => element.selectionStart)).toBe(1)
+  await amount.fill('10.')
+  await expect(amount).toHaveValue('10.')
+  await amount.fill('21474836.47')
+  await expect(amount).toHaveValue('21474836.47')
+})
+
 test('single card actions stay bounded and readable', async ({ page, request }) => {
   const email = await createActiveUser(request, uniqueEmail('compact-actions'))
   await login(page, email)

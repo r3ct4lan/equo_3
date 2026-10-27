@@ -158,6 +158,7 @@ onBeforeUnmount(clear)
         <UiInput
           id="edit-amount"
           v-model="values.amount"
+          money
           type="text"
           inputmode="decimal"
           required
