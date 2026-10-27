@@ -33,6 +33,14 @@ const {
 const attemptKeys = createRegistrationAttemptKeys()
 const registration = ref<RegisterResponse | null>(null)
 const successPanel = useTemplateRef<FocusTarget>('successPanel')
+const activationRequest = useTemplateRef<{ focusEmail: () => void }>('activationRequest')
+const activationRequestOpen = ref(false)
+
+async function openActivationRequest(): Promise<void> {
+  activationRequestOpen.value = true
+  await nextTick()
+  activationRequest.value?.focusEmail()
+}
 
 const hasFieldErrors = computed(() => Object.keys(fieldErrors.value).length > 0)
 const errorPresentation = computed(() => formError.value
@@ -126,7 +134,19 @@ async function submitRegistration(): Promise<void> {
         </UiText>
       </UiCard>
 
-      <ActivationRequestForm :initial-email="registration.user.email" />
+      <ActivationRequestForm
+        v-if="activationRequestOpen"
+        ref="activationRequest"
+        :initial-email="registration.user.email"
+      />
+      <UiButton
+        v-else
+        variant="link"
+        class="activation-request-link"
+        @click="openActivationRequest"
+      >
+        Request another activation link
+      </UiButton>
     </div>
 
     <UiCard

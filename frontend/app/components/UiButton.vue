@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<{
 
 const root = useTemplateRef<HTMLElement | { $el: HTMLElement }>('root')
 const blocked = computed(() => props.disabled || props.pending)
-const registryVariants = { primary: 'default', secondary: 'secondary', danger: 'destructive' } as const
+const registryVariants = { primary: 'default', secondary: 'secondary', danger: 'destructive', link: 'link' } as const
 defineExpose({ focus: () => {
   const element = root.value
   if (element) ('focus' in element ? element : element.$el).focus()

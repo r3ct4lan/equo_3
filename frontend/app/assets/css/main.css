@@ -544,6 +544,17 @@ nav {
   color: var(--color-text);
 }
 
+.activation-request-link {
+  justify-self: start;
+  width: fit-content;
+  height: auto;
+  padding: 0;
+  color: var(--color-link);
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .ui-dialog::backdrop {
   background: var(--color-backdrop);
 }

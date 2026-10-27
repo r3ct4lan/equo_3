@@ -18,7 +18,7 @@ const sections = [
 ] as const
 const tokens = computed(() => uiThemeTokens(themeSource, dark.value))
 const colors = computed(() => tokens.value.filter(token => token.name.startsWith('--color-')))
-const variants = ['primary', 'secondary', 'danger'] as const
+const variants = ['primary', 'secondary', 'danger', 'link'] as const
 const draft = reactive({ name: '', email: '', password: '', direction: 'you', description: '', included: true, people: ['alex'] })
 const formDisabled = ref(false)
 const submitted = ref(false)

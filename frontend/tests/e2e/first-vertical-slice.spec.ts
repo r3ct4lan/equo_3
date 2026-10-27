@@ -395,6 +395,18 @@ test('E2E-01 completes register, activation sign-in, reload and authenticated pr
   await expect(page.getByRole('status')).toContainText(email)
   await expectNoSessionOrStoredCapability(page)
 
+  await page.setViewportSize({ width: 390, height: 844 })
+  const activationRequestLink = page.getByRole('button', { name: 'Request another activation link', exact: true })
+  await expect(activationRequestLink).toBeVisible()
+  await expect(page.getByLabel('Current password', { exact: true })).toHaveCount(0)
+  await activationRequestLink.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByLabel('Email', { exact: true })).toBeFocused()
+  await expect(page.getByLabel('Email', { exact: true })).toHaveValue(email)
+  await expect(activationRequestLink).toHaveCount(0)
+  expect(requests.filter(path => path.includes('/activation-requests'))).toHaveLength(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+
   await page.reload()
   await expect(page.getByRole('button', { name: 'Create account' })).toBeVisible()
 

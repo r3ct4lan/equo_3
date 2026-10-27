@@ -96,6 +96,13 @@ describe('registration page', () => {
 
     expect(wrapper.get('[role="status"]').text()).toContain('Check your email')
     expect(wrapper.get('[role="status"]').text()).toContain('alex@example.test')
+    expect(wrapper.find('h2#activation-request-title').exists()).toBe(false)
+    const openRequest = wrapper.get('button.activation-request-link')
+    expect(openRequest.text()).toBe('Request another activation link')
+    await openRequest.trigger('click')
+    await flushPromises()
+    expect(apiMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('button.activation-request-link').exists()).toBe(false)
     expect(wrapper.get('h2#activation-request-title').text()).toBe('Request another activation link')
     expect(wrapper.get('input#activation-request-email').element).toHaveProperty('value', 'alex@example.test')
     expect(wrapper.text()).not.toContain('A2345678901!')
