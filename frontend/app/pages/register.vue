@@ -4,6 +4,7 @@ import type { RegisterRequest, RegisterResponse } from '~/types/api'
 import { forgetInvitation, recalledInvitation } from '~/utils/connect-invitations'
 import {
   createRegistrationAttemptKeys,
+  PASSWORD_POLICY_HINT,
   REGISTER_ENDPOINT,
   registrationErrorPresentation,
   type RegistrationValues,
@@ -208,7 +209,7 @@ async function submitRegistration(): Promise<void> {
             id="registration-password-hint"
             variant="help"
           >
-            Use 8–128 characters. Letters and special symbols are optional. Your password cannot contain only spaces.
+            {{ PASSWORD_POLICY_HINT }}
           </UiText>
           <UiInput
             id="registration-password"

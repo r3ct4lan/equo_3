@@ -14,7 +14,9 @@ final readonly class ChangePasswordRequest
         public ?string $currentPassword = null,
         #[Assert\NotNull(message: 'Value is required.', payload: ['code' => 'REQUIRED'])]
         #[Assert\Length(min: PasswordPolicy::MIN_LENGTH, max: PasswordPolicy::MAX_LENGTH, minMessage: 'Use 8–128 characters.', maxMessage: 'Use 8–128 characters.', payload: ['code' => 'PASSWORD_POLICY_VIOLATION'])]
-        #[Assert\Regex(pattern: '/\S/u', message: 'Use at least one non-space character.', payload: ['code' => 'PASSWORD_POLICY_VIOLATION'])]
+        #[Assert\Regex(pattern: PasswordPolicy::LETTER_PATTERN, message: 'Include at least one letter.', payload: ['code' => 'PASSWORD_POLICY_VIOLATION'])]
+        #[Assert\Regex(pattern: PasswordPolicy::DIGIT_PATTERN, message: 'Include at least one number.', payload: ['code' => 'PASSWORD_POLICY_VIOLATION'])]
+        #[Assert\Regex(pattern: PasswordPolicy::SPECIAL_CHARACTER_PATTERN, message: 'Include at least one special character.', payload: ['code' => 'PASSWORD_POLICY_VIOLATION'])]
         public ?string $newPassword = null,
     ) {
     }

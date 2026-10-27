@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FocusTarget } from '~/types/ui'
+import { PASSWORD_POLICY_HINT } from '~/utils/auth-flow'
 import { isTerminalRecoveryError, passwordResetErrorPresentation, validateNewPassword } from '~/utils/password-reset'
 
 useHead({ title: 'Choose a new password · Equo', meta: [{ name: 'referrer', content: 'no-referrer' }] })
@@ -62,7 +63,7 @@ async function resetPassword(): Promise<void> {
         Choose a new password
       </UiText>
       <UiText variant="lede">
-        Use 8–128 characters with at least one non-space character. After saving, sign in with your new password.
+        {{ PASSWORD_POLICY_HINT }} After saving, sign in with your new password.
       </UiText>
     </div>
     <UiCard

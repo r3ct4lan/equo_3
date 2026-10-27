@@ -181,10 +181,11 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
     /** @return iterable<string, array{string, string}> */
     public static function validPasswordBoundaryProvider(): iterable
     {
-        yield '8 code points' => [str_repeat('a', 8), 'password-min@example.test'];
-        yield '8 supplementary code points' => [str_repeat('😀', 8), 'password-unicode-min@example.test'];
-        yield '128 code points' => [str_repeat('я', 128), 'password-max@example.test'];
-        yield 'significant whitespace' => ['  ab😀d  ', 'password-whitespace@example.test'];
+        yield '8 code points' => ['abcde1!x', 'password-min@example.test'];
+        yield '8 supplementary code points' => [str_repeat('😀', 6).'я1', 'password-unicode-min@example.test'];
+        yield '128 code points' => [str_repeat('я', 126).'1!', 'password-max@example.test'];
+        yield 'significant whitespace' => ['  a1😀d  ', 'password-whitespace@example.test'];
+        yield 'Unicode letter and digit' => ['пароль١!', 'password-unicode-classes@example.test'];
     }
 
     #[DataProvider('invalidPasswordBoundaryProvider')]
@@ -206,10 +207,16 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
     /** @return iterable<string, array{string, string}> */
     public static function invalidPasswordBoundaryProvider(): iterable
     {
-        yield '7 code points' => [str_repeat('a', 7), 'password-short@example.test'];
-        yield '7 supplementary code points' => [str_repeat('😀', 7), 'password-unicode-short@example.test'];
-        yield '129 code points' => [str_repeat('a', 129), 'password-long@example.test'];
+        yield '7 code points' => ['abcd1!x', 'password-short@example.test'];
+        yield '7 supplementary code points' => [str_repeat('😀', 5).'я1', 'password-unicode-short@example.test'];
+        yield '129 code points' => [str_repeat('a', 127).'1!', 'password-long@example.test'];
         yield 'whitespace only' => [str_repeat(' ', 8), 'password-blank@example.test'];
+        yield 'digits only' => ['12345678', 'password-digits@example.test'];
+        yield 'no letter' => ['1234567!', 'password-no-letter@example.test'];
+        yield 'no digit' => ['Password!', 'password-no-digit@example.test'];
+        yield 'no special character' => ['Password1', 'password-no-special@example.test'];
+        yield 'space is not special' => ['Password1 ', 'password-space@example.test'];
+        yield 'combining mark is not special' => ["Password1\u{0301}", 'password-combining@example.test'];
     }
 
     public function testUnknownRequestFieldsAreRejectedWithoutWrites(): void

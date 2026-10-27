@@ -65,10 +65,10 @@ final class SessionCommandRunner
                     $container->get(ActivateAccount::class)->handle(new ActivateCommand($input['token'] ?? '', '192.0.2.83'));
                     break;
                 case 'change':
-                    $container->get(ChangePassword::class)->handle(new ChangePasswordCommand($input['user'], 'Correct password!', $input['newPassword'] ?? 'New password!'));
+                    $container->get(ChangePassword::class)->handle(new ChangePasswordCommand($input['user'], 'Correct password!', $input['newPassword'] ?? 'New password1!'));
                     break;
                 case 'reset':
-                    $container->get(ResetPassword::class)->handle(new ResetPasswordCommand($input['token'] ?? '', $input['newPassword'] ?? 'New password!', '192.0.2.81'));
+                    $container->get(ResetPassword::class)->handle(new ResetPasswordCommand($input['token'] ?? '', $input['newPassword'] ?? 'New password1!', '192.0.2.81'));
                     break;
                 case 'request-email-change':
                     $container->get(RequestEmailChange::class)->handle(new EmailChangeRequestCommand($input['user'], 'Correct password!', $input['newEmail'] ?? 'new-'.$input['user'].'@example.test'));

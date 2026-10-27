@@ -30,6 +30,7 @@ export interface ErrorPresentation {
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u
+export const PASSWORD_POLICY_HINT = 'Use 8–128 characters and include at least one letter, one number and one special character.'
 
 export function emailValidationMessages(email: string): string[] {
   if (email.trim() === '') return ['Enter your email address.']
@@ -42,8 +43,11 @@ export function passwordValidationMessages(password: string): string[] {
   const length = Array.from(password).length
   if (length < 8) return ['Use at least 8 characters.']
   if (length > 128) return ['Use no more than 128 characters.']
-  if (!/\S/u.test(password)) return ['Use at least one non-space character.']
-  return []
+  const messages: string[] = []
+  if (!/\p{L}/u.test(password)) messages.push('Include at least one letter.')
+  if (!/\p{Nd}/u.test(password)) messages.push('Include at least one number.')
+  if (!/[\p{P}\p{S}]/u.test(password)) messages.push('Include at least one special character.')
+  return messages
 }
 
 export function validateRegistration(values: Readonly<RegistrationValues>): FieldErrorMap {
@@ -134,7 +138,7 @@ export function registrationErrorPresentation(error: SafeApiError): ErrorPresent
     case 'PASSWORD_POLICY_VIOLATION':
       return {
         title: 'Password does not meet the requirements',
-        message: 'Use 8–128 characters and include at least one non-space character.',
+        message: PASSWORD_POLICY_HINT,
         retryable: false
       }
     case 'VALIDATION_ERROR':

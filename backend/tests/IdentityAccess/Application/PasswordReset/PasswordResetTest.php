@@ -105,7 +105,7 @@ final class PasswordResetTest extends TestCase
 
             return new StoredPasswordResetToken('token-id', 'user-id', UserActionTokenPurpose::ResetPassword, $now->modify('+1 minute'), null, null);
         });
-        $password = '  ёжик-😀-пароль  ';
+        $password = '  ёжик-1😀-пароль  ';
         $hasher = $this->createMock(PasswordHashingPort::class);
         $hasher->expects(self::once())->method('hash')->with($password)->willReturn('new-hash');
         $repository->expects(self::once())->method('completeReset')->with('token-id', 'user-id', 'new-hash', $now);
@@ -135,7 +135,7 @@ final class PasswordResetTest extends TestCase
         $sessions = $this->createMock(UserSessionRepositoryPort::class);
         $sessions->expects(self::never())->method('revokeAllUnfinishedForUser');
         try {
-            $this->reset($repository, $identities, $sessions, $hasher, $now)->handle(new ResetPasswordCommand('v1.capability', 'New password!', '192.0.2.1'));
+            $this->reset($repository, $identities, $sessions, $hasher, $now)->handle(new ResetPasswordCommand('v1.capability', 'New password1!', '192.0.2.1'));
             self::fail('A rejected token must fail.');
         } catch (ApplicationFailure $failure) {
             self::assertSame($expected, $failure->failureCode);
@@ -180,8 +180,12 @@ final class PasswordResetTest extends TestCase
         yield 'short' => ['short', 'digest', null, ApplicationFailureCode::PasswordPolicyViolation];
         yield 'spaces' => [str_repeat(' ', 12), 'digest', null, ApplicationFailureCode::PasswordPolicyViolation];
         yield 'long unicode' => [str_repeat('😀', 129), 'digest', null, ApplicationFailureCode::PasswordPolicyViolation];
-        yield 'malformed' => ['New password!', null, null, ApplicationFailureCode::InvalidToken];
-        yield 'limited' => ['New password!', 'digest', 123, ApplicationFailureCode::RateLimitExceeded];
+        yield 'digits only' => ['12345678', 'digest', null, ApplicationFailureCode::PasswordPolicyViolation];
+        yield 'no letter' => ['1234567!', 'digest', null, ApplicationFailureCode::PasswordPolicyViolation];
+        yield 'no digit' => ['Password!', 'digest', null, ApplicationFailureCode::PasswordPolicyViolation];
+        yield 'space is not special' => ['Password1 ', 'digest', null, ApplicationFailureCode::PasswordPolicyViolation];
+        yield 'malformed' => ['New password1!', null, null, ApplicationFailureCode::InvalidToken];
+        yield 'limited' => ['New password1!', 'digest', 123, ApplicationFailureCode::RateLimitExceeded];
     }
 
     private function reset(PasswordResetRepositoryPort $repository, IdentityRepositoryPort $identities, UserSessionRepositoryPort $sessions, PasswordHashingPort $hasher, DateTimeImmutable $now): ResetPassword

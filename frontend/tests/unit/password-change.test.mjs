@@ -38,11 +38,11 @@ async function fixture(changeApi, coordinated = true) {
 }
 
 test('password change validates only required current and shared Unicode new policy', () => {
-  assert.ok(validatePasswordChange({ currentPassword: '', newPassword: 'New password!' }).currentPassword)
-  for (const password of ['a'.repeat(7), '😀'.repeat(7), ' '.repeat(8), '😀'.repeat(129)]) {
+  assert.ok(validatePasswordChange({ currentPassword: '', newPassword: 'New password1!' }).currentPassword)
+  for (const password of ['a'.repeat(7), '😀'.repeat(7), ' '.repeat(8), '😀'.repeat(129), '12345678', '1234567!', 'Password!', 'Password1 ']) {
     assert.ok(validatePasswordChange({ currentPassword: ' old ', newPassword: password }).newPassword)
   }
-  for (const password of ['a'.repeat(8), '😀'.repeat(8), 'é'.repeat(128), '  ab😀d  ']) {
+  for (const password of ['abcde1!x', `${'😀'.repeat(6)}я1`, `${'é'.repeat(126)}1!`, '  a1😀d  ', 'пароль١!']) {
     assert.deepEqual(validatePasswordChange({ currentPassword: ' old ', newPassword: password }), {})
   }
   assert.match(passwordChangeErrorPresentation({ code: 'INVALID_CREDENTIALS', status: 401, fieldErrors: {} }).title, /Current password/)
@@ -54,13 +54,13 @@ test('change uses common lock, exact 204, single flight and token-free terminal 
   const { auth, calls, events, stored } = await fixture(async (path, options) => {
     assert.equal(path, PASSWORD_CHANGE_ENDPOINT)
     assert.equal(options.accessToken, 'initial-access')
-    assert.deepEqual(options.body, { currentPassword: ' old ', newPassword: '  New password 😀  ' })
+    assert.deepEqual(options.body, { currentPassword: ' old ', newPassword: '  New password1 😀  ' })
     await new Promise((resolve) => {
       complete = resolve
     })
     options.onResponse({ response: { status: 204 } })
   })
-  const pending = auth.changePassword(' old ', '  New password 😀  ')
+  const pending = auth.changePassword(' old ', '  New password1 😀  ')
   assert.equal(auth.changePassword('ignored', 'ignored'), pending)
   await Promise.resolve()
   assert.deepEqual(events, [AUTH_REFRESH_LOCK])
@@ -77,7 +77,7 @@ test('credential denial never refreshes, retries, clears auth or broadcasts', as
   const { auth, calls, events } = await fixture(async () => {
     throw failure('INVALID_CREDENTIALS')
   })
-  await assert.rejects(auth.changePassword('wrong', 'New password!'), error => error.code === 'INVALID_CREDENTIALS')
+  await assert.rejects(auth.changePassword('wrong', 'New password1!'), error => error.code === 'INVALID_CREDENTIALS')
   assert.deepEqual(calls.map(call => call.path), [PASSWORD_CHANGE_ENDPOINT])
   assert.deepEqual(events, [AUTH_REFRESH_LOCK])
 })
@@ -93,7 +93,7 @@ test('Bearer denial refreshes once inside the lock and retries with latest beare
     assert.equal(options.accessToken, 'replacement-access')
     options.onResponse({ response: { status: 204 } })
   })
-  await auth.changePassword('old', 'New password!')
+  await auth.changePassword('old', 'New password1!')
   assert.deepEqual(calls.map(call => call.path), [PASSWORD_CHANGE_ENDPOINT, REFRESH_ENDPOINT, PASSWORD_CHANGE_ENDPOINT])
   assert.equal(events.filter(event => event === AUTH_REFRESH_LOCK).length, 1)
 })
@@ -103,7 +103,7 @@ test('repeated authentication denial ends local auth without announcing successf
     if (path === REFRESH_ENDPOINT) return { accessToken: 'replacement-access' }
     throw failure('AUTHENTICATION_REQUIRED')
   })
-  await assert.rejects(auth.changePassword('old', 'New password!'))
+  await assert.rejects(auth.changePassword('old', 'New password1!'))
   assert.equal(calls.length, 3)
   assert.deepEqual(events, [AUTH_REFRESH_LOCK, 'anonymous', '/login?signedOut=1'])
 })
@@ -114,7 +114,7 @@ test('credential denial after refresh still preserves the authenticated session'
     if (path === REFRESH_ENDPOINT) return { accessToken: 'replacement-access' }
     throw failure(attempts++ === 0 ? 'AUTHENTICATION_REQUIRED' : 'INVALID_CREDENTIALS')
   })
-  await assert.rejects(auth.changePassword('wrong', 'New password!'), error => error.code === 'INVALID_CREDENTIALS')
+  await assert.rejects(auth.changePassword('wrong', 'New password1!'), error => error.code === 'INVALID_CREDENTIALS')
   assert.deepEqual(events, [AUTH_REFRESH_LOCK])
 })
 
@@ -124,7 +124,7 @@ test('technical failure and unexpected 2xx preserve auth and require explicit us
       options.onResponse({ response: { status } })
       if (status === 500) throw failure('INTERNAL_SERVER_ERROR', status)
     })
-    await assert.rejects(auth.changePassword('old', 'New password!'))
+    await assert.rejects(auth.changePassword('old', 'New password1!'))
     assert.equal(calls.length, 1)
     assert.deepEqual(events, [AUTH_REFRESH_LOCK])
     assert.equal(stored.size, 0)
@@ -133,7 +133,7 @@ test('technical failure and unexpected 2xx preserve auth and require explicit us
 
 test('missing Web Locks cannot send the security command', async () => {
   const { auth, calls, events } = await fixture(async () => undefined, false)
-  await assert.rejects(auth.changePassword('old', 'New password!'), error => error.code === 'WEB_LOCKS_UNAVAILABLE')
+  await assert.rejects(auth.changePassword('old', 'New password1!'), error => error.code === 'WEB_LOCKS_UNAVAILABLE')
   assert.deepEqual(calls, [])
   assert.deepEqual(events, [])
 })

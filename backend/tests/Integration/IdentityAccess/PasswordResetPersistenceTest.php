@@ -87,7 +87,7 @@ final class PasswordResetPersistenceTest extends KernelTestCase
         foreach ([[1, self::USER, '2026-11-01 00:00:00+00', null], [2, self::USER, '2026-10-09 12:00:00+00', null], [3, self::USER, '2026-11-01 00:00:00+00', '2026-10-02 00:00:00+00'], [4, self::FOREIGN, '2026-11-01 00:00:00+00', null]] as [$number, $owner, $expiry, $revoked]) {
             $this->db->insert('user_session', ['id' => '89000000-0000-4000-8001-'.sprintf('%012d', $number), 'user_id' => $owner, 'refresh_token_hash' => 'sha256:'.hash('sha256', (string) $number), 'created_at' => '2026-10-01 00:00:00+00', 'expires_at' => $expiry, 'revoked_at' => $revoked]);
         }
-        $password = '  Exact new password 😀  ';
+        $password = '  Exact new password1 😀  ';
         $this->reset()->handle(new ResetPasswordCommand($this->capability(), $password, '192.0.2.1'));
         $user = $this->db->fetchAssociative('SELECT password_hash, is_active FROM app_user WHERE id = ?', [self::USER]);
         self::assertIsArray($user);
@@ -116,7 +116,7 @@ final class PasswordResetPersistenceTest extends KernelTestCase
         $this->db->insert('user_session', ['id' => '89000000-0000-4000-8001-000000000001', 'user_id' => self::USER, 'refresh_token_hash' => 'sha256:'.hash('sha256', 'rollback'), 'created_at' => '2026-10-01 00:00:00+00', 'expires_at' => '2026-11-01 00:00:00+00']);
         try {
             (new DoctrineTransaction($this->em))->run(function () use ($capability): void {
-                $this->reset()->handle(new ResetPasswordCommand($capability, 'New password!', '192.0.2.1'));
+                $this->reset()->handle(new ResetPasswordCommand($capability, 'New password1!', '192.0.2.1'));
                 $this->em->flush();
                 throw new RuntimeException('Controlled reset rollback.');
             });

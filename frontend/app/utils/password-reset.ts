@@ -1,5 +1,5 @@
 import type { FieldErrorMap } from './api-error'
-import { emailValidationMessages, passwordValidationMessages, type SafeApiError, type ErrorPresentation } from './auth-flow.ts'
+import { PASSWORD_POLICY_HINT, emailValidationMessages, passwordValidationMessages, type SafeApiError, type ErrorPresentation } from './auth-flow.ts'
 
 export const PASSWORD_RESET_REQUEST_ENDPOINT = '/v1/auth/password-reset-requests'
 
@@ -25,7 +25,7 @@ export function passwordResetErrorPresentation(error: SafeApiError): ErrorPresen
     return { title: terminalTitle, message: 'Request a new recovery link to choose your password.', retryable: false }
   }
   if (error.code === 'VALIDATION_ERROR' || error.code === 'PASSWORD_POLICY_VIOLATION') {
-    return { title: 'Check the form', message: 'Use 8–128 characters with at least one non-space character.', retryable: false }
+    return { title: 'Check the form', message: PASSWORD_POLICY_HINT, retryable: false }
   }
   if (error.code === 'RATE_LIMIT_EXCEEDED') {
     return { title: 'Please wait before trying again', message: error.retryAfterSeconds ? `Try again in ${error.retryAfterSeconds} seconds.` : 'Try again a little later.', retryable: false }

@@ -59,7 +59,7 @@ final class PasswordChangeHttpTest extends WebTestCase
     public function testSuccessClearsExactCookiesUsesSubjectAndLeavesJwtValid(): void
     {
         $access = $this->fixture();
-        $password = '  ab😀d  ';
+        $password = '  a1😀d  ';
         $this->post(['currentPassword' => 'Correct password!', 'newPassword' => $password], $access);
         self::assertResponseStatusCodeSame(204);
         self::assertSame('', $this->client->getResponse()->getContent());
@@ -91,11 +91,11 @@ final class PasswordChangeHttpTest extends WebTestCase
         $hash = $this->db->fetchOne('SELECT password_hash FROM app_user');
         $logger = self::getContainer()->get('monolog.handler.api_test');
         $logger->clear();
-        $this->post(['currentPassword' => 'Private wrong password!', 'newPassword' => 'Private new password!'], $access);
+        $this->post(['currentPassword' => 'Private wrong password!', 'newPassword' => 'Private new password1!'], $access);
         $this->failure(401, 'INVALID_CREDENTIALS');
         self::assertFalse($this->client->getResponse()->headers->has('WWW-Authenticate'));
         $public = (string) $this->client->getResponse()->getContent();
-        foreach (['Private wrong password!', 'Private new password!', (string) $hash, $access, 'UPDATE app_user', 'trace'] as $secret) {
+        foreach (['Private wrong password!', 'Private new password1!', (string) $hash, $access, 'UPDATE app_user', 'trace'] as $secret) {
             self::assertFalse(str_contains($public, $secret), 'Public errors must not expose sensitive material.');
         }
         self::assertSame($hash, $this->db->fetchOne('SELECT password_hash FROM app_user'));
@@ -120,11 +120,15 @@ final class PasswordChangeHttpTest extends WebTestCase
     public static function validationCases(): iterable
     {
         yield 'missing' => [[], 'currentPassword', 'REQUIRED'];
-        yield 'empty current' => [['currentPassword' => '', 'newPassword' => 'New password!'], 'currentPassword', 'REQUIRED'];
+        yield 'empty current' => [['currentPassword' => '', 'newPassword' => 'New password1!'], 'currentPassword', 'REQUIRED'];
         yield 'short' => [['currentPassword' => 'old', 'newPassword' => str_repeat('😀', 7)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
         yield 'spaces' => [['currentPassword' => 'old', 'newPassword' => str_repeat(' ', 8)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
         yield 'unicode long' => [['currentPassword' => 'old', 'newPassword' => str_repeat('😀', 129)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
-        yield 'wrong current type' => [['currentPassword' => 123, 'newPassword' => 'New password!'], 'currentPassword', 'INVALID_TYPE'];
+        yield 'digits only' => [['currentPassword' => 'old', 'newPassword' => '12345678'], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'no letter' => [['currentPassword' => 'old', 'newPassword' => '1234567!'], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'no digit' => [['currentPassword' => 'old', 'newPassword' => 'Password!'], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'space is not special' => [['currentPassword' => 'old', 'newPassword' => 'Password1 '], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'wrong current type' => [['currentPassword' => 123, 'newPassword' => 'New password1!'], 'currentPassword', 'INVALID_TYPE'];
         yield 'wrong new type' => [['currentPassword' => 'old', 'newPassword' => []], 'newPassword', 'INVALID_TYPE'];
     }
 
@@ -148,7 +152,7 @@ final class PasswordChangeHttpTest extends WebTestCase
             self::assertTrue(openssl_sign($input, $signature, $this->privateKey, OPENSSL_ALGO_SHA256));
             $access = $input.'.'.rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
         }
-        $this->post(['currentPassword' => 'Correct password!', 'newPassword' => 'New password!'], match ($case) {
+        $this->post(['currentPassword' => 'Correct password!', 'newPassword' => 'New password1!'], match ($case) {
             'missing' => null, 'invalid' => 'invalid', default => $access,
         });
         $this->failure(401, 'AUTHENTICATION_REQUIRED');
@@ -171,7 +175,7 @@ final class PasswordChangeHttpTest extends WebTestCase
         $this->failure(415, 'UNSUPPORTED_MEDIA_TYPE');
         $this->client->request('POST', '/api/v1/account/password-change', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_AUTHORIZATION' => 'Bearer '.$access], content: '{');
         $this->failure(400, 'INVALID_JSON');
-        $this->post(['currentPassword' => 'Correct password!', 'newPassword' => 'New password!', 'userId' => 'foreign'], $access);
+        $this->post(['currentPassword' => 'Correct password!', 'newPassword' => 'New password1!', 'userId' => 'foreign'], $access);
         $this->failure(400, 'INVALID_REQUEST');
     }
 

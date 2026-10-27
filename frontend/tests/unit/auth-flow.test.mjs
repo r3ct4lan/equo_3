@@ -7,6 +7,7 @@ import {
   activationRequestErrorPresentation,
   createRegistrationAttemptKeys,
   generateIdempotencyKey,
+  passwordValidationMessages,
   REGISTER_ENDPOINT,
   registrationErrorPresentation,
   validateActivationRequest,
@@ -60,30 +61,35 @@ test('validates email format for usability while keeping backend authoritative',
   assert.deepEqual(errors.email, ['Enter an email address in a valid format.'])
 })
 
-test('enforces password length in Unicode code points and the non-space rule', () => {
+test('enforces password length in Unicode code points and required character classes', () => {
   assert.deepEqual(validateRegistration({
     name: 'Alex',
     email: 'alex@example.test',
-    password: '😀'.repeat(7)
+    password: `${'😀'.repeat(5)}я1`
   }).password, ['Use at least 8 characters.'])
 
   assert.deepEqual(validateRegistration({
     name: 'Alex',
     email: 'alex@example.test',
-    password: '😀'.repeat(129)
+    password: `${'😀'.repeat(127)}я1`
   }).password, ['Use no more than 128 characters.'])
 
   assert.deepEqual(validateRegistration({
     name: 'Alex',
     email: 'alex@example.test',
     password: ' '.repeat(8)
-  }).password, ['Use at least one non-space character.'])
+  }).password, ['Include at least one letter.', 'Include at least one number.', 'Include at least one special character.'])
 
-  assert.deepEqual(validateRegistration({
-    name: 'Alex',
-    email: 'alex@example.test',
-    password: ` ${'😀'.repeat(6)} `
-  }), {})
+  for (const password of ['abcde1!x', `${'😀'.repeat(6)}я1`, `${'я'.repeat(126)}1!`, '  a1😀d  ', 'пароль١!', 'ABCDEFG1!', 'e\u0301abc1!z']) {
+    assert.deepEqual(passwordValidationMessages(password), [])
+  }
+
+  assert.deepEqual(passwordValidationMessages('12345678'), ['Include at least one letter.', 'Include at least one special character.'])
+  assert.deepEqual(passwordValidationMessages('1234567!'), ['Include at least one letter.'])
+  assert.deepEqual(passwordValidationMessages('Password!'), ['Include at least one number.'])
+  for (const password of ['Password1', 'Password1 ', 'Password1\u00a0', 'Password1\t', 'Password1\u0301']) {
+    assert.deepEqual(passwordValidationMessages(password), ['Include at least one special character.'])
+  }
 })
 
 test('reuses one idempotency key for unchanged retries and rotates after edits', () => {

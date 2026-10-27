@@ -93,6 +93,17 @@ final class LoginHttpTest extends WebTestCase
         self::assertStringNotContainsString($refreshToken, $storedHash);
     }
 
+    public function testExistingNumericPasswordStillSignsIn(): void
+    {
+        $this->insertUser('83000000-0000-4000-8000-000000000002', 'legacy@example.test', true, '12345678');
+
+        $body = $this->login('legacy@example.test', '12345678');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('legacy@example.test', $body['user']['email']);
+        self::assertSame(1, $this->countSessions());
+    }
+
     public function testUnknownWrongAndInactiveCredentialsUseSafeErrorsWithoutCookiesOrSessions(): void
     {
         $this->insertUser('83000000-0000-4000-8000-000000000011', 'active@example.test', true, 'Correct password!');

@@ -7,10 +7,10 @@ import { ApiClientError } from '../../app/utils/api-error.ts'
 test('recovery uses shared unicode password policy and email validation', () => {
   assert.deepEqual(validateRecoveryEmail({ email: ' User@Example.test ' }), {})
   assert.ok(validateRecoveryEmail({ email: 'invalid' }).email)
-  for (const password of ['', 'a'.repeat(7), '😀'.repeat(7), ' '.repeat(8), '😀'.repeat(129)]) {
+  for (const password of ['', 'a'.repeat(7), '😀'.repeat(7), ' '.repeat(8), '😀'.repeat(129), '12345678', '1234567!', 'Password!', 'Password1 ']) {
     assert.ok(validateNewPassword({ newPassword: password }).newPassword)
   }
-  for (const password of ['a'.repeat(8), '😀'.repeat(8), 'é'.repeat(128), '  ab😀d  ']) {
+  for (const password of ['abcde1!x', `${'😀'.repeat(6)}я1`, `${'é'.repeat(126)}1!`, '  a1😀d  ', 'пароль١!']) {
     assert.deepEqual(validateNewPassword({ newPassword: password }), {})
   }
 })
@@ -58,14 +58,14 @@ test('reset is coordinated, credential free locally, single flight, and ends aut
     count++
     assert.equal(path, PASSWORD_RESET_ENDPOINT)
     assert.equal(options.accessToken, undefined)
-    assert.deepEqual(options.body, { token: 'synthetic-capability', newPassword: 'New password!' })
+    assert.deepEqual(options.body, { token: 'synthetic-capability', newPassword: 'New password1!' })
     await new Promise((resolve) => {
       complete = resolve
     })
     options.onResponse({ response: { status: 204 } })
   })
-  const pending = auth.resetPassword('synthetic-capability', 'New password!')
-  assert.equal(auth.resetPassword('synthetic-capability', 'New password!'), pending)
+  const pending = auth.resetPassword('synthetic-capability', 'New password1!')
+  assert.equal(auth.resetPassword('synthetic-capability', 'New password1!'), pending)
   assert.deepEqual(events, [AUTH_REFRESH_LOCK])
   complete()
   await pending
@@ -81,7 +81,7 @@ test('reset failure or unexpected success cannot clear auth or publish a success
       options.onResponse({ response: { status } })
       if (status >= 500) throw new ApiClientError({ kind: 'api', status, code: 'INTERNAL_SERVER_ERROR', message: 'Unavailable' })
     })
-    await assert.rejects(auth.resetPassword('synthetic', 'New password!'))
+    await assert.rejects(auth.resetPassword('synthetic', 'New password1!'))
     assert.deepEqual(events, [AUTH_REFRESH_LOCK])
     assert.equal(values.size, 0)
   }
@@ -89,6 +89,6 @@ test('reset failure or unexpected success cannot clear auth or publish a success
 
 test('public recovery is usable without web locks or a prior session', async () => {
   const { auth, events } = fixture(async (_path, options) => options.onResponse({ response: { status: 204 } }), false)
-  await auth.resetPassword('synthetic', 'New password!')
+  await auth.resetPassword('synthetic', 'New password1!')
   assert.deepEqual(events, ['anonymous', { type: SESSION_ENDED_EVENT }, '/login?signedOut=1&passwordReset=1'])
 })

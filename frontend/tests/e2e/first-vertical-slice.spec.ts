@@ -1207,7 +1207,7 @@ test('recovery resets credentials, revokes independent sessions and ends sibling
     const mail = await requestRecovery(page, request, email, new Set([activation.testMessageId]))
     const url = recoveryUrlFrom(mail)
     const token = new URL(url).searchParams.get('token') ?? ''
-    const newPassword = '  ab😀d  '
+    const newPassword = '  a1😀d  '
     expect((await submitRecovery(page, url, newPassword)).status()).toBe(204)
     await expect(page).toHaveURL(/\/login\?signedOut=1&passwordReset=1$/u)
     await expect(page.getByRole('status')).toContainText('Your password has been saved')
@@ -1247,9 +1247,9 @@ test('new recovery email replaces old reset link and inactive account remains in
   const firstUrl = recoveryUrlFrom(firstMail)
   const secondMail = await requestRecovery(page, request, email, new Set([activation.testMessageId, firstMail.testMessageId]))
   const secondUrl = recoveryUrlFrom(secondMail)
-  expect((await submitRecovery(page, firstUrl, 'New recovery password!')).status()).toBe(410)
+  expect((await submitRecovery(page, firstUrl, 'New recovery password1!')).status()).toBe(410)
   await expect(page.getByRole('alert')).toContainText('Recovery link was replaced')
-  const password = 'New recovery password!'
+  const password = 'New recovery password1!'
   expect((await submitRecovery(page, secondUrl, password)).status()).toBe(204)
   await expect(page).toHaveURL(/\/login\?signedOut=1&passwordReset=1$/u)
   await page.getByLabel('Email', { exact: true }).fill(email)
@@ -1289,7 +1289,7 @@ test('unknown recovery stays neutral and capability is absent from SSR URL and s
   await followSecretUrl(page, `${baseUrl}/password-reset?token=${synthetic}`)
   await expect(page).toHaveURL(/\/password-reset$/u)
   await expectNoPersistentSecrets(page, [synthetic])
-  await page.getByLabel('New password', { exact: true }).fill('New password!')
+  await page.getByLabel('New password', { exact: true }).fill('New password1!')
   await page.getByRole('button', { name: 'Save new password' }).click()
   await expect(page.getByRole('alert')).toContainText('Recovery link is invalid')
   await expect(page.locator('input[name="newPassword"]')).toHaveCount(0)
@@ -1482,7 +1482,7 @@ test('password change revokes both browser sessions, ends sibling tabs and requi
     const currentCookies = await sessionCookies(page.context())
     await page.getByRole('link', { name: 'Change password', exact: true }).click()
     await expect(page).toHaveURL(/\/account\/security$/u)
-    const newPassword = '  xy😀z  '
+    const newPassword = '  x1😀z  '
     await page.getByLabel('Current password', { exact: true }).fill(testPassword)
     await page.getByLabel('New password', { exact: true }).fill(newPassword)
     let commands = 0
@@ -1571,7 +1571,7 @@ test('password change validation and credential or transport errors preserve aut
   await page.getByRole('button', { name: 'Save new password', exact: true }).click()
   await expect(page.getByLabel('New password', { exact: true })).toHaveAttribute('aria-invalid', 'true')
   expect(commands).toBe(0)
-  await page.getByLabel('New password', { exact: true }).fill('A valid new password!')
+  await page.getByLabel('New password', { exact: true }).fill('A valid new password1!')
   const rejected = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/account/password-change')
   await page.getByRole('button', { name: 'Save new password', exact: true }).click()
   expect((await rejected).status()).toBe(401)
@@ -1582,7 +1582,7 @@ test('password change validation and credential or transport errors preserve aut
   expect(refreshes).toBe(0)
   await page.route('**/api/v1/account/password-change', safeRouteAbort, { times: 1 })
   await page.getByLabel('Current password', { exact: true }).fill(testPassword)
-  await page.getByLabel('New password', { exact: true }).fill('A valid new password!')
+  await page.getByLabel('New password', { exact: true }).fill('A valid new password1!')
   await page.getByRole('button', { name: 'Save new password', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Password change could not be confirmed')
   await expect.poll(async () => await page.getByLabel('Current password', { exact: true }).inputValue() === '').toBe(true)
@@ -1591,7 +1591,7 @@ test('password change validation and credential or transport errors preserve aut
   expect(refreshes).toBe(0)
   await page.getByRole('link', { name: 'Back to profile' }).click()
   await expect(page.getByText(email)).toBeVisible()
-  await expectNoPersistentSecrets(page, [wrongPassword, 'A valid new password!'])
+  await expectNoPersistentSecrets(page, [wrongPassword, 'A valid new password1!'])
 })
 
 test('connect invitation joins two users and retries a lost accept response without duplicating the connection', async ({ page, browser, request }) => {

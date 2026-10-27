@@ -111,6 +111,18 @@ describe('registration page', () => {
     wrapper.unmount()
   })
 
+  it.each(['12345678', '1234567!', 'Password!', 'Password1 '])('rejects a password missing required character classes before sending registration', async (password) => {
+    const wrapper = await mountSuspended(RegisterPage, { route: '/register' })
+    await validForm(wrapper)
+    await wrapper.get('input[name="password"]').setValue(password)
+    await wrapper.get('form').trigger('submit')
+
+    expect(apiMock).not.toHaveBeenCalled()
+    expect(wrapper.get('input[name="password"]').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.get('#registration-password-error').text()).toContain('Include at least one')
+    wrapper.unmount()
+  })
+
   it('shows backend field errors without losing correctable input', async () => {
     apiMock.mockRejectedValue(new ApiClientError({
       kind: 'api',

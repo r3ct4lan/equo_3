@@ -22,7 +22,7 @@ use PHPUnit\Framework\TestCase;
 final class ChangePasswordTest extends TestCase
 {
     #[DataProvider('denials')]
-    public function testDenialsNeverHashWriteOrRevoke(string $case, ApplicationFailureCode $code): void
+    public function testDenialsNeverHashWriteOrRevoke(string $case, ApplicationFailureCode $code, string $newPassword): void
     {
         $repository = $this->createMock(PasswordChangeRepositoryPort::class);
         $repository->expects('policy' === $case ? self::never() : self::once())->method('accountForUpdate')->with('user')
@@ -34,20 +34,22 @@ final class ChangePasswordTest extends TestCase
         $hasher->expects('wrong' === $case ? self::once() : self::never())->method('verify')->willReturn(false);
         $hasher->expects(self::never())->method('hash');
         try {
-            $this->handler($repository, $sessions, $hasher)->handle(new ChangePasswordCommand('user', 'old', 'policy' === $case ? 'short' : 'New password!'));
+            $this->handler($repository, $sessions, $hasher)->handle(new ChangePasswordCommand('user', 'old', $newPassword));
             self::fail('The command must be denied.');
         } catch (ApplicationFailure $failure) {
             self::assertSame($code, $failure->failureCode);
         }
     }
 
-    /** @return iterable<string, array{string, ApplicationFailureCode}> */
+    /** @return iterable<string, array{string, ApplicationFailureCode, string}> */
     public static function denials(): iterable
     {
-        yield 'policy' => ['policy', ApplicationFailureCode::PasswordPolicyViolation];
-        yield 'missing' => ['missing', ApplicationFailureCode::AuthenticationRequired];
-        yield 'inactive' => ['inactive', ApplicationFailureCode::AuthenticationRequired];
-        yield 'wrong' => ['wrong', ApplicationFailureCode::InvalidCredentials];
+        foreach (['short', '12345678', '1234567!', 'Password!', 'Password1 '] as $case => $password) {
+            yield 'policy '.$case => ['policy', ApplicationFailureCode::PasswordPolicyViolation, $password];
+        }
+        yield 'missing' => ['missing', ApplicationFailureCode::AuthenticationRequired, 'New password1!'];
+        yield 'inactive' => ['inactive', ApplicationFailureCode::AuthenticationRequired, 'New password1!'];
+        yield 'wrong' => ['wrong', ApplicationFailureCode::InvalidCredentials, 'New password1!'];
     }
 
     public function testCurrentPasswordIsLiteralAndNewUnicodePasswordIsPassedUnchanged(): void
@@ -57,10 +59,10 @@ final class ChangePasswordTest extends TestCase
         $repository->expects(self::once())->method('replacePasswordHash')->with('user', 'new-private-hash');
         $hasher = $this->createMock(PasswordHashingPort::class);
         $hasher->expects(self::once())->method('verify')->with(' old ', 'private-hash')->willReturn(true);
-        $hasher->expects(self::once())->method('hash')->with('  New password 😀  ')->willReturn('new-private-hash');
+        $hasher->expects(self::once())->method('hash')->with('  New password1 😀  ')->willReturn('new-private-hash');
         $sessions = $this->createMock(UserSessionRepositoryPort::class);
         $sessions->expects(self::once())->method('revokeAllUnfinishedForUser')->with('user', new DateTimeImmutable('2026-10-10T12:00:00Z'));
-        $this->handler($repository, $sessions, $hasher)->handle(new ChangePasswordCommand('user', ' old ', '  New password 😀  '));
+        $this->handler($repository, $sessions, $hasher)->handle(new ChangePasswordCommand('user', ' old ', '  New password1 😀  '));
     }
 
     private function handler(PasswordChangeRepositoryPort $repository, UserSessionRepositoryPort $sessions, PasswordHashingPort $hasher): ChangePassword

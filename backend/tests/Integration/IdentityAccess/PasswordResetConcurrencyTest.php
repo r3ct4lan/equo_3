@@ -98,7 +98,7 @@ final class PasswordResetConcurrencyTest extends KernelTestCase
         $hash = $this->db->fetchOne('SELECT password_hash FROM app_user WHERE id = ?', [$owner]);
         self::assertIsString($hash);
         $passwordChanged = 1 === $used;
-        self::assertSame($passwordChanged, $this->container()->get(PasswordHashingPort::class)->verify('New password!', $hash));
+        self::assertSame($passwordChanged, $this->container()->get(PasswordHashingPort::class)->verify('New password1!', $hash));
         self::assertSame(!$passwordChanged, $this->container()->get(PasswordHashingPort::class)->verify('Correct password!', $hash));
     }
 

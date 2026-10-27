@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { PASSWORD_POLICY_HINT } from '~/utils/auth-flow'
+
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Account security · Equo' })
 const currentUser = useCurrentUser()
@@ -21,7 +23,7 @@ const { $auth } = useNuxtApp()
         Account security
       </UiText>
       <UiText variant="lede">
-        Choose a new password using 8–128 characters with at least one non-space character. Saving signs you out on all devices. Sign in again with your new password.
+        {{ PASSWORD_POLICY_HINT }} Saving signs you out on all devices. Sign in again with your new password.
       </UiText>
     </div>
     <PasswordChangeForm v-if="currentUser.state.value.status === 'authenticated'" />

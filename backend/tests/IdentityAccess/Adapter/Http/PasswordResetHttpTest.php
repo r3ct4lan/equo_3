@@ -64,7 +64,7 @@ final class PasswordResetHttpTest extends WebTestCase
         $this->user(false);
         $this->post('/password-reset-requests', ['email' => 'recovery@example.test']);
         $token = $this->capability();
-        $password = '  ab😀d  ';
+        $password = '  a1😀d  ';
         $this->post('/password-reset', ['token' => $token, 'newPassword' => $password]);
         self::assertResponseStatusCodeSame(204);
         self::assertSame('', $this->client->getResponse()->getContent());
@@ -83,7 +83,7 @@ final class PasswordResetHttpTest extends WebTestCase
         }
         self::assertFalse($this->db->fetchOne('SELECT is_active FROM app_user'));
         self::assertTrue(self::getContainer()->get(PasswordHashingPort::class)->verify($password, $this->db->fetchOne('SELECT password_hash FROM app_user')));
-        $this->post('/password-reset', ['token' => $token, 'newPassword' => 'Another password!']);
+        $this->post('/password-reset', ['token' => $token, 'newPassword' => 'Another password1!']);
         $this->failure(410, 'TOKEN_USED');
     }
 
@@ -96,11 +96,11 @@ final class PasswordResetHttpTest extends WebTestCase
         if ('unknown' !== $state && 'malformed' !== $state) {
             $this->db->insert('user_action_token', ['id' => '8a000000-0000-4000-8001-000000000001', 'user_id' => self::USER, 'token_hash' => $issued->tokenHash, 'purpose' => 'purpose' === $state ? 'ACTIVATE_ACCOUNT' : 'RESET_PASSWORD', 'created_at' => $now->modify('-1 hour')->format('Y-m-d H:i:sP'), 'expires_at' => $now->modify('expired' === $state ? '-1 second' : '+1 hour')->format('Y-m-d H:i:sP'), 'used_at' => 'used' === $state ? $now->format('Y-m-d H:i:sP') : null, 'invalidated_at' => 'invalidated' === $state ? $now->format('Y-m-d H:i:sP') : null]);
         }
-        $this->post('/password-reset', ['token' => 'malformed' === $state ? 'invalid' : $issued->publicToken, 'newPassword' => 'New password!']);
+        $this->post('/password-reset', ['token' => 'malformed' === $state ? 'invalid' : $issued->publicToken, 'newPassword' => 'New password1!']);
         $this->failure($status, $code);
         self::assertSame('original-hash', $this->db->fetchOne('SELECT password_hash FROM app_user'));
         self::assertStringNotContainsString($issued->publicToken, (string) $this->client->getResponse()->getContent());
-        self::assertStringNotContainsString('New password!', (string) $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('New password1!', (string) $this->client->getResponse()->getContent());
     }
 
     /** @return iterable<string, array{string, int, string}> */
@@ -133,6 +133,10 @@ final class PasswordResetHttpTest extends WebTestCase
         yield 'short' => [['token' => 'x', 'newPassword' => str_repeat('😀', 7)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
         yield 'space' => [['token' => 'x', 'newPassword' => str_repeat(' ', 8)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
         yield 'unicode too long' => [['token' => 'x', 'newPassword' => str_repeat('😀', 129)], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'digits only' => [['token' => 'x', 'newPassword' => '12345678'], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'no letter' => [['token' => 'x', 'newPassword' => '1234567!'], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'no digit' => [['token' => 'x', 'newPassword' => 'Password!'], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
+        yield 'space is not special' => [['token' => 'x', 'newPassword' => 'Password1 '], 'newPassword', 'PASSWORD_POLICY_VIOLATION'];
         yield 'wrong type' => [['token' => 'x', 'newPassword' => 123], 'newPassword', 'INVALID_TYPE'];
     }
 
@@ -160,20 +164,20 @@ final class PasswordResetHttpTest extends WebTestCase
     public function testApplyQuotaIsSharedWithActivationAndUsesMalformedFingerprint(): void
     {
         for ($i = 0; $i < 5; ++$i) {
-            $this->post(0 === $i % 2 ? '/activate' : '/password-reset', 0 === $i % 2 ? ['token' => 'invalid'] : ['token' => 'invalid', 'newPassword' => 'New password!']);
+            $this->post(0 === $i % 2 ? '/activate' : '/password-reset', 0 === $i % 2 ? ['token' => 'invalid'] : ['token' => 'invalid', 'newPassword' => 'New password1!']);
             self::assertResponseStatusCodeSame(400);
         }
-        $this->post('/password-reset', ['token' => 'invalid', 'newPassword' => 'New password!']);
+        $this->post('/password-reset', ['token' => 'invalid', 'newPassword' => 'New password1!']);
         $this->rateFailure(900);
     }
 
     public function testApplyIpQuotaIsSharedAcrossDistinctTokensAndPurposes(): void
     {
         for ($i = 0; $i < 10; ++$i) {
-            $this->post(0 === $i % 2 ? '/activate' : '/password-reset', 0 === $i % 2 ? ['token' => 'invalid-'.$i] : ['token' => 'invalid-'.$i, 'newPassword' => 'New password!']);
+            $this->post(0 === $i % 2 ? '/activate' : '/password-reset', 0 === $i % 2 ? ['token' => 'invalid-'.$i] : ['token' => 'invalid-'.$i, 'newPassword' => 'New password1!']);
             self::assertResponseStatusCodeSame(400);
         }
-        $this->post('/password-reset', ['token' => 'new-invalid', 'newPassword' => 'New password!']);
+        $this->post('/password-reset', ['token' => 'new-invalid', 'newPassword' => 'New password1!']);
         $this->rateFailure(900);
     }
 
@@ -192,7 +196,7 @@ final class PasswordResetHttpTest extends WebTestCase
         $logger->clear();
         $this->post('/password-reset-requests', ['email' => 'recovery@example.test']);
         $token = $this->capability();
-        $password = 'Private recovery password!';
+        $password = 'Private recovery password1!';
         $this->post('/password-reset', ['token' => $token, 'newPassword' => $password]);
         self::assertResponseStatusCodeSame(204);
         $storedHash = $this->db->fetchOne('SELECT password_hash FROM app_user');

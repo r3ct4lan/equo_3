@@ -66,7 +66,7 @@ final class PasswordChangePersistenceTest extends KernelTestCase
         self::assertNull($rows[2]['revoked_at']);
         self::assertSame('2026-10-02 00:00:00+00', $rows[3]['revoked_at']);
         self::assertNull($rows[4]['revoked_at']);
-        self::assertTrue($this->hasher()->verify('  New password 😀  ', $this->hash()));
+        self::assertTrue($this->hasher()->verify('  New password1 😀  ', $this->hash()));
         self::assertFalse($this->hasher()->verify('Correct password!', $this->hash()));
         self::assertSame(0, (int) $this->db->fetchOne('SELECT COUNT(*) FROM email_delivery_outbox'));
     }
@@ -103,7 +103,7 @@ final class PasswordChangePersistenceTest extends KernelTestCase
         self::assertSame($hash, $this->hash());
         $this->db->executeStatement('UPDATE app_user SET is_active = false WHERE id = ?', [self::USER]);
         try {
-            self::getContainer()->get(ChangePassword::class)->handle(new ChangePasswordCommand(self::USER, 'Already changed!', 'New password!'));
+            self::getContainer()->get(ChangePassword::class)->handle(new ChangePasswordCommand(self::USER, 'Already changed!', 'New password1!'));
             self::fail('Inactive user must fail.');
         } catch (ApplicationFailure $failure) {
             self::assertSame(ApplicationFailureCode::AuthenticationRequired, $failure->failureCode);
@@ -113,14 +113,16 @@ final class PasswordChangePersistenceTest extends KernelTestCase
 
     public function testSamePasswordAndNoSessionsAreAllowed(): void
     {
+        $password = 'Correct password1!';
+        $this->db->executeStatement('UPDATE app_user SET password_hash = ? WHERE id = ?', [$this->hasher()->hash($password), self::USER]);
         $this->db->executeStatement('DELETE FROM user_session WHERE user_id = ?', [self::USER]);
-        self::getContainer()->get(ChangePassword::class)->handle(new ChangePasswordCommand(self::USER, 'Correct password!', 'Correct password!'));
-        self::assertTrue($this->hasher()->verify('Correct password!', $this->hash()));
+        self::getContainer()->get(ChangePassword::class)->handle(new ChangePasswordCommand(self::USER, $password, $password));
+        self::assertTrue($this->hasher()->verify($password, $this->hash()));
     }
 
     private function change(): void
     {
-        self::getContainer()->get(ChangePassword::class)->handle(new ChangePasswordCommand(self::USER, 'Correct password!', '  New password 😀  '));
+        self::getContainer()->get(ChangePassword::class)->handle(new ChangePasswordCommand(self::USER, 'Correct password!', '  New password1 😀  '));
     }
 
     private function hash(): string
