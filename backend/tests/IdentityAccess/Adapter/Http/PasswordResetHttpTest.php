@@ -146,6 +146,33 @@ final class PasswordResetHttpTest extends WebTestCase
         }
     }
 
+    #[DataProvider('tokenProvider')]
+    public function testLinkCheckRejectsInvalidAndTerminalTokensWithoutChangingState(string $state, int $status, string $code): void
+    {
+        $this->user(true);
+        $issued = self::getContainer()->get(ActionTokenCodecPort::class)->issue();
+        $now = self::getContainer()->get(ClockPort::class)->now();
+        if ('unknown' !== $state && 'malformed' !== $state) {
+            $this->db->insert('user_action_token', ['id' => '8a000000-0000-4000-8001-000000000001', 'user_id' => self::USER, 'token_hash' => $issued->tokenHash, 'purpose' => 'purpose' === $state ? 'ACTIVATE_ACCOUNT' : 'RESET_PASSWORD', 'created_at' => $now->modify('-1 hour')->format('Y-m-d H:i:sP'), 'expires_at' => $now->modify('expired' === $state ? '-1 second' : '+1 hour')->format('Y-m-d H:i:sP'), 'used_at' => 'used' === $state ? $now->format('Y-m-d H:i:sP') : null, 'invalidated_at' => 'invalidated' === $state ? $now->format('Y-m-d H:i:sP') : null]);
+        }
+        $before = $this->db->fetchAllAssociative('SELECT id, used_at, invalidated_at FROM user_action_token');
+        $this->post('/password-reset/check', ['token' => 'malformed' === $state ? 'invalid' : $issued->publicToken]);
+        $this->failure($status, $code);
+        self::assertSame('original-hash', $this->db->fetchOne('SELECT password_hash FROM app_user'));
+        self::assertSame($before, $this->db->fetchAllAssociative('SELECT id, used_at, invalidated_at FROM user_action_token'));
+        self::assertStringNotContainsString($issued->publicToken, (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testLinkCheckSharesTokenQuotaWithPasswordReset(): void
+    {
+        for ($i = 0; $i < 5; ++$i) {
+            $this->post('/password-reset/check', ['token' => 'invalid']);
+            $this->failure(400, 'INVALID_TOKEN');
+        }
+        $this->post('/password-reset', ['token' => 'invalid', 'newPassword' => 'New password1!']);
+        $this->rateFailure(900);
+    }
+
     /** @param array<string, mixed> $payload */
     #[DataProvider('validationProvider')]
     public function testPasswordPolicyAndPayloadValidationExposeSafeFieldErrors(array $payload, string $field, string $code): void

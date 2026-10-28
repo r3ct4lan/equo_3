@@ -384,6 +384,31 @@ final class ManualTransferHttpTest extends WebTestCase
         self::assertSame(['id' => $debt['id'], 'isAccessible' => false], $this->body()['debtReference']);
     }
 
+    public function testChangingRelatedShareIsVersionedAndInvalidReplacementDoesNotChangeTransfer(): void
+    {
+        $debt = ['title' => 'Dinner', 'description' => null, 'totalAmount' => 1000, 'payerId' => $this->users[0], 'participantIds' => [$this->users[1]], 'includePayerInSplit' => false];
+        $shares = [];
+        foreach (['Dinner', 'Lunch'] as $title) {
+            $this->request('POST', '/api/v1/debts', 0, [...$debt, 'title' => $title], Uuid::v4()->toRfc4122());
+            self::assertResponseStatusCodeSame(201);
+            $shares[] = $this->body()['participants'][0]['transferId'];
+        }
+        $this->request('POST', '/api/v1/connects/'.$this->connect().'/transfers', 0, [...$this->command(), 'relatedTransferId' => $shares[0]], Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $path = '/api/v1/transfers/'.$this->body()['id'];
+        $this->request('PUT', $path, 0, [...$this->command(), 'relatedTransferId' => $shares[1]], etag: '"1"');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($shares[1], $this->body()['relatedTransferId']);
+        self::assertSame(2, $this->body()['version']);
+        $this->request('PUT', $path, 0, [...$this->command(), 'relatedTransferId' => Uuid::v4()->toRfc4122(), 'amount' => 9999], etag: '"2"');
+        $this->failure(422, 'VALIDATION_ERROR');
+        $this->request('GET', $path, 0);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($shares[1], $this->body()['relatedTransferId']);
+        self::assertSame($this->command()['amount'], $this->body()['amount']);
+        self::assertSame(2, $this->body()['version']);
+    }
+
     public function testWritersRequireStrictIfMatchAndRejectUnknownFields(): void
     {
         $manual = $this->createManual();

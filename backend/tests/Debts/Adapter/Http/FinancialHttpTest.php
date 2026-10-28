@@ -182,6 +182,46 @@ final class FinancialHttpTest extends WebTestCase
         $this->failure(400, 'INVALID_REQUEST');
     }
 
+    public function testDebtPeopleSearchTreatsWildcardsLiterallyAndValidatesParameters(): void
+    {
+        $this->db->update('app_user', ['name' => 'A_1% Person'], ['id' => $this->users[1]]);
+        foreach (['_', '%', 'A_1%'] as $query) {
+            $this->request('GET', '/api/v1/debt-people?q='.rawurlencode($query), 0);
+            self::assertResponseStatusCodeSame(200);
+            self::assertSame([$this->users[1]], array_column($this->body()['items'], 'id'));
+        }
+        $this->request('GET', '/api/v1/debt-people?q='.rawurlencode(str_repeat('я', 100)), 0);
+        self::assertResponseStatusCodeSame(200);
+        $this->request('GET', '/api/v1/debt-people?q='.rawurlencode(str_repeat('я', 101)), 0);
+        $this->failure(400, 'INVALID_REQUEST');
+        foreach (['cursor=%21', 'cursor='.str_repeat('a', 1025), 'q%5B%5D=x', 'debtId=not-a-uuid'] as $query) {
+            $this->request('GET', '/api/v1/debt-people?'.$query, 0);
+            self::assertResponseStatusCodeSame('debtId=not-a-uuid' === $query ? 404 : 400);
+            self::assertSame('debtId=not-a-uuid' === $query ? 'DEBT_NOT_AVAILABLE' : 'INVALID_REQUEST', $this->body()['error']['code']);
+        }
+    }
+
+    public function testDebtPeopleSearchDoesNotRepeatIdenticallyNamedPeopleAcrossPages(): void
+    {
+        for ($n = 0; $n < 7; ++$n) {
+            $id = Uuid::v4()->toRfc4122();
+            $this->db->insert('app_user', ['id' => $id, 'name' => 'Same name', 'email' => $id.'@example.test', 'password_hash' => 'test-only', 'is_active' => 1, 'created_at' => '2026-10-01 00:00:00+00']);
+            $pair = [$this->users[0], $id];
+            sort($pair);
+            $this->db->insert('connect', ['id' => Uuid::v4()->toRfc4122(), 'first_user_id' => $pair[0], 'second_user_id' => $pair[1], 'created_at' => '2026-10-01 00:00:00+00']);
+        }
+        $this->request('GET', '/api/v1/debt-people?q=same%20name', 0);
+        self::assertResponseStatusCodeSame(200);
+        $first = $this->body();
+        self::assertCount(5, $first['items']);
+        $this->request('GET', '/api/v1/debt-people?q=same%20name&cursor='.rawurlencode($first['pagination']['nextCursor']), 0);
+        self::assertResponseStatusCodeSame(200);
+        $second = $this->body();
+        self::assertCount(2, $second['items']);
+        self::assertFalse($second['pagination']['hasMore']);
+        self::assertCount(7, array_unique(array_column([...$first['items'], ...$second['items']], 'id')));
+    }
+
     public function testBalanceSummaryNetsEachPairBeforeSummingAndIncludesInactiveCounterparties(): void
     {
         $this->create(); // Two automatic shares of 334 cents, both owed to viewer 0.
