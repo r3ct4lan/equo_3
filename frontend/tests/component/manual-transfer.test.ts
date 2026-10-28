@@ -163,7 +163,7 @@ describe('manual payment components', () => {
     await trigger.trigger('click')
     await flushPromises()
     expect(wrapper.get('#payment-amount').element.value).toBe('7.00')
-    await wrapper.get('button[aria-label="Close payment form"]').trigger('click')
+    await wrapper.get('button[aria-label="Close"]').trigger('click')
     expect((dialog.element as HTMLDialogElement).open).toBe(false)
     wrapper.unmount()
   })
@@ -188,7 +188,7 @@ describe('manual payment components', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Retry same payment')
     const firstPost = auth.protectedRequest.mock.calls.find(call => call[1]?.method === 'POST')!
-    await wrapper.get('button[aria-label="Close payment form"]').trigger('click')
+    await wrapper.get('button[aria-label="Close"]').trigger('click')
     await trigger.trigger('click')
     await wrapper.get('form').trigger('submit')
     await flushPromises()

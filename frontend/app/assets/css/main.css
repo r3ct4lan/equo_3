@@ -573,6 +573,13 @@ nav {
   padding: var(--space-4) var(--space-4) 0;
 }
 
+.ui-dialog__close {
+  width: var(--compact-action-min-height);
+  min-width: var(--compact-action-min-height);
+  height: var(--compact-action-min-height);
+  padding: 0;
+}
+
 .ui-dialog .panel {
   max-width: none;
   padding-top: 0;

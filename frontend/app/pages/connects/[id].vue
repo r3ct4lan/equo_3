@@ -118,11 +118,11 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
           <template #actions>
             <UiButton
               variant="secondary"
-              aria-label="Close payment form"
+              icon="close"
+              class="ui-dialog__close"
+              aria-label="Close"
               @click="closePayment()"
-            >
-              Close
-            </UiButton>
+            />
           </template>
           <CreateManualTransferForm
             :connect="connect"

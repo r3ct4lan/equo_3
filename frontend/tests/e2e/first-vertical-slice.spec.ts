@@ -427,6 +427,25 @@ test('single card actions stay bounded and readable', async ({ page, request }) 
   }
 })
 
+test('modal close icon supports touch and restores focus', async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 }, ignoreHTTPSErrors: true })
+  try {
+    const page = await context.newPage()
+    await page.goto('/ui-kit')
+    await waitForNuxtHydration(page)
+    const trigger = page.getByRole('button', { name: 'Open example dialog', exact: true })
+    await trigger.tap()
+    const close = page.getByRole('button', { name: 'Close', exact: true })
+    await expect(close).toBeVisible()
+    await close.tap()
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(trigger).toBeFocused()
+  }
+  finally {
+    await context.close()
+  }
+})
+
 test('new expense icon is decorative across button states', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 720 })
   await page.goto('/ui-kit')
@@ -2012,6 +2031,24 @@ test('manual payment survives a lost response and refreshes both histories after
     await expect(page.getByText('They owe you.', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
+    const closePayment = page.getByRole('button', { name: 'Close', exact: true })
+    await expect(closePayment.locator('svg[aria-hidden="true"]')).toHaveCount(1)
+    const closeBounds = await closePayment.boundingBox()
+    expect(closeBounds!.width).toBeGreaterThanOrEqual(44)
+    expect(closeBounds!.height).toBeGreaterThanOrEqual(44)
+    await closePayment.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(page.getByRole('button', { name: 'Make a payment', exact: true })).toBeFocused()
+    await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(page.getByRole('button', { name: 'Make a payment', exact: true })).toBeFocused()
+    await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
+    await closePayment.click()
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(page.getByRole('button', { name: 'Make a payment', exact: true })).toBeFocused()
+    await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
     for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 400 }]) {
       await page.setViewportSize(viewport)
       const bounds = await page.getByRole('dialog').boundingBox()

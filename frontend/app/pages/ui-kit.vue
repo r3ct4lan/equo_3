@@ -585,10 +585,11 @@ async function closeDialog(): Promise<void> {
             <template #actions>
               <UiButton
                 variant="secondary"
+                icon="close"
+                class="ui-dialog__close"
+                aria-label="Close"
                 @click="closeDialog"
-              >
-                Close
-              </UiButton>
+              />
             </template>
             <UiCard class="stack">
               <UiText
