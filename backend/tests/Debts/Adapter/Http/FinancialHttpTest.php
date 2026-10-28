@@ -180,13 +180,13 @@ final class FinancialHttpTest extends WebTestCase
         rsort($ids);
         $this->db->executeStatement('UPDATE debt SET is_deleted=true WHERE id=?', [$ids[0]]);
         foreach ([0, 1] as $viewer) {
-            $this->request('GET', '/api/v1/debts?limit=5', $viewer);
+            $this->request('GET', '/api/v1/debts?limit=5&status=active', $viewer);
             self::assertResponseStatusCodeSame(200);
             self::assertSame(array_slice($ids, 1, 5), array_column($this->body()['items'], 'id'));
         }
         $this->db->executeStatement('UPDATE debt_participant SET is_deleted=true WHERE user_id=?', [$this->users[1]]);
         foreach ([1, 3] as $viewer) {
-            $this->request('GET', '/api/v1/debts?limit=5', $viewer);
+            $this->request('GET', '/api/v1/debts?limit=5&status=active', $viewer);
             self::assertSame([], $this->body()['items']);
         }
     }
@@ -487,7 +487,8 @@ final class FinancialHttpTest extends WebTestCase
         $this->db->executeStatement('UPDATE debt SET is_deleted=true,version=2 WHERE id=?', [$debt['id']]);
         $this->db->executeStatement('UPDATE app_user SET is_active=false WHERE id=?', [$this->users[0]]);
         $this->request('GET', '/api/v1/debts', 2);
-        self::assertSame([], $this->body()['items']);
+        self::assertSame($debt['id'], $this->body()['items'][0]['id']);
+        self::assertTrue($this->body()['items'][0]['isDeleted']);
         $this->request('GET', '/api/v1/debts/'.$debt['id'], 2);
         self::assertResponseStatusCodeSame(200);
         $body = $this->body();

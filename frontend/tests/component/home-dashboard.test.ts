@@ -91,7 +91,7 @@ describe('home dashboard', () => {
     expect(wrapper.text()).toContain('€10.01')
     expect(wrapper.text()).not.toMatch(/Sign in|Create an account|API connection/)
     expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/balance-summary')
-    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/debts', { query: { limit: 5 } })
+    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/debts', { query: { limit: 5, status: 'active' } })
     expect(auth.protectedRequest).toHaveBeenCalledTimes(2)
     expect(api).not.toHaveBeenCalled()
     wrapper.unmount()
