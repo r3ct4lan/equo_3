@@ -104,6 +104,21 @@ final class PasswordResetHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(204);
     }
 
+    public function testLinkCheckReportsUsedImmediatelyAfterSuccessfulReset(): void
+    {
+        $this->user(true);
+        $this->post('/password-reset-requests', ['email' => 'recovery@example.test']);
+        $token = $this->capability();
+        $this->post('/password-reset/check', ['token' => $token]);
+        self::assertResponseStatusCodeSame(204);
+        self::assertTrue($this->client->getResponse()->headers->hasCacheControlDirective('no-store'));
+        $this->post('/password-reset', ['token' => $token, 'newPassword' => 'New password1!']);
+        self::assertResponseStatusCodeSame(204);
+        $this->post('/password-reset/check', ['token' => $token]);
+        $this->failure(410, 'TOKEN_USED');
+        self::assertStringNotContainsString($token, (string) $this->client->getResponse()->getContent());
+    }
+
     #[DataProvider('tokenProvider')]
     public function testTokenLifecycleAndPurposeAreRecheckedWithoutWrites(string $state, int $status, string $code): void
     {

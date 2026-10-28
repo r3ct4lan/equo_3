@@ -71,6 +71,25 @@ final readonly class ResetPassword
         });
     }
 
+    public function check(string $publicToken, string $ipAddress): void
+    {
+        $digest = $this->tokenCodec->digest($publicToken);
+        $retryAfter = $this->limits->passwordResetRetryAfter($ipAddress, $digest ?? 'invalid:'.hash('sha256', $publicToken));
+        if (null !== $retryAfter) {
+            throw new ApplicationFailure(ApplicationFailureCode::RateLimitExceeded, $retryAfter);
+        }
+        if (null === $digest) {
+            throw new ApplicationFailure(ApplicationFailureCode::InvalidToken);
+        }
+        $this->transaction->run(function () use ($digest): void {
+            $userId = $this->repository->userIdForTokenHash($digest);
+            if (null === $userId || null === $this->identities->accountForUpdate($userId)) {
+                throw new ApplicationFailure(ApplicationFailureCode::InvalidToken);
+            }
+            $this->assertUsable($this->repository->tokenForUpdate($digest), $userId, $this->clock->now());
+        });
+    }
+
     private function assertUsable(?StoredPasswordResetToken $token, string $userId, DateTimeImmutable $now): void
     {
         $failure = match (true) {

@@ -117,6 +117,30 @@ describe('password recovery', () => {
     wrapper.unmount()
   })
 
+  it('does not show a password form when an opened recovery link was already used', async () => {
+    apiMock.mockRejectedValueOnce(new ApiClientError({ kind: 'api', status: 410, code: 'TOKEN_USED', message: 'Already used.' }))
+    const wrapper = await mountSuspended(ResetPassword, { route: '/password-reset?token=v1.synthetic-used-capability' })
+    await flushPromises()
+    await vi.waitFor(() => expect(wrapper.text()).toContain('Recovery link was already used'))
+    expect(wrapper.find('form').exists()).toBe(false)
+    expect(wrapper.find('a[href="/forgot-password"]').exists()).toBe(true)
+    expect(wrapper.html()).not.toContain('synthetic-used-capability')
+    wrapper.unmount()
+  })
+
+  it('allows retrying a temporary link-check failure without exposing the token', async () => {
+    apiMock.mockRejectedValueOnce(new ApiClientError({ kind: 'network', code: 'NETWORK_ERROR', message: 'Unavailable' })).mockResolvedValueOnce(undefined)
+    const wrapper = await mountSuspended(ResetPassword, { route: '/password-reset?token=v1.synthetic-check-capability' })
+    await flushPromises()
+    await vi.waitFor(() => expect(wrapper.text()).toContain('Recovery could not be confirmed'))
+    expect(wrapper.find('form').exists()).toBe(false)
+    await wrapper.findAll('button').find(button => button.text() === 'Try again')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('form').exists()).toBe(true)
+    expect(wrapper.html()).not.toContain('synthetic-check-capability')
+    wrapper.unmount()
+  })
+
   it('does not expose a form or call auth without a capability', async () => {
     const wrapper = await mountSuspended(ResetPassword, { route: '/password-reset' })
     await flushPromises()

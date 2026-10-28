@@ -270,8 +270,11 @@ function emailChangeUrlFrom(message: MailpitMessage): string {
 }
 
 async function submitRecovery(page: Page, url: string, password: string): Promise<APIResponse> {
+  const check = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/password-reset/check')
   await followSecretUrl(page, url)
   await expect(page).toHaveURL(/\/password-reset$/u)
+  const result = await check
+  if (result.status() !== 204) return result
   await page.getByLabel('New password', { exact: true }).fill(password)
   const response = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/password-reset')
   await page.getByRole('button', { name: 'Save new password' }).click()

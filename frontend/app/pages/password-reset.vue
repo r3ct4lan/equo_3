@@ -2,15 +2,17 @@
 import type { FocusTarget } from '~/types/ui'
 import { PASSWORD_POLICY_HINT } from '~/utils/auth-flow'
 import { isTerminalRecoveryError, passwordResetErrorPresentation, validateNewPassword } from '~/utils/password-reset'
+import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 
 useHead({ title: 'Choose a new password · Equo', meta: [{ name: 'referrer', content: 'no-referrer' }] })
 const route = useRoute()
 const router = useRouter()
-const { $auth } = useNuxtApp()
+const { $auth, $api } = useNuxtApp()
 const { values, fieldErrors, formError, isSubmitting, errorsFor, clearErrors, submit } = useApiForm({ newPassword: '' })
-const state = ref<'preparing' | 'ready' | 'missing' | 'terminal' | 'success'>('preparing')
+const state = ref<'preparing' | 'ready' | 'missing' | 'terminal' | 'check-error' | 'success'>('preparing')
+const checkError = ref<ApiClientError | null>(null)
 const resultPanel = useTemplateRef<FocusTarget>('resultPanel')
-const presentation = computed(() => formError.value ? passwordResetErrorPresentation(formError.value) : null)
+const presentation = computed(() => formError.value || checkError.value ? passwordResetErrorPresentation((formError.value ?? checkError.value)!) : null)
 const summary = computed(() => presentation.value?.message ?? (Object.keys(fieldErrors.value).length ? 'Correct the highlighted field.' : null))
 let capability: string | null = null
 let disposed = false
@@ -19,13 +21,34 @@ onMounted(async () => {
   const raw = route.query.token
   capability = typeof raw === 'string' && raw !== '' ? raw : null
   await router.replace({ path: '/password-reset' })
-  if (!disposed) state.value = capability ? 'ready' : 'missing'
+  if (disposed) return
+  if (!capability) state.value = 'missing'
+  else await checkLink()
 })
 onBeforeUnmount(() => {
   disposed = true
   capability = null
   values.newPassword = ''
 })
+
+async function checkLink(): Promise<void> {
+  if (!capability || disposed) return
+  state.value = 'preparing'
+  checkError.value = null
+  try {
+    await $api('/v1/auth/password-reset/check', { method: 'POST', body: { token: capability } })
+    if (!disposed) state.value = 'ready'
+  }
+  catch (failure) {
+    if (disposed) return
+    checkError.value = toApiClientError(failure)
+    if (isTerminalRecoveryError(checkError.value.code)) {
+      capability = null
+      state.value = 'terminal'
+    }
+    else state.value = 'check-error'
+  }
+}
 
 async function resetPassword(): Promise<void> {
   if (!capability || disposed) return
@@ -94,6 +117,13 @@ async function resetPassword(): Promise<void> {
           :message="presentation?.message ?? 'Request a new recovery link.'"
         />
       </div>
+      <AppErrorState
+        v-else-if="state === 'check-error'"
+        :title="presentation?.title ?? 'Recovery link could not be checked'"
+        :message="presentation?.message ?? 'Try checking the link again.'"
+        retry-label="Try again"
+        @retry="checkLink"
+      />
       <div
         v-else-if="state === 'success'"
         ref="resultPanel"
