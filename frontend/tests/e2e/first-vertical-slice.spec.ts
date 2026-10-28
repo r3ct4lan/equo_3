@@ -492,6 +492,25 @@ test('theme follows system initially and persists a keyboard choice before first
   }
 })
 
+test('mobile navigation opens with keyboard focus and closes on escape and selection', async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const email = await createActiveUser(request, uniqueEmail('mobile-navigation'))
+  await login(page, email)
+  const menu = page.getByRole('button', { name: 'Open navigation menu' })
+  const nav = page.getByRole('navigation', { name: 'Primary navigation', includeHidden: true })
+  await expect(nav).toBeHidden()
+  await menu.click()
+  await expect(nav).toBeVisible()
+  await expect(nav.getByRole('link', { name: 'Connections' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(nav).toBeHidden()
+  await expect(menu).toBeFocused()
+  await menu.click()
+  await nav.getByRole('link', { name: 'Expenses' }).click()
+  await expect(page).toHaveURL(/\/debts$/u)
+  await expect(nav).toBeHidden()
+})
+
 test('skip link focuses main without a container outline and controls keep focus indicators', async ({ page }) => {
   await page.goto('/login')
   await waitForNuxtHydration(page)
