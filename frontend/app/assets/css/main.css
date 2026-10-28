@@ -15,6 +15,10 @@
   box-sizing: border-box;
 }
 
+* {
+  scrollbar-color: var(--color-border) transparent;
+}
+
 html {
   min-width: min(100%, var(--viewport-min));
   background: var(--color-background);
