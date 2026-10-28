@@ -6,10 +6,12 @@ export function validatePasswordChange(values: Readonly<{ currentPassword: strin
   if (values.currentPassword === '') errors.currentPassword = ['Enter your current password.']
   const messages = passwordValidationMessages(values.newPassword)
   if (messages.length) errors.newPassword = messages
+  else if (values.newPassword === values.currentPassword) errors.newPassword = ['Choose a different password.']
   return errors
 }
 
 export function passwordChangeErrorPresentation(error: SafeApiError): ErrorPresentation {
+  if (error.code === 'PASSWORD_UNCHANGED') return { title: 'Choose a different password', message: 'The new password must differ from the current password.', retryable: false }
   if (error.code === 'INVALID_CREDENTIALS') {
     return { title: 'Current password is incorrect', message: 'Enter your current password and try again.', retryable: false }
   }

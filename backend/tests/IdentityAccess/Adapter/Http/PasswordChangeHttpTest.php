@@ -103,6 +103,19 @@ final class PasswordChangeHttpTest extends WebTestCase
         self::assertSame([], $logger->getRecords());
     }
 
+    public function testSamePasswordIsRejectedWithoutChangingCredentialsOrSessions(): void
+    {
+        $access = $this->fixture();
+        $hash = self::getContainer()->get(PasswordHashingPort::class)->hash('Same password1!');
+        $this->db->update('app_user', ['password_hash' => $hash], ['id' => self::USER]);
+        $before = $this->db->fetchAllAssociative('SELECT * FROM user_session ORDER BY id');
+        $this->post(['currentPassword' => 'Same password1!', 'newPassword' => 'Same password1!'], $access);
+        $this->failure(422, 'PASSWORD_UNCHANGED');
+        self::assertSame($hash, $this->db->fetchOne('SELECT password_hash FROM app_user WHERE id = ?', [self::USER]));
+        self::assertSame($before, $this->db->fetchAllAssociative('SELECT * FROM user_session ORDER BY id'));
+        self::assertStringNotContainsString('Same password1!', (string) $this->client->getResponse()->getContent());
+    }
+
     /** @param array<string, mixed> $payload */
     #[DataProvider('validationCases')]
     public function testPayloadValidationDoesNotWriteOrClearCookies(array $payload, string $field, string $code): void

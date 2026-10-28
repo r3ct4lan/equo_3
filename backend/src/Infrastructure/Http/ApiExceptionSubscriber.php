@@ -92,6 +92,7 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
                 ApplicationFailureCode::EmailAlreadyInUse => $this->definition(Response::HTTP_CONFLICT, 'EMAIL_ALREADY_IN_USE', 'Email is already in use.'),
                 ApplicationFailureCode::IdempotencyKeyReused => $this->definition(Response::HTTP_CONFLICT, 'IDEMPOTENCY_KEY_REUSED', 'Idempotency-Key was already used for another request.'),
                 ApplicationFailureCode::PasswordPolicyViolation => $this->definition(Response::HTTP_UNPROCESSABLE_ENTITY, 'PASSWORD_POLICY_VIOLATION', 'Password does not satisfy the required policy.'),
+                ApplicationFailureCode::PasswordUnchanged => $this->definition(Response::HTTP_UNPROCESSABLE_ENTITY, 'PASSWORD_UNCHANGED', 'Choose a different password.'),
                 ApplicationFailureCode::InvalidToken => $this->definition(Response::HTTP_BAD_REQUEST, 'INVALID_TOKEN', 'Token is invalid.'),
                 ApplicationFailureCode::TokenExpired => $this->definition(Response::HTTP_GONE, 'TOKEN_EXPIRED', 'Token has expired.'),
                 ApplicationFailureCode::TokenUsed => $this->definition(Response::HTTP_GONE, 'TOKEN_USED', 'Token has already been used.'),
