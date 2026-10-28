@@ -13,6 +13,7 @@ use App\IdentityAccess\Application\PasswordChange\ChangePasswordCommand;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -111,13 +112,41 @@ final class PasswordChangePersistenceTest extends KernelTestCase
         self::assertSame(1, (int) $this->db->fetchOne('SELECT COUNT(*) FROM user_session WHERE revoked_at IS NOT NULL'));
     }
 
-    public function testSamePasswordAndNoSessionsAreAllowed(): void
+    #[DataProvider('sessionPresence')]
+    public function testSamePasswordIsRejectedWithoutChangingCredentialsOrSessions(bool $withSessions): void
     {
         $password = 'Correct password1!';
         $this->db->executeStatement('UPDATE app_user SET password_hash = ? WHERE id = ?', [$this->hasher()->hash($password), self::USER]);
+        if (!$withSessions) {
+            $this->db->executeStatement('DELETE FROM user_session WHERE user_id = ?', [self::USER]);
+        }
+        $hash = $this->hash();
+        $sessions = $this->db->fetchAllAssociative('SELECT id, revoked_at, expires_at FROM user_session ORDER BY id');
+        try {
+            self::getContainer()->get(ChangePassword::class)->handle(new ChangePasswordCommand(self::USER, $password, $password));
+            self::fail('An unchanged password must be rejected.');
+        } catch (ApplicationFailure $failure) {
+            self::assertSame(ApplicationFailureCode::PasswordUnchanged, $failure->failureCode);
+        }
+        self::assertTrue(hash_equals($hash, $this->hash()));
+        self::assertSame($sessions, $this->db->fetchAllAssociative('SELECT id, revoked_at, expires_at FROM user_session ORDER BY id'));
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function sessionPresence(): iterable
+    {
+        yield 'with owner sessions' => [true];
+        yield 'without owner sessions' => [false];
+    }
+
+    public function testDifferentPasswordWithoutSessionsIsAllowed(): void
+    {
         $this->db->executeStatement('DELETE FROM user_session WHERE user_id = ?', [self::USER]);
-        self::getContainer()->get(ChangePassword::class)->handle(new ChangePasswordCommand(self::USER, $password, $password));
-        self::assertTrue($this->hasher()->verify($password, $this->hash()));
+        $this->change();
+        self::assertTrue($this->hasher()->verify('  New password1 😀  ', $this->hash()));
+        self::assertFalse($this->hasher()->verify('Correct password!', $this->hash()));
+        self::assertSame(0, (int) $this->db->fetchOne('SELECT COUNT(*) FROM user_session WHERE user_id = ?', [self::USER]));
+        self::assertSame(1, (int) $this->db->fetchOne('SELECT COUNT(*) FROM user_session WHERE user_id = ?', [self::FOREIGN]));
     }
 
     private function change(): void
