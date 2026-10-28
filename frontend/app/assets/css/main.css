@@ -41,12 +41,14 @@ a:where(:not([data-slot="button"])) {
   color: var(--color-link);
 }
 
-:focus-visible:not(#main-content, [data-slot="button"], [data-slot="input"], [data-slot="textarea"], [data-slot="native-select"]) {
+:focus-visible:not(#main-content, div[tabindex="-1"], section[tabindex="-1"], [data-slot="button"], [data-slot="input"], [data-slot="textarea"], [data-slot="native-select"]) {
   outline: var(--focus-width) solid var(--color-focus);
   outline-offset: var(--focus-width);
 }
 
-#main-content:focus {
+#main-content:focus,
+div[tabindex="-1"]:focus,
+section[tabindex="-1"]:focus {
   outline: none;
 }
 

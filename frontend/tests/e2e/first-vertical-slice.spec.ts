@@ -622,6 +622,9 @@ test('E2E-01 completes register, activation sign-in, reload and authenticated pr
   await followSecretUrl(page, activationUrl)
   await expect(page).toHaveURL(/\/activate$/u)
   await expect(page.getByRole('button', { name: 'Activate and sign in' })).toBeVisible()
+  const readyPanel = page.getByRole('heading', { name: 'Ready to activate' }).locator('..')
+  await expect(readyPanel).toBeFocused()
+  expect(await readyPanel.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('none')
   expect(requests).not.toContain('POST /api/v1/auth/activate')
   expect(await activationAcceptanceState(request, email)).toEqual({
     exists: true,
