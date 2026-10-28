@@ -48,6 +48,7 @@ describe('manual payment components', () => {
     expect(wrapper.text()).toContain('Expense unavailable')
     expect(wrapper.text()).not.toContain('hidden')
     await wrapper.get('#related-share').setValue('share')
+    expect(wrapper.get('#payment-amount').element).toHaveProperty('value', '5.01')
     await fill(wrapper)
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -236,6 +237,26 @@ describe('manual payment correction components', () => {
     auth.protectedRequest.mockReset().mockResolvedValue(transfer)
     auth.bootstrap.mockReset().mockResolvedValue(undefined)
     signedIn()
+  })
+
+  it('prefills the selected share when editing and leaves the amount editable', async () => {
+    const share = { ...transfer, id: 'share', type: 'DEBT_SHARE', amount: 501 }
+    auth.protectedRequest.mockImplementation(async (_path, options) => options?.method === 'PUT'
+      ? transfer
+      : { items: [share], pagination: { nextCursor: null, hasMore: false } })
+    const wrapper = await mountSuspended(ManageManualTransfer, { props: { transfer, etag: '"7"' } })
+    signedIn()
+    await flushPromises()
+    await wrapper.get('button').trigger('click')
+    await wrapper.findAll('button').find(button => button.text().includes('Link an expense share'))!.trigger('click')
+    await flushPromises()
+    await wrapper.get('#related-share').setValue('share')
+    expect(wrapper.get('#edit-payment-amount').element).toHaveProperty('value', '5.01')
+    await wrapper.get('#edit-payment-amount').setValue('3.00')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/manual', expect.objectContaining({ body: expect.objectContaining({ amount: 300, relatedTransferId: 'share' }) }))
+    wrapper.unmount()
   })
 
   it('can clear an existing historical share link while editing', async () => {

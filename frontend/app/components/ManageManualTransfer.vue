@@ -212,6 +212,7 @@ onBeforeUnmount(() => ++generation)
             v-else
             v-model="relatedShare"
             :connect-id="transfer.connectId"
+            @selected="amount = euroInput($event.amount)"
           />
           <UiField>
             <label for="edit-payment-amount">Payment amount in EUR</label>

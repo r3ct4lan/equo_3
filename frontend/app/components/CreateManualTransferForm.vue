@@ -3,6 +3,7 @@ import type { ConnectView } from '~/types/connects'
 import type { CreateManualTransferBody, TransferView } from '~/types/finance'
 import { manualTransferCommand, manualTransferPreview } from '~/utils/manual-transfer'
 import { formatEuro } from '~/utils/money'
+import { euroInput } from '~/utils/debt-update'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 
 const props = defineProps<{ connect: ConnectView }>()
@@ -130,6 +131,7 @@ onBeforeUnmount(clear)
         v-else
         v-model="relatedShare"
         :connect-id="connect.id"
+        @selected="amount = euroInput($event.amount)"
       />
       <UiField>
         <label for="payment-amount">Payment amount in EUR</label>
