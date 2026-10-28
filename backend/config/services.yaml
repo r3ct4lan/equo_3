@@ -54,6 +54,9 @@ services:
 
     App\IdentityAccess\Domain\User\PasswordPolicy: ~
 
+    App\Debts\Application\Port\DebtPeopleSearchPort:
+        alias: App\Debts\Adapter\Persistence\Doctrine\DoctrineDebtPeopleSearch
+
     App\IdentityAccess\Application\Port\ClockPort:
         alias: App\IdentityAccess\Adapter\System\SystemClock
 

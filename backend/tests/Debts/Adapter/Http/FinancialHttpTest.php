@@ -125,6 +125,63 @@ final class FinancialHttpTest extends WebTestCase
         $this->failure(401, 'AUTHENTICATION_REQUIRED');
     }
 
+    public function testDebtPeopleSearchRespectsConnectionsAndCoParticipantPrivacy(): void
+    {
+        $debt = $this->create();
+        $this->request('GET', '/api/v1/debt-people?q='.rawurlencode($this->users[2].'@example.test'), 0);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($this->users[2].'@example.test', $this->body()['items'][0]['email']);
+        $this->request('GET', '/api/v1/debt-people?q='.rawurlencode($this->users[2].'@example.test'), 1);
+        self::assertSame([], $this->body()['items']);
+        $this->request('GET', '/api/v1/debt-people?q=Financial%20person%202', 1);
+        self::assertCount(1, $this->body()['items']);
+        self::assertSame($this->users[2], $this->body()['items'][0]['id']);
+        self::assertNull($this->body()['items'][0]['email']);
+        $this->request('GET', '/api/v1/debt-people?q=Financial%20person%203', 0);
+        self::assertSame([], $this->body()['items']);
+        $this->request('GET', '/api/v1/debt-people?q=%25', 0);
+        self::assertSame([], $this->body()['items']);
+        $this->db->update('app_user', ['is_active' => 0], ['id' => $this->users[2]]);
+        $this->request('GET', '/api/v1/debt-people?q=Financial%20person%202', 0);
+        self::assertSame([], $this->body()['items']);
+        $this->request('GET', '/api/v1/debt-people?q=Financial%20person%202&debtId='.$debt['id'], 0);
+        self::assertResponseStatusCodeSame(200);
+        self::assertFalse($this->body()['items'][0]['isActive']);
+        $this->request('GET', '/api/v1/debt-people?debtId='.$debt['id'], 1);
+        $this->failure(404, 'DEBT_NOT_AVAILABLE');
+        $this->request('GET', '/api/v1/debt-people?viewerId='.$this->users[1], 0);
+        $this->failure(400, 'INVALID_REQUEST');
+        $this->request('GET', '/api/v1/debt-people', null);
+        $this->failure(401, 'AUTHENTICATION_REQUIRED');
+    }
+
+    public function testDebtPeopleSearchPagesAndBindsCursorToQueryAndViewer(): void
+    {
+        for ($n = 0; $n < 8; ++$n) {
+            $id = Uuid::v4()->toRfc4122();
+            $this->db->insert('app_user', ['id' => $id, 'name' => 'Page person '.$n, 'email' => $id.'@example.test', 'password_hash' => 'test-only', 'is_active' => 1, 'created_at' => '2026-10-01 00:00:00+00']);
+            $pair = [$this->users[0], $id];
+            sort($pair);
+            $this->db->insert('connect', ['id' => Uuid::v4()->toRfc4122(), 'first_user_id' => $pair[0], 'second_user_id' => $pair[1], 'created_at' => '2026-10-01 00:00:00+00']);
+        }
+        $this->request('GET', '/api/v1/debt-people?q=Page', 0);
+        self::assertResponseStatusCodeSame(200);
+        $first = $this->body();
+        self::assertCount(5, $first['items']);
+        self::assertTrue($first['pagination']['hasMore']);
+        $cursor = $first['pagination']['nextCursor'];
+        $this->request('GET', '/api/v1/debt-people?q=Page&cursor='.rawurlencode($cursor), 0);
+        self::assertResponseStatusCodeSame(200);
+        $second = $this->body();
+        self::assertCount(3, $second['items']);
+        self::assertFalse($second['pagination']['hasMore']);
+        self::assertCount(8, array_unique(array_column([...$first['items'], ...$second['items']], 'id')));
+        $this->request('GET', '/api/v1/debt-people?q=other&cursor='.rawurlencode($cursor), 0);
+        $this->failure(400, 'INVALID_REQUEST');
+        $this->request('GET', '/api/v1/debt-people?q=Page&cursor='.rawurlencode($cursor), 1);
+        $this->failure(400, 'INVALID_REQUEST');
+    }
+
     public function testBalanceSummaryNetsEachPairBeforeSummingAndIncludesInactiveCounterparties(): void
     {
         $this->create(); // Two automatic shares of 334 cents, both owed to viewer 0.
