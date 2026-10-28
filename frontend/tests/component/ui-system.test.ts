@@ -4,9 +4,19 @@ import UiButton from '../../app/components/UiButton.vue'
 import FormSubmitButton from '../../app/components/FormSubmitButton.vue'
 import FormErrorSummary from '../../app/components/FormErrorSummary.vue'
 import AppErrorState from '../../app/components/AppErrorState.vue'
+import UiToast from '../../app/components/UiToast.vue'
 import UiKit from '../../app/pages/ui-kit.vue'
 
 describe('shared UI interactions', () => {
+  it('dismisses a toast through its labelled decorative icon', async () => {
+    const wrapper = await mountSuspended(UiToast, { slots: { default: 'Notification text' } })
+    const button = wrapper.get('button[aria-label="Dismiss notification"]')
+    expect(button.get('svg').attributes('aria-hidden')).toBe('true')
+    await button.trigger('click')
+    expect(wrapper.emitted('dismiss')).toHaveLength(1)
+    expect(wrapper.text()).toContain('Notification text')
+    wrapper.unmount()
+  })
   it('keeps safe request references inside error notices and rejects unsafe values', async () => {
     for (const component of [FormErrorSummary, AppErrorState]) {
       const wrapper = await mountSuspended(component, { props: { message: 'Try again.', requestId: 'request-123' } })

@@ -615,14 +615,11 @@ async function closeDialog(): Promise<void> {
               </div>
             </UiCard>
           </UiDialog>
-          <UiToast v-if="showToast">
+          <UiToast
+            v-if="showToast"
+            @dismiss="showToast = false"
+          >
             <UiText>Example notification. No request was sent.</UiText>
-            <UiButton
-              variant="secondary"
-              @click="showToast = false"
-            >
-              Dismiss
-            </UiButton>
           </UiToast>
         </section>
       </div>

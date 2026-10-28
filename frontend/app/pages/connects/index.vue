@@ -26,14 +26,9 @@ onMounted(() => {
     <UiToast
       v-if="invitationFeedback"
       :tone="invitationFeedback.kind === 'error' ? 'error' : 'info'"
+      @dismiss="invitationFeedback = null"
     >
       <UiText>{{ invitationFeedback.message }}</UiText>
-      <UiButton
-        variant="secondary"
-        @click="invitationFeedback = null"
-      >
-        Dismiss
-      </UiButton>
     </UiToast>
     <template v-if="state.status === 'authenticated'">
       <CreateInvitation />

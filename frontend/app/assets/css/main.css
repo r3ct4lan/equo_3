@@ -407,6 +407,7 @@ nav {
 
 .invitation-toast {
   position: fixed;
+  flex-direction: row;
   z-index: var(--z-toast);
   right: var(--space-4);
   bottom: var(--space-4);
@@ -416,6 +417,19 @@ nav {
   border-radius: var(--radius-small);
   background: var(--color-surface);
   box-shadow: var(--shadow-toast);
+}
+
+.invitation-toast .toast-content {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ui-toast__close {
+  flex: none;
+  width: var(--compact-action-min-height);
+  height: var(--compact-action-min-height);
+  padding: 0;
 }
 
 
