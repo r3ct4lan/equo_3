@@ -250,7 +250,7 @@ describe('manual payment correction components', () => {
     await wrapper.findAll('button').find(button => button.text() === 'Yes, remove payment')!.trigger('click')
     await flushPromises()
     expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/manual', expect.objectContaining({ method: 'DELETE', headers: { 'If-Match': '"7"' } }))
-    expect(wrapper.emitted('reload')).toHaveLength(1)
+    expect(wrapper.emitted('removed')).toEqual([['incoming']])
     wrapper.unmount()
   })
 

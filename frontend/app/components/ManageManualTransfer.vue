@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { FocusTarget } from '~/types/ui'
+import type { DialogTarget, FocusTarget } from '~/types/ui'
 import type { CreateManualTransferBody, TransferView } from '~/types/finance'
 import { ApiClientError, toApiClientError, type ApiClientError as ApiError } from '~/utils/api-error'
 import { euroInput } from '~/utils/debt-update'
 import { manualTransferUpdateCommand, validTransferEtag } from '~/utils/manual-transfer'
 
 const props = defineProps<{ transfer: TransferView, etag: string }>()
-const emit = defineEmits<{ reload: [] }>()
+const emit = defineEmits<{ reload: [], removed: [direction: 'incoming' | 'outgoing'] }>()
 const { $auth } = useNuxtApp()
 const { state } = useCurrentUser()
 const mode = ref<'idle' | 'edit' | 'delete'>('idle')
@@ -20,6 +20,7 @@ const editTrigger = ref<FocusTarget | null>(null)
 const deleteTrigger = ref<FocusTarget | null>(null)
 const directionInput = ref<FocusTarget | null>(null)
 const deleteConfirm = ref<FocusTarget | null>(null)
+const dialog = useTemplateRef<DialogTarget>('dialog')
 let generation = 0
 const sides = computed(() => [props.transfer.sender, props.transfer.receiver])
 const updateBody = computed(() => manualTransferUpdateCommand(props.transfer, state.value.user?.id ?? '', senderId.value, amount.value))
@@ -36,6 +37,7 @@ async function openEdit(): Promise<void> {
   mode.value = 'edit'
   error.value = null
   await nextTick()
+  dialog.value?.showModal()
   directionInput.value?.focus()
 }
 
@@ -44,10 +46,12 @@ async function openDelete(): Promise<void> {
   mode.value = 'delete'
   error.value = null
   await nextTick()
+  dialog.value?.showModal()
   deleteConfirm.value?.focus()
 }
 
 async function cancel(target: 'edit' | 'delete'): Promise<void> {
+  dialog.value?.close()
   mode.value = 'idle'
   error.value = null
   invalid.value = false
@@ -90,8 +94,10 @@ async function command(method: 'PUT' | 'DELETE', body: CreateManualTransferBody 
     })
     if (requestGeneration !== generation || state.value.status !== 'authenticated' || state.value.user?.id !== viewer || props.transfer.id !== transferId) return
     blocked.value = true
+    dialog.value?.close()
     mode.value = 'idle'
-    emit('reload')
+    if (method === 'DELETE') emit('removed', props.transfer.sender.id === viewer ? 'outgoing' : 'incoming')
+    else emit('reload')
   }
   catch (failure) {
     if (requestGeneration !== generation) return
@@ -144,116 +150,142 @@ onBeforeUnmount(() => ++generation)
         Remove payment
       </UiButton>
     </div>
-    <UiCard
+    <UiDialog
       v-if="mode === 'edit'"
-      as="form"
-      class="stack"
+      ref="dialog"
       aria-labelledby="edit-payment-title"
-      @submit.prevent="save"
+      @cancel.prevent
     >
-      <UiText
-        id="edit-payment-title"
-        variant="heading3"
+      <UiCard
+        as="form"
+        class="stack dialog-confirm"
+        @submit.prevent="save"
       >
-        Edit payment
-      </UiText>
-      <FormErrorSummary
-        :message="message"
-        :request-id="error?.requestId"
-      />
-      <fieldset
-        class="stack"
-        :disabled="pending || blocked"
-      >
-        <legend class="visually-hidden">
-          Payment changes
-        </legend>
-        <UiField>
-          <label for="edit-payment-direction">Who transferred money?</label>
-          <UiSelect
-            id="edit-payment-direction"
-            ref="directionInput"
-            v-model="senderId"
-          >
-            <option
-              v-for="side in sides"
-              :key="side.id"
-              :value="side.id"
+        <UiText
+          id="edit-payment-title"
+          variant="heading3"
+        >
+          Edit payment
+        </UiText>
+        <FormErrorSummary
+          :message="message"
+          :request-id="error?.requestId"
+        />
+        <fieldset
+          class="stack"
+          :disabled="pending || blocked"
+        >
+          <legend class="visually-hidden">
+            Payment changes
+          </legend>
+          <UiField>
+            <label for="edit-payment-direction">Who transferred money?</label>
+            <UiSelect
+              id="edit-payment-direction"
+              ref="directionInput"
+              v-model="senderId"
             >
-              {{ side.name }} → {{ sides.find(other => other.id !== side.id)?.name }}
-            </option>
-          </UiSelect>
-        </UiField>
-        <UiField>
-          <label for="edit-payment-amount">Payment amount in EUR</label>
-          <UiInput
-            id="edit-payment-amount"
-            v-model="amount"
-            money
-            type="text"
-            inputmode="decimal"
-            required
-            :aria-invalid="invalid"
-          />
-        </UiField>
-      </fieldset>
-      <UiButton
-        type="submit"
-        :disabled="pending || blocked"
-        :pending="pending"
-      >
-        {{ pending ? 'Saving changes…' : 'Save payment changes' }}
-      </UiButton>
-      <UiButton
-        v-if="!blocked"
-        variant="secondary"
-        :disabled="pending"
-        @click="cancel('edit')"
-      >
-        Cancel editing
-      </UiButton>
-    </UiCard>
-    <UiCard
+              <option
+                v-for="side in sides"
+                :key="side.id"
+                :value="side.id"
+              >
+                {{ side.name }} → {{ sides.find(other => other.id !== side.id)?.name }}
+              </option>
+            </UiSelect>
+          </UiField>
+          <UiField>
+            <label for="edit-payment-amount">Payment amount in EUR</label>
+            <UiInput
+              id="edit-payment-amount"
+              v-model="amount"
+              money
+              type="text"
+              inputmode="decimal"
+              required
+              :aria-invalid="invalid"
+            />
+          </UiField>
+        </fieldset>
+        <UiButton
+          type="submit"
+          :disabled="pending || blocked"
+          :pending="pending"
+        >
+          {{ pending ? 'Saving changes…' : 'Save payment changes' }}
+        </UiButton>
+        <UiButton
+          v-if="!blocked"
+          variant="secondary"
+          :disabled="pending"
+          @click="cancel('edit')"
+        >
+          Cancel editing
+        </UiButton>
+        <UiButton
+          v-if="blocked"
+          variant="secondary"
+          :disabled="pending"
+          @click="emit('reload')"
+        >
+          Reload payment
+        </UiButton>
+      </UiCard>
+    </UiDialog>
+    <UiDialog
       v-if="mode === 'delete'"
-      as="div"
-      class="stack"
+      ref="dialog"
       role="alertdialog"
       aria-labelledby="remove-payment-title"
       aria-describedby="remove-payment-description"
+      @cancel.prevent
     >
-      <UiText
-        id="remove-payment-title"
-        variant="heading3"
+      <UiCard
+        as="div"
+        class="stack dialog-confirm"
       >
-        Remove this payment permanently?
-      </UiText>
-      <UiText id="remove-payment-description">
-        This cannot be undone. The payment will remain in history but will stop affecting the balance.
-      </UiText>
-      <FormErrorSummary
-        :message="message"
-        :request-id="error?.requestId"
-      />
-      <UiButton
-        ref="deleteConfirm"
-        variant="danger"
-        :disabled="pending || blocked"
-        :pending="pending"
-        @click="remove"
-      >
-        {{ pending ? 'Removing payment…' : 'Yes, remove payment' }}
-      </UiButton>
-      <UiButton
-        v-if="!blocked"
-        variant="secondary"
-        :disabled="pending"
-        @click="cancel('delete')"
-      >
-        Keep payment
-      </UiButton>
-    </UiCard>
+        <UiText
+          id="remove-payment-title"
+          variant="heading3"
+        >
+          Remove this payment permanently?
+        </UiText>
+        <UiText id="remove-payment-description">
+          This cannot be undone. The payment will remain in history but will stop affecting the balance.
+        </UiText>
+        <FormErrorSummary
+          :message="message"
+          :request-id="error?.requestId"
+        />
+        <UiButton
+          ref="deleteConfirm"
+          variant="danger"
+          :disabled="pending || blocked"
+          :pending="pending"
+          @click="remove"
+        >
+          {{ pending ? 'Removing payment…' : 'Yes, remove payment' }}
+        </UiButton>
+        <UiButton
+          v-if="!blocked"
+          variant="secondary"
+          :disabled="pending"
+          @click="cancel('delete')"
+        >
+          Keep payment
+        </UiButton>
+        <UiButton
+          v-if="blocked"
+          variant="secondary"
+          :disabled="pending"
+          @click="emit('reload')"
+        >
+          Reload payment
+        </UiButton>
+      </UiCard>
+    </UiDialog>
     <UiButton
-      v-if="blocked"
+      v-if="blocked && mode === 'idle'"
       variant="secondary"
       :disabled="pending"
       @click="emit('reload')"

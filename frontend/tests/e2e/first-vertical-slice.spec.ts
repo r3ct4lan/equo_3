@@ -2441,6 +2441,7 @@ test('manual payment correction updates balance, rejects a stale editor and pres
   expect(created.status()).toBe(201)
   const transferId = (await created.json() as { id: string }).id
   const transferPath = '/api/v1/transfers/' + transferId
+  await page.setViewportSize({ width: 390, height: 600 })
   await page.goto('/transfers/' + transferId)
   await waitForNuxtHydration(page)
   await expect(page.getByRole('heading', { name: 'Payment · €7.00', exact: true })).toBeVisible()
@@ -2450,6 +2451,13 @@ test('manual payment correction updates balance, rejects a stale editor and pres
   await staleEditor.getByRole('button', { name: 'Edit payment', exact: true }).click()
   await expect(staleEditor.getByRole('button', { name: 'Save payment changes', exact: true })).toBeEnabled()
 
+  await page.getByRole('button', { name: 'Edit payment', exact: true }).click()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await page.keyboard.press('Escape')
+  await page.mouse.click(1, 1)
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel editing', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Edit payment', exact: true })).toBeFocused()
   await page.getByRole('button', { name: 'Edit payment', exact: true }).click()
   await page.locator('#edit-payment-direction').selectOption(authorId)
   await page.getByLabel('Payment amount in EUR', { exact: true }).fill('8.00')
@@ -2482,11 +2490,17 @@ test('manual payment correction updates balance, rejects a stale editor and pres
 
   await page.getByRole('button', { name: 'Remove payment', exact: true }).click()
   await expect(page.getByRole('alertdialog')).toContainText('will remain in history')
+  await page.keyboard.press('Escape')
+  await page.mouse.click(1, 1)
+  await expect(page.getByRole('alertdialog')).toBeVisible()
   const removed = page.waitForResponse(response => response.request().method() === 'DELETE' && new URL(response.url()).pathname === transferPath)
   await page.getByRole('button', { name: 'Yes, remove payment', exact: true }).click()
   const removedResponse = await removed
   expect(removedResponse.status()).toBe(204)
   expect(removedResponse.request().headers()['if-match']).toBe('"2"')
+  await expect(page).toHaveURL(/\/transfers\?direction=outgoing$/u)
+  await expect(page.getByText('Removed · does not affect the balance', { exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'Payment · €8.00', exact: true }).click()
   await expect(page.getByText('Removed · does not affect the balance', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /edit payment|remove payment/iu })).toHaveCount(0)
   const history = await request.get(baseUrl + '/api/v1/connects/' + connectId + '/transfers', { headers: { Authorization: 'Bearer ' + peerAccess } })
