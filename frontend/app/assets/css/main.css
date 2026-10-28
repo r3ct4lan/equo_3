@@ -429,14 +429,22 @@ nav {
 .invitation-toast .toast-content {
   flex: 1;
   min-width: 0;
+  padding-right: var(--compact-action-min-height);
   overflow-wrap: anywhere;
 }
 
 .ui-toast__close {
-  flex: none;
+  position: absolute;
+  top: 0;
+  right: 0;
   width: var(--compact-action-min-height);
   height: var(--compact-action-min-height);
   padding: 0;
+}
+
+.ui-toast__close svg {
+  width: var(--space-4);
+  height: var(--space-4);
 }
 
 
