@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  parseEuroCents, formatEuro, splitShare
+  parseEuroCents, formatEuro, splitShare, limitFractionDigits
 } from '../../app/utils/money.ts'
 import {
   debtCommand, eligibleDebtUsers
@@ -14,6 +14,9 @@ test('money converts exact decimal text without float and rejects ambiguous or o
   assert.equal(formatEuro(-501), '-€5.01')
   assert.equal(splitShare(1001, 3), 334)
   assert.equal(splitShare(2147483647, 3), 715827883)
+})
+test('money input keeps only digits and one decimal separator with at most two fractional digits', () => {
+  for (const [input, output] of [['abc12,345', '12,34'], ['1e2.3x4.5', '12.34'], ['12,', '12,'], ['.1', '.1'], ['foo', '']]) assert.equal(limitFractionDigits(input), output)
 })
 test('command excludes payer and requires author participation while keeping exact cents', () => {
   const values = {

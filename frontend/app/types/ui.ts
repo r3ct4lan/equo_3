@@ -6,7 +6,7 @@ export type TextVariant = 'body' | 'heading1' | 'heading2' | 'heading3' | 'lede'
 export type TextTag = 'p' | 'span' | 'small' | 'strong' | 'h1' | 'h2' | 'h3'
 export type CardTag = 'section' | 'div' | 'form' | 'li'
 export type NoticeTone = 'info' | 'success' | 'error' | 'neutral'
-export type InputType = 'text' | 'email' | 'password'
+export type InputType = 'text' | 'email' | 'password' | 'search'
 export type LinkTo = RouteLocationRaw
 
 export interface FocusTarget {

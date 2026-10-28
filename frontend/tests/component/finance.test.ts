@@ -106,6 +106,16 @@ describe('financial journey components', () => {
     expect(command.body.participantIds).toEqual(['other'])
     wrapper.unmount()
   })
+  it('filters nonnumeric money input and requests a decimal mobile keyboard', async () => {
+    const wrapper = await mountSuspended(CreateDebtForm)
+    signedIn()
+    await flushPromises()
+    const amount = wrapper.get('#debt-amount')
+    expect(amount.attributes('inputmode')).toBe('decimal')
+    await amount.setValue('ab12,345x')
+    expect((amount.element as HTMLInputElement).value).toBe('12,34')
+    wrapper.unmount()
+  })
   it('freezes an uncertain command and reuses its body and key only on explicit retry', async () => {
     let attempts = 0
     auth.protectedRequest.mockImplementation(async (path, options_) => {

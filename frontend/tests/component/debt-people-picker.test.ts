@@ -48,7 +48,7 @@ describe('participant picker', () => {
     const wrapper = await mountSuspended(DebtPeoplePicker, { props: { label: 'Share with', modelValue: [] } })
     await wrapper.get('.people-picker__toggle').trigger('click')
     const signal = auth.protectedRequest.mock.calls[0]![1].signal as AbortSignal
-    await wrapper.get('input[type="text"]').setValue('new')
+    await wrapper.get('input[type="search"]').setValue('new')
     expect(signal.aborted).toBe(true)
     await new Promise(done => setTimeout(done, 300))
     await flushPromises()

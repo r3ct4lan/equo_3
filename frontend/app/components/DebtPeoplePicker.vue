@@ -138,7 +138,7 @@ onBeforeUnmount(cancel)
         <UiInput
           ref="searchInput"
           v-model="query"
-          type="text"
+          type="search"
           maxlength="100"
           autocomplete="off"
         /></label>
