@@ -427,6 +427,23 @@ test('single card actions stay bounded and readable', async ({ page, request }) 
   }
 })
 
+test('skip link focuses main without a container outline and controls keep focus indicators', async ({ page }) => {
+  await page.goto('/login')
+  await waitForNuxtHydration(page)
+  await page.keyboard.press('Tab')
+  const skip = page.getByRole('link', { name: 'Skip to content' })
+  await expect(skip).toBeFocused()
+  expect(await skip.evaluate(element => getComputedStyle(element).outlineStyle)).not.toBe('none')
+  await page.keyboard.press('Enter')
+  const main = page.locator('#main-content')
+  await expect(main).toBeFocused()
+  expect(await main.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('none')
+  await page.keyboard.press('Tab')
+  const email = page.getByLabel('Email', { exact: true })
+  await expect(email).toBeFocused()
+  expect(await email.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none')
+})
+
 test('modal close icon supports touch and restores focus', async ({ browser }) => {
   const context = await browser.newContext({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 }, ignoreHTTPSErrors: true })
   try {
