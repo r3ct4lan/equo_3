@@ -530,12 +530,14 @@ test('scrollbar uses themed thumb and hides its arrow buttons', async ({ page })
     return {
       width: getComputedStyle(root, '::-webkit-scrollbar').width,
       thumb: getComputedStyle(root, '::-webkit-scrollbar-thumb').backgroundColor,
+      radius: getComputedStyle(root, '::-webkit-scrollbar-thumb').borderRadius,
       buttons: getComputedStyle(root, '::-webkit-scrollbar-button').display,
       border: getComputedStyle(root).getPropertyValue('--color-border').trim()
     }
   })
   expect(styles.width).toBe('10px')
   expect(styles.thumb).not.toBe('rgba(0, 0, 0, 0)')
+  expect(styles.radius).toBe('5px')
   expect(styles.border).not.toBe('')
   expect(styles.buttons).toBe('none')
 })
