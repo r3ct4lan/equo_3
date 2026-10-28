@@ -407,6 +407,7 @@ test('single card actions stay bounded and readable', async ({ page, request }) 
       ['/me', ['Save name', 'Send confirmation email', 'Deactivate account']]
     ] as const) {
       await page.goto(path)
+      if (path === '/me') await page.getByRole('button', { name: 'Change email', exact: true }).click()
       for (const label of labels) {
         const button = page.getByRole('button', { name: label, exact: true })
         await expect(button).toBeVisible()
@@ -1489,6 +1490,9 @@ test('profile name and confirmed email change keep the active session', async ({
   await expect(page.getByRole('status')).toContainText('Name saved')
   await expect(page.getByRole('heading', { name: 'Updated E2E Name' })).toBeVisible()
 
+  await expect(page.getByLabel('New email', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Change email', exact: true }).click()
+  await expect(page.getByLabel('New email', { exact: true })).toBeFocused()
   await page.getByLabel('New email', { exact: true }).fill(newEmail)
   await page.getByLabel('Current password', { exact: true }).fill(testPassword)
   const requested = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/account/email-change-requests')
@@ -1522,6 +1526,7 @@ test('profile name and confirmed email change keep the active session', async ({
   await page.reload()
   await waitForNuxtHydration(page)
   await expect(page.getByText(newEmail)).toBeVisible()
+  await expect(page.getByLabel('New email', { exact: true })).toHaveCount(0)
   await expectNoPersistentSecrets(page, [capability, testPassword])
 })
 
