@@ -14,7 +14,7 @@ defineEmits<{ dismiss: [] }>()
       <slot />
     </div>
     <UiButton
-      variant="secondary"
+      variant="link"
       icon="close"
       class="ui-toast__close"
       aria-label="Dismiss notification"
