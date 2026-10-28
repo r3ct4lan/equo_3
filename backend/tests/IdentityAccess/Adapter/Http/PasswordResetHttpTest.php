@@ -87,6 +87,38 @@ final class PasswordResetHttpTest extends WebTestCase
         $this->failure(410, 'TOKEN_USED');
     }
 
+    public function testSamePasswordKeepsRecoveryLinkUsableForDifferentPassword(): void
+    {
+        $this->user(true);
+        $hash = self::getContainer()->get(PasswordHashingPort::class)->hash('Current password1!');
+        $this->db->update('app_user', ['password_hash' => $hash], ['id' => self::USER]);
+        $this->post('/password-reset-requests', ['email' => 'recovery@example.test']);
+        $token = $this->capability();
+        $this->post('/password-reset', ['token' => $token, 'newPassword' => 'Current password1!']);
+        $this->failure(422, 'PASSWORD_UNCHANGED');
+        self::assertSame($hash, $this->db->fetchOne('SELECT password_hash FROM app_user WHERE id = ?', [self::USER]));
+        self::assertStringNotContainsString('Current password1!', (string) $this->client->getResponse()->getContent());
+        $this->post('/password-reset', ['token' => $token, 'newPassword' => 'Current password1!']);
+        $this->failure(422, 'PASSWORD_UNCHANGED');
+        $this->post('/password-reset', ['token' => $token, 'newPassword' => 'Different password1!']);
+        self::assertResponseStatusCodeSame(204);
+    }
+
+    public function testLinkCheckReportsUsedImmediatelyAfterSuccessfulReset(): void
+    {
+        $this->user(true);
+        $this->post('/password-reset-requests', ['email' => 'recovery@example.test']);
+        $token = $this->capability();
+        $this->post('/password-reset/check', ['token' => $token]);
+        self::assertResponseStatusCodeSame(204);
+        self::assertTrue($this->client->getResponse()->headers->hasCacheControlDirective('no-store'));
+        $this->post('/password-reset', ['token' => $token, 'newPassword' => 'New password1!']);
+        self::assertResponseStatusCodeSame(204);
+        $this->post('/password-reset/check', ['token' => $token]);
+        $this->failure(410, 'TOKEN_USED');
+        self::assertStringNotContainsString($token, (string) $this->client->getResponse()->getContent());
+    }
+
     #[DataProvider('tokenProvider')]
     public function testTokenLifecycleAndPurposeAreRecheckedWithoutWrites(string $state, int $status, string $code): void
     {
@@ -112,6 +144,33 @@ final class PasswordResetHttpTest extends WebTestCase
         foreach (['expired', 'used', 'invalidated'] as $state) {
             yield $state => [$state, 410, 'TOKEN_'.strtoupper($state)];
         }
+    }
+
+    #[DataProvider('tokenProvider')]
+    public function testLinkCheckRejectsInvalidAndTerminalTokensWithoutChangingState(string $state, int $status, string $code): void
+    {
+        $this->user(true);
+        $issued = self::getContainer()->get(ActionTokenCodecPort::class)->issue();
+        $now = self::getContainer()->get(ClockPort::class)->now();
+        if ('unknown' !== $state && 'malformed' !== $state) {
+            $this->db->insert('user_action_token', ['id' => '8a000000-0000-4000-8001-000000000001', 'user_id' => self::USER, 'token_hash' => $issued->tokenHash, 'purpose' => 'purpose' === $state ? 'ACTIVATE_ACCOUNT' : 'RESET_PASSWORD', 'created_at' => $now->modify('-1 hour')->format('Y-m-d H:i:sP'), 'expires_at' => $now->modify('expired' === $state ? '-1 second' : '+1 hour')->format('Y-m-d H:i:sP'), 'used_at' => 'used' === $state ? $now->format('Y-m-d H:i:sP') : null, 'invalidated_at' => 'invalidated' === $state ? $now->format('Y-m-d H:i:sP') : null]);
+        }
+        $before = $this->db->fetchAllAssociative('SELECT id, used_at, invalidated_at FROM user_action_token');
+        $this->post('/password-reset/check', ['token' => 'malformed' === $state ? 'invalid' : $issued->publicToken]);
+        $this->failure($status, $code);
+        self::assertSame('original-hash', $this->db->fetchOne('SELECT password_hash FROM app_user'));
+        self::assertSame($before, $this->db->fetchAllAssociative('SELECT id, used_at, invalidated_at FROM user_action_token'));
+        self::assertStringNotContainsString($issued->publicToken, (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testLinkCheckSharesTokenQuotaWithPasswordReset(): void
+    {
+        for ($i = 0; $i < 5; ++$i) {
+            $this->post('/password-reset/check', ['token' => 'invalid']);
+            $this->failure(400, 'INVALID_TOKEN');
+        }
+        $this->post('/password-reset', ['token' => 'invalid', 'newPassword' => 'New password1!']);
+        $this->rateFailure(900);
     }
 
     /** @param array<string, mixed> $payload */

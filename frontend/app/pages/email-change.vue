@@ -129,15 +129,10 @@ async function confirmEmail(): Promise<void> {
         <AppErrorState
           :title="presentation.title"
           :message="presentation.message"
+          :request-id="confirmationError?.requestId"
           :retry-label="presentation.retryable ? 'Try confirmation again' : undefined"
           @retry="confirmEmail"
         />
-        <UiText
-          v-if="confirmationError?.requestId"
-          class="support-reference"
-        >
-          Support reference: <code>{{ confirmationError.requestId }}</code>
-        </UiText>
       </div>
       <UiButton
         variant="secondary"

@@ -1,6 +1,7 @@
 import type { APIRequestContext, APIResponse, Browser, BrowserContext, Cookie, Page, Route } from '@playwright/test'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from './fixtures'
+import { selectOption, setPerson } from './select'
 
 interface MailpitSummary {
   ID: string
@@ -270,8 +271,11 @@ function emailChangeUrlFrom(message: MailpitMessage): string {
 }
 
 async function submitRecovery(page: Page, url: string, password: string): Promise<APIResponse> {
+  const check = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/password-reset/check')
   await followSecretUrl(page, url)
   await expect(page).toHaveURL(/\/password-reset$/u)
+  const result = await check
+  if (result.status() !== 204) return result
   await page.getByLabel('New password', { exact: true }).fill(password)
   const response = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/auth/password-reset')
   await page.getByRole('button', { name: 'Save new password' }).click()
@@ -371,6 +375,254 @@ async function safeRouteAbort(route: Route): Promise<void> {
   await route.abort('connectionfailed')
 }
 
+test('expense payer must remain among selected participants', async ({ page, request }) => {
+  const authorEmail = await createActiveUser(request, uniqueEmail('selected-author'))
+  const otherEmail = await createActiveUser(request, uniqueEmail('selected-peer'))
+  const access = await login(page, authorEmail)
+  const peerAccess = await loginViaApi(request, otherEmail)
+  const profile = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + peerAccess } })
+  const peerId = (await profile.json() as { id: string }).id
+  const invitation = await request.post(baseUrl + '/api/v1/connect-invitations', { headers: { 'Authorization': 'Bearer ' + access, 'X-Forwarded-For': nextForwardedFor() } })
+  expect(invitation.status()).toBe(200)
+  const invitationToken = (await invitation.json() as { token: string }).token
+  const accepted = await request.post(baseUrl + '/api/v1/connect-invitations/' + invitationToken + '/accept', { headers: { 'Authorization': 'Bearer ' + peerAccess, 'X-Forwarded-For': nextForwardedFor() } })
+  expect(accepted.status()).toBe(201)
+  await page.goto('/debts/new')
+  await waitForNuxtHydration(page)
+  const share = page.locator('.people-picker').nth(0)
+  const payer = page.locator('.people-picker').nth(1)
+  await share.getByRole('combobox').focus()
+  await setPerson(share, peerId, true)
+  await payer.getByRole('combobox').focus()
+  await setPerson(payer, peerId, true)
+  await setPerson(share, peerId, false)
+  await expect(payer.locator('.multiselect__single')).toHaveCount(0)
+  await setPerson(share, peerId, true)
+  await setPerson(payer, peerId, true)
+  await page.getByLabel('Title', { exact: true }).fill('Selected payer')
+  await page.getByLabel('Amount in EUR', { exact: true }).fill('10.00')
+  const created = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/debts' && response.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Create expense', exact: true }).click()
+  const response = await created
+  expect(response.status()).toBe(201)
+  expect(response.request().postDataJSON()).toMatchObject({ payerId: peerId, includePayerInSplit: true })
+  await expect(page.getByText('2 people · €5.00 each', { exact: true })).toBeVisible()
+})
+
+test('money input limits fractional digits while preserving editing', async ({ page, request }) => {
+  const email = await createActiveUser(request, uniqueEmail('money-input'))
+  await login(page, email)
+  await page.goto('/debts/new')
+  await waitForNuxtHydration(page)
+  await expect(page.getByRole('button', { name: 'Create expense', exact: true })).toBeEnabled()
+  const amount = page.getByLabel('Amount in EUR', { exact: true })
+  await amount.pressSequentially('10.0123')
+  await expect(amount).toHaveValue('10.01')
+  await amount.fill('')
+  await page.keyboard.insertText('123,4567')
+  await expect(amount).toHaveValue('123,45')
+  await amount.fill('10.01')
+  await amount.evaluate((element: HTMLInputElement) => element.setSelectionRange(3, 3))
+  await amount.pressSequentially('9')
+  await expect(amount).toHaveValue('10.01')
+  await amount.evaluate((element: HTMLInputElement) => element.setSelectionRange(0, 0))
+  await page.keyboard.insertText('2')
+  await expect(amount).toHaveValue('210.01')
+  expect(await amount.evaluate((element: HTMLInputElement) => element.selectionStart)).toBe(1)
+  await amount.fill('10.')
+  await expect(amount).toHaveValue('10.')
+  await amount.fill('21474836.47')
+  await expect(amount).toHaveValue('21474836.47')
+})
+
+test('single card actions stay bounded and readable', async ({ page, request }) => {
+  const email = await createActiveUser(request, uniqueEmail('compact-actions'))
+  await login(page, email)
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 320, height: 720 }]) {
+    await page.setViewportSize(viewport)
+    for (const [path, labels] of [
+      ['/connects', ['Get invitation']],
+      ['/me', ['Save name', 'Send confirmation email', 'Deactivate account']]
+    ] as const) {
+      await page.goto(path)
+      if (path === '/me') await page.getByRole('button', { name: 'Change email', exact: true }).click()
+      for (const label of labels) {
+        const button = page.getByRole('button', { name: label, exact: true })
+        await expect(button).toBeVisible()
+        const dimensions = await button.evaluate((element) => {
+          const style = getComputedStyle(element)
+          const rect = element.getBoundingClientRect()
+          return { width: rect.width, height: rect.height, max: parseFloat(style.fontSize) * 18, fits: element.scrollWidth <= element.clientWidth }
+        })
+        expect(dimensions.width).toBeLessThanOrEqual(dimensions.max + 1)
+        expect(dimensions.height).toBeGreaterThanOrEqual(44)
+        expect(dimensions.fits).toBe(true)
+      }
+    }
+    await page.goto('/ui-kit')
+    const longAction = page.getByRole('button', { name: 'A longer action label that can wrap when needed' })
+    expect(await longAction.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+})
+
+test('theme follows system initially and persists a keyboard choice before first paint', async ({ browser }) => {
+  const context = await browser.newContext({ colorScheme: 'dark', viewport: { width: 390, height: 844 }, ignoreHTTPSErrors: true })
+  try {
+    const page = await context.newPage()
+    await page.addInitScript(() => {
+      requestAnimationFrame(() => {
+        document.documentElement.dataset.firstPaintTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+      })
+    })
+    await page.goto('/')
+    await waitForNuxtHydration(page)
+    await expect(page.locator('html')).toHaveAttribute('data-first-paint-theme', 'dark')
+    await page.getByRole('button', { name: 'Open navigation menu' }).click()
+    const toggle = page.getByRole('button', { name: 'Switch to light theme' })
+    await toggle.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('html')).not.toHaveClass(/dark/u)
+    await page.goto('/login')
+    await expect(page.locator('html')).toHaveAttribute('data-first-paint-theme', 'light')
+    await page.getByRole('button', { name: 'Open navigation menu' }).click()
+    await expect(page.getByRole('button', { name: 'Switch to dark theme' })).toBeVisible()
+    await page.reload()
+    await expect(page.locator('html')).toHaveAttribute('data-first-paint-theme', 'light')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+  finally {
+    await context.close()
+  }
+})
+
+test('mobile navigation opens with keyboard focus and closes on escape and selection', async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const email = await createActiveUser(request, uniqueEmail('mobile-navigation'))
+  await login(page, email)
+  const menu = page.getByRole('button', { name: 'Open navigation menu' })
+  expect(await menu.evaluate(element => element.getBoundingClientRect().right)).toBeLessThanOrEqual(await page.getByRole('link', { name: 'Equo home' }).evaluate(element => element.getBoundingClientRect().left))
+  const nav = page.getByRole('navigation', { name: 'Mobile navigation' })
+  await expect(nav).toHaveCount(0)
+  await menu.click()
+  await expect(nav).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Close navigation menu' })).toBeFocused()
+  const drawer = page.getByRole('dialog', { name: 'Navigation menu' })
+  expect(await drawer.evaluate(element => element.getBoundingClientRect().width)).toBeLessThanOrEqual(300)
+  expect(await drawer.evaluate(element => element.getBoundingClientRect().height)).toBe(844)
+  const theme = drawer.locator('.mobile-menu__theme')
+  expect(await theme.evaluate(element => element.getBoundingClientRect().top)).toBeGreaterThan(await nav.evaluate(element => element.getBoundingClientRect().bottom))
+  await page.keyboard.press('Escape')
+  await expect(nav).toHaveCount(0)
+  await expect(menu).toBeFocused()
+  await menu.click()
+  await nav.getByRole('link', { name: 'Expenses' }).click()
+  await expect(page).toHaveURL(/\/debts$/u)
+  await expect(nav).toHaveCount(0)
+})
+
+test('scrollbar uses themed thumb and hides its arrow buttons', async ({ page }) => {
+  await page.goto('/ui-kit')
+  await waitForNuxtHydration(page)
+  const styles = await page.evaluate(() => {
+    const root = document.documentElement
+    return {
+      width: getComputedStyle(root, '::-webkit-scrollbar').width,
+      thumb: getComputedStyle(root, '::-webkit-scrollbar-thumb').backgroundColor,
+      radius: getComputedStyle(root, '::-webkit-scrollbar-thumb').borderRadius,
+      buttons: getComputedStyle(root, '::-webkit-scrollbar-button').display,
+      border: getComputedStyle(root).getPropertyValue('--color-border').trim()
+    }
+  })
+  expect(styles.width).toBe('10px')
+  expect(styles.thumb).not.toBe('rgba(0, 0, 0, 0)')
+  expect(styles.radius).toBe('5px')
+  expect(styles.border).not.toBe('')
+  expect(styles.buttons).toBe('none')
+})
+
+test('skip link focuses main without a container outline and controls keep focus indicators', async ({ page }) => {
+  await page.goto('/login')
+  await waitForNuxtHydration(page)
+  await page.keyboard.press('Tab')
+  const skip = page.getByRole('link', { name: 'Skip to content' })
+  await expect(skip).toBeFocused()
+  expect(await skip.evaluate(element => getComputedStyle(element).outlineStyle)).not.toBe('none')
+  await page.keyboard.press('Enter')
+  const main = page.locator('#main-content')
+  await expect(main).toBeFocused()
+  expect(await main.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('none')
+  await page.keyboard.press('Tab')
+  const email = page.getByLabel('Email', { exact: true })
+  await expect(email).toBeFocused()
+  expect(await email.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none')
+})
+
+test('modal close icon supports touch and restores focus', async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 }, ignoreHTTPSErrors: true })
+  try {
+    const page = await context.newPage()
+    await page.goto('/ui-kit')
+    await waitForNuxtHydration(page)
+    const trigger = page.getByRole('button', { name: 'Open example dialog', exact: true })
+    await trigger.tap()
+    const close = page.getByRole('button', { name: 'Close', exact: true })
+    await expect(close).toBeVisible()
+    await close.tap()
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(trigger).toBeFocused()
+    await page.getByRole('button', { name: 'Show example toast' }).tap()
+    const notification = page.getByRole('status').filter({ hasText: 'Example notification' })
+    const dismiss = notification.getByRole('button', { name: 'Dismiss notification' })
+    await expect(dismiss).toBeVisible()
+    const toastBounds = await notification.boundingBox()
+    const dismissBounds = await dismiss.boundingBox()
+    const textBounds = await notification.getByText('Example notification. No request was sent.').boundingBox()
+    expect(dismissBounds!.width).toBeGreaterThanOrEqual(44)
+    expect(dismissBounds!.height).toBeGreaterThanOrEqual(44)
+    expect(dismissBounds!.x + dismissBounds!.width).toBeLessThanOrEqual(toastBounds!.x + toastBounds!.width)
+    expect(textBounds!.x + textBounds!.width).toBeLessThanOrEqual(dismissBounds!.x)
+    await dismiss.tap()
+    await expect(notification).toHaveCount(0)
+  }
+  finally {
+    await context.close()
+  }
+})
+
+test('new expense icon is decorative across button states', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await page.goto('/ui-kit')
+  const action = page.getByRole('button', { name: 'New expense', exact: true })
+  const disabled = page.getByRole('button', { name: 'New expense disabled', exact: true })
+  await expect(action.locator('svg[aria-hidden="true"]')).toHaveCount(1)
+  await expect(disabled.locator('svg[aria-hidden="true"]')).toHaveCount(1)
+  await expect(disabled).toBeDisabled()
+  await action.hover()
+  await action.focus()
+  await expect(action).toBeFocused()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})
+
+test('login primary action precedes recovery links on desktop and mobile', async ({ page }) => {
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/login')
+    await waitForNuxtHydration(page)
+    const password = page.getByLabel('Password', { exact: true })
+    await password.focus()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('link', { name: 'Forgot your password?', exact: true })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('link', { name: 'Need another activation link?', exact: true })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('link', { name: 'Create an account', exact: true })).toBeFocused()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+})
+
 test('E2E-01 completes register, activation sign-in, reload and authenticated profile', async ({ page, request }) => {
   const email = uniqueEmail('happy')
   const requests: string[] = []
@@ -395,6 +647,18 @@ test('E2E-01 completes register, activation sign-in, reload and authenticated pr
   await expect(page.getByRole('status')).toContainText(email)
   await expectNoSessionOrStoredCapability(page)
 
+  await page.setViewportSize({ width: 390, height: 844 })
+  const activationRequestLink = page.getByRole('button', { name: 'Request another activation link', exact: true })
+  await expect(activationRequestLink).toBeVisible()
+  await expect(page.getByLabel('Current password', { exact: true })).toHaveCount(0)
+  await activationRequestLink.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByLabel('Email', { exact: true })).toBeFocused()
+  await expect(page.getByLabel('Email', { exact: true })).toHaveValue(email)
+  await expect(activationRequestLink).toHaveCount(0)
+  expect(requests.filter(path => path.includes('/activation-requests'))).toHaveLength(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+
   await page.reload()
   await expect(page.getByRole('button', { name: 'Create account' })).toBeVisible()
 
@@ -407,6 +671,9 @@ test('E2E-01 completes register, activation sign-in, reload and authenticated pr
   await followSecretUrl(page, activationUrl)
   await expect(page).toHaveURL(/\/activate$/u)
   await expect(page.getByRole('button', { name: 'Activate and sign in' })).toBeVisible()
+  const readyPanel = page.getByRole('heading', { name: 'Ready to activate' }).locator('..')
+  await expect(readyPanel).toBeFocused()
+  expect(await readyPanel.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('none')
   expect(requests).not.toContain('POST /api/v1/auth/activate')
   expect(await activationAcceptanceState(request, email)).toEqual({
     exists: true,
@@ -1339,6 +1606,9 @@ test('profile name and confirmed email change keep the active session', async ({
   await expect(page.getByRole('status')).toContainText('Name saved')
   await expect(page.getByRole('heading', { name: 'Updated E2E Name' })).toBeVisible()
 
+  await expect(page.getByLabel('New email', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Change email', exact: true }).click()
+  await expect(page.getByLabel('New email', { exact: true })).toBeFocused()
   await page.getByLabel('New email', { exact: true }).fill(newEmail)
   await page.getByLabel('Current password', { exact: true }).fill(testPassword)
   const requested = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/account/email-change-requests')
@@ -1372,6 +1642,7 @@ test('profile name and confirmed email change keep the active session', async ({
   await page.reload()
   await waitForNuxtHydration(page)
   await expect(page.getByText(newEmail)).toBeVisible()
+  await expect(page.getByLabel('New email', { exact: true })).toHaveCount(0)
   await expectNoPersistentSecrets(page, [capability, testPassword])
 })
 
@@ -1791,12 +2062,13 @@ test('financial expense survives a lost create response, updates both balances a
     await expect(recipient).toHaveURL(/\/connects$/u)
     await page.goto('/debts/new')
     await waitForNuxtHydration(page)
-    await expect(page.locator('input[value="' + recipientId + '"]')).toBeEnabled()
+    await page.locator('.people-picker').nth(0).getByRole('combobox').focus()
+    await expect(page.locator('[data-value="' + recipientId + '"]')).toBeEnabled()
     const title = 'Private dinner ' + Date.now()
     await page.getByLabel('Title', { exact: true }).fill(title)
     await page.getByLabel('Description (optional)', { exact: true }).fill('Shared restaurant bill')
     await page.getByLabel('Amount in EUR', { exact: true }).fill('10.01')
-    await page.locator('input[value="' + recipientId + '"]').check()
+    await setPerson(page.locator('.people-picker').first(), recipientId, true)
     await expect(page.getByText('Each share: €5.01. Shares round up to the next cent.', { exact: true })).toBeVisible()
     let debtId = ''
     let firstCommand = ''
@@ -1895,15 +2167,19 @@ test('manual payment survives a lost response and refreshes both histories after
     await expect(other).toHaveURL(/\/connects$/u)
     await page.goto('/debts/new')
     await waitForNuxtHydration(page)
-    await expect(page.locator('input[value="' + otherId + '"]')).toBeEnabled()
+    await page.locator('.people-picker').nth(0).getByRole('combobox').focus()
+    await expect(page.locator('[data-value="' + otherId + '"]')).toBeEnabled()
     const title = 'Payment dinner ' + Date.now()
     await page.getByLabel('Title', { exact: true }).fill(title)
     await page.getByLabel('Amount in EUR', { exact: true }).fill('10.01')
-    await page.locator('input[value="' + otherId + '"]').check()
+    await setPerson(page.locator('.people-picker').first(), otherId, true)
     const debtCreated = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/debts' && response.request().method() === 'POST')
     await page.getByRole('button', { name: 'Create expense', exact: true }).click()
     const debtResponse = await debtCreated
     expect(debtResponse.status()).toBe(201)
+    const createdDebt = await debtResponse.json() as { participants: Array<{ user: { id: string }, transferId: string | null }> }
+    const relatedShareId = createdDebt.participants.find(participant => participant.user.id === otherId)?.transferId
+    expect(relatedShareId).toBeTruthy()
     await expect(page).toHaveURL(/\/debts\/[0-9a-f-]{36}$/u)
     await page.goto('/connects/' + connectId)
     await waitForNuxtHydration(page)
@@ -1911,7 +2187,57 @@ test('manual payment survives a lost response and refreshes both histories after
     await expect(page.getByText('They owe you.', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
-    await page.getByLabel('Who transferred money?', { exact: true }).selectOption('other')
+    const closePayment = page.getByRole('button', { name: 'Close', exact: true })
+    await expect(closePayment.locator('svg[aria-hidden="true"]')).toHaveCount(1)
+    const closeBounds = await closePayment.boundingBox()
+    expect(closeBounds!.width).toBeGreaterThanOrEqual(44)
+    expect(closeBounds!.height).toBeGreaterThanOrEqual(44)
+    await closePayment.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(page.getByRole('button', { name: 'Make a payment', exact: true })).toBeFocused()
+    await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(page.getByRole('button', { name: 'Make a payment', exact: true })).toBeFocused()
+    await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
+    await closePayment.click()
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(page.getByRole('button', { name: 'Make a payment', exact: true })).toBeFocused()
+    await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
+    for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 400 }]) {
+      await page.setViewportSize(viewport)
+      const bounds = await page.getByRole('dialog').boundingBox()
+      expect(bounds).not.toBeNull()
+      expect(Math.abs(bounds!.x + bounds!.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(1)
+      expect(Math.abs(bounds!.y + bounds!.height / 2 - viewport.height / 2)).toBeLessThanOrEqual(1)
+      expect(bounds!.x).toBeGreaterThanOrEqual(16)
+      expect(bounds!.y).toBeGreaterThanOrEqual(16)
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width - 16)
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height - 16)
+      if (viewport.height === 400) {
+        const dialog = page.getByRole('dialog')
+        expect(await dialog.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
+        const track = await dialog.evaluate((element) => {
+          const styles = getComputedStyle(element, '::-webkit-scrollbar-track')
+          return [styles.marginTop, styles.marginBottom]
+        })
+        expect(track).toEqual(['32px', '32px'])
+        await dialog.evaluate((element) => {
+          element.scrollTop = element.scrollHeight
+        })
+        expect(await dialog.evaluate(element => element.scrollTop + element.clientHeight)).toBeGreaterThanOrEqual(await dialog.evaluate(element => element.scrollHeight - 1))
+        await dialog.evaluate((element) => {
+          element.scrollTop = 0
+        })
+        expect(await dialog.evaluate(element => element.scrollTop)).toBe(0)
+      }
+    }
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.getByRole('button', { name: 'Link an expense share (optional)', exact: true }).click()
+    await expect(page.getByLabel('Related expense share (optional)')).toContainText(title)
+    await selectOption(page.getByRole('combobox', { name: 'Related expense share (optional)', exact: true }), relatedShareId!)
+    await selectOption(page.getByRole('combobox', { name: 'Who transferred money?', exact: true }), 'other')
     await page.getByLabel('Payment amount in EUR', { exact: true }).fill('7.00')
     await expect(page.getByText(/Expected balance: -€1.99/u)).toBeVisible()
     const path = '/api/v1/connects/' + connectId + '/transfers'
@@ -1944,6 +2270,7 @@ test('manual payment survives a lost response and refreshes both histories after
     expect(replay.status()).toBe(201)
     expect(replay.request().postData() === firstBody).toBe(true)
     expect(firstKey.length > 0 && replay.request().headers()['idempotency-key'] === firstKey).toBe(true)
+    expect(JSON.parse(firstBody).relatedTransferId).toBe(relatedShareId)
     const payment = await replay.json() as { id: string }
     expect(payment.id).toBe(transferId)
     await expect(page.getByText('Payment recorded.', { exact: true })).toBeVisible()
@@ -1959,9 +2286,22 @@ test('manual payment survives a lost response and refreshes both histories after
       await viewer.getByRole('link', { name: 'Payment · €7.00', exact: true }).click()
       await expect(viewer.getByRole('heading', { name: 'Payment · €7.00', exact: true })).toBeVisible()
       await expect(viewer.getByText(/Recorded by/u)).toBeVisible()
+      await expect(viewer.getByRole('link', { name: 'Related expense share', exact: true })).toHaveAttribute('href', '/transfers/' + relatedShareId)
       await expect(viewer.getByRole('button', { name: 'Edit payment', exact: true })).toHaveCount(canManage ? 1 : 0)
       await expect(viewer.getByRole('button', { name: 'Remove payment', exact: true })).toHaveCount(canManage ? 1 : 0)
     }
+    await page.getByRole('link', { name: 'Transfers', exact: true }).click()
+    await expect(page.getByRole('link', { name: 'Payment · €7.00', exact: true })).toBeVisible()
+    await page.getByRole('link', { name: 'Outgoing', exact: true }).click()
+    await expect(page).toHaveURL(/direction=outgoing/u)
+    await expect(page.getByRole('link', { name: 'Expense share · €5.01', exact: true })).toBeVisible()
+    await page.getByRole('link', { name: 'Expense share · €5.01', exact: true }).click()
+    await expect(page).toHaveURL(/\/transfers\/[0-9a-f-]{36}$/u)
+    await page.goBack()
+    await expect(page).toHaveURL(/direction=outgoing/u)
+    await expect(page.getByRole('link', { name: 'Expense share · €5.01', exact: true })).toBeVisible()
+    await page.setViewportSize({ width: 390, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     await expectNoPersistentSecrets(page, [authorAccess, otherAccess, testPassword])
     await expectNoPersistentSecrets(other, [authorAccess, otherAccess, testPassword])
   }
@@ -2006,10 +2346,18 @@ test('debt editing recalculates all shares, restores history and rejects a stale
     await connectWith(member)
     await page.goto('/debts/new')
     await waitForNuxtHydration(page)
-    await expect(page.getByLabel('Who paid?', { exact: true })).toBeEnabled()
-    await page.getByLabel('Who paid?', { exact: true }).selectOption(payerId)
-    await page.locator('input[value="' + authorId + '"]').check()
-    await page.locator('input[value="' + memberId + '"]').check()
+    const share = page.locator('.people-picker').nth(0)
+    const payerPicker = page.locator('.people-picker').nth(1)
+    await share.getByRole('combobox').focus()
+    await setPerson(share, payerId, true)
+    await payerPicker.getByRole('combobox').focus()
+    await setPerson(payerPicker, payerId, true)
+    await setPerson(share, payerId, false)
+    await expect(payerPicker.locator('.multiselect__single')).toHaveCount(0)
+    await setPerson(share, payerId, true)
+    await setPerson(payerPicker, payerId, true)
+    await setPerson(share, authorId, true)
+    await setPerson(share, memberId, true)
     const title = 'Editable shared dinner ' + Date.now()
     await page.getByLabel('Title', { exact: true }).fill(title)
     await page.getByLabel('Amount in EUR', { exact: true }).fill('10.01')
@@ -2037,10 +2385,11 @@ test('debt editing recalculates all shares, restores history and rejects a stale
     await page.getByRole('link', { name: 'Edit expense', exact: true }).click()
     await waitForNuxtHydration(page)
     await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeEnabled()
-    await expect(page.locator('input[value="' + authorId + '"]')).toBeDisabled()
+    await page.locator('.people-picker').getByRole('combobox').focus()
+    await expect(page.locator('li').filter({ has: page.locator('[data-value="' + authorId + '"]') })).toHaveAttribute('aria-disabled', 'true')
     await expect(page.getByLabel('Who paid?', { exact: true })).toHaveCount(0)
     await page.getByLabel('Amount in EUR', { exact: true }).fill('12.01')
-    await page.locator('input[value="' + memberId + '"]').uncheck()
+    await setPerson(page.locator('.people-picker').first(), memberId, false)
     await page.getByLabel('Include the payer in the split', { exact: true }).uncheck()
     await expect(page.getByText('Each share: €12.01. Every current share will be recalculated.', { exact: true })).toBeVisible()
     const updated = page.waitForResponse(response => new URL(response.url()).pathname === debtPath && response.request().method() === 'PUT')
@@ -2082,7 +2431,8 @@ test('debt editing recalculates all shares, restores history and rejects a stale
     await expect(staleEditor.getByLabel('Amount in EUR', { exact: true })).toHaveValue('12.01')
     await expect(staleEditor.getByRole('button', { name: 'Save changes', exact: true })).toBeEnabled()
     expect(staleCommands).toBe(1)
-    await staleEditor.locator('input[value="' + memberId + '"]').check()
+    await staleEditor.locator('.people-picker').getByRole('combobox').focus()
+    await setPerson(staleEditor.locator('.people-picker').first(), memberId, true)
     await staleEditor.getByLabel('Include the payer in the split', { exact: true }).check()
     await staleEditor.getByLabel('Amount in EUR', { exact: true }).fill('13.01')
     const restored = staleEditor.waitForResponse(response => new URL(response.url()).pathname === debtPath && response.request().method() === 'PUT')
@@ -2172,18 +2522,28 @@ test('expense removal drops automatic shares while preserving payment history an
   })
   await page.getByRole('button', { name: 'Remove expense', exact: true }).click()
   await expect(page.getByRole('alertdialog')).toContainText('This cannot be undone')
+  await page.keyboard.press('Escape')
+  await page.mouse.click(1, 1)
+  await expect(page.getByRole('alertdialog')).toBeVisible()
+  await page.getByRole('button', { name: 'Keep expense', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Remove expense', exact: true })).toBeFocused()
+  await page.getByRole('button', { name: 'Remove expense', exact: true }).click()
   expect(deleteCommands).toBe(0)
   const removed = page.waitForResponse(response => response.request().method() === 'DELETE' && new URL(response.url()).pathname === debtPath)
   await page.getByRole('button', { name: 'Yes, remove expense', exact: true }).click()
   const removedResponse = await removed
   expect(removedResponse.status()).toBe(204)
   expect(removedResponse.request().headers()['if-match']).toBe('"1"')
+  await expect(page).toHaveURL(/\/debts$/u)
+  const removedRow = page.locator('li').filter({ has: page.getByRole('link', { name: title, exact: true }) })
+  await expect(removedRow).toContainText('Removed · does not affect the balance')
+  await removedRow.getByRole('link', { name: title, exact: true }).click()
   await expect(page.getByText('Removed expense · the saved participant list is shown below.', { exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Edit expense', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Remove expense', exact: true })).toHaveCount(0)
   expect(deleteCommands).toBe(1)
   await page.goto('/debts')
-  await expect(page.getByRole('link', { name: title, exact: true })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: title, exact: true })).toHaveCount(1)
 
   const peerDebt = await request.get(baseUrl + debtPath, { headers: { Authorization: 'Bearer ' + peerAccess } })
   expect(peerDebt.status()).toBe(200)
@@ -2231,6 +2591,7 @@ test('manual payment correction updates balance, rejects a stale editor and pres
   expect(created.status()).toBe(201)
   const transferId = (await created.json() as { id: string }).id
   const transferPath = '/api/v1/transfers/' + transferId
+  await page.setViewportSize({ width: 390, height: 600 })
   await page.goto('/transfers/' + transferId)
   await waitForNuxtHydration(page)
   await expect(page.getByRole('heading', { name: 'Payment · €7.00', exact: true })).toBeVisible()
@@ -2241,7 +2602,14 @@ test('manual payment correction updates balance, rejects a stale editor and pres
   await expect(staleEditor.getByRole('button', { name: 'Save payment changes', exact: true })).toBeEnabled()
 
   await page.getByRole('button', { name: 'Edit payment', exact: true }).click()
-  await page.locator('#edit-payment-direction').selectOption(authorId)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await page.keyboard.press('Escape')
+  await page.mouse.click(1, 1)
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel editing', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Edit payment', exact: true })).toBeFocused()
+  await page.getByRole('button', { name: 'Edit payment', exact: true }).click()
+  await selectOption(page.locator('#edit-payment-direction'), authorId)
   await page.getByLabel('Payment amount in EUR', { exact: true }).fill('8.00')
   const updated = page.waitForResponse(response => response.request().method() === 'PUT' && new URL(response.url()).pathname === transferPath)
   await page.getByRole('button', { name: 'Save payment changes', exact: true }).click()
@@ -2272,11 +2640,17 @@ test('manual payment correction updates balance, rejects a stale editor and pres
 
   await page.getByRole('button', { name: 'Remove payment', exact: true }).click()
   await expect(page.getByRole('alertdialog')).toContainText('will remain in history')
+  await page.keyboard.press('Escape')
+  await page.mouse.click(1, 1)
+  await expect(page.getByRole('alertdialog')).toBeVisible()
   const removed = page.waitForResponse(response => response.request().method() === 'DELETE' && new URL(response.url()).pathname === transferPath)
   await page.getByRole('button', { name: 'Yes, remove payment', exact: true }).click()
   const removedResponse = await removed
   expect(removedResponse.status()).toBe(204)
   expect(removedResponse.request().headers()['if-match']).toBe('"2"')
+  await expect(page).toHaveURL(/\/transfers\?direction=outgoing$/u)
+  await expect(page.getByText('Removed · does not affect the balance', { exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'Payment · €8.00', exact: true }).click()
   await expect(page.getByText('Removed · does not affect the balance', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /edit payment|remove payment/iu })).toHaveCount(0)
   const history = await request.get(baseUrl + '/api/v1/connects/' + connectId + '/transfers', { headers: { Authorization: 'Bearer ' + peerAccess } })
@@ -2344,7 +2718,7 @@ test('home dashboard separates debts, shows five recent expenses and clears on l
       const debt = await request.post(baseUrl + '/api/v1/debts', {
         headers: { 'Authorization': 'Bearer ' + ownerAccess, 'Idempotency-Key': randomUUID() },
         data: {
-          title: `Dashboard expense ${n}`, description: null, totalAmount: n === 6 ? 3000 : 1000,
+          title: `Dashboard expense ${n}`, description: null, totalAmount: 1000,
           payerId: n === 6 ? peers[1]!.id : ownerId,
           participantIds: [n === 6 ? ownerId : peers[0]!.id], includePayerInSplit: false
         }
@@ -2354,23 +2728,28 @@ test('home dashboard separates debts, shows five recent expenses and clears on l
     }
     const payment = await request.post(baseUrl + '/api/v1/connects/' + peers[0]!.connectId + '/transfers', {
       headers: { 'Authorization': 'Bearer ' + ownerAccess, 'Idempotency-Key': randomUUID() },
-      data: { senderId: peers[0]!.id, receiverId: ownerId, amount: 1000 }
+      data: { senderId: peers[0]!.id, receiverId: ownerId, amount: 5300 }
     })
     expect(payment.status()).toBe(201)
     const latest = created.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)).slice(0, 5)
     await page.reload()
-    await expect(page.getByRole('region', { name: 'You owe', exact: true })).toContainText('€30.00')
-    await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€50.00')
+    await expect(page.getByRole('region', { name: 'You owe', exact: true })).toContainText('€10.00')
+    await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€7.00')
     const rows = page.getByRole('list', { name: 'Latest expenses', exact: true }).locator('li')
     await expect(rows).toHaveCount(5)
     expect(await rows.locator('a').allTextContents()).toEqual(latest.map(expense => expense.title))
     await expect(rows.first().locator('time')).toHaveAttribute('datetime', latest[0]!.createdAt)
     await expect(rows.first()).toContainText('Paid by E2E User')
+    await expect(page.getByRole('link', { name: 'View all', exact: true })).toHaveAttribute('href', '/debts')
     await expect(page.getByText('API connection', { exact: true })).toHaveCount(0)
     await page.screenshot({ path: testInfo.outputPath('dashboard-desktop.png'), fullPage: true })
     await page.setViewportSize({ width: 390, height: 844 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     await page.screenshot({ path: testInfo.outputPath('dashboard-mobile.png'), fullPage: true })
+    await page.getByRole('link', { name: 'View all', exact: true }).click()
+    await expect(page).toHaveURL(/\/debts$/u)
+    await page.goto('/')
+    await expect(page.getByRole('link', { name: 'View all', exact: true })).toBeVisible()
     await rows.first().getByRole('link').click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(latest[0]!.title)
     await page.route('**/api/v1/transfers/balance-summary', safeRouteAbort, { times: 1 })
@@ -2378,7 +2757,7 @@ test('home dashboard separates debts, shows five recent expenses and clears on l
     await expect(page.getByRole('alert')).toContainText('Your overview could not be loaded')
     await expect(page.getByText('€0.00', { exact: true })).toHaveCount(0)
     await page.getByRole('button', { name: 'Try again', exact: true }).click()
-    await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€50.00')
+    await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€7.00')
     const ssr = await request.get(baseUrl + '/')
     expect((await ssr.text()).includes('Dashboard expense')).toBe(false)
     await page.goto('/me')

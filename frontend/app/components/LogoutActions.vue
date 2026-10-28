@@ -48,7 +48,7 @@ async function signOut(all: boolean): Promise<void> {
   >
     <div class="form-actions">
       <UiButton
-        variant="secondary"
+        variant="danger"
         :disabled="isSubmitting || confirming"
         @click="signOut(false)"
       >

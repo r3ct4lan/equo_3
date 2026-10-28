@@ -33,6 +33,7 @@ function signedIn(id = 'self'): void {
   useCurrentUser().setAuthenticated({ id, name: 'Alex', email: 'private@example.test', isActive: true, createdAt: debt.createdAt })
 }
 function options(path: string) {
+  if (path === '/v1/debt-people') return page([self, payer, member, newPerson])
   if (path === '/v1/connects') return page([{ otherUser: payer }, { otherUser: newPerson }])
   if (path === '/v1/debts') return page([debt])
   return debt
@@ -60,17 +61,18 @@ describe('debt editing and actual response ETag', () => {
       : Promise.resolve(options(path)))
     const wrapper = await form()
     expect(wrapper.get('#edit-amount').element.value).toBe('10.01')
-    expect(wrapper.get('input[value="member"]').element.checked).toBe(true)
+    await wrapper.get('input[role="combobox"]').trigger('focus')
+    await flushPromises()
+    expect(wrapper.get('li:has([data-value="member"])').attributes('aria-selected')).toBe('true')
     expect(wrapper.text()).toContain('Casey (inactive)')
-    expect(wrapper.get('input[value="self"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('li:has([data-value="self"])').attributes('aria-disabled')).toBe('true')
     expect(wrapper.find('select').exists()).toBe(false)
     await wrapper.get('#edit-amount').setValue('12.01')
-    await wrapper.get('input[value="member"]').setValue(false)
-    await wrapper.get('input[value="new"]').setValue(true)
+    await wrapper.get('[data-value="member"]').trigger('click')
+    await wrapper.get('[data-value="new"]').trigger('click')
     const payerToggle = wrapper.findAll('input[type="checkbox"]').find(input => !input.attributes('value'))!
     await payerToggle.setValue(false)
-    expect(wrapper.text()).toContain('Will be removed')
-    expect(wrapper.text()).toContain('Will be added or restored')
+    expect(wrapper.text()).toContain('Dana')
     expect(wrapper.text()).toContain('Each share: €6.01')
     await wrapper.get('form').trigger('submit')
     await wrapper.get('form').trigger('submit')

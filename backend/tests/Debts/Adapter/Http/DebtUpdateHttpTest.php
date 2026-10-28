@@ -312,6 +312,10 @@ final class DebtUpdateHttpTest extends WebTestCase
             self::assertFalse($this->body()['canDelete']);
             self::assertCount(3, $this->body()['participants']);
             $this->request('GET', '/api/v1/debts', $viewer);
+            self::assertSame($initial['id'], $this->body()['items'][0]['id']);
+            self::assertTrue($this->body()['items'][0]['isDeleted']);
+            self::assertFalse($this->body()['items'][0]['canEdit']);
+            $this->request('GET', '/api/v1/debts?status=active', $viewer);
             self::assertSame([], $this->body()['items']);
         }
         $this->request('GET', '/api/v1/transfers/'.$share['transferId'], 1);
@@ -324,6 +328,31 @@ final class DebtUpdateHttpTest extends WebTestCase
         self::assertFalse($this->body()['isDeleted']);
         $this->request('GET', '/api/v1/connects/'.$connectId, 1);
         self::assertSame(100, $this->body()['balanceAmount']);
+    }
+
+    public function testDeletedListUsesFrozenAccessAndPaginatesAfterFiltering(): void
+    {
+        $first = $this->create();
+        $path = '/api/v1/debts/'.$first['id'];
+        $this->request('PUT', $path, 0, $this->updateBody(), etag: '"1"');
+        self::assertResponseStatusCodeSame(200);
+        $this->request('DELETE', $path, 0, etag: '"2"');
+        self::assertResponseStatusCodeSame(204);
+        $this->create();
+        $this->request('GET', '/api/v1/debts?limit=1', 1);
+        $page = $this->body();
+        self::assertTrue($page['pagination']['hasMore']);
+        $this->request('GET', '/api/v1/debts?limit=1&cursor='.$page['pagination']['nextCursor'], 1);
+        self::assertCount(1, $this->body()['items']);
+        self::assertNotSame($page['items'][0]['id'], $this->body()['items'][0]['id']);
+        $this->request('GET', '/api/v1/debts', 2);
+        self::assertNotContains($first['id'], array_column($this->body()['items'], 'id'));
+        $this->request('GET', $path, 2);
+        $this->failure(404, 'DEBT_NOT_AVAILABLE');
+        $this->request('GET', '/api/v1/debts', 3);
+        self::assertSame([], $this->body()['items']);
+        $this->request('GET', '/api/v1/debts?status=deleted', 0);
+        $this->failure(400, 'INVALID_REQUEST');
     }
 
     public function testDeleteEnforcesAclFreezeDeletedVersionAndAuthenticationWithoutMutation(): void

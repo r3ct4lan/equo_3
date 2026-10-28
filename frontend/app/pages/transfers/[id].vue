@@ -40,12 +40,12 @@ const { item: transfer, etag, pending, error, load } = useFinancialDetail<Transf
       <UiText v-if="transfer.createdBy">
         Recorded by {{ transfer.createdBy.name }}
       </UiText>
-      <UiText
+      <UiNotice
         v-if="transfer.isDeleted"
-        role="status"
+        tone="warning"
       >
         Removed · does not affect the balance
-      </UiText>
+      </UiNotice>
       <UiLink
         v-if="transfer.debtReference?.isAccessible"
         :to="'/debts/' + transfer.debtReference.id"
@@ -55,12 +55,19 @@ const { item: transfer, etag, pending, error, load } = useFinancialDetail<Transf
       <UiText v-else-if="transfer.debtReference">
         Related expense unavailable
       </UiText>
+      <UiLink
+        v-if="transfer.relatedTransferId"
+        :to="'/transfers/' + transfer.relatedTransferId"
+      >
+        Related expense share
+      </UiLink>
       <time :datetime="transfer.createdAt">{{ new Date(transfer.createdAt).toLocaleString() }}</time>
       <ManageManualTransfer
         v-if="transfer.type === 'MANUAL' && transfer.canEdit && transfer.canDelete && transfer.createdBy?.id === state.user?.id && etag && validTransferEtag(etag)"
         :transfer="transfer"
         :etag="etag"
         @reload="load"
+        @removed="direction => navigateTo({ path: '/transfers', query: { direction } })"
       />
       <UiButton
         variant="secondary"

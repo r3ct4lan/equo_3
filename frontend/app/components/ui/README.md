@@ -11,8 +11,10 @@ form controls, disabled states and focus behavior consistent across Equo.
 
 `Card.vue` has a local `as` extension so the shared facade can render native
 `form`, `section`, `div` and `li` elements without extra wrappers. Preserve this
-extension when regenerating the Card family. Input, textarea and native select
+extension when regenerating the Card family. Input and textarea
 facades preserve string models and expose a focus method.
+
+Selects use the shared UiMultiselect facade over vue-multiselect 3.x; the native-select family is removed.
 
 The base Tailwind helpers from the CLI package are copied to
 `assets/css/vendor/shadcn.css` with the upstream MIT license. The CLI is used

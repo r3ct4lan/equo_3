@@ -1,3 +1,4 @@
+import { selectValue } from '../helpers/select'
 import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -28,7 +29,7 @@ async function mountForm() {
   return wrapper
 }
 async function fill(wrapper: Awaited<ReturnType<typeof mountForm>>): Promise<void> {
-  await wrapper.get('#payment-direction').setValue('other')
+  await selectValue(wrapper, 'payment-direction', 'other')
   await wrapper.get('#payment-amount').setValue('7.00')
 }
 describe('manual payment components', () => {
@@ -36,6 +37,27 @@ describe('manual payment components', () => {
     auth.protectedRequest.mockReset().mockResolvedValue(transfer)
     auth.bootstrap.mockReset().mockResolvedValue(undefined)
     signedIn()
+  })
+  it('selects a related share without exposing an unavailable expense', async () => {
+    const share = { ...transfer, id: 'share', type: 'DEBT_SHARE', debtReference: { id: 'hidden', isAccessible: false }, amount: 501 }
+    auth.protectedRequest.mockImplementation(async (_path, options) => options?.method === 'POST'
+      ? transfer
+      : { items: [share], pagination: { nextCursor: null, hasMore: false } })
+    const wrapper = await mountForm()
+    await wrapper.findAll('button').find(button => button.text().includes('Link an expense share'))!.trigger('click')
+    await flushPromises()
+    await wrapper.get('#related-share').trigger('focus')
+    expect(wrapper.text()).toContain('Expense unavailable')
+    expect(wrapper.text()).not.toContain('hidden')
+    await selectValue(wrapper, 'related-share', 'share')
+    expect(wrapper.get('#payment-amount').element).toHaveProperty('value', '5.01')
+    await fill(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/connects/connect/transfers', expect.objectContaining({
+      body: expect.objectContaining({ relatedTransferId: 'share', amount: 700 })
+    }))
+    wrapper.unmount()
   })
   it('validates, previews overpayment and guards double submission until confirmed', async () => {
     let resolve: (value: unknown) => void = () => undefined
@@ -82,7 +104,7 @@ describe('manual payment components', () => {
     await flushPromises()
     expect(wrapper.get('fieldset').attributes('disabled')).toBeUndefined()
     await wrapper.get('#payment-amount').setValue('8.00')
-    await wrapper.get('#payment-direction').setValue('you')
+    await selectValue(wrapper, 'payment-direction', 'you')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     const [first, second] = auth.protectedRequest.mock.calls
@@ -126,7 +148,7 @@ describe('manual payment components', () => {
     await wrapper.findAll('button').find(button => button.text() === 'Make a payment')!.trigger('click')
     await flushPromises()
     expect((wrapper.get('dialog').element as HTMLDialogElement).open).toBe(true)
-    await wrapper.get('#payment-direction').setValue('other')
+    await selectValue(wrapper, 'payment-direction', 'other')
     await wrapper.get('#payment-amount').setValue('7.00')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -148,7 +170,7 @@ describe('manual payment components', () => {
     signedIn()
     await flushPromises()
     const trigger = wrapper.findAll('button').find(button => button.text() === 'Make a payment')!
-    const directionFocus = vi.spyOn(wrapper.get('#payment-direction').element as HTMLSelectElement, 'focus')
+    const directionFocus = vi.spyOn(wrapper.get('#payment-direction').element as HTMLInputElement, 'focus')
     const triggerFocus = vi.spyOn(trigger.element as HTMLButtonElement, 'focus')
     await trigger.trigger('click')
     await flushPromises()
@@ -163,7 +185,7 @@ describe('manual payment components', () => {
     await trigger.trigger('click')
     await flushPromises()
     expect(wrapper.get('#payment-amount').element.value).toBe('7.00')
-    await wrapper.get('button[aria-label="Close payment form"]').trigger('click')
+    await wrapper.get('button[aria-label="Close"]').trigger('click')
     expect((dialog.element as HTMLDialogElement).open).toBe(false)
     wrapper.unmount()
   })
@@ -182,13 +204,13 @@ describe('manual payment components', () => {
     await flushPromises()
     const trigger = wrapper.findAll('button').find(button => button.text() === 'Make a payment')!
     await trigger.trigger('click')
-    await wrapper.get('#payment-direction').setValue('other')
+    await selectValue(wrapper, 'payment-direction', 'other')
     await wrapper.get('#payment-amount').setValue('7.00')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(wrapper.text()).toContain('Retry same payment')
     const firstPost = auth.protectedRequest.mock.calls.find(call => call[1]?.method === 'POST')!
-    await wrapper.get('button[aria-label="Close payment form"]').trigger('click')
+    await wrapper.get('button[aria-label="Close"]').trigger('click')
     await trigger.trigger('click')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -219,6 +241,45 @@ describe('manual payment correction components', () => {
     signedIn()
   })
 
+  it('prefills the selected share when editing and leaves the amount editable', async () => {
+    const share = { ...transfer, id: 'share', type: 'DEBT_SHARE', amount: 501 }
+    auth.protectedRequest.mockImplementation(async (_path, options) => options?.method === 'PUT'
+      ? transfer
+      : { items: [share], pagination: { nextCursor: null, hasMore: false } })
+    const wrapper = await mountSuspended(ManageManualTransfer, { props: { transfer, etag: '"7"' } })
+    signedIn()
+    await flushPromises()
+    await wrapper.get('button').trigger('click')
+    await wrapper.findAll('button').find(button => button.text().includes('Link an expense share'))!.trigger('click')
+    await flushPromises()
+    await selectValue(wrapper, 'related-share', 'share')
+    expect(wrapper.get('#edit-payment-amount').element).toHaveProperty('value', '5.01')
+    await wrapper.get('#edit-payment-amount').setValue('3.00')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/manual', expect.objectContaining({ body: expect.objectContaining({ amount: 300, relatedTransferId: 'share' }) }))
+    wrapper.unmount()
+  })
+
+  it('can clear an existing historical share link while editing', async () => {
+    const historical = { ...transfer, relatedTransferId: 'old-share' }
+    auth.protectedRequest.mockImplementation(async (_path, options) => options?.method === 'PUT'
+      ? transfer
+      : { items: [], pagination: { nextCursor: null, hasMore: false } })
+    const wrapper = await mountSuspended(ManageManualTransfer, { props: { transfer: historical, etag: '"7"' } })
+    await wrapper.get('button').trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === 'Change related expense share')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Previously linked expense share')
+    await selectValue(wrapper, 'related-share', '')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/manual', expect.objectContaining({
+      body: expect.objectContaining({ relatedTransferId: null })
+    }))
+    wrapper.unmount()
+  })
+
   it('edits amount and direction once with the actual If-Match and then reloads', async () => {
     let resolve: (value?: unknown) => void = () => undefined
     auth.protectedRequest.mockImplementation((_path, options) => new Promise((done) => {
@@ -227,7 +288,7 @@ describe('manual payment correction components', () => {
     }))
     const wrapper = await mountSuspended(ManageManualTransfer, { props: { transfer, etag: '"7"' } })
     await wrapper.get('button').trigger('click')
-    await wrapper.get('#edit-payment-direction').setValue('self')
+    await selectValue(wrapper, 'edit-payment-direction', 'self')
     await wrapper.get('#edit-payment-amount').setValue('8.00')
     await wrapper.get('form').trigger('submit')
     await wrapper.get('form').trigger('submit')
@@ -250,7 +311,7 @@ describe('manual payment correction components', () => {
     await wrapper.findAll('button').find(button => button.text() === 'Yes, remove payment')!.trigger('click')
     await flushPromises()
     expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/manual', expect.objectContaining({ method: 'DELETE', headers: { 'If-Match': '"7"' } }))
-    expect(wrapper.emitted('reload')).toHaveLength(1)
+    expect(wrapper.emitted('removed')).toEqual([['incoming']])
     wrapper.unmount()
   })
 

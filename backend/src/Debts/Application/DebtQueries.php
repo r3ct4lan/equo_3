@@ -49,20 +49,20 @@ final readonly class DebtQueries implements DebtAccess
     }
 
     /** @return array{items:list<array<string,mixed>>,pagination:array{nextCursor:?string,hasMore:bool}} */
-    public function page(string $viewerId, int $limit = 20, ?string $cursor = null): array
+    public function page(string $viewerId, int $limit = 20, ?string $cursor = null, bool $activeOnly = false): array
     {
         if ($limit < 1 || $limit > 100) {
             throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
         }
         $before = $this->cursor->decode($cursor);
-        $rows = $this->repository->page($viewerId, $limit + 1, $before['before'], $before['id']);
+        $rows = $this->repository->page($viewerId, $limit + 1, $before['before'], $before['id'], $activeOnly);
         $hasMore = count($rows) > $limit;
         $rows = array_slice($rows, 0, $limit);
         $last = $rows[count($rows) - 1] ?? null;
         $items = [];
         foreach ($rows as $d) {
             $v = $this->views->detail($d, $viewerId, false);
-            $items[] = ['id' => $v['id'], 'title' => $v['title'], 'totalAmount' => $v['totalAmount'], 'payer' => $v['payer'], 'participantCount' => $v['participantCount'], 'shareAmount' => $v['shareAmount'], 'canEdit' => $v['canEdit'], 'version' => $v['version'], 'createdAt' => $v['createdAt']];
+            $items[] = ['id' => $v['id'], 'title' => $v['title'], 'totalAmount' => $v['totalAmount'], 'payer' => $v['payer'], 'participantCount' => $v['participantCount'], 'shareAmount' => $v['shareAmount'], 'canEdit' => $v['canEdit'], 'isDeleted' => $v['isDeleted'], 'version' => $v['version'], 'createdAt' => $v['createdAt']];
         }
 
         return ['items' => $items, 'pagination' => ['nextCursor' => $hasMore && null !== $last ? $this->cursor->encode($last->createdAt, $last->id) : null, 'hasMore' => $hasMore]];

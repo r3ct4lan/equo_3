@@ -175,15 +175,10 @@ onBeforeUnmount(() => {
           <AppErrorState
             :title="errorPresentation.title"
             :message="errorPresentation.message"
+            :request-id="activationError?.requestId"
             :retry-label="errorPresentation.retryable ? 'Try activation again' : undefined"
             @retry="activateAccount"
           />
-          <UiText
-            v-if="activationError?.requestId"
-            class="support-reference"
-          >
-            Support reference: <code>{{ activationError.requestId }}</code>
-          </UiText>
         </div>
       </UiCard>
 

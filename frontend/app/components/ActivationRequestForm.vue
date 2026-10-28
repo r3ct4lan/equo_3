@@ -23,6 +23,7 @@ const {
 
 const successPanel = useTemplateRef<FocusTarget>('successPanel')
 const emailInput = useTemplateRef<FocusTarget>('emailInput')
+defineExpose({ focusEmail: () => emailInput.value?.focus() })
 const hasFieldErrors = computed(() => Object.keys(fieldErrors.value).length > 0)
 const summaryMessage = computed(() => errorPresentation.value?.message
   ?? (hasFieldErrors.value ? 'Correct the highlighted fields and submit again.' : null))
@@ -103,6 +104,7 @@ onBeforeUnmount(dispose)
       <FormErrorSummary
         :title="summaryTitle"
         :message="summaryMessage"
+        :request-id="formError?.requestId"
       />
 
       <fieldset
@@ -155,13 +157,6 @@ onBeforeUnmount(dispose)
           />
         </UiField>
       </fieldset>
-
-      <UiText
-        v-if="formError?.requestId"
-        class="support-reference"
-      >
-        Support reference: <code>{{ formError.requestId }}</code>
-      </UiText>
 
       <div class="form-actions">
         <FormSubmitButton

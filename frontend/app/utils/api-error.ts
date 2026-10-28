@@ -3,6 +3,10 @@ import type { ApiErrorDetails, ApiErrorEnvelope, ApiViolation } from '../types/a
 export type ApiClientErrorKind = 'api' | 'http' | 'network' | 'timeout' | 'aborted' | 'unknown'
 export type FieldErrorMap = Record<string, string[]>
 
+export function safeRequestId(value?: string | null): string | null {
+  return value && /^[A-Za-z0-9._-]{1,64}$/u.test(value) ? value : null
+}
+
 const HTTP_MESSAGES: Record<number, string> = {
   400: 'The request could not be understood.',
   401: 'Authentication is required.',

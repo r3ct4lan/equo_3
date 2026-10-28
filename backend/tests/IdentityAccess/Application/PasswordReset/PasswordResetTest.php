@@ -12,8 +12,8 @@ use App\IdentityAccess\Application\PasswordReset\ResetPassword;
 use App\IdentityAccess\Application\PasswordReset\ResetPasswordCommand;
 use App\IdentityAccess\Application\Port\ActionTokenCodecPort;
 use App\IdentityAccess\Application\Port\ClockPort;
-use App\IdentityAccess\Application\Port\CurrentUserState;
-use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
+use App\IdentityAccess\Application\Port\PasswordChangeRepositoryPort;
+use App\IdentityAccess\Application\Port\StoredLoginIdentity;
 use App\IdentityAccess\Application\Port\IssuedActionToken;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
 use App\IdentityAccess\Application\Port\PasswordResetAccount;
@@ -94,11 +94,11 @@ final class PasswordResetTest extends TestCase
         $events = [];
         $repository = $this->createMock(PasswordResetRepositoryPort::class);
         $repository->method('userIdForTokenHash')->willReturn('user-id');
-        $identities = $this->createMock(IdentityRepositoryPort::class);
-        $identities->expects(self::once())->method('currentUserForUpdate')->willReturnCallback(static function () use (&$events): CurrentUserState {
+        $identities = $this->createMock(PasswordChangeRepositoryPort::class);
+        $identities->expects(self::once())->method('accountForUpdate')->willReturnCallback(static function () use (&$events): StoredLoginIdentity {
             $events[] = 'owner';
 
-            return new CurrentUserState('user-id', false);
+            return new StoredLoginIdentity('user-id', 'Name', 'user@example.test', 'old-hash', false);
         });
         $repository->expects(self::once())->method('tokenForUpdate')->willReturnCallback(static function () use (&$events, $now): StoredPasswordResetToken {
             $events[] = 'token';
@@ -128,8 +128,8 @@ final class PasswordResetTest extends TestCase
             'used' === $state ? $now : null, 'invalidated' === $state ? $now : null,
         ));
         $repository->expects(self::never())->method('completeReset');
-        $identities = $this->createStub(IdentityRepositoryPort::class);
-        $identities->method('currentUserForUpdate')->willReturn(new CurrentUserState('user-id', true));
+        $identities = $this->createStub(PasswordChangeRepositoryPort::class);
+        $identities->method('accountForUpdate')->willReturn(new StoredLoginIdentity('user-id', 'Name', 'user@example.test', 'old-hash', true));
         $hasher = $this->createMock(PasswordHashingPort::class);
         $hasher->expects(self::never())->method('hash');
         $sessions = $this->createMock(UserSessionRepositoryPort::class);
@@ -165,7 +165,7 @@ final class PasswordResetTest extends TestCase
         $hasher = $this->createMock(PasswordHashingPort::class);
         $hasher->expects(self::never())->method('hash');
         try {
-            (new ResetPassword($repository, $this->createStub(IdentityRepositoryPort::class), $this->createStub(UserSessionRepositoryPort::class), $codec, new PasswordPolicy(), $hasher, $limits, $this->transaction(), $this->clock(new DateTimeImmutable())))
+            (new ResetPassword($repository, $this->createStub(PasswordChangeRepositoryPort::class), $this->createStub(UserSessionRepositoryPort::class), $codec, new PasswordPolicy(), $hasher, $limits, $this->transaction(), $this->clock(new DateTimeImmutable())))
                 ->handle(new ResetPasswordCommand('bad', $password, '192.0.2.1'));
             self::fail('Precondition must fail.');
         } catch (ApplicationFailure $failure) {
@@ -188,7 +188,7 @@ final class PasswordResetTest extends TestCase
         yield 'limited' => ['New password1!', 'digest', 123, ApplicationFailureCode::RateLimitExceeded];
     }
 
-    private function reset(PasswordResetRepositoryPort $repository, IdentityRepositoryPort $identities, UserSessionRepositoryPort $sessions, PasswordHashingPort $hasher, DateTimeImmutable $now): ResetPassword
+    private function reset(PasswordResetRepositoryPort $repository, PasswordChangeRepositoryPort $identities, UserSessionRepositoryPort $sessions, PasswordHashingPort $hasher, DateTimeImmutable $now): ResetPassword
     {
         $codec = $this->createStub(ActionTokenCodecPort::class);
         $codec->method('digest')->willReturn('v1:digest');

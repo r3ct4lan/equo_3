@@ -3,6 +3,7 @@ import type { ConnectView } from '~/types/connects'
 import type { CreateManualTransferBody, TransferView } from '~/types/finance'
 import { manualTransferCommand, manualTransferPreview } from '~/utils/manual-transfer'
 import { formatEuro } from '~/utils/money'
+import { euroInput } from '~/utils/debt-update'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 
 const props = defineProps<{ connect: ConnectView }>()
@@ -11,6 +12,8 @@ const { $auth } = useNuxtApp()
 const { state } = useCurrentUser()
 const direction = ref('you')
 const amount = ref('')
+const relatedShare = ref('')
+const relatedSelectorOpen = ref(false)
 const pending = ref(false)
 const uncertain = ref(false)
 const invalid = ref(false)
@@ -33,7 +36,7 @@ async function submit(): Promise<void> {
   if (!attempt) {
     invalid.value = !command.value
     if (!command.value) return
-    attempt = { body: { ...command.value }, key: crypto.randomUUID() }
+    attempt = { body: { ...command.value, ...(relatedShare.value ? { relatedTransferId: relatedShare.value } : {}) }, key: crypto.randomUUID() }
   }
   const requestGeneration = generation
   const connectId = props.connect.id
@@ -47,6 +50,8 @@ async function submit(): Promise<void> {
     attempt = null
     uncertain.value = false
     amount.value = ''
+    relatedShare.value = ''
+    relatedSelectorOpen.value = false
     emit('created', result)
   }
   catch (failure) {
@@ -68,6 +73,8 @@ function clear(): void {
   error.value = null
   amount.value = ''
   direction.value = 'you'
+  relatedShare.value = ''
+  relatedSelectorOpen.value = false
 }
 watch(() => [state.value.status, state.value.user?.id, props.connect.id], clear)
 onBeforeUnmount(clear)
@@ -87,7 +94,10 @@ onBeforeUnmount(clear)
       Record a payment
     </UiText>
     <UiText>Record money already transferred between you. Either person can record either direction, including an overpayment.</UiText>
-    <FormErrorSummary :message="message" />
+    <FormErrorSummary
+      :message="message"
+      :request-id="error?.requestId"
+    />
     <fieldset
       class="stack"
       :disabled="pending || uncertain || !connect.canCreateTransfer"
@@ -100,21 +110,31 @@ onBeforeUnmount(clear)
         <UiSelect
           id="payment-direction"
           v-model="direction"
+          label="Who transferred money?"
+          :options="[{ value: 'you', label: `You → ${connect.otherUser.name}` }, { value: 'other', label: `${connect.otherUser.name} → You` }]"
+          :disabled="pending || uncertain || !connect.canCreateTransfer"
           required
-        >
-          <option value="you">
-            You → {{ connect.otherUser.name }}
-          </option>
-          <option value="other">
-            {{ connect.otherUser.name }} → You
-          </option>
-        </UiSelect>
+        />
       </UiField>
+      <UiButton
+        v-if="!relatedSelectorOpen"
+        variant="link"
+        @click="relatedSelectorOpen = true"
+      >
+        Link an expense share (optional)
+      </UiButton>
+      <RelatedShareSelector
+        v-else
+        v-model="relatedShare"
+        :connect-id="connect.id"
+        @selected="amount = euroInput($event.amount)"
+      />
       <UiField>
         <label for="payment-amount">Payment amount in EUR</label>
         <UiInput
           id="payment-amount"
           v-model="amount"
+          money
           type="text"
           inputmode="decimal"
           required
@@ -138,12 +158,6 @@ onBeforeUnmount(clear)
         Your balance and operations will be refreshed after the payment is confirmed.
       </UiText>
     </fieldset>
-    <UiText
-      v-if="error?.requestId"
-      class="support-reference"
-    >
-      Support reference: {{ error.requestId }}
-    </UiText>
     <UiButton
       type="submit"
       :disabled="pending || !connect.canCreateTransfer"

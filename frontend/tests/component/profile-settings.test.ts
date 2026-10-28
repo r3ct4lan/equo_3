@@ -52,7 +52,11 @@ describe('profile settings', () => {
 
   it('requests email confirmation and clears the password', async () => {
     authMock.protectedRequest.mockResolvedValue({ status: 'email_confirmation_scheduled' })
-    const wrapper = await mountSuspended(EmailChangeForm)
+    const wrapper = await mountSuspended(EmailChangeForm, { attachTo: document.body })
+    expect(wrapper.find('form').exists()).toBe(false)
+    await wrapper.get('button').trigger('click')
+    expect(authMock.protectedRequest).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(wrapper.get('#profile-new-email').element)
     await wrapper.get('form').trigger('submit')
     expect(authMock.protectedRequest).not.toHaveBeenCalled()
     await wrapper.get('#profile-new-email').setValue('new@example.test')
@@ -64,12 +68,18 @@ describe('profile settings', () => {
     })
     expect(wrapper.get('#profile-current-password').element).toHaveProperty('value', '')
     expect(wrapper.get('[role="status"]').text()).toContain('Confirmation email scheduled')
+    await wrapper.findAll('button').find(button => button.text() === 'Cancel')!.trigger('click')
+    expect(wrapper.find('form').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('button').element)
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.get('#profile-new-email').element).toHaveProperty('value', '')
     wrapper.unmount()
   })
 
   it('shows safe request conflicts and clears the password', async () => {
     authMock.protectedRequest.mockRejectedValue(new ApiClientError({ kind: 'api', status: 409, code: 'EMAIL_ALREADY_IN_USE', message: 'Conflict' }))
     const wrapper = await mountSuspended(EmailChangeForm)
+    await wrapper.get('button').trigger('click')
     await wrapper.get('#profile-new-email').setValue('used@example.test')
     await wrapper.get('#profile-current-password').setValue('Current password!')
     await wrapper.get('form').trigger('submit')

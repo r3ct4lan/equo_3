@@ -16,6 +16,7 @@ security:
         - { path: ^/api/v1/auth/activate$, roles: PUBLIC_ACCESS }
         - { path: ^/api/v1/auth/password-reset-requests$, roles: PUBLIC_ACCESS }
         - { path: ^/api/v1/auth/password-reset$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1/auth/password-reset/check$, roles: PUBLIC_ACCESS }
         - { path: ^/api/v1/auth/email-change-confirmations$, roles: PUBLIC_ACCESS }
         - { path: ^/api/v1/auth/login$, roles: PUBLIC_ACCESS }
         - { path: ^/api/v1/auth/refresh$, roles: PUBLIC_ACCESS }
@@ -30,4 +31,5 @@ security:
         - { path: ^/api/v1/connect-invitations/[^/]+/accept$, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/connect-invitations/[^/]+$, roles: PUBLIC_ACCESS, methods: [GET] }
         - { path: ^/api/v1/debts(?:/|$), roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api/v1/debt-people$, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/transfers(?:/|$), roles: IS_AUTHENTICATED_FULLY }

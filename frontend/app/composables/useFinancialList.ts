@@ -5,7 +5,7 @@ import {
   toApiClientError, type ApiClientError
 } from '~/utils/api-error'
 
-export function useFinancialList<T>(path: () => string) {
+export function useFinancialList<T>(path: () => string, query: () => Record<string, string> = () => ({})) {
   const {
     $auth
   } = useNuxtApp()
@@ -27,11 +27,7 @@ export function useFinancialList<T>(path: () => string) {
     error.value = null
     try {
       const result = await $auth.protectedRequest<Page<T>>(requestPath, {
-        query: more && cursor.value
-          ? {
-              cursor: cursor.value
-            }
-          : {}
+        query: { ...query(), ...(more && cursor.value ? { cursor: cursor.value } : {}) }
       })
       if (requestGeneration !== generation || state.value.user?.id !== viewer || state.value.status !== 'authenticated') return
       items.value = more ? [...items.value, ...result.items] : result.items
@@ -56,7 +52,7 @@ export function useFinancialList<T>(path: () => string) {
   onMounted(() => {
     void load()
   })
-  watch(() => [state.value.status, state.value.user?.id, path()], () => {
+  watch(() => [state.value.status, state.value.user?.id, path(), JSON.stringify(query())], () => {
     clear()
     void load()
   })

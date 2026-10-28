@@ -49,7 +49,14 @@ final readonly class CreateManualTransfer
                     throw new ApplicationFailure(ApplicationFailureCode::InactiveUser);
                 }
             }
-            $transfer = Transfer::manual($this->runtime->newId(), $command->connectId, $command->senderId, $command->receiverId, $command->amount, $authorId, $this->runtime->now());
+            $relatedId = null === $command->relatedTransferId ? null : strtolower($command->relatedTransferId);
+            if (null !== $relatedId) {
+                $target = $this->repository->find($relatedId, true);
+                if (null === $target || 'DEBT_SHARE' !== $target->type || $target->isDeleted || $target->connectId !== $command->connectId) {
+                    throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
+                }
+            }
+            $transfer = Transfer::manual($this->runtime->newId(), $command->connectId, $command->senderId, $command->receiverId, $command->amount, $authorId, $this->runtime->now(), $relatedId);
             $this->repository->save($transfer);
             $body = $this->queries->detail($transfer->id, $authorId);
             $this->idempotency->complete($scope, $operation, $command->idempotencyKey, 201, $body, $authorId);

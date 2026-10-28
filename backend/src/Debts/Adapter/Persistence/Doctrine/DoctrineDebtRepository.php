@@ -17,9 +17,9 @@ final readonly class DoctrineDebtRepository implements DebtRepositoryPort
     {
     }
 
-    public function page(string $viewerId, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array
+    public function page(string $viewerId, int $limit, ?DateTimeImmutable $before, ?string $beforeId, bool $activeOnly = false): array
     {
-        $sql = 'SELECT d.id FROM debt d WHERE d.is_deleted=false AND (d.created_by_id=:user OR d.payer_id=:user OR EXISTS (SELECT 1 FROM debt_participant p WHERE p.debt_id=d.id AND p.user_id=:user AND p.is_deleted=false))';
+        $sql = 'SELECT d.id FROM debt d WHERE '.($activeOnly ? 'd.is_deleted=false AND ' : '').'(d.created_by_id=:user OR d.payer_id=:user OR EXISTS (SELECT 1 FROM debt_participant p WHERE p.debt_id=d.id AND p.user_id=:user AND p.is_deleted=false))';
         $params = ['user' => $viewerId];
         if (null !== $before) {
             $sql .= ' AND (d.created_at,d.id) < (:before,:id)';

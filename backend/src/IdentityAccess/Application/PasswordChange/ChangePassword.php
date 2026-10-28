@@ -42,6 +42,9 @@ final readonly class ChangePassword
             if (!$account->verifyPassword($this->hasher, $command->currentPassword)) {
                 throw new ApplicationFailure(ApplicationFailureCode::InvalidCredentials);
             }
+            if ($account->verifyPassword($this->hasher, $command->newPassword)) {
+                throw new ApplicationFailure(ApplicationFailureCode::PasswordUnchanged);
+            }
             $this->repository->replacePasswordHash($account->id, $this->hasher->hash($command->newPassword));
             $this->sessions->revokeAllUnfinishedForUser($account->id, $this->clock->now());
         });

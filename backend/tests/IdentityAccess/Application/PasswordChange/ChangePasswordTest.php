@@ -58,11 +58,29 @@ final class ChangePasswordTest extends TestCase
         $repository->expects(self::once())->method('accountForUpdate')->with('user')->willReturn(new StoredLoginIdentity('user', 'Name', 'user@example.test', 'private-hash', true));
         $repository->expects(self::once())->method('replacePasswordHash')->with('user', 'new-private-hash');
         $hasher = $this->createMock(PasswordHashingPort::class);
-        $hasher->expects(self::once())->method('verify')->with(' old ', 'private-hash')->willReturn(true);
+        $hasher->expects(self::exactly(2))->method('verify')->willReturnCallback(static fn (string $password): bool => ' old ' === $password);
         $hasher->expects(self::once())->method('hash')->with('  New password1 😀  ')->willReturn('new-private-hash');
         $sessions = $this->createMock(UserSessionRepositoryPort::class);
         $sessions->expects(self::once())->method('revokeAllUnfinishedForUser')->with('user', new DateTimeImmutable('2026-10-10T12:00:00Z'));
         $this->handler($repository, $sessions, $hasher)->handle(new ChangePasswordCommand('user', ' old ', '  New password1 😀  '));
+    }
+
+    public function testSamePasswordDoesNotChangeCredentialsOrSessions(): void
+    {
+        $repository = $this->createMock(PasswordChangeRepositoryPort::class);
+        $repository->method('accountForUpdate')->willReturn(new StoredLoginIdentity('user', 'Name', 'user@example.test', 'private-hash', true));
+        $repository->expects(self::never())->method('replacePasswordHash');
+        $hasher = $this->createMock(PasswordHashingPort::class);
+        $hasher->expects(self::exactly(2))->method('verify')->willReturn(true);
+        $hasher->expects(self::never())->method('hash');
+        $sessions = $this->createMock(UserSessionRepositoryPort::class);
+        $sessions->expects(self::never())->method('revokeAllUnfinishedForUser');
+        try {
+            $this->handler($repository, $sessions, $hasher)->handle(new ChangePasswordCommand('user', 'Same password1!', 'Same password1!'));
+            self::fail('The command must be denied.');
+        } catch (ApplicationFailure $failure) {
+            self::assertSame(ApplicationFailureCode::PasswordUnchanged, $failure->failureCode);
+        }
     }
 
     private function handler(PasswordChangeRepositoryPort $repository, UserSessionRepositoryPort $sessions, PasswordHashingPort $hasher): ChangePassword

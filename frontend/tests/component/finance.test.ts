@@ -61,6 +61,7 @@ function signedIn(id = 'self'): void {
   })
 }
 function options(path: string) {
+  if (path === '/v1/debt-people') return page([self, other])
   if (path === '/v1/connects') return page([{
     otherUser: other
   }])
@@ -70,7 +71,9 @@ function options(path: string) {
 async function fill(wrapper: Awaited<ReturnType<typeof mountSuspended>>): Promise<void> {
   await wrapper.get('#debt-title').setValue('Dinner')
   await wrapper.get('#debt-amount').setValue('10.01')
-  await wrapper.get('input[value="other"]').setValue(true)
+  await wrapper.findAll('input[role="combobox"]')[0]!.trigger('focus')
+  await flushPromises()
+  await wrapper.get('[data-value="other"]').trigger('click')
 }
 describe('financial journey components', () => {
   beforeEach(() => {
@@ -101,6 +104,16 @@ describe('financial journey components', () => {
     const command = auth.protectedRequest.mock.calls.find(call => call[1]?.method === 'POST')![1]
     expect(command.body.totalAmount).toBe(1001)
     expect(command.body.participantIds).toEqual(['other'])
+    wrapper.unmount()
+  })
+  it('filters nonnumeric money input and requests a decimal mobile keyboard', async () => {
+    const wrapper = await mountSuspended(CreateDebtForm)
+    signedIn()
+    await flushPromises()
+    const amount = wrapper.get('#debt-amount')
+    expect(amount.attributes('inputmode')).toBe('decimal')
+    await amount.setValue('ab12,345x')
+    expect((amount.element as HTMLInputElement).value).toBe('12,34')
     wrapper.unmount()
   })
   it('freezes an uncertain command and reuses its body and key only on explicit retry', async () => {
@@ -156,9 +169,39 @@ describe('financial journey components', () => {
     await wrapper.get('form').trigger('submit')
     expect(wrapper.text()).toContain('Enter a title')
     await fill(wrapper)
-    await wrapper.get('#debt-payer').setValue('other')
+    await wrapper.findAll('input[role="combobox"]')[1]!.trigger('focus')
+    await wrapper.findAll('.people-picker')[1]!.get('[data-value="other"]').trigger('click')
+    await wrapper.findAll('.people-picker')[0]!.get('[data-value="self"]').trigger('click')
     await wrapper.get('form').trigger('submit')
     expect(auth.protectedRequest.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(0)
+    wrapper.unmount()
+  })
+  it('clears the payer when they are removed from the selected participants', async () => {
+    const wrapper = await mountSuspended(CreateDebtForm)
+    signedIn()
+    await flushPromises()
+    await fill(wrapper)
+    await wrapper.findAll('input[role="combobox"]')[1]!.trigger('focus')
+    await wrapper.findAll('.people-picker')[1]!.get('[data-value="other"]').trigger('click')
+    await wrapper.findAll('.people-picker')[0]!.get('[data-value="other"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.people-picker')[1]!.find('[data-value="other"]').exists()).toBe(false)
+    await wrapper.get('form').trigger('submit')
+    expect(auth.protectedRequest.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(0)
+    wrapper.unmount()
+  })
+  it('keeps the new account selected after resetting an expense draft', async () => {
+    const wrapper = await mountSuspended(CreateDebtForm)
+    signedIn()
+    await flushPromises()
+    await fill(wrapper)
+    signedIn('new-viewer')
+    await flushPromises()
+    const pickers = wrapper.findAll('.people-picker')
+    expect(pickers[0]!.get('.multiselect__tag').text()).toContain('You')
+    expect(pickers[0]!.text()).not.toContain('Boris')
+    expect(pickers[1]!.get('.multiselect__single').text()).toBe('You')
+    expect(wrapper.get('#debt-title').element.value).toBe('')
     wrapper.unmount()
   })
   it('loads debt pages and clears old data on an account switch', async () => {
@@ -242,14 +285,14 @@ describe('financial journey components', () => {
     wrapper.unmount()
   })
 
-  it('removes newly inactive participants when people are reloaded after a definitive rejection', async () => {
+  it('allows removing a participant after a definitive rejection', async () => {
     let reloaded = false
     auth.protectedRequest.mockImplementation(async (path, options_) => {
       if (options_?.method === 'POST') {
         reloaded = true
         throw new ApiClientError({ kind: 'api', status: 422, code: 'INACTIVE_USER', message: 'Safe error' })
       }
-      if (path === '/v1/connects') return page([{ otherUser: { ...other, isActive: !reloaded } }])
+      if (path === '/v1/debt-people') return page(reloaded ? [self] : [self, other])
       return page([])
     })
     const wrapper = await mountSuspended(CreateDebtForm)
@@ -258,9 +301,7 @@ describe('financial journey components', () => {
     await fill(wrapper)
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    await wrapper.findAll('button').find(button => button.text() === 'Reload people')!.trigger('click')
-    await flushPromises()
-    expect(wrapper.find('input[value="other"]').exists()).toBe(false)
+    await wrapper.get('button[aria-label="Remove Boris"]').trigger('click')
     await wrapper.get('form').trigger('submit')
     expect(auth.protectedRequest.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(1)
     expect(wrapper.text()).toContain('Enter a title')

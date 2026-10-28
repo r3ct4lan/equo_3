@@ -21,6 +21,7 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<DebtSum
     </UiText>
     <template v-if="state.status === 'authenticated'">
       <UiButton
+        icon="add"
         to="/debts/new"
       >
         New expense
@@ -49,6 +50,12 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<DebtSum
           </UiLink>
           <UiText>{{ formatEuro(debt.totalAmount) }} · paid by {{ debt.payer.name }}</UiText>
           <UiText>{{ debt.participantCount }} people · {{ formatEuro(debt.shareAmount) }} each</UiText>
+          <UiNotice
+            v-if="debt.isDeleted"
+            tone="info"
+          >
+            Removed · does not affect the balance
+          </UiNotice>
           <UiText v-if="!debt.payer.isActive">
             Payer inactive
           </UiText>

@@ -10,7 +10,7 @@ use DateTimeImmutable;
 interface DebtRepositoryPort
 {
     /** @return list<Debt> */
-    public function page(string $viewerId, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array;
+    public function page(string $viewerId, int $limit, ?DateTimeImmutable $before, ?string $beforeId, bool $activeOnly = false): array;
 
     public function save(Debt $debt): void;
 

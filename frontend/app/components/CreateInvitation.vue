@@ -65,6 +65,7 @@ async function share(): Promise<void> {
     </UiText>
     <UiText>Send a one-use invitation to someone you know. It stays valid for seven days.</UiText>
     <UiButton
+      compact
       :disabled="pending"
       :pending="pending"
       @click="create"

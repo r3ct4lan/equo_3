@@ -155,6 +155,7 @@ onUnmounted(clearRateLimitCountdown)
       <FormErrorSummary
         :title="summaryTitle"
         :message="summaryMessage"
+        :request-id="formError?.requestId"
       />
 
       <UiText
@@ -218,26 +219,19 @@ onUnmounted(clearRateLimitCountdown)
         </UiField>
       </fieldset>
 
-      <UiText
-        v-if="formError?.requestId"
-        class="support-reference"
-      >
-        Support reference: <code>{{ formError.requestId }}</code>
-      </UiText>
-
       <div class="form-actions">
-        <UiButton
-          variant="secondary"
-          to="/forgot-password"
-        >
-          Forgot your password?
-        </UiButton>
         <FormSubmitButton
           :pending="isSubmitting"
           pending-label="Signing in…"
         >
           Sign in
         </FormSubmitButton>
+        <UiButton
+          variant="secondary"
+          to="/forgot-password"
+        >
+          Forgot your password?
+        </UiButton>
         <UiButton
           v-if="errorPresentation?.retryable"
           variant="secondary"

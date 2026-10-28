@@ -49,6 +49,21 @@ final readonly class TransferQueries
         return ['items' => array_map(fn (Transfer $t): array => $this->view($t, $viewerId), $rows), 'pagination' => ['nextCursor' => $hasMore && null !== $last ? $this->cursor->encode($last->createdAt, $last->id) : null, 'hasMore' => $hasMore]];
     }
 
+    /** @return array{items:list<array<string,mixed>>,pagination:array{nextCursor:?string,hasMore:bool}} */
+    public function userHistory(string $viewerId, string $direction, int $limit = 20, ?string $cursor = null): array
+    {
+        if (!in_array($direction, ['incoming', 'outgoing'], true) || $limit < 1 || $limit > 100) {
+            throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
+        }
+        $before = $this->cursor->decode($cursor);
+        $rows = $this->repository->pageForUser($viewerId, $direction, $limit + 1, $before['before'], $before['id']);
+        $hasMore = count($rows) > $limit;
+        $rows = array_slice($rows, 0, $limit);
+        $last = $rows[count($rows) - 1] ?? null;
+
+        return ['items' => array_map(fn (Transfer $t): array => $this->view($t, $viewerId), $rows), 'pagination' => ['nextCursor' => $hasMore && null !== $last ? $this->cursor->encode($last->createdAt, $last->id) : null, 'hasMore' => $hasMore]];
+    }
+
     /** @return array{id:string,name:string,isActive:bool} */
     private function user(string $id): array
     {

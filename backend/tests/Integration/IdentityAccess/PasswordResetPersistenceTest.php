@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\IdentityAccess;
 
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineIdentityRepository;
+use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrinePasswordChangeRepository;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrinePasswordResetRepository;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineTransaction;
 use App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineUserSessionRepository;
@@ -166,7 +167,7 @@ final class PasswordResetPersistenceTest extends KernelTestCase
 
     private function reset(): ResetPassword
     {
-        return new ResetPassword(new DoctrinePasswordResetRepository($this->em), new DoctrineIdentityRepository($this->em), new DoctrineUserSessionRepository($this->em), self::getContainer()->get(ActionTokenCodecPort::class), new PasswordPolicy(), self::getContainer()->get(PasswordHashingPort::class), $this->limits(), new DoctrineTransaction($this->em), $this->clock());
+        return new ResetPassword(new DoctrinePasswordResetRepository($this->em), new DoctrinePasswordChangeRepository($this->em), new DoctrineUserSessionRepository($this->em), self::getContainer()->get(ActionTokenCodecPort::class), new PasswordPolicy(), self::getContainer()->get(PasswordHashingPort::class), $this->limits(), new DoctrineTransaction($this->em), $this->clock());
     }
 
     private function limits(): PasswordResetRateLimitPort

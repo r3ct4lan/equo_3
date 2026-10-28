@@ -32,7 +32,7 @@ export function useDashboard() {
     try {
       const [balances, expenses] = await Promise.all([
         $auth.protectedRequest<BalanceSummary>('/v1/transfers/balance-summary'),
-        $auth.protectedRequest<Page<DebtSummary>>('/v1/debts', { query: { limit: 5 } })
+        $auth.protectedRequest<Page<DebtSummary>>('/v1/debts', { query: { limit: 5, status: 'active' } })
       ])
       if (requestGeneration !== generation || state.value.status !== 'authenticated' || state.value.user?.id !== viewerId) return
       data.value = { balances, expenses: expenses.items }

@@ -81,6 +81,24 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
         return array_map($this->map(...), $this->db->fetchAllAssociative($sql, $params));
     }
 
+    public function pageForUser(string $userId, string $direction, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array
+    {
+        if (!in_array($direction, ['incoming', 'outgoing'], true)) {
+            throw new InvalidArgumentException('Invalid transfer direction.');
+        }
+        $side = 'incoming' === $direction ? 'receiver_id' : 'sender_id';
+        $sql = 'SELECT t.* FROM transfer t INNER JOIN connect c ON c.id=t.connect_id WHERE t.'.$side.'=:viewer AND (c.first_user_id=:viewer OR c.second_user_id=:viewer)';
+        $params = ['viewer' => $userId];
+        if (null !== $before) {
+            $sql .= ' AND (t.created_at,t.id) < (:before,:id)';
+            $params['before'] = $before->format('Y-m-d H:i:sP');
+            $params['id'] = $beforeId;
+        }
+        $sql .= ' ORDER BY t.created_at DESC,t.id DESC LIMIT '.(int) $limit;
+
+        return array_map($this->map(...), $this->db->fetchAllAssociative($sql, $params));
+    }
+
     /** @param array<string,mixed> $row */
     private function map(array $row): Transfer
     {

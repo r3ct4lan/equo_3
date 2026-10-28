@@ -19,6 +19,8 @@ final readonly class CreateManualTransferRequest
         #[Assert\Type('integer')]
         #[Assert\Range(min: 1, max: 2147483647)]
         public mixed $amount = null,
+        #[Assert\Uuid]
+        public ?string $relatedTransferId = null,
     ) {
     }
 }

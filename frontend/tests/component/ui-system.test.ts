@@ -1,10 +1,33 @@
+import { selectValue } from '../helpers/select'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { describe, expect, it, vi } from 'vitest'
 import UiButton from '../../app/components/UiButton.vue'
 import FormSubmitButton from '../../app/components/FormSubmitButton.vue'
+import FormErrorSummary from '../../app/components/FormErrorSummary.vue'
+import AppErrorState from '../../app/components/AppErrorState.vue'
+import UiToast from '../../app/components/UiToast.vue'
 import UiKit from '../../app/pages/ui-kit.vue'
 
 describe('shared UI interactions', () => {
+  it('dismisses a toast through its labelled decorative icon', async () => {
+    const wrapper = await mountSuspended(UiToast, { slots: { default: 'Notification text' } })
+    const button = wrapper.get('button[aria-label="Dismiss notification"]')
+    expect(button.get('svg').attributes('aria-hidden')).toBe('true')
+    await button.trigger('click')
+    expect(wrapper.emitted('dismiss')).toHaveLength(1)
+    expect(wrapper.text()).toContain('Notification text')
+    wrapper.unmount()
+  })
+  it('keeps safe request references inside error notices and rejects unsafe values', async () => {
+    for (const component of [FormErrorSummary, AppErrorState]) {
+      const wrapper = await mountSuspended(component, { props: { message: 'Try again.', requestId: 'request-123' } })
+      expect(wrapper.get('.support-reference').text()).toBe('Support reference: request-123')
+      await wrapper.setProps({ requestId: 'secret/token with spaces' })
+      expect(wrapper.find('.support-reference').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('secret/token')
+      wrapper.unmount()
+    }
+  })
   it('uses a non-submitting default action and blocks repeat actions while pending', async () => {
     const click = vi.fn()
     const wrapper = await mountSuspended(UiButton, { attrs: { onClick: click }, slots: { default: 'Save' } })
@@ -53,7 +76,7 @@ describe('shared UI interactions', () => {
     expect(wrapper.findAll('h1')).toHaveLength(1)
     await wrapper.get('#kit-name').setValue('Sam')
     await wrapper.get('#kit-description').setValue('Dinner')
-    await wrapper.get('#kit-direction').setValue('other')
+    await selectValue(wrapper, 'kit-direction', 'other')
     await wrapper.get('input[value="sam"]').setValue(true)
     await wrapper.get('form').trigger('submit')
     expect(wrapper.text()).toContain('Direction: other. Participants: 2.')
@@ -62,6 +85,35 @@ describe('shared UI interactions', () => {
     expect(wrapper.get('#kit-email').attributes('aria-describedby')).toBe('kit-email-help kit-email-error')
     await wrapper.findAll('button').find(button => button.text() === 'Disable example form')!.trigger('click')
     expect(wrapper.get('form fieldset').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('previews the same participant and related-share controls used by expense and payment forms', async () => {
+    const wrapper = await mountSuspended(UiKit)
+    const picker = wrapper.findAll('.people-picker')[0]!
+    await picker.get('input[role="combobox"]').trigger('focus')
+    expect(picker.text()).toContain('alex@example.test')
+    await picker.get('[data-value="kit-sam"]').trigger('click')
+    expect(picker.text()).toContain('Sam')
+    const payer = wrapper.findAll('.people-picker')[1]!
+    await payer.get('input[role="combobox"]').trigger('focus')
+    expect(payer.find('[data-value="kit-sam"]').exists()).toBe(true)
+    await selectValue(wrapper, 'related-share', 'kit-share')
+    expect(wrapper.get('#kit-amount').element.value).toBe('5.01')
+    expect(wrapper.findAll('.support-reference').some(reference => reference.text().includes('request-123'))).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('previews the mobile navigation and restores focus on close', async () => {
+    const wrapper = await mountSuspended(UiKit, { attachTo: document.body })
+    const trigger = wrapper.findAll('button').find(button => button.text() === 'Open mobile menu example')!
+    await trigger.trigger('click')
+    expect(wrapper.get('#kit-mobile-navigation').attributes('role')).toBe('dialog')
+    expect(wrapper.get('#kit-mobile-navigation').text()).toContain('Connections')
+    expect(wrapper.get('#kit-mobile-navigation .mobile-menu__theme').exists()).toBe(true)
+    await wrapper.get('#kit-mobile-navigation .mobile-menu__close').trigger('click')
+    expect(wrapper.find('#kit-mobile-navigation').exists()).toBe(false)
+    expect(document.activeElement).toBe(trigger.element)
     wrapper.unmount()
   })
 

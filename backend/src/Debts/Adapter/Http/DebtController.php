@@ -85,11 +85,12 @@ final readonly class DebtController
         $params = $request->query->all();
         $limit = $params['limit'] ?? '20';
         $cursor = $params['cursor'] ?? null;
-        if (!is_string($limit) || 1 !== preg_match('/^[1-9][0-9]{0,2}$/D', $limit) || (null !== $cursor && !is_string($cursor)) || [] !== array_diff(array_keys($params), ['limit', 'cursor'])) {
+        $status = $params['status'] ?? null;
+        if (!is_string($limit) || 1 !== preg_match('/^[1-9][0-9]{0,2}$/D', $limit) || (null !== $cursor && !is_string($cursor)) || (null !== $status && 'active' !== $status) || [] !== array_diff(array_keys($params), ['limit', 'cursor', 'status'])) {
             throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
         }
 
-        return new JsonResponse($this->queries->page($this->userId(), (int) $limit, $cursor), 200, ['Cache-Control' => 'no-store']);
+        return new JsonResponse($this->queries->page($this->userId(), (int) $limit, $cursor, 'active' === $status), 200, ['Cache-Control' => 'no-store']);
     }
 
     #[Route('/api/v1/debts/{debtId}', name: 'api_v1_debt_detail', methods: ['GET'])]

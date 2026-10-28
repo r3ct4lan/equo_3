@@ -14,6 +14,7 @@ export function validateNewPassword(values: Readonly<{ newPassword: string }>): 
 }
 
 export function passwordResetErrorPresentation(error: SafeApiError): ErrorPresentation {
+  if (error.code === 'PASSWORD_UNCHANGED') return { title: 'Choose a different password', message: 'The new password must differ from your current password.', retryable: false }
   const terminalTitles: Record<string, string> = {
     INVALID_TOKEN: 'Recovery link is invalid',
     TOKEN_EXPIRED: 'Recovery link has expired',

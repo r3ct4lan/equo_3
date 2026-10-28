@@ -46,6 +46,8 @@ test('password change validates only required current and shared Unicode new pol
     assert.deepEqual(validatePasswordChange({ currentPassword: ' old ', newPassword: password }), {})
   }
   assert.match(passwordChangeErrorPresentation({ code: 'INVALID_CREDENTIALS', status: 401, fieldErrors: {} }).title, /Current password/)
+  assert.match(validatePasswordChange({ currentPassword: 'Same password1!', newPassword: 'Same password1!' }).newPassword[0], /different/)
+  assert.match(passwordChangeErrorPresentation({ code: 'PASSWORD_UNCHANGED', status: 422, fieldErrors: {} }).message, /differ/)
   assert.equal(passwordChangeErrorPresentation({ code: 'NETWORK', status: null, fieldErrors: {} }).retryable, true)
 })
 

@@ -27,9 +27,9 @@ final readonly class Transfer
         }
     }
 
-    public static function manual(string $id, string $connectId, string $senderId, string $receiverId, int $amount, string $authorId, DateTimeImmutable $createdAt): self
+    public static function manual(string $id, string $connectId, string $senderId, string $receiverId, int $amount, string $authorId, DateTimeImmutable $createdAt, ?string $relatedTransferId = null): self
     {
-        return new self($id, $connectId, $senderId, $receiverId, $amount, 'MANUAL', $authorId, $createdAt);
+        return new self($id, $connectId, $senderId, $receiverId, $amount, 'MANUAL', $authorId, $createdAt, relatedTransferId: $relatedTransferId);
     }
 
     public function recalculateShare(int $amount, bool $isDeleted): self
@@ -44,7 +44,7 @@ final readonly class Transfer
         return new self($this->id, $this->connectId, $this->senderId, $this->receiverId, $amount, $this->type, null, $this->createdAt, $this->debtId, $this->debtParticipantId, null, $isDeleted, $this->version + 1);
     }
 
-    public function reviseManual(string $senderId, string $receiverId, int $amount, string $actorId, int $expectedVersion, bool $sidesActive): self
+    public function reviseManual(string $senderId, string $receiverId, int $amount, string $actorId, int $expectedVersion, bool $sidesActive, bool $relatedSpecified = false, ?string $relatedTransferId = null): self
     {
         $this->assertManualChangeAllowed($actorId, $expectedVersion, $sidesActive);
         $oldSides = [$this->senderId, $this->receiverId];
@@ -54,11 +54,12 @@ final readonly class Transfer
         if ($oldSides !== $newSides || $senderId === $receiverId) {
             throw new ManualTransferRejected(ManualTransferFailure::InvalidSides);
         }
-        if ($this->senderId === $senderId && $this->receiverId === $receiverId && $this->amount === $amount) {
+        $related = $relatedSpecified ? $relatedTransferId : $this->relatedTransferId;
+        if ($this->senderId === $senderId && $this->receiverId === $receiverId && $this->amount === $amount && $related === $this->relatedTransferId) {
             return $this;
         }
 
-        return new self($this->id, $this->connectId, $senderId, $receiverId, $amount, $this->type, $this->createdById, $this->createdAt, null, null, $this->relatedTransferId, false, $this->version + 1);
+        return new self($this->id, $this->connectId, $senderId, $receiverId, $amount, $this->type, $this->createdById, $this->createdAt, null, null, $related, false, $this->version + 1);
     }
 
     public function removeManual(string $actorId, int $expectedVersion, bool $sidesActive): self

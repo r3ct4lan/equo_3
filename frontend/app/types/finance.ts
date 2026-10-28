@@ -9,6 +9,7 @@ export interface DebtSummary {
   participantCount: number
   shareAmount: number
   canEdit: boolean
+  isDeleted: boolean
   version: number
   createdAt: string
 }
@@ -17,7 +18,6 @@ export interface DebtView extends DebtSummary {
   createdBy: BriefUser
   includePayerInSplit: boolean
   participants: { debtParticipantId: string, user: BriefUser, isPayer: boolean, isAuthor: boolean, shareAmount: number, transferId: string | null, connectId: string | null }[]
-  isDeleted: boolean
   canDelete: boolean
 }
 export interface CreateDebtBody extends Record<string, unknown> {
@@ -49,6 +49,7 @@ export interface CreateManualTransferBody {
   senderId: string
   receiverId: string
   amount: number
+  relatedTransferId?: string | null
 }
 
 export interface UpdateDebtBody extends Record<string, unknown> {

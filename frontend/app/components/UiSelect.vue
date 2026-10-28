@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { NativeSelect as RegistrySelect } from '~/components/ui/native-select'
+import type { FocusTarget, SelectOption } from '~/types/ui'
 
+defineProps<{ label: string, options: SelectOption[] }>()
 const model = defineModel<string>({ default: '' })
-const select = useTemplateRef<{ $el: HTMLElement }>('select')
-defineExpose({ focus: () => select.value?.$el.querySelector('select')?.focus() })
+const emit = defineEmits<{ change: [value: string] }>()
+const select = useTemplateRef<FocusTarget>('select')
+function update(option: SelectOption | SelectOption[] | null): void {
+  const value = option && !Array.isArray(option) ? option.value : ''
+  model.value = value
+  emit('change', value)
+}
+defineExpose({ focus: () => select.value?.focus() })
 </script>
 
 <template>
-  <RegistrySelect
+  <UiMultiselect
     ref="select"
-    :model-value="model"
-    class="w-full"
-    @update:model-value="model = String($event)"
-  >
-    <slot />
-  </RegistrySelect>
+    :label="label"
+    :options="options"
+    :model-value="options.find(option => option.value === model) ?? null"
+    @update:model-value="update"
+  />
 </template>

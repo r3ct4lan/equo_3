@@ -1,0 +1,142 @@
+import { flushPromises } from '@vue/test-utils'
+import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import DebtPeoplePicker from '../../app/components/DebtPeoplePicker.vue'
+
+const { auth } = vi.hoisted(() => ({ auth: { protectedRequest: vi.fn(), bootstrap: vi.fn() } }))
+mockNuxtImport('useNuxtApp', original => () => new Proxy(original(), {
+  get(target, property, receiver) {
+    if (property === '$auth') return auth
+    return Reflect.get(target, property, receiver)
+  }
+}))
+const person = (id: string) => ({ id, name: `Person ${id}`, isActive: true, email: `${id}@example.test` })
+const page = (items: ReturnType<typeof person>[], nextCursor: string | null = null) => ({ items, pagination: { nextCursor, hasMore: !!nextCursor } })
+
+describe('participant picker', () => {
+  beforeEach(() => {
+    auth.protectedRequest.mockReset()
+    useCurrentUser().setAuthenticated({ id: 'self', name: 'Self', email: 'self@example.test', isActive: true, createdAt: '2026-01-01T00:00:00Z' })
+  })
+  it('loads pages, keeps selections and exposes labels and keyboard closing', async () => {
+    auth.protectedRequest.mockImplementation(async (_path, options) => options?.query?.cursor ? page([person('6')]) : page([person('1'), person('2'), person('3'), person('4'), person('5')], 'next'))
+    const wrapper = await mountSuspended(DebtPeoplePicker, { props: { 'label': 'Share with', 'modelValue': [], 'onUpdate:modelValue': value => wrapper.setProps({ modelValue: value }) } })
+    useCurrentUser().setAuthenticated({ id: 'self', name: 'Self', email: 'self@example.test', isActive: true, createdAt: '2026-01-01T00:00:00Z' })
+    await flushPromises()
+    const toggle = wrapper.get('input[role="combobox"]')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    await toggle.trigger('focus')
+    await flushPromises()
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.findAll('.multiselect__element')).toHaveLength(5)
+    expect(wrapper.text()).toContain('1@example.test')
+    await wrapper.get('[data-value="1"]').trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === 'Load more')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.multiselect__element')).toHaveLength(6)
+    expect(wrapper.get('li:has([data-value="1"])').attributes('aria-selected')).toBe('true')
+    await wrapper.get('input').trigger('keydown', { key: 'Escape' })
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.text()).toContain('Person 1')
+    wrapper.unmount()
+  })
+  it('aborts stale searches and ignores their late results', async () => {
+    let resolve: (value: unknown) => void = () => undefined
+    auth.protectedRequest.mockImplementationOnce(() => new Promise((done) => {
+      resolve = done
+    })).mockResolvedValue(page([person('new')]))
+    const wrapper = await mountSuspended(DebtPeoplePicker, { props: { label: 'Share with', modelValue: [] } })
+    await wrapper.get('input[role="combobox"]').trigger('focus')
+    const signal = auth.protectedRequest.mock.calls[0]![1].signal as AbortSignal
+    await wrapper.get('input[role="combobox"]').setValue('new')
+    expect(signal.aborted).toBe(true)
+    await new Promise(done => setTimeout(done, 300))
+    await flushPromises()
+    resolve(page([person('old')]))
+    await flushPromises()
+    expect(wrapper.text()).toContain('Person new')
+    expect(wrapper.text()).not.toContain('Person old')
+    wrapper.unmount()
+  })
+  it('reports a failed request safely and retries without losing selected people', async () => {
+    auth.protectedRequest.mockRejectedValueOnce(new Error('sensitive server details')).mockResolvedValueOnce(page([person('2')]))
+    const wrapper = await mountSuspended(DebtPeoplePicker, { props: { label: 'Share with', modelValue: [person('1')] } })
+    useCurrentUser().setAuthenticated({ id: 'self', name: 'Self', email: 'self@example.test', isActive: true, createdAt: '2026-01-01T00:00:00Z' })
+    await flushPromises()
+    await wrapper.get('input[role="combobox"]').trigger('focus')
+    await flushPromises()
+    expect(wrapper.text()).toContain('People could not be loaded')
+    expect(wrapper.text()).not.toContain('sensitive server details')
+    expect(wrapper.text()).toContain('Person 1')
+    await wrapper.findAll('button').find(button => button.text() === 'Retry')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Person 2')
+    expect(wrapper.text()).toContain('Person 1')
+    wrapper.unmount()
+  })
+  it('closes and discards late results when the account changes', async () => {
+    let resolve: (value: unknown) => void = () => undefined
+    auth.protectedRequest.mockImplementationOnce(() => new Promise((done) => {
+      resolve = done
+    }))
+    const wrapper = await mountSuspended(DebtPeoplePicker, { props: { label: 'Share with', modelValue: [] } })
+    useCurrentUser().setAuthenticated({ id: 'self', name: 'Self', email: 'self@example.test', isActive: true, createdAt: '2026-01-01T00:00:00Z' })
+    await flushPromises()
+    await wrapper.get('input[role="combobox"]').trigger('focus')
+    const signal = auth.protectedRequest.mock.calls[0]![1].signal as AbortSignal
+    useCurrentUser().setAnonymous()
+    await flushPromises()
+    expect(signal.aborted).toBe(true)
+    resolve(page([person('old')]))
+    await flushPromises()
+    expect(wrapper.get('input[role="combobox"]').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.text()).not.toContain('Person old')
+    wrapper.unmount()
+  })
+  it('keeps selected people across a search and removes their tags through a labelled action', async () => {
+    auth.protectedRequest.mockResolvedValue(page([person('2')]))
+    const wrapper = await mountSuspended(DebtPeoplePicker, { props: { 'label': 'Share with', 'modelValue': [person('1')], 'onUpdate:modelValue': value => wrapper.setProps({ modelValue: value }) } })
+    await wrapper.get('input').trigger('focus')
+    await flushPromises()
+    await wrapper.get('input').setValue('2@example.test')
+    await new Promise(done => setTimeout(done, 300))
+    await flushPromises()
+    expect(auth.protectedRequest).toHaveBeenLastCalledWith('/v1/debt-people', expect.objectContaining({ query: { q: '2@example.test' } }))
+    expect(wrapper.get('button[aria-label="Remove Person 1"]').exists()).toBe(true)
+    await wrapper.get('[data-value="2"]').trigger('click')
+    expect(wrapper.props('modelValue').map(item => item.id)).toEqual(['1', '2'])
+    await wrapper.get('button[aria-label="Remove Person 1"]').trigger('click')
+    expect(wrapper.props('modelValue').map(item => item.id)).toEqual(['2'])
+    wrapper.unmount()
+  })
+  it('retries the failed next page without losing earlier results or locked selections', async () => {
+    auth.protectedRequest.mockResolvedValueOnce(page([person('1')], 'next')).mockRejectedValueOnce(new Error('private')).mockResolvedValueOnce(page([person('2')]))
+    const wrapper = await mountSuspended(DebtPeoplePicker, { props: { label: 'Share with', modelValue: [person('1')], lockedIds: ['1'], debtId: 'debt' } })
+    await wrapper.get('input').trigger('focus')
+    await flushPromises()
+    expect(wrapper.find('button[aria-label="Remove Person 1"]').exists()).toBe(false)
+    await wrapper.findAll('button').find(button => button.text() === 'Load more')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('People could not be loaded')
+    expect(wrapper.text()).not.toContain('private')
+    await wrapper.findAll('button').find(button => button.text() === 'Retry')!.trigger('click')
+    await flushPromises()
+    expect(auth.protectedRequest).toHaveBeenLastCalledWith('/v1/debt-people', expect.objectContaining({ query: { q: '', debtId: 'debt', cursor: 'next' } }))
+    expect(wrapper.findAll('.multiselect__element')).toHaveLength(2)
+    expect(wrapper.get('li:has([data-value="1"])').attributes('aria-selected')).toBe('true')
+    wrapper.unmount()
+  })
+  it('pages local payer choices and keeps a single value without an API request', async () => {
+    const choices = Array.from({ length: 7 }, (_, index) => person(String(index)))
+    const wrapper = await mountSuspended(DebtPeoplePicker, { props: { 'label': 'Who paid?', 'modelValue': [choices[0]!], 'single': true, choices, 'onUpdate:modelValue': value => wrapper.setProps({ modelValue: value }) } })
+    await wrapper.get('input').trigger('focus')
+    expect(wrapper.findAll('.multiselect__element')).toHaveLength(5)
+    await wrapper.findAll('button').find(button => button.text() === 'Load more')!.trigger('click')
+    expect(wrapper.findAll('.multiselect__element')).toHaveLength(7)
+    await wrapper.get('[data-value="6"]').trigger('click')
+    expect(wrapper.props('modelValue')).toEqual([choices[6]])
+    expect(auth.protectedRequest).not.toHaveBeenCalled()
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})

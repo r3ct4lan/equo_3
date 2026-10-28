@@ -33,6 +33,7 @@ describe('sign-out controls', () => {
     await flushPromises()
     useCurrentUser().setAuthenticated({ id: 'u1', name: 'User', email: 'u@example.test', isActive: true, createdAt: '' })
     await flushPromises()
+    expect(wrapper.get('button').attributes('data-variant')).toBe('destructive')
     await wrapper.get('button').trigger('click')
     await wrapper.get('button').trigger('click')
     expect(authMock.logout).toHaveBeenCalledTimes(1)

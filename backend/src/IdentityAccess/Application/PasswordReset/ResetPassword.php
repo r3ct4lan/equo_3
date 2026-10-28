@@ -8,7 +8,7 @@ use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use App\IdentityAccess\Application\Port\ActionTokenCodecPort;
 use App\IdentityAccess\Application\Port\ClockPort;
-use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
+use App\IdentityAccess\Application\Port\PasswordChangeRepositoryPort;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
 use App\IdentityAccess\Application\Port\PasswordResetRateLimitPort;
 use App\IdentityAccess\Application\Port\PasswordResetRepositoryPort;
@@ -24,7 +24,7 @@ final readonly class ResetPassword
 {
     public function __construct(
         private PasswordResetRepositoryPort $repository,
-        private IdentityRepositoryPort $identities,
+        private PasswordChangeRepositoryPort $identities,
         private UserSessionRepositoryPort $sessions,
         private ActionTokenCodecPort $tokenCodec,
         private PasswordPolicy $policy,
@@ -53,7 +53,8 @@ final readonly class ResetPassword
 
         $this->transaction->run(function () use ($digest, $command): void {
             $userId = $this->repository->userIdForTokenHash($digest);
-            if (null === $userId || null === $this->identities->currentUserForUpdate($userId)) {
+            $account = null === $userId ? null : $this->identities->accountForUpdate($userId);
+            if (null === $userId || null === $account) {
                 throw new ApplicationFailure(ApplicationFailureCode::InvalidToken);
             }
             $token = $this->repository->tokenForUpdate($digest);
@@ -62,8 +63,30 @@ final readonly class ResetPassword
             if (null === $token) {
                 throw new ApplicationFailure(ApplicationFailureCode::InvalidToken);
             }
+            if ($account->verifyPassword($this->hasher, $command->newPassword)) {
+                throw new ApplicationFailure(ApplicationFailureCode::PasswordUnchanged);
+            }
             $this->repository->completeReset($token->id, $userId, $this->hasher->hash($command->newPassword), $now);
             $this->sessions->revokeAllUnfinishedForUser($userId, $now);
+        });
+    }
+
+    public function check(string $publicToken, string $ipAddress): void
+    {
+        $digest = $this->tokenCodec->digest($publicToken);
+        $retryAfter = $this->limits->passwordResetRetryAfter($ipAddress, $digest ?? 'invalid:'.hash('sha256', $publicToken));
+        if (null !== $retryAfter) {
+            throw new ApplicationFailure(ApplicationFailureCode::RateLimitExceeded, $retryAfter);
+        }
+        if (null === $digest) {
+            throw new ApplicationFailure(ApplicationFailureCode::InvalidToken);
+        }
+        $this->transaction->run(function () use ($digest): void {
+            $userId = $this->repository->userIdForTokenHash($digest);
+            if (null === $userId || null === $this->identities->accountForUpdate($userId)) {
+                throw new ApplicationFailure(ApplicationFailureCode::InvalidToken);
+            }
+            $this->assertUsable($this->repository->tokenForUpdate($digest), $userId, $this->clock->now());
         });
     }
 

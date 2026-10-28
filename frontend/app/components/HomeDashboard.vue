@@ -63,6 +63,7 @@ const { data, pending, error, load } = useDashboard()
             Latest expenses
           </UiText>
           <UiButton
+            icon="add"
             to="/debts/new"
           >
             New expense
@@ -88,6 +89,12 @@ const { data, pending, error, load } = useDashboard()
             :created-at="expense.createdAt"
           />
         </ol>
+        <UiLink
+          v-if="data.expenses.length"
+          to="/debts"
+        >
+          View all
+        </UiLink>
       </section>
     </template>
   </section>

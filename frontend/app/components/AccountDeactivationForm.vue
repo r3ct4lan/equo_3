@@ -56,6 +56,7 @@ onBeforeUnmount(() => {
     <UiButton
       v-if="!confirming"
       ref="trigger"
+      compact
       variant="secondary"
       @click="showConfirmation"
     >
@@ -83,6 +84,7 @@ onBeforeUnmount(() => {
       <FormErrorSummary
         :title="presentation?.title ?? 'Check the form'"
         :message="summary"
+        :request-id="formError?.requestId"
       />
       <fieldset
         class="form-fields stack"
@@ -111,12 +113,6 @@ onBeforeUnmount(() => {
           />
         </UiField>
       </fieldset>
-      <UiText
-        v-if="formError?.requestId"
-        class="support-reference"
-      >
-        Support reference: <code>{{ formError.requestId }}</code>
-      </UiText>
       <div class="form-actions">
         <FormSubmitButton
           :pending="isSubmitting"

@@ -52,6 +52,9 @@ CSS custom properties cannot be used in media query conditions. */
   --color-success: var(--chart-4);
   --color-success-surface: color-mix(in srgb, var(--color-success) 8%, var(--background));
   --color-error: var(--destructive);
+  --color-warning: oklch(0.48 0.13 55);
+  --color-warning-surface: color-mix(in srgb, var(--color-warning) 10%, var(--background));
+  --color-warning-border: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
   --color-error-surface: color-mix(in srgb, var(--destructive) 8%, var(--background));
   --radius-small: var(--radius);
   --radius-medium: var(--radius-4xl);
@@ -99,11 +102,15 @@ CSS custom properties cannot be used in media query conditions. */
   --border-width: 1px;
   --focus-width: 0.1875rem;
   --control-height: calc(var(--spacing) * 9);
+  --select-person-height: 4rem;
   --control-check-size: 1.25rem;
   --header-height: 4rem;
   --viewport-min: 20rem;
   --panel-width: 48rem;
   --dialog-width: 42rem;
+  --dialog-confirm-width: 30rem;
+  --compact-action-width: 18em;
+  --compact-action-min-height: 2.75rem;
   --toast-width: 24rem;
   --hero-width: 50rem;
   --lede-width: 42rem;
@@ -117,7 +124,11 @@ CSS custom properties cannot be used in media query conditions. */
   --duration-spin: 0.8s;
   --duration-reduced-motion: 0.01ms;
   --z-skip: 10;
+  --z-select: 5;
   --z-toast: 20;
+  --z-mobile-menu: 30;
+  --mobile-menu-width: 18.75rem;
+  --scrollbar-size: 0.625rem;
   --space-1: 0.25rem;
   --space-marker: 0.35rem;
   --space-field: 0.375rem;
@@ -173,6 +184,7 @@ CSS custom properties cannot be used in media query conditions. */
 }
 .dark {
   color-scheme: dark;
+  --color-warning: oklch(0.78 0.14 65);
   --color-success: var(--chart-2);
   --color-link: var(--chart-2);
   --color-primary-strong: var(--chart-2);

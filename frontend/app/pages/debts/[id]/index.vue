@@ -30,12 +30,12 @@ const { item: debt, etag, pending, error, load } = useFinancialDetail<DebtView>(
       as="div"
       class="stack"
     >
-      <UiText
+      <UiNotice
         v-if="debt.isDeleted"
-        role="status"
+        tone="warning"
       >
         Removed expense · the saved participant list is shown below.
-      </UiText>
+      </UiNotice>
       <UiText v-if="debt.description">
         {{ debt.description }}
       </UiText>
@@ -55,7 +55,7 @@ const { item: debt, etag, pending, error, load } = useFinancialDetail<DebtView>(
         v-if="debt.canDelete && !debt.isDeleted && debt.createdBy.id === state.user?.id && etag && validDebtEtag(etag)"
         :debt-id="debt.id"
         :etag="etag"
-        @removed="load"
+        @removed="navigateTo('/debts')"
         @reload="load"
       />
       <UiText variant="heading2">

@@ -40,9 +40,12 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
           {{ transfer.type === 'DEBT_SHARE' ? 'Expense share' : 'Payment' }} · {{ formatEuro(transfer.amount) }}
         </UiLink>
         <UiText>{{ transfer.sender.name }} → {{ transfer.receiver.name }}</UiText>
-        <UiText v-if="transfer.isDeleted">
+        <UiNotice
+          v-if="transfer.isDeleted"
+          tone="info"
+        >
           Removed · does not affect the balance
-        </UiText>
+        </UiNotice>
         <UiLink
           v-if="transfer.debtReference?.isAccessible"
           :to="'/debts/' + transfer.debtReference.id"

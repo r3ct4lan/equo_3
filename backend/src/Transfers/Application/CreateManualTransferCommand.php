@@ -14,14 +14,14 @@ final readonly class CreateManualTransferCommand
     public string $receiverId;
     public string $idempotencyKey;
 
-    public function __construct(string $connectId, string $senderId, string $receiverId, public int $amount, string $idempotencyKey)
+    public function __construct(string $connectId, string $senderId, string $receiverId, public int $amount, string $idempotencyKey, public ?string $relatedTransferId = null)
     {
         foreach ([$connectId, $senderId, $receiverId, $idempotencyKey] as $id) {
             if (!self::isUuid($id)) {
                 throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
             }
         }
-        if ($amount < 1 || $amount > 2147483647 || strtolower($senderId) === strtolower($receiverId)) {
+        if ($amount < 1 || $amount > 2147483647 || strtolower($senderId) === strtolower($receiverId) || (null !== $relatedTransferId && !self::isUuid($relatedTransferId))) {
             throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
         }
         $this->connectId = strtolower($connectId);
@@ -37,6 +37,11 @@ final readonly class CreateManualTransferCommand
 
     public function canonical(): string
     {
-        return json_encode(['connectId' => $this->connectId, 'senderId' => $this->senderId, 'receiverId' => $this->receiverId, 'amount' => $this->amount], JSON_THROW_ON_ERROR);
+        $data = ['connectId' => $this->connectId, 'senderId' => $this->senderId, 'receiverId' => $this->receiverId, 'amount' => $this->amount];
+        if (null !== $this->relatedTransferId) {
+            $data['relatedTransferId'] = strtolower($this->relatedTransferId);
+        }
+
+        return json_encode($data, JSON_THROW_ON_ERROR);
     }
 }

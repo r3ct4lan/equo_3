@@ -12,6 +12,7 @@ enum ApplicationFailureCode: string
     case EmailAlreadyInUse = 'EMAIL_ALREADY_IN_USE';
     case IdempotencyKeyReused = 'IDEMPOTENCY_KEY_REUSED';
     case PasswordPolicyViolation = 'PASSWORD_POLICY_VIOLATION';
+    case PasswordUnchanged = 'PASSWORD_UNCHANGED';
     case InvalidToken = 'INVALID_TOKEN';
     case TokenExpired = 'TOKEN_EXPIRED';
     case TokenUsed = 'TOKEN_USED';

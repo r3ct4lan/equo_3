@@ -219,7 +219,7 @@ final class ManualTransferHttpTest extends WebTestCase
         yield 'sender uuid' => ['senderId', 'invalid', 422];
         yield 'receiver type' => ['receiverId', [], 422];
         yield 'extra field' => ['createdById', 'ignored', 400];
-        yield 'deferred relation' => ['relatedTransferId', null, 400];
+        yield 'invalid relation uuid' => ['relatedTransferId', 'not-a-uuid', 422];
     }
 
     public function testWrongPairSelfTransferMissingFieldAndCrossTargetKey(): void
@@ -322,7 +322,94 @@ final class ManualTransferHttpTest extends WebTestCase
         self::assertFalse((bool) $this->db->fetchOne('SELECT is_deleted FROM transfer WHERE id=?', [$manual['id']]));
     }
 
-    public function testWritersRequireStrictIfMatchAndRejectDeferredOrUnknownFields(): void
+    public function testRelatedShareIsInformationalAndSupportsHistoricalRetentionAndClear(): void
+    {
+        $debtBody = ['title' => 'Shared dinner', 'description' => null, 'totalAmount' => 1000, 'payerId' => $this->users[0], 'participantIds' => [$this->users[1]], 'includePayerInSplit' => false];
+        $this->request('POST', '/api/v1/debts', 0, $debtBody, Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body();
+        $shareId = $debt['participants'][0]['transferId'];
+        $this->request('POST', '/api/v1/debts', 0, [...$debtBody, 'participantIds' => [$this->users[2]]], Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $foreignShare = $this->body()['participants'][0]['transferId'];
+        $path = '/api/v1/connects/'.$this->connect().'/transfers';
+        $this->request('POST', $path, 0, [...$this->command(), 'relatedTransferId' => $foreignShare], Uuid::v4()->toRfc4122());
+        $this->failure(422, 'VALIDATION_ERROR');
+        $key = Uuid::v4()->toRfc4122();
+        $command = [...$this->command(), 'relatedTransferId' => $shareId, 'amount' => 5000];
+        $this->request('POST', $path, 0, $command, $key);
+        self::assertResponseStatusCodeSame(201);
+        $manual = $this->body();
+        self::assertSame($shareId, $manual['relatedTransferId']);
+        $this->request('POST', $path, 0, $command, $key);
+        self::assertSame($manual['id'], $this->body()['id']);
+        $this->request('POST', $path, 0, [...$command, 'relatedTransferId' => null], $key);
+        $this->failure(409, 'IDEMPOTENCY_KEY_REUSED');
+        $this->request('DELETE', '/api/v1/debts/'.$debt['id'], 0, etag: '"1"');
+        self::assertResponseStatusCodeSame(204);
+        $manualPath = '/api/v1/transfers/'.$manual['id'];
+        $update = [...$this->command(), 'amount' => 6000];
+        $this->request('PUT', $manualPath, 0, $update, etag: '"1"');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($shareId, $this->body()['relatedTransferId']);
+        $this->request('GET', '/api/v1/connects/'.$this->connect(), 0);
+        self::assertSame(-6000, $this->body()['balanceAmount']);
+        $this->request('PUT', $manualPath, 0, [...$update, 'relatedTransferId' => null], etag: '"2"');
+        self::assertResponseStatusCodeSame(200);
+        self::assertNull($this->body()['relatedTransferId']);
+        $this->request('PUT', $manualPath, 0, [...$update, 'relatedTransferId' => $shareId], etag: '"3"');
+        $this->failure(422, 'VALIDATION_ERROR');
+        $this->request('POST', $path, 0, [...$command, 'relatedTransferId' => Uuid::v4()->toRfc4122()], Uuid::v4()->toRfc4122());
+        $this->failure(422, 'VALIDATION_ERROR');
+        $this->request('POST', $path, 0, [...$command, 'relatedTransferId' => $manual['id']], Uuid::v4()->toRfc4122());
+        $this->failure(422, 'VALIDATION_ERROR');
+    }
+
+    public function testRelatedShareDoesNotRevealDebtToExcludedParticipant(): void
+    {
+        $debtBody = ['title' => 'Private expense title', 'description' => null, 'totalAmount' => 1000, 'payerId' => $this->users[0], 'participantIds' => [$this->users[1], $this->users[2]], 'includePayerInSplit' => false];
+        $this->request('POST', '/api/v1/debts', 0, $debtBody, Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body();
+        $share = array_values(array_filter($debt['participants'], fn (array $p): bool => $p['user']['id'] === $this->users[1]))[0]['transferId'];
+        $this->request('POST', '/api/v1/connects/'.$this->connect().'/transfers', 0, [...$this->command(), 'relatedTransferId' => $share], Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $manualId = $this->body()['id'];
+        $this->request('PUT', '/api/v1/debts/'.$debt['id'], 0, ['title' => $debtBody['title'], 'description' => null, 'totalAmount' => 1000, 'participantIds' => [$this->users[2]], 'includePayerInSplit' => false], etag: '"1"');
+        self::assertResponseStatusCodeSame(200);
+        $this->request('GET', '/api/v1/transfers/'.$manualId, 1);
+        self::assertSame($share, $this->body()['relatedTransferId']);
+        self::assertStringNotContainsString('Private expense title', json_encode($this->body(), JSON_THROW_ON_ERROR));
+        $this->request('GET', '/api/v1/transfers/'.$share, 1);
+        self::assertSame(['id' => $debt['id'], 'isAccessible' => false], $this->body()['debtReference']);
+    }
+
+    public function testChangingRelatedShareIsVersionedAndInvalidReplacementDoesNotChangeTransfer(): void
+    {
+        $debt = ['title' => 'Dinner', 'description' => null, 'totalAmount' => 1000, 'payerId' => $this->users[0], 'participantIds' => [$this->users[1]], 'includePayerInSplit' => false];
+        $shares = [];
+        foreach (['Dinner', 'Lunch'] as $title) {
+            $this->request('POST', '/api/v1/debts', 0, [...$debt, 'title' => $title], Uuid::v4()->toRfc4122());
+            self::assertResponseStatusCodeSame(201);
+            $shares[] = $this->body()['participants'][0]['transferId'];
+        }
+        $this->request('POST', '/api/v1/connects/'.$this->connect().'/transfers', 0, [...$this->command(), 'relatedTransferId' => $shares[0]], Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $path = '/api/v1/transfers/'.$this->body()['id'];
+        $this->request('PUT', $path, 0, [...$this->command(), 'relatedTransferId' => $shares[1]], etag: '"1"');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($shares[1], $this->body()['relatedTransferId']);
+        self::assertSame(2, $this->body()['version']);
+        $this->request('PUT', $path, 0, [...$this->command(), 'relatedTransferId' => Uuid::v4()->toRfc4122(), 'amount' => 9999], etag: '"2"');
+        $this->failure(422, 'VALIDATION_ERROR');
+        $this->request('GET', $path, 0);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($shares[1], $this->body()['relatedTransferId']);
+        self::assertSame($this->command()['amount'], $this->body()['amount']);
+        self::assertSame(2, $this->body()['version']);
+    }
+
+    public function testWritersRequireStrictIfMatchAndRejectUnknownFields(): void
     {
         $manual = $this->createManual();
         $path = '/api/v1/transfers/'.$manual['id'];
@@ -335,7 +422,7 @@ final class ManualTransferHttpTest extends WebTestCase
             $this->request('DELETE', $path, 0, etag: $etag);
             $this->failure(400, 'INVALID_REQUEST');
         }
-        foreach (['relatedTransferId' => null, 'createdById' => $this->users[0], 'version' => 1] as $field => $value) {
+        foreach (['createdById' => $this->users[0], 'version' => 1] as $field => $value) {
             $this->request('PUT', $path, 0, [...$update, $field => $value], etag: '"1"');
             $this->failure(400, 'INVALID_REQUEST');
         }
