@@ -126,6 +126,7 @@ CSS custom properties cannot be used in media query conditions. */
   --z-toast: 20;
   --z-mobile-menu: 30;
   --mobile-menu-width: 18.75rem;
+  --scrollbar-size: 0.625rem;
   --space-1: 0.25rem;
   --space-marker: 0.35rem;
   --space-field: 0.375rem;

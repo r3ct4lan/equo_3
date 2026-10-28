@@ -519,6 +519,24 @@ test('mobile navigation opens with keyboard focus and closes on escape and selec
   await expect(nav).toHaveCount(0)
 })
 
+test('scrollbar uses themed thumb and hides its arrow buttons', async ({ page }) => {
+  await page.goto('/ui-kit')
+  await waitForNuxtHydration(page)
+  const styles = await page.evaluate(() => {
+    const root = document.documentElement
+    return {
+      width: getComputedStyle(root, '::-webkit-scrollbar').width,
+      thumb: getComputedStyle(root, '::-webkit-scrollbar-thumb').backgroundColor,
+      buttons: getComputedStyle(root, '::-webkit-scrollbar-button').display,
+      border: getComputedStyle(root).getPropertyValue('--color-border').trim()
+    }
+  })
+  expect(styles.width).toBe('10px')
+  expect(styles.thumb).not.toBe('rgba(0, 0, 0, 0)')
+  expect(styles.border).not.toBe('')
+  expect(styles.buttons).toBe('none')
+})
+
 test('skip link focuses main without a container outline and controls keep focus indicators', async ({ page }) => {
   await page.goto('/login')
   await waitForNuxtHydration(page)
