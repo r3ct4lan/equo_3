@@ -7,6 +7,7 @@ const { values, fieldErrors, formError, isSubmitting, errorsFor, clearErrors, su
 const scheduled = ref(false)
 const expanded = ref(false)
 const emailInput = useTemplateRef<FocusTarget>('emailInput')
+const openButton = useTemplateRef<FocusTarget>('openButton')
 const presentation = computed(() => formError.value ? emailChangeErrorPresentation(formError.value) : null)
 const summary = computed(() => presentation.value?.message ?? (Object.keys(fieldErrors.value).length ? 'Correct the highlighted fields.' : null))
 
@@ -14,6 +15,17 @@ async function openForm(): Promise<void> {
   expanded.value = true
   await nextTick()
   emailInput.value?.focus()
+}
+
+async function cancel(): Promise<void> {
+  if (isSubmitting.value) return
+  values.newEmail = ''
+  values.currentPassword = ''
+  scheduled.value = false
+  clearErrors()
+  expanded.value = false
+  await nextTick()
+  openButton.value?.focus()
 }
 
 async function requestChange(): Promise<void> {
@@ -50,6 +62,7 @@ async function requestChange(): Promise<void> {
     </div>
     <UiButton
       v-if="!expanded"
+      ref="openButton"
       compact
       variant="secondary"
       @click="openForm"
@@ -128,6 +141,14 @@ async function requestChange(): Promise<void> {
       >
         Send confirmation email
       </FormSubmitButton>
+      <UiButton
+        variant="secondary"
+        compact
+        :disabled="isSubmitting"
+        @click="cancel"
+      >
+        Cancel
+      </UiButton>
     </form>
   </UiCard>
 </template>

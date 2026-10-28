@@ -68,6 +68,11 @@ describe('profile settings', () => {
     })
     expect(wrapper.get('#profile-current-password').element).toHaveProperty('value', '')
     expect(wrapper.get('[role="status"]').text()).toContain('Confirmation email scheduled')
+    await wrapper.findAll('button').find(button => button.text() === 'Cancel')!.trigger('click')
+    expect(wrapper.find('form').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('button').element)
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.get('#profile-new-email').element).toHaveProperty('value', '')
     wrapper.unmount()
   })
 
