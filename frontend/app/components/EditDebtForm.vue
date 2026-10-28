@@ -143,6 +143,7 @@ onBeforeUnmount(clear)
       <DebtPeoplePicker
         v-model="people"
         label="Share with"
+        :disabled="pending || blocked"
         :debt-id="debt.id"
         :exclude-ids="[debt.payer.id]"
         :locked-ids="debt.createdBy.id === debt.payer.id ? [] : [debt.createdBy.id]"

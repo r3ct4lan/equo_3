@@ -102,6 +102,7 @@ CSS custom properties cannot be used in media query conditions. */
   --border-width: 1px;
   --focus-width: 0.1875rem;
   --control-height: calc(var(--spacing) * 9);
+  --select-person-height: 4rem;
   --control-check-size: 1.25rem;
   --header-height: 4rem;
   --viewport-min: 20rem;

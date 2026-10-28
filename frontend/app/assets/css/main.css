@@ -54,7 +54,7 @@ a:where(:not([data-slot="button"])) {
   color: var(--color-link);
 }
 
-:focus-visible:not(#main-content, div[tabindex="-1"], section[tabindex="-1"], [data-slot="button"], [data-slot="input"], [data-slot="textarea"], [data-slot="native-select"]) {
+:focus-visible:not(#main-content, div[tabindex="-1"], section[tabindex="-1"], [data-slot="button"], [data-slot="input"], [data-slot="textarea"], .multiselect__input) {
   outline: var(--focus-width) solid var(--color-focus);
   outline-offset: var(--focus-width);
 }
@@ -727,8 +727,3 @@ strong, label, legend { font-weight: var(--weight-bold); }
   .ui-kit-nav { position: static; flex-flow: row wrap; }
 }
 .people-picker { display: grid; gap: var(--space-2); }
-.people-picker__selected { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.people-picker__chip { border: var(--border-width) solid var(--color-border); border-radius: var(--radius); padding: var(--space-1) var(--space-2); }
-.people-picker__panel { display: grid; gap: var(--space-2); border: var(--border-width) solid var(--color-border); border-radius: var(--radius); padding: var(--space-3); }
-.people-picker__option { display: flex; align-items: start; gap: var(--space-2); padding: var(--space-1) 0; }
-.people-picker__option small { display: block; }

@@ -8,13 +8,14 @@ const props = withDefaults(defineProps<{
   label: string
   options: SelectOption[]
   multiple?: boolean
+  detailed?: boolean
   internalSearch?: boolean
   loading?: boolean
   disabled?: boolean
   required?: boolean
   placeholder?: string
   emptyText?: string
-}>(), { id: undefined, multiple: false, internalSearch: true, loading: false, disabled: false, required: false, placeholder: 'Select an option', emptyText: 'No options found.' })
+}>(), { id: undefined, multiple: false, detailed: false, internalSearch: true, loading: false, disabled: false, required: false, placeholder: 'Select an option', emptyText: 'No options found.' })
 const model = defineModel<SelectOption | SelectOption[] | null>({ default: null })
 const emit = defineEmits<{ open: [], close: [], search: [query: string] }>()
 const attrs = useAttrs()
@@ -23,6 +24,7 @@ const inputId = computed(() => props.id ?? generatedId)
 const root = useTemplateRef<HTMLElement>('root')
 const select = useTemplateRef<{ activate: () => void, deactivate: () => void }>('select')
 const open = ref(false)
+const optionHeight = ref(40)
 
 function blocked(): boolean {
   return props.disabled || !!root.value?.closest('fieldset:disabled')
@@ -79,6 +81,8 @@ function syncInput(): void {
     else input.removeAttribute(name)
   }
   input.maxLength = 100
+  const height = root.value?.querySelector('.multiselect__option')?.getBoundingClientRect().height
+  if (height) optionHeight.value = Math.ceil(height)
 }
 onMounted(syncInput)
 onUpdated(syncInput)
@@ -93,7 +97,7 @@ defineExpose({ focus: () => root.value?.querySelector('input')?.focus(), close }
     ref="root"
     class="ui-multiselect"
     :data-open="open"
-    :class="$attrs.class"
+    :class="[$attrs.class, { 'ui-multiselect--detailed': detailed }]"
     @click.capture="guard"
     @click="onClick"
     @keydown.capture="guard"
@@ -106,6 +110,8 @@ defineExpose({ focus: () => root.value?.querySelector('input')?.focus(), close }
       ref="select"
       :model-value="model"
       :options="options"
+      :options-limit="options.length"
+      :option-height="optionHeight"
       :multiple="multiple"
       :internal-search="internalSearch"
       :close-on-select="!multiple"
@@ -127,11 +133,15 @@ defineExpose({ focus: () => root.value?.querySelector('input')?.focus(), close }
       @search-change="emit('search', $event)"
     >
       <template #option="{ option }">
-        <span :data-value="option.value">{{ option.label }}</span>
+        <span
+          :data-value="option.value"
+          :title="option.label"
+        >{{ option.label }}</span>
         <UiText
           v-if="option.description"
           as="small"
           variant="caption"
+          :title="option.description"
         >
           {{ option.description }}
         </UiText>

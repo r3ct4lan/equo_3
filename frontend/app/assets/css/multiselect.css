@@ -1,4 +1,5 @@
 .ui-multiselect { min-width: 0; width: 100%; }
+[data-slot="card"]:has(.ui-multiselect) { overflow: visible; }
 .ui-multiselect .multiselect { position: relative; width: 100%; color: var(--color-text); text-align: start; }
 .ui-multiselect .multiselect__tags {
   display: block;
@@ -22,7 +23,9 @@
 .ui-multiselect .multiselect--above .multiselect__content-wrapper { bottom: 100%; }
 .ui-multiselect .multiselect__content { display: block; width: 100%; margin: 0; padding: 0; list-style: none; }
 .ui-multiselect .multiselect__option { position: relative; display: block; min-height: var(--control-height); padding: var(--space-2) var(--space-8) var(--space-2) var(--space-3); overflow-wrap: anywhere; cursor: pointer; }
-.ui-multiselect .multiselect__option small { display: block; font-size: var(--font-eyebrow); }
+.ui-multiselect .multiselect__option > span, .ui-multiselect .multiselect__option small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ui-multiselect .multiselect__option small { font-size: var(--font-eyebrow); }
+.ui-multiselect--detailed .multiselect__option { min-height: var(--select-person-height); }
 .ui-multiselect .multiselect__option--highlight { background: var(--color-surface-hover); }
 .ui-multiselect .multiselect__option--selected { background: var(--color-primary-soft); font-weight: var(--weight-bold); }
 .ui-multiselect .multiselect__option--selected::after { position: absolute; right: var(--space-3); top: var(--space-2); content: '✓'; }

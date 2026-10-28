@@ -24,7 +24,8 @@ const draft = reactive({ name: '', email: '', password: '', amount: '', directio
 const examplePeople = [
   { id: 'kit-alex', name: 'Alex', isActive: true, email: 'alex@example.test' },
   { id: 'kit-sam', name: 'Sam', isActive: true, email: null },
-  { id: 'kit-morgan', name: 'Morgan', isActive: false, email: null }
+  { id: 'kit-morgan', name: 'Morgan', isActive: false, email: null },
+  ...['Casey', 'Dana', 'Jules', 'Riley'].map(name => ({ id: `kit-${name.toLowerCase()}`, name, isActive: true, email: null }))
 ]
 const selectedPeople = ref<BriefUser[]>([examplePeople[0]!])
 const selectedPayer = ref<BriefUser[]>([examplePeople[0]!])
@@ -444,11 +445,13 @@ async function closeDialog(): Promise<void> {
               <DebtPeoplePicker
                 v-model="selectedPeople"
                 label="Share with"
+                :disabled="formDisabled"
                 :choices="examplePeople"
               />
               <DebtPeoplePicker
                 v-model="selectedPayer"
                 label="Who paid?"
+                :disabled="formDisabled"
                 :choices="selectedPeople"
                 single
               />

@@ -91,13 +91,13 @@ describe('shared UI interactions', () => {
   it('previews the same participant and related-share controls used by expense and payment forms', async () => {
     const wrapper = await mountSuspended(UiKit)
     const picker = wrapper.findAll('.people-picker')[0]!
-    await picker.get('.people-picker__toggle').trigger('click')
+    await picker.get('input[role="combobox"]').trigger('focus')
     expect(picker.text()).toContain('alex@example.test')
-    await picker.get('input[value="kit-sam"]').setValue(true)
+    await picker.get('[data-value="kit-sam"]').trigger('click')
     expect(picker.text()).toContain('Sam')
     const payer = wrapper.findAll('.people-picker')[1]!
-    await payer.get('.people-picker__toggle').trigger('click')
-    expect(payer.find('input[value="kit-sam"]').exists()).toBe(true)
+    await payer.get('input[role="combobox"]').trigger('focus')
+    expect(payer.find('[data-value="kit-sam"]').exists()).toBe(true)
     await selectValue(wrapper, 'related-share', 'kit-share')
     expect(wrapper.get('#kit-amount').element.value).toBe('5.01')
     expect(wrapper.findAll('.support-reference').some(reference => reference.text().includes('request-123'))).toBe(true)

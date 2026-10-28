@@ -181,10 +181,12 @@ onBeforeUnmount(() => {
         <DebtPeoplePicker
           v-model="selectedPeople"
           label="Share with"
+          :disabled="pending || uncertain"
         />
         <DebtPeoplePicker
           v-model="payer"
           label="Who paid?"
+          :disabled="pending || uncertain"
           :choices="payerOptions"
           single
         />

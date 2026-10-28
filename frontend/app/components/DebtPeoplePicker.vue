@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { BriefUser, Page } from '~/types/finance'
+import type { SelectOption } from '~/types/ui'
 
 type Person = BriefUser & { email?: string | null }
-const props = withDefaults(defineProps<{ label: string, debtId?: string, excludeIds?: string[], lockedIds?: string[], single?: boolean, choices?: Person[] }>(), {
-  debtId: undefined, excludeIds: () => [], lockedIds: () => [], single: false, choices: undefined
+const props = withDefaults(defineProps<{ label: string, debtId?: string, excludeIds?: string[], lockedIds?: string[], single?: boolean, choices?: Person[], disabled?: boolean }>(), {
+  debtId: undefined, excludeIds: () => [], lockedIds: () => [], single: false, choices: undefined, disabled: false
 })
 const selected = defineModel<Person[]>({ required: true })
 const { $auth } = useNuxtApp()
@@ -16,13 +17,26 @@ const loading = ref(false)
 const failed = ref(false)
 const choiceLimit = ref(5)
 const panelId = useId()
-const searchInput = ref<{ focus: () => void } | null>(null)
-const toggleButton = ref<{ focus: () => void } | null>(null)
+const picker = useTemplateRef<{ close: () => void, focus: () => void }>('picker')
+let retryCursor: string | null = null
 let controller: AbortController | null = null
 let timer: ReturnType<typeof setTimeout> | undefined
 let generation = 0
 const matchingChoices = computed(() => (props.choices ?? []).filter(person => person.name.toLocaleLowerCase().includes(query.value.trim().toLocaleLowerCase()) || person.email?.toLocaleLowerCase().includes(query.value.trim().toLocaleLowerCase())))
 const visible = computed(() => (props.choices ? matchingChoices.value.slice(0, choiceLimit.value) : results.value).filter(person => !props.excludeIds.includes(person.id)))
+function option(person: Person): SelectOption {
+  return { value: person.id, label: `${person.id === state.value.user?.id ? 'You' : person.name}${person.isActive ? '' : ' (inactive)'}`, description: person.email, $isDisabled: props.lockedIds.includes(person.id) }
+}
+const options = computed(() => visible.value.map(option))
+const selection = computed(() => props.single ? (selected.value[0] ? option(selected.value[0]) : null) : selected.value.map(option))
+function update(value: SelectOption | SelectOption[] | null): void {
+  if (props.disabled) return
+  const people = new Map([...selected.value, ...visible.value].map(person => [person.id, person]))
+  const values = value ? (Array.isArray(value) ? value : [value]) : []
+  const next = values.flatMap(item => people.has(item.value) ? [people.get(item.value)!] : [])
+  const locked = selected.value.filter(person => props.lockedIds.includes(person.id) && !next.some(item => item.id === person.id))
+  selected.value = [...locked, ...next]
+}
 function cancel(): void {
   ++generation
   controller?.abort()
@@ -30,11 +44,12 @@ function cancel(): void {
   loading.value = false
 }
 async function load(next: string | null = null): Promise<void> {
-  if (props.choices || !open.value || state.value.status !== 'authenticated') return
+  if (props.disabled || props.choices || !open.value || state.value.status !== 'authenticated') return
   controller?.abort()
   const current = ++generation
   const viewer = state.value.user?.id
   controller = new AbortController()
+  retryCursor = next
   loading.value = true
   failed.value = false
   try {
@@ -54,25 +69,21 @@ async function load(next: string | null = null): Promise<void> {
     if (current === generation) loading.value = false
   }
 }
-function toggle(person: Person): void {
-  if (props.lockedIds.includes(person.id)) return
-  if (props.single) selected.value = selected.value.some(item => item.id === person.id) ? [] : [person]
-  else if (selected.value.some(item => item.id === person.id)) selected.value = selected.value.filter(item => item.id !== person.id)
-  else selected.value = [...selected.value, person]
+function onOpen(): void {
+  open.value = true
+  void load()
 }
-function toggleOpen(): void {
-  open.value = !open.value
-  if (open.value) {
-    void load()
-    void nextTick(() => searchInput.value?.focus())
-  }
-  else cancel()
-}
-function close(): void {
-  if (!open.value) return
+function onClose(): void {
   open.value = false
   cancel()
-  toggleButton.value?.focus()
+}
+function loadPage(next: string | null): void {
+  picker.value?.focus()
+  void load(next)
+}
+function moreChoices(): void {
+  picker.value?.focus()
+  choiceLimit.value += 5
 }
 watch(query, () => {
   cancel()
@@ -80,119 +91,77 @@ watch(query, () => {
   cursor.value = null
   choiceLimit.value = 5
   failed.value = false
-  if (!props.choices && open.value) timer = setTimeout(() => {
-    void load()
-  }, 250)
+  if (!props.choices && open.value) {
+    loading.value = true
+    timer = setTimeout(() => {
+      void load()
+    }, 250)
+  }
 })
 watch(() => [state.value.status, state.value.user?.id, props.debtId], () => {
   cancel()
   results.value = []
   cursor.value = null
   open.value = false
+  query.value = ''
+  failed.value = false
+  picker.value?.close()
 })
 onBeforeUnmount(cancel)
 </script>
 
 <template>
-  <div
-    class="people-picker"
-    @keydown.esc.prevent="close"
-  >
-    <div>{{ label }}</div>
-    <div
-      v-if="selected.length"
-      class="people-picker__selected"
-    >
-      <span
-        v-for="person in selected"
-        :key="person.id"
-        class="people-picker__chip"
-      >
-        {{ person.id === state.user?.id ? 'You' : person.name }}{{ person.isActive ? '' : ' (inactive)' }}
-        <UiButton
-          v-if="!lockedIds.includes(person.id)"
-          variant="link"
-          compact
-          :aria-label="`Remove ${person.name}`"
-          @click="toggle(person)"
-        >×</UiButton>
-      </span>
-    </div>
-    <UiButton
-      ref="toggleButton"
-      variant="secondary"
-      class="people-picker__toggle"
-      :aria-expanded="open"
-      :aria-controls="panelId"
-      :aria-label="`${open ? 'Close' : 'Choose'} people for ${label}`"
-      @click="toggleOpen"
-    >
-      {{ open ? 'Close people' : 'Choose people' }}
-    </UiButton>
-    <div
-      v-if="open"
+  <div class="people-picker">
+    <label :for="panelId">{{ label }}</label>
+    <UiMultiselect
       :id="panelId"
-      class="people-picker__panel"
+      :key="`${state.status}:${state.user?.id}:${debtId}`"
+      ref="picker"
+      detailed
+      :label="label"
+      :model-value="selection"
+      :options="options"
+      :multiple="!single"
+      :internal-search="false"
+      :loading="loading"
+      :disabled="disabled"
+      :empty-text="loading || failed ? '' : 'No people found.'"
+      placeholder="Choose people"
+      @update:model-value="update"
+      @search="query = $event"
+      @open="onOpen"
+      @close="onClose"
     >
-      <label>Search {{ label.toLowerCase() }}
-        <UiInput
-          ref="searchInput"
-          v-model="query"
-          type="search"
-          maxlength="100"
-          autocomplete="off"
-        /></label>
-      <div
-        role="status"
-        aria-live="polite"
-      >
-        <span v-if="loading">Loading people…</span>
-        <span v-else-if="failed">People could not be loaded.</span>
-        <span v-else-if="!visible.length">No people found.</span>
-      </div>
-      <UiButton
-        v-if="failed"
-        variant="secondary"
-        @click="load()"
-      >
-        Retry
-      </UiButton>
-      <fieldset>
-        <legend class="visually-hidden">
-          {{ label }}
-        </legend>
-        <label
-          v-for="person in visible"
-          :key="person.id"
-          class="people-picker__option"
+      <template #footer>
+        <div
+          role="status"
+          aria-live="polite"
         >
-          <UiCheckbox
-            :value="person.id"
-            :model-value="selected.some(item => item.id === person.id)"
-            :disabled="lockedIds.includes(person.id)"
-            @update:model-value="toggle(person)"
-          />
-          <span>{{ person.id === state.user?.id ? 'You' : person.name }}{{ person.isActive ? '' : ' (inactive)' }}<UiText
-            v-if="person.email"
-            as="small"
-            variant="caption"
-          >{{ person.email }}</UiText></span>
-        </label>
-      </fieldset>
-      <UiButton
-        v-if="cursor && !loading"
-        variant="secondary"
-        @click="load(cursor)"
-      >
-        Load more
-      </UiButton>
-      <UiButton
-        v-if="choices && matchingChoices.length > choiceLimit"
-        variant="secondary"
-        @click="choiceLimit += 5"
-      >
-        Load more
-      </UiButton>
-    </div>
+          <span v-if="loading">Loading people…</span>
+          <span v-else-if="failed">People could not be loaded.</span>
+        </div>
+        <UiButton
+          v-if="failed"
+          variant="secondary"
+          @click="loadPage(retryCursor)"
+        >
+          Retry
+        </UiButton>
+        <UiButton
+          v-if="cursor && !loading && !failed"
+          variant="secondary"
+          @click="loadPage(cursor)"
+        >
+          Load more
+        </UiButton>
+        <UiButton
+          v-if="choices && matchingChoices.length > choiceLimit"
+          variant="secondary"
+          @click="moreChoices"
+        >
+          Load more
+        </UiButton>
+      </template>
+    </UiMultiselect>
   </div>
 </template>
