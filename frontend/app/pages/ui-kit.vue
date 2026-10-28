@@ -542,6 +542,9 @@ async function closeDialog(): Promise<void> {
           <UiNotice tone="success">
             <div><strong>Changes saved</strong><UiText>Your details are up to date.</UiText></div>
           </UiNotice>
+          <UiNotice tone="warning">
+            <div><strong>Removed</strong><UiText>This item no longer affects the balance.</UiText></div>
+          </UiNotice>
           <UiNotice><div><strong>Connection already exists</strong><UiText>You are already connected with Alex.</UiText></div></UiNotice>
           <FormErrorSummary
             title="Check the form"

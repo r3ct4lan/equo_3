@@ -254,6 +254,7 @@ onBeforeUnmount(() => ++generation)
     <UiDialog
       v-if="mode === 'delete'"
       ref="dialog"
+      class="ui-dialog--confirm"
       role="alertdialog"
       aria-labelledby="remove-payment-title"
       aria-describedby="remove-payment-description"

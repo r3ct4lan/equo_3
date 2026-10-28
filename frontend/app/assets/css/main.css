@@ -253,6 +253,12 @@ nav {
   background: var(--color-success-surface);
 }
 
+.state-message--warning {
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
 .status-card__marker {
   width: var(--space-3);
   height: var(--space-3);
@@ -571,6 +577,10 @@ nav {
   background: var(--color-surface);
   box-shadow: var(--shadow-surface);
   color: var(--color-text);
+}
+
+.ui-dialog--confirm {
+  width: min(calc(100% - var(--space-8)), var(--dialog-confirm-width));
 }
 
 .activation-request-link {

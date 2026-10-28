@@ -42,7 +42,7 @@ const { item: transfer, etag, pending, error, load } = useFinancialDetail<Transf
       </UiText>
       <UiNotice
         v-if="transfer.isDeleted"
-        tone="info"
+        tone="warning"
       >
         Removed · does not affect the balance
       </UiNotice>

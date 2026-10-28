@@ -52,6 +52,9 @@ CSS custom properties cannot be used in media query conditions. */
   --color-success: var(--chart-4);
   --color-success-surface: color-mix(in srgb, var(--color-success) 8%, var(--background));
   --color-error: var(--destructive);
+  --color-warning: oklch(0.48 0.13 55);
+  --color-warning-surface: color-mix(in srgb, var(--color-warning) 10%, var(--background));
+  --color-warning-border: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
   --color-error-surface: color-mix(in srgb, var(--destructive) 8%, var(--background));
   --radius-small: var(--radius);
   --radius-medium: var(--radius-4xl);
@@ -104,6 +107,7 @@ CSS custom properties cannot be used in media query conditions. */
   --viewport-min: 20rem;
   --panel-width: 48rem;
   --dialog-width: 42rem;
+  --dialog-confirm-width: 30rem;
   --compact-action-width: 18em;
   --compact-action-min-height: 2.75rem;
   --toast-width: 24rem;
@@ -175,6 +179,7 @@ CSS custom properties cannot be used in media query conditions. */
 }
 .dark {
   color-scheme: dark;
+  --color-warning: oklch(0.78 0.14 65);
   --color-success: var(--chart-2);
   --color-link: var(--chart-2);
   --color-primary-strong: var(--chart-2);

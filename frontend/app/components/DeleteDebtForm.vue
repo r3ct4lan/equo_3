@@ -88,6 +88,7 @@ async function remove(): Promise<void> {
     <UiDialog
       v-if="confirming"
       ref="dialog"
+      class="ui-dialog--confirm"
       role="alertdialog"
       aria-labelledby="remove-confirm-title"
       aria-describedby="remove-confirm-description"

@@ -32,7 +32,7 @@ const { item: debt, etag, pending, error, load } = useFinancialDetail<DebtView>(
     >
       <UiNotice
         v-if="debt.isDeleted"
-        tone="info"
+        tone="warning"
       >
         Removed expense · the saved participant list is shown below.
       </UiNotice>
