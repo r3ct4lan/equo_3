@@ -371,6 +371,39 @@ async function safeRouteAbort(route: Route): Promise<void> {
   await route.abort('connectionfailed')
 }
 
+test('expense payer must remain among selected participants', async ({ page, request }) => {
+  const authorEmail = await createActiveUser(request, uniqueEmail('selected-author'))
+  const otherEmail = await createActiveUser(request, uniqueEmail('selected-peer'))
+  const access = await login(page, authorEmail)
+  const peerAccess = await loginViaApi(request, otherEmail)
+  const profile = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + peerAccess } })
+  const peerId = (await profile.json() as { id: string }).id
+  const invitation = await request.post(baseUrl + '/api/v1/connect-invitations', { headers: { 'Authorization': 'Bearer ' + access, 'X-Forwarded-For': nextForwardedFor() } })
+  expect(invitation.status()).toBe(200)
+  const invitationToken = (await invitation.json() as { token: string }).token
+  const accepted = await request.post(baseUrl + '/api/v1/connect-invitations/' + invitationToken + '/accept', { headers: { 'Authorization': 'Bearer ' + peerAccess, 'X-Forwarded-For': nextForwardedFor() } })
+  expect(accepted.status()).toBe(201)
+  await page.goto('/debts/new')
+  await waitForNuxtHydration(page)
+  const peer = page.locator('input[value="' + peerId + '"]')
+  await expect(peer).toBeEnabled()
+  const payer = page.getByLabel('Who paid?', { exact: true })
+  await peer.check()
+  await payer.selectOption(peerId)
+  await peer.uncheck()
+  await expect(payer).toHaveValue('')
+  await peer.check()
+  await payer.selectOption(peerId)
+  await page.getByLabel('Title', { exact: true }).fill('Selected payer')
+  await page.getByLabel('Amount in EUR', { exact: true }).fill('10.00')
+  const created = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/debts' && response.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Create expense', exact: true }).click()
+  const response = await created
+  expect(response.status()).toBe(201)
+  expect(response.request().postDataJSON()).toMatchObject({ payerId: peerId, includePayerInSplit: true })
+  await expect(page.getByText('2 people · €5.00 each', { exact: true })).toBeVisible()
+})
+
 test('money input limits fractional digits while preserving editing', async ({ page, request }) => {
   const email = await createActiveUser(request, uniqueEmail('money-input'))
   await login(page, email)
@@ -2243,6 +2276,11 @@ test('debt editing recalculates all shares, restores history and rejects a stale
     await page.goto('/debts/new')
     await waitForNuxtHydration(page)
     await expect(page.getByLabel('Who paid?', { exact: true })).toBeEnabled()
+    await page.locator('input[value="' + payerId + '"]').check()
+    await page.getByLabel('Who paid?', { exact: true }).selectOption(payerId)
+    await page.locator('input[value="' + payerId + '"]').uncheck()
+    await expect(page.getByLabel('Who paid?', { exact: true })).toHaveValue('')
+    await page.locator('input[value="' + payerId + '"]').check()
     await page.getByLabel('Who paid?', { exact: true }).selectOption(payerId)
     await page.locator('input[value="' + authorId + '"]').check()
     await page.locator('input[value="' + memberId + '"]').check()

@@ -24,6 +24,7 @@ const optionsError = ref<ApiClientError | null>(null)
 const values = reactive({
   title: '', description: '', amount: '', payerId: '', participantIds: [] as string[], includePayerInSplit: true
 })
+const selectedPeople = ref<string[]>([])
 const pending = ref(false)
 const error = ref<ApiClientError | null>(null)
 const invalid = ref(false)
@@ -33,8 +34,8 @@ let attempt: {
   body: CreateDebtBody
   key: string
 } | null = null
-const participantOptions = computed(() => users.value.filter(user => user.id !== values.payerId))
-const share = computed(() => splitShare(parseEuroCents(values.amount) ?? 0, values.participantIds.length + (values.includePayerInSplit ? 1 : 0)))
+const payerOptions = computed(() => users.value.filter(user => selectedPeople.value.includes(user.id)))
+const share = computed(() => splitShare(parseEuroCents(values.amount) ?? 0, selectedPeople.value.length))
 const errorMessage = computed(() => {
   if (uncertain.value) return 'The result is not confirmed. Keep this page open and retry the same expense to check it safely.'
   if (error.value?.code === 'INACTIVE_USER' || error.value?.code === 'INVALID_PARTICIPANT') return 'Someone selected is no longer available. Reload the available people and check the expense.'
@@ -54,8 +55,8 @@ async function loadPeople(): Promise<void> {
     if (requestGeneration === generation && state.value.user?.id === self.id) {
       users.value = result
       const available = new Set(result.map(user => user.id))
-      if (!available.has(values.payerId)) values.payerId = self.id
-      values.participantIds = values.participantIds.filter(id => available.has(id) && id !== values.payerId)
+      selectedPeople.value = selectedPeople.value.filter(id => available.has(id))
+      if (!selectedPeople.value.includes(values.payerId)) values.payerId = ''
     }
   }
   catch (failure) {
@@ -69,7 +70,9 @@ async function submit(): Promise<void> {
   const viewer = state.value.user?.id
   if (!viewer || state.value.status !== 'authenticated' || pending.value || loading.value || optionsError.value) return
   if (!attempt) {
-    const body = debtCommand(values, viewer)
+    const body = selectedPeople.value.includes(values.payerId)
+      ? debtCommand({ ...values, participantIds: selectedPeople.value.filter(id => id !== values.payerId), includePayerInSplit: true }, viewer)
+      : null
     invalid.value = body === null
     if (!body) return
     attempt = {
@@ -100,11 +103,12 @@ async function submit(): Promise<void> {
     if (requestGeneration === generation) pending.value = false
   }
 }
-watch(() => values.payerId, () => {
-  values.participantIds = values.participantIds.filter(id => id !== values.payerId)
+watch(selectedPeople, (selected) => {
+  if (!selected.includes(values.payerId)) values.payerId = ''
 })
 onMounted(() => {
   values.payerId = state.value.user?.id ?? ''
+  selectedPeople.value = values.payerId ? [values.payerId] : []
   void loadPeople()
 })
 watch(() => [state.value.status, state.value.user?.id], () => {
@@ -120,6 +124,7 @@ watch(() => [state.value.status, state.value.user?.id], () => {
   values.amount = ''
   values.participantIds = []
   values.payerId = state.value.user?.id ?? ''
+  selectedPeople.value = values.payerId ? [values.payerId] : []
   void loadPeople()
 })
 onBeforeUnmount(() => {
@@ -209,6 +214,23 @@ onBeforeUnmount(() => {
             :messages="error?.fieldErrors.totalAmount"
           />
         </UiField>
+        <fieldset class="stack">
+          <legend>Share with</legend>
+          <UiText v-if="users.length < 2">
+            Connect with someone before sharing an expense.
+          </UiText>
+          <label
+            v-for="user in users"
+            :key="user.id"
+            class="checkbox-label"
+          >
+            <UiCheckbox
+              v-model="selectedPeople"
+              :value="user.id"
+            />
+            {{ user.id === state.user?.id ? 'You' : user.name }}
+          </label>
+        </fieldset>
         <UiField>
           <label for="debt-payer">Who paid?</label>
           <UiSelect
@@ -217,36 +239,22 @@ onBeforeUnmount(() => {
             required
           >
             <option
-              v-for="user in users"
+              value=""
+              disabled
+            >
+              Choose a payer
+            </option>
+            <option
+              v-for="user in payerOptions"
               :key="user.id"
               :value="user.id"
             >
-              {{ user.name }}{{ user.id === state.user?.id ? ' (you)' : '' }}
+              {{ user.id === state.user?.id ? 'You' : user.name }}
             </option>
           </UiSelect>
         </UiField>
-        <fieldset class="stack">
-          <legend>Share with</legend>
-          <UiText v-if="!participantOptions.length">
-            Connect with someone before sharing an expense.
-          </UiText>
-          <label
-            v-for="user in participantOptions"
-            :key="user.id"
-            class="checkbox-label"
-          >
-            <UiCheckbox
-              v-model="values.participantIds"
-              :value="user.id"
-            />
-            {{ user.name }}{{ user.id === state.user?.id ? ' (you)' : '' }}
-          </label>
-        </fieldset>
-        <label class="checkbox-label"><UiCheckbox
-          v-model="values.includePayerInSplit"
-        /> Include the payer in the split</label>
         <UiText variant="help">
-          If someone else paid, include yourself as a participant.
+          Choose the payer from the selected participants. You must be included.
         </UiText>
         <UiText v-if="share">
           Each share: {{ formatEuro(share) }}. Shares round up to the next cent.
