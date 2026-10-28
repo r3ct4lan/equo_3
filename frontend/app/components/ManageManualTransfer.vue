@@ -191,15 +191,10 @@ onBeforeUnmount(() => ++generation)
               id="edit-payment-direction"
               ref="directionInput"
               v-model="senderId"
-            >
-              <option
-                v-for="side in sides"
-                :key="side.id"
-                :value="side.id"
-              >
-                {{ side.name }} → {{ sides.find(other => other.id !== side.id)?.name }}
-              </option>
-            </UiSelect>
+              label="Who transferred money?"
+              :options="sides.map(side => ({ value: side.id, label: `${side.name} → ${sides.find(other => other.id !== side.id)?.name}` }))"
+              :disabled="pending || blocked"
+            />
           </UiField>
           <UiButton
             v-if="!relatedSelectorOpen"

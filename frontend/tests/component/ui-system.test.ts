@@ -1,3 +1,4 @@
+import { selectValue } from '../helpers/select'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { describe, expect, it, vi } from 'vitest'
 import UiButton from '../../app/components/UiButton.vue'
@@ -75,7 +76,7 @@ describe('shared UI interactions', () => {
     expect(wrapper.findAll('h1')).toHaveLength(1)
     await wrapper.get('#kit-name').setValue('Sam')
     await wrapper.get('#kit-description').setValue('Dinner')
-    await wrapper.get('#kit-direction').setValue('other')
+    await selectValue(wrapper, 'kit-direction', 'other')
     await wrapper.get('input[value="sam"]').setValue(true)
     await wrapper.get('form').trigger('submit')
     expect(wrapper.text()).toContain('Direction: other. Participants: 2.')
@@ -97,7 +98,7 @@ describe('shared UI interactions', () => {
     const payer = wrapper.findAll('.people-picker')[1]!
     await payer.get('.people-picker__toggle').trigger('click')
     expect(payer.find('input[value="kit-sam"]').exists()).toBe(true)
-    await wrapper.get('#related-share').setValue('kit-share')
+    await selectValue(wrapper, 'related-share', 'kit-share')
     expect(wrapper.get('#kit-amount').element.value).toBe('5.01')
     expect(wrapper.findAll('.support-reference').some(reference => reference.text().includes('request-123'))).toBe(true)
     wrapper.unmount()

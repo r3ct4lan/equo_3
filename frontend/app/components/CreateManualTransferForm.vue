@@ -110,15 +110,11 @@ onBeforeUnmount(clear)
         <UiSelect
           id="payment-direction"
           v-model="direction"
+          label="Who transferred money?"
+          :options="[{ value: 'you', label: `You → ${connect.otherUser.name}` }, { value: 'other', label: `${connect.otherUser.name} → You` }]"
+          :disabled="pending || uncertain || !connect.canCreateTransfer"
           required
-        >
-          <option value="you">
-            You → {{ connect.otherUser.name }}
-          </option>
-          <option value="other">
-            {{ connect.otherUser.name }} → You
-          </option>
-        </UiSelect>
+        />
       </UiField>
       <UiButton
         v-if="!relatedSelectorOpen"

@@ -6,8 +6,13 @@ const props = defineProps<{ shares: TransferView[] }>()
 const emit = defineEmits<{ selected: [share: TransferView] }>()
 const model = defineModel<string>({ default: '' })
 const missingSelected = computed(() => !!model.value && !props.shares.some(item => item.id === model.value))
-function onSelection(event: Event): void {
-  const selected = props.shares.find(share => share.id === (event.target as HTMLSelectElement).value)
+const options = computed(() => [
+  { value: '', label: 'No related expense' },
+  ...(missingSelected.value ? [{ value: model.value, label: 'Previously linked expense share' }] : []),
+  ...props.shares.map(share => ({ value: share.id, label: `${share.debtReference?.isAccessible ? share.debtReference.title : 'Expense unavailable'} · ${formatEuro(share.amount)}` }))
+])
+function onSelection(value: string): void {
+  const selected = props.shares.find(share => share.id === value)
   if (selected) emit('selected', selected)
 }
 </script>
@@ -16,24 +21,9 @@ function onSelection(event: Event): void {
   <UiSelect
     id="related-share"
     v-model="model"
+    label="Related expense share (optional)"
+    :options="options"
     aria-describedby="related-share-help"
     @change="onSelection"
-  >
-    <option value="">
-      No related expense
-    </option>
-    <option
-      v-if="missingSelected"
-      :value="model"
-    >
-      Previously linked expense share
-    </option>
-    <option
-      v-for="share in shares"
-      :key="share.id"
-      :value="share.id"
-    >
-      {{ share.debtReference?.isAccessible ? share.debtReference.title : 'Expense unavailable' }} · {{ formatEuro(share.amount) }}
-    </option>
-  </UiSelect>
+  />
 </template>

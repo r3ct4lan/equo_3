@@ -123,6 +123,7 @@ CSS custom properties cannot be used in media query conditions. */
   --duration-spin: 0.8s;
   --duration-reduced-motion: 0.01ms;
   --z-skip: 10;
+  --z-select: 5;
   --z-toast: 20;
   --z-mobile-menu: 30;
   --mobile-menu-width: 18.75rem;

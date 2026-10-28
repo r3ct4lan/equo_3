@@ -7,7 +7,6 @@ import { uiThemeTokens } from '~/utils/ui-theme'
 import { euroInput } from '~/utils/debt-update'
 import { Button as PresetButton } from '~/components/ui/button'
 import { Card as PresetCard, CardHeader as PresetCardHeader, CardTitle as PresetCardTitle, CardDescription as PresetCardDescription, CardAction as PresetCardAction, CardContent as PresetCardContent, CardFooter as PresetCardFooter } from '~/components/ui/card'
-import { NativeSelect as PresetSelect, NativeSelectOptGroup as PresetOptGroup, NativeSelectOption as PresetOption } from '~/components/ui/native-select'
 import { RiStarLine } from '@remixicon/vue'
 
 const { dark } = useTheme()
@@ -169,19 +168,11 @@ async function closeDialog(): Promise<void> {
                   <RiStarLine />
                 </PresetButton>
               </div>
-              <PresetSelect
+              <UiSelect
                 v-model="draft.direction"
-                class="w-full"
-                aria-label="Preset grouped select"
-              >
-                <PresetOptGroup label="Payment directions">
-                  <PresetOption value="you">
-                    You → Alex
-                  </PresetOption><PresetOption value="other">
-                    Alex → You
-                  </PresetOption>
-                </PresetOptGroup>
-              </PresetSelect>
+                label="Payment direction example"
+                :options="[{ value: 'you', label: 'You → Alex' }, { value: 'other', label: 'Alex → You' }]"
+              />
             </PresetCardContent>
             <PresetCardFooter>
               <UiText variant="help">
@@ -480,13 +471,10 @@ async function closeDialog(): Promise<void> {
                 <UiSelect
                   id="kit-direction"
                   v-model="draft.direction"
-                >
-                  <option value="you">
-                    You → Alex
-                  </option><option value="other">
-                    Alex → You
-                  </option>
-                </UiSelect>
+                  label="Direction"
+                  :disabled="formDisabled"
+                  :options="[{ value: 'you', label: 'You → Alex' }, { value: 'other', label: 'Alex → You' }]"
+                />
               </UiField>
               <UiField>
                 <label for="kit-description">Description</label>

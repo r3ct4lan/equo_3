@@ -4,7 +4,8 @@ export default defineNuxtConfig({
 
   modules: ['shadcn-nuxt'],
   devtools: { enabled: true }, app: { head: { script: [{ src: '/theme-init.js' }] } },
-  css: ['~/assets/css/tailwind.css', '~/assets/css/vars.css', '~/assets/css/main.css'],
+  css: ['~/assets/css/tailwind.css', '~/assets/css/vars.css', '~/assets/css/main.css', '~/assets/css/multiselect.css'],
+  vue: { optionsApi: true },
   runtimeConfig: {
     apiInternalBase: '',
     public: {

@@ -1,6 +1,7 @@
 import type { APIRequestContext, APIResponse, Browser, BrowserContext, Cookie, Page, Route } from '@playwright/test'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from './fixtures'
+import { selectOption } from './select'
 
 interface MailpitSummary {
   ID: string
@@ -2237,8 +2238,8 @@ test('manual payment survives a lost response and refreshes both histories after
     await page.setViewportSize({ width: 1280, height: 720 })
     await page.getByRole('button', { name: 'Link an expense share (optional)', exact: true }).click()
     await expect(page.getByLabel('Related expense share (optional)')).toContainText(title)
-    await page.getByLabel('Related expense share (optional)').selectOption(relatedShareId!)
-    await page.getByLabel('Who transferred money?', { exact: true }).selectOption('other')
+    await selectOption(page.getByRole('combobox', { name: 'Related expense share (optional)', exact: true }), relatedShareId!)
+    await selectOption(page.getByRole('combobox', { name: 'Who transferred money?', exact: true }), 'other')
     await page.getByLabel('Payment amount in EUR', { exact: true }).fill('7.00')
     await expect(page.getByText(/Expected balance: -€1.99/u)).toBeVisible()
     const path = '/api/v1/connects/' + connectId + '/transfers'
@@ -2610,7 +2611,7 @@ test('manual payment correction updates balance, rejects a stale editor and pres
   await page.getByRole('button', { name: 'Cancel editing', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Edit payment', exact: true })).toBeFocused()
   await page.getByRole('button', { name: 'Edit payment', exact: true }).click()
-  await page.locator('#edit-payment-direction').selectOption(authorId)
+  await selectOption(page.locator('#edit-payment-direction'), authorId)
   await page.getByLabel('Payment amount in EUR', { exact: true }).fill('8.00')
   const updated = page.waitForResponse(response => response.request().method() === 'PUT' && new URL(response.url()).pathname === transferPath)
   await page.getByRole('button', { name: 'Save payment changes', exact: true }).click()

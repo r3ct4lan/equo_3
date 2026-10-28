@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures'
+import { selectOption } from './select'
 
 test('UI-001: installed preset remains usable on narrow screens and in dark mode', async ({ page }) => {
   await page.goto('/ui-kit')
@@ -22,7 +23,7 @@ test('UI-001: installed preset remains usable on narrow screens and in dark mode
   await page.locator('.hero').getByRole('button', { name: 'Switch to dark theme', exact: true }).click()
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.getByLabel('Name', { exact: true }).fill('Demo')
-  await page.getByLabel('Direction', { exact: true }).selectOption('other')
+  await selectOption(page.getByRole('combobox', { name: 'Direction', exact: true }), 'other')
   await page.getByRole('checkbox', { name: 'Sam', exact: true }).check()
   await page.getByRole('button', { name: 'Preview submission', exact: true }).click()
   await expect(page.getByText('No data was sent.', { exact: false })).toContainText('Direction: other. Participants: 2.')

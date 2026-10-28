@@ -13,6 +13,13 @@ export interface FocusTarget {
   focus: () => void
 }
 
+export interface SelectOption {
+  value: string
+  label: string
+  description?: string | null
+  $isDisabled?: boolean
+}
+
 export interface DialogTarget {
   readonly open: boolean
   showModal: () => void

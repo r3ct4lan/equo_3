@@ -1,3 +1,4 @@
+import { selectValue } from '../helpers/select'
 import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -28,7 +29,7 @@ async function mountForm() {
   return wrapper
 }
 async function fill(wrapper: Awaited<ReturnType<typeof mountForm>>): Promise<void> {
-  await wrapper.get('#payment-direction').setValue('other')
+  await selectValue(wrapper, 'payment-direction', 'other')
   await wrapper.get('#payment-amount').setValue('7.00')
 }
 describe('manual payment components', () => {
@@ -45,9 +46,10 @@ describe('manual payment components', () => {
     const wrapper = await mountForm()
     await wrapper.findAll('button').find(button => button.text().includes('Link an expense share'))!.trigger('click')
     await flushPromises()
+    await wrapper.get('#related-share').trigger('focus')
     expect(wrapper.text()).toContain('Expense unavailable')
     expect(wrapper.text()).not.toContain('hidden')
-    await wrapper.get('#related-share').setValue('share')
+    await selectValue(wrapper, 'related-share', 'share')
     expect(wrapper.get('#payment-amount').element).toHaveProperty('value', '5.01')
     await fill(wrapper)
     await wrapper.get('form').trigger('submit')
@@ -102,7 +104,7 @@ describe('manual payment components', () => {
     await flushPromises()
     expect(wrapper.get('fieldset').attributes('disabled')).toBeUndefined()
     await wrapper.get('#payment-amount').setValue('8.00')
-    await wrapper.get('#payment-direction').setValue('you')
+    await selectValue(wrapper, 'payment-direction', 'you')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     const [first, second] = auth.protectedRequest.mock.calls
@@ -146,7 +148,7 @@ describe('manual payment components', () => {
     await wrapper.findAll('button').find(button => button.text() === 'Make a payment')!.trigger('click')
     await flushPromises()
     expect((wrapper.get('dialog').element as HTMLDialogElement).open).toBe(true)
-    await wrapper.get('#payment-direction').setValue('other')
+    await selectValue(wrapper, 'payment-direction', 'other')
     await wrapper.get('#payment-amount').setValue('7.00')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -168,7 +170,7 @@ describe('manual payment components', () => {
     signedIn()
     await flushPromises()
     const trigger = wrapper.findAll('button').find(button => button.text() === 'Make a payment')!
-    const directionFocus = vi.spyOn(wrapper.get('#payment-direction').element as HTMLSelectElement, 'focus')
+    const directionFocus = vi.spyOn(wrapper.get('#payment-direction').element as HTMLInputElement, 'focus')
     const triggerFocus = vi.spyOn(trigger.element as HTMLButtonElement, 'focus')
     await trigger.trigger('click')
     await flushPromises()
@@ -202,7 +204,7 @@ describe('manual payment components', () => {
     await flushPromises()
     const trigger = wrapper.findAll('button').find(button => button.text() === 'Make a payment')!
     await trigger.trigger('click')
-    await wrapper.get('#payment-direction').setValue('other')
+    await selectValue(wrapper, 'payment-direction', 'other')
     await wrapper.get('#payment-amount').setValue('7.00')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -250,7 +252,7 @@ describe('manual payment correction components', () => {
     await wrapper.get('button').trigger('click')
     await wrapper.findAll('button').find(button => button.text().includes('Link an expense share'))!.trigger('click')
     await flushPromises()
-    await wrapper.get('#related-share').setValue('share')
+    await selectValue(wrapper, 'related-share', 'share')
     expect(wrapper.get('#edit-payment-amount').element).toHaveProperty('value', '5.01')
     await wrapper.get('#edit-payment-amount').setValue('3.00')
     await wrapper.get('form').trigger('submit')
@@ -269,7 +271,7 @@ describe('manual payment correction components', () => {
     await wrapper.findAll('button').find(button => button.text() === 'Change related expense share')!.trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Previously linked expense share')
-    await wrapper.get('#related-share').setValue('')
+    await selectValue(wrapper, 'related-share', '')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/manual', expect.objectContaining({
@@ -286,7 +288,7 @@ describe('manual payment correction components', () => {
     }))
     const wrapper = await mountSuspended(ManageManualTransfer, { props: { transfer, etag: '"7"' } })
     await wrapper.get('button').trigger('click')
-    await wrapper.get('#edit-payment-direction').setValue('self')
+    await selectValue(wrapper, 'edit-payment-direction', 'self')
     await wrapper.get('#edit-payment-amount').setValue('8.00')
     await wrapper.get('form').trigger('submit')
     await wrapper.get('form').trigger('submit')
