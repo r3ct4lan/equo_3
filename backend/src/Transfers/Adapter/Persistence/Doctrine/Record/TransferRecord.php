@@ -13,6 +13,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'transfer')]
 #[ORM\UniqueConstraint(name: 'uniq_transfer_debt_share', columns: ['debt_participant_id'], options: ['where' => "(type = 'DEBT_SHARE'::text)"])]
 #[ORM\Index(name: 'idx_transfer_history', columns: ['connect_id', 'created_at', 'id'])]
+#[ORM\Index(name: 'idx_transfer_incoming_history', columns: ['receiver_id', 'created_at', 'id'])]
+#[ORM\Index(name: 'idx_transfer_outgoing_history', columns: ['sender_id', 'created_at', 'id'])]
 #[ORM\Index(name: 'idx_transfer_balance', columns: ['connect_id', 'is_deleted'])]
 #[ORM\Index(name: 'idx_transfer_sender', columns: ['sender_id'])]
 #[ORM\Index(name: 'idx_transfer_receiver', columns: ['receiver_id'])]

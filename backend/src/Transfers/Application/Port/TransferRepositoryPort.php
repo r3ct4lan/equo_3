@@ -14,6 +14,9 @@ interface TransferRepositoryPort
     /** @return list<Transfer> */
     public function page(string $connectId, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array;
 
+    /** @return list<Transfer> */
+    public function pageForUser(string $userId, string $direction, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array;
+
     public function balance(string $connectId, string $viewerId): int;
 
     /** @return array{totalOwedAmount: int, totalReceivableAmount: int} */

@@ -91,6 +91,20 @@ final readonly class TransferController
         return new JsonResponse($this->queries->history($connectId, $this->userId(), (int) $limit, $cursor), 200, ['Cache-Control' => 'no-store']);
     }
 
+    #[Route('/api/v1/transfers', name: 'api_v1_user_transfers', methods: ['GET'])]
+    public function userHistory(Request $request): JsonResponse
+    {
+        $params = $request->query->all();
+        $limit = $params['limit'] ?? '20';
+        $cursor = $params['cursor'] ?? null;
+        $direction = $params['direction'] ?? null;
+        if (!is_string($limit) || 1 !== preg_match('/^[1-9][0-9]{0,2}$/D', $limit) || !is_string($direction) || (null !== $cursor && !is_string($cursor)) || [] !== array_diff(array_keys($params), ['limit', 'cursor', 'direction'])) {
+            throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
+        }
+
+        return new JsonResponse($this->queries->userHistory($this->userId(), $direction, (int) $limit, $cursor), 200, ['Cache-Control' => 'no-store']);
+    }
+
     private function userId(): string
     {
         $user = $this->security->getUser();

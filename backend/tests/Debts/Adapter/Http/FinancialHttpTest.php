@@ -191,6 +191,40 @@ final class FinancialHttpTest extends WebTestCase
         }
     }
 
+    public function testUserTransferHistoryFiltersDirectionPaginatesAndHidesForeignOperations(): void
+    {
+        $this->manual($this->users[1], $this->users[0], 100);
+        $this->manual($this->users[2], $this->users[0], 200, true);
+        $this->manual($this->users[0], $this->users[1], 300);
+        $this->manual($this->users[2], $this->users[3], 999);
+
+        $this->request('GET', '/api/v1/transfers?direction=incoming&limit=1');
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->client->getResponse()->headers->hasCacheControlDirective('no-store'));
+        $first = $this->body();
+        self::assertCount(1, $first['items']);
+        self::assertTrue($first['pagination']['hasMore']);
+        $this->request('GET', '/api/v1/transfers?direction=incoming&limit=1&cursor='.$first['pagination']['nextCursor']);
+        $second = $this->body();
+        self::assertCount(1, $second['items']);
+        self::assertFalse($second['pagination']['hasMore']);
+        self::assertNotSame($first['items'][0]['id'], $second['items'][0]['id']);
+        $incoming = [$first['items'][0], $second['items'][0]];
+        $amounts = array_column($incoming, 'amount');
+        sort($amounts);
+        self::assertSame([100, 200], $amounts);
+        self::assertCount(1, array_filter($incoming, fn (array $item): bool => $item['isDeleted']));
+        $this->assertNoForeignEmails($this->body(), 0);
+        $this->request('GET', '/api/v1/transfers?direction=outgoing');
+        self::assertSame([300], array_column($this->body()['items'], 'amount'));
+        foreach (['', '?direction=invalid', '?direction=incoming&limit=101', '?direction=incoming&viewerId='.$this->users[1], '?direction=incoming&cursor=invalid'] as $query) {
+            $this->request('GET', '/api/v1/transfers'.$query);
+            $this->failure(400, 'INVALID_REQUEST');
+        }
+        $this->request('GET', '/api/v1/transfers?direction=incoming', null);
+        $this->failure(401, 'AUTHENTICATION_REQUIRED');
+    }
+
     private function manual(string $sender, string $receiver, int $amount, bool $deleted = false): void
     {
         $pair = [$sender, $receiver];
