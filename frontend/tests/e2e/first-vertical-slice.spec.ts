@@ -2217,7 +2217,21 @@ test('manual payment survives a lost response and refreshes both histories after
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width - 16)
       expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height - 16)
       if (viewport.height === 400) {
-        expect(await page.getByRole('dialog').evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
+        const dialog = page.getByRole('dialog')
+        expect(await dialog.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
+        const track = await dialog.evaluate((element) => {
+          const styles = getComputedStyle(element, '::-webkit-scrollbar-track')
+          return [styles.marginTop, styles.marginBottom]
+        })
+        expect(track).toEqual(['32px', '32px'])
+        await dialog.evaluate((element) => {
+          element.scrollTop = element.scrollHeight
+        })
+        expect(await dialog.evaluate(element => element.scrollTop + element.clientHeight)).toBeGreaterThanOrEqual(await dialog.evaluate(element => element.scrollHeight - 1))
+        await dialog.evaluate((element) => {
+          element.scrollTop = 0
+        })
+        expect(await dialog.evaluate(element => element.scrollTop)).toBe(0)
       }
     }
     await page.setViewportSize({ width: 1280, height: 720 })
