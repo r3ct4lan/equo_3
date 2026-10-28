@@ -1,8 +1,9 @@
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineNuxtConfig({
+
   modules: ['shadcn-nuxt'],
-  devtools: { enabled: true },
+  devtools: { enabled: true }, app: { head: { script: [{ src: '/theme-init.js' }] } },
   css: ['~/assets/css/tailwind.css', '~/assets/css/vars.css', '~/assets/css/main.css'],
   runtimeConfig: {
     apiInternalBase: '',

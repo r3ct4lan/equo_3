@@ -428,6 +428,34 @@ test('single card actions stay bounded and readable', async ({ page, request }) 
   }
 })
 
+test('theme follows system initially and persists a keyboard choice before first paint', async ({ browser }) => {
+  const context = await browser.newContext({ colorScheme: 'dark', viewport: { width: 390, height: 844 }, ignoreHTTPSErrors: true })
+  try {
+    const page = await context.newPage()
+    await page.addInitScript(() => {
+      requestAnimationFrame(() => {
+        document.documentElement.dataset.firstPaintTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+      })
+    })
+    await page.goto('/')
+    await waitForNuxtHydration(page)
+    await expect(page.locator('html')).toHaveAttribute('data-first-paint-theme', 'dark')
+    const toggle = page.getByRole('button', { name: 'Switch to light theme' })
+    await toggle.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('html')).not.toHaveClass(/dark/u)
+    await page.goto('/login')
+    await expect(page.locator('html')).toHaveAttribute('data-first-paint-theme', 'light')
+    await expect(page.getByRole('button', { name: 'Switch to dark theme' })).toBeVisible()
+    await page.reload()
+    await expect(page.locator('html')).toHaveAttribute('data-first-paint-theme', 'light')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+  finally {
+    await context.close()
+  }
+})
+
 test('skip link focuses main without a container outline and controls keep focus indicators', async ({ page }) => {
   await page.goto('/login')
   await waitForNuxtHydration(page)

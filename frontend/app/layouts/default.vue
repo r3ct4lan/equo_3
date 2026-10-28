@@ -46,6 +46,14 @@
             My profile
           </UiLink>
         </nav>
+        <UiButton
+          variant="secondary"
+          :aria-label="dark ? 'Switch to light theme' : 'Switch to dark theme'"
+          :aria-pressed="dark"
+          @click="toggle"
+        >
+          {{ dark ? 'Light theme' : 'Dark theme' }}
+        </UiButton>
       </div>
     </header>
 
@@ -73,4 +81,5 @@
 <script setup lang="ts">
 const { state } = useCurrentUser()
 const session = computed(() => state.value)
+const { dark, toggle } = useTheme()
 </script>

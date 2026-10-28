@@ -8,8 +8,8 @@ import { Card as PresetCard, CardHeader as PresetCardHeader, CardTitle as Preset
 import { NativeSelect as PresetSelect, NativeSelectOptGroup as PresetOptGroup, NativeSelectOption as PresetOption } from '~/components/ui/native-select'
 import { RiStarLine } from '@remixicon/vue'
 
-const dark = ref(false)
-useHead({ title: 'UI kit · Equo', meta: [{ name: 'robots', content: 'noindex, nofollow' }], htmlAttrs: { class: () => dark.value ? 'dark' : '' } })
+const { dark, toggle } = useTheme()
+useHead({ title: 'UI kit · Equo', meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 
 const sections = [
   ['preset', 'Installed preset'], ['tokens', 'Theme tokens'], ['typography', 'Typography'], ['buttons', 'Buttons & links'],
@@ -52,7 +52,7 @@ async function closeDialog(): Promise<void> {
         <UiButton
           variant="secondary"
           :aria-pressed="dark"
-          @click="dark = !dark"
+          @click="toggle"
         >
           {{ dark ? 'Preview light theme' : 'Preview dark theme' }}
         </UiButton>
