@@ -124,6 +124,8 @@ CSS custom properties cannot be used in media query conditions. */
   --duration-reduced-motion: 0.01ms;
   --z-skip: 10;
   --z-toast: 20;
+  --z-mobile-menu: 30;
+  --mobile-menu-width: 18.75rem;
   --space-1: 0.25rem;
   --space-marker: 0.35rem;
   --space-field: 0.375rem;
