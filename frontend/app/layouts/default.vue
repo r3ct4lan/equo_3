@@ -35,6 +35,12 @@
           </UiLink>
           <UiLink
             variant="nav"
+            to="/transfers"
+          >
+            Transfers
+          </UiLink>
+          <UiLink
+            variant="nav"
             to="/me"
           >
             My profile

@@ -2128,6 +2128,18 @@ test('manual payment survives a lost response and refreshes both histories after
       await expect(viewer.getByRole('button', { name: 'Edit payment', exact: true })).toHaveCount(canManage ? 1 : 0)
       await expect(viewer.getByRole('button', { name: 'Remove payment', exact: true })).toHaveCount(canManage ? 1 : 0)
     }
+    await page.getByRole('link', { name: 'Transfers', exact: true }).click()
+    await expect(page.getByRole('link', { name: 'Payment · €7.00', exact: true })).toBeVisible()
+    await page.getByRole('link', { name: 'Outgoing', exact: true }).click()
+    await expect(page).toHaveURL(/direction=outgoing/u)
+    await expect(page.getByRole('link', { name: 'Expense share · €5.01', exact: true })).toBeVisible()
+    await page.getByRole('link', { name: 'Expense share · €5.01', exact: true }).click()
+    await expect(page).toHaveURL(/\/transfers\/[0-9a-f-]{36}$/u)
+    await page.goBack()
+    await expect(page).toHaveURL(/direction=outgoing/u)
+    await expect(page.getByRole('link', { name: 'Expense share · €5.01', exact: true })).toBeVisible()
+    await page.setViewportSize({ width: 390, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     await expectNoPersistentSecrets(page, [authorAccess, otherAccess, testPassword])
     await expectNoPersistentSecrets(other, [authorAccess, otherAccess, testPassword])
   }
