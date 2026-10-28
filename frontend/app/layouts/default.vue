@@ -65,101 +65,15 @@
             My profile
           </UiLink>
         </nav>
-        <UiButton
-          variant="secondary"
-          class="app-header__theme"
-          :aria-label="dark ? 'Switch to light theme' : 'Switch to dark theme'"
-          :aria-pressed="dark"
-          @click="toggle"
-        >
-          <RiMoonClearLine
-            v-if="dark"
-            aria-hidden="true"
-            focusable="false"
-          />
-          <RiSunLine
-            v-else
-            aria-hidden="true"
-            focusable="false"
-          />
-        </UiButton>
+        <UiThemeToggle class="app-header__theme" />
       </div>
-      <div
-        v-if="menuOpen"
-        class="mobile-menu-backdrop"
-        @click.self="closeMenu(true)"
-      >
-        <div
-          id="mobile-navigation"
-          ref="mobileMenu"
-          class="mobile-menu"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Navigation menu"
-          @keydown.tab="trapFocus"
-        >
-          <UiButton
-            variant="link"
-            class="mobile-menu__close"
-            aria-label="Close navigation menu"
-            @click="closeMenu(true)"
-          >
-            <RiCloseLine
-              aria-hidden="true"
-              focusable="false"
-            />
-          </UiButton>
-          <nav
-            v-if="session.status === 'authenticated'"
-            aria-label="Mobile navigation"
-            class="mobile-menu__links"
-            @click="closeMenu(false)"
-          >
-            <UiLink
-              variant="nav"
-              to="/connects"
-            >
-              Connections
-            </UiLink>
-            <UiLink
-              variant="nav"
-              to="/debts"
-            >
-              Expenses
-            </UiLink>
-            <UiLink
-              variant="nav"
-              to="/transfers"
-            >
-              Transfers
-            </UiLink>
-            <UiLink
-              variant="nav"
-              to="/me"
-            >
-              My profile
-            </UiLink>
-          </nav>
-          <UiButton
-            variant="link"
-            class="mobile-menu__theme"
-            :aria-label="dark ? 'Switch to light theme' : 'Switch to dark theme'"
-            :aria-pressed="dark"
-            @click="toggle"
-          >
-            <RiMoonClearLine
-              v-if="dark"
-              aria-hidden="true"
-              focusable="false"
-            />
-            <RiSunLine
-              v-else
-              aria-hidden="true"
-              focusable="false"
-            />
-          </UiButton>
-        </div>
-      </div>
+      <UiMobileMenu
+        id="mobile-navigation"
+        ref="mobileMenu"
+        :open="menuOpen"
+        :links="mobileLinks"
+        @close="closeMenu"
+      />
     </header>
 
     <main
@@ -184,15 +98,20 @@
 </template>
 
 <script setup lang="ts">
-import { RiCloseLine, RiMenuLine, RiMoonClearLine, RiSunLine } from '@remixicon/vue'
+import { RiMenuLine } from '@remixicon/vue'
 import type { FocusTarget } from '~/types/ui'
 
 const { state } = useCurrentUser()
 const session = computed(() => state.value)
-const { dark, toggle } = useTheme()
 const menuOpen = ref(false)
 const menuButton = useTemplateRef<FocusTarget>('menuButton')
-const mobileMenu = useTemplateRef<HTMLElement>('mobileMenu')
+const mobileMenu = useTemplateRef<{ focusFirst: () => void }>('mobileMenu')
+const mobileLinks = computed(() => session.value.status === 'authenticated'
+  ? [
+      { label: 'Connections', to: '/connects' }, { label: 'Expenses', to: '/debts' },
+      { label: 'Transfers', to: '/transfers' }, { label: 'My profile', to: '/me' }
+    ]
+  : [])
 const route = useRoute()
 function closeMenu(restoreFocus: boolean): void {
   if (!menuOpen.value) return
@@ -201,20 +120,7 @@ function closeMenu(restoreFocus: boolean): void {
 }
 function toggleMenu(): void {
   menuOpen.value = !menuOpen.value
-  if (menuOpen.value) void nextTick(() => mobileMenu.value?.querySelector<HTMLElement>('a, button')?.focus())
-}
-function trapFocus(event: KeyboardEvent): void {
-  const focusable = [...(mobileMenu.value?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') ?? [])]
-  if (!focusable.length) return
-  const index = focusable.indexOf(document.activeElement as HTMLElement)
-  if (event.shiftKey && index <= 0) {
-    event.preventDefault()
-    focusable[focusable.length - 1]?.focus()
-  }
-  else if (!event.shiftKey && index === focusable.length - 1) {
-    event.preventDefault()
-    focusable[0]?.focus()
-  }
+  if (menuOpen.value) void nextTick(() => mobileMenu.value?.focusFirst())
 }
 watch(() => [route.fullPath, session.value.status, session.value.user?.id], () => closeMenu(false))
 let desktopMedia: MediaQueryList | undefined

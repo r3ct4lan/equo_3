@@ -19,7 +19,7 @@ test('UI-001: installed preset remains usable on narrow screens and in dark mode
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   }
 
-  await page.getByRole('button', { name: 'Preview dark theme', exact: true }).click()
+  await page.locator('.hero').getByRole('button', { name: 'Switch to dark theme', exact: true }).click()
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.getByLabel('Name', { exact: true }).fill('Demo')
   await page.getByLabel('Direction', { exact: true }).selectOption('other')

@@ -29,3 +29,9 @@ test('catalog guard follows aliased registry components and requires specimens f
   assert.deepEqual(auditCatalog(components, '<UiButton />'), ['CardTitle'])
   assert.deepEqual(auditCatalog(components, '<script>import { CardTitle as PresetTitle } from \'~/components/ui/card\'</script><UiButton /><PresetTitle />'), [])
 })
+
+test('catalog guard requires the shared participant picker even without the Ui prefix', () => {
+  const components = new Map([['DebtPeoplePicker', '<UiCheckbox />'], ['UiCheckbox', '<input />']])
+  assert.deepEqual(auditCatalog(components, '<UiCheckbox />'), ['DebtPeoplePicker'])
+  assert.deepEqual(auditCatalog(components, '<DebtPeoplePicker />'), [])
+})

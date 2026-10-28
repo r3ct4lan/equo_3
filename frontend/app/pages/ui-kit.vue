@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import type { DialogTarget, FocusTarget } from '~/types/ui'
+import type { BriefUser, TransferView } from '~/types/finance'
 import themeSource from '~/assets/css/vars.css?raw'
 import preset from '../../components.json'
 import { uiThemeTokens } from '~/utils/ui-theme'
+import { euroInput } from '~/utils/debt-update'
 import { Button as PresetButton } from '~/components/ui/button'
 import { Card as PresetCard, CardHeader as PresetCardHeader, CardTitle as PresetCardTitle, CardDescription as PresetCardDescription, CardAction as PresetCardAction, CardContent as PresetCardContent, CardFooter as PresetCardFooter } from '~/components/ui/card'
 import { NativeSelect as PresetSelect, NativeSelectOptGroup as PresetOptGroup, NativeSelectOption as PresetOption } from '~/components/ui/native-select'
 import { RiStarLine } from '@remixicon/vue'
 
-const { dark, toggle } = useTheme()
+const { dark } = useTheme()
 useHead({ title: 'UI kit · Equo', meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 
 const sections = [
@@ -19,12 +21,58 @@ const sections = [
 const tokens = computed(() => uiThemeTokens(themeSource, dark.value))
 const colors = computed(() => tokens.value.filter(token => token.name.startsWith('--color-')))
 const variants = ['primary', 'secondary', 'danger', 'link'] as const
-const draft = reactive({ name: '', email: '', password: '', direction: 'you', description: '', included: true, people: ['alex'] })
+const draft = reactive({ name: '', email: '', password: '', amount: '', direction: 'you', description: '', included: true, people: ['alex'] })
+const examplePeople = [
+  { id: 'kit-alex', name: 'Alex', isActive: true, email: 'alex@example.test' },
+  { id: 'kit-sam', name: 'Sam', isActive: true, email: null },
+  { id: 'kit-morgan', name: 'Morgan', isActive: false, email: null }
+]
+const selectedPeople = ref<BriefUser[]>([examplePeople[0]!])
+const selectedPayer = ref<BriefUser[]>([examplePeople[0]!])
+const relatedShare = ref('')
+const exampleShares: TransferView[] = [{
+  id: 'kit-share', connectId: 'kit-connect', sender: examplePeople[1]!, receiver: examplePeople[0]!, amount: 501,
+  type: 'DEBT_SHARE', createdBy: null, debtReference: { id: 'kit-debt', isAccessible: true, title: 'Shared dinner' },
+  relatedTransferId: null, isDeleted: false, canEdit: false, canDelete: false, version: 1, createdAt: '2026-10-25T12:00:00Z'
+}]
+watch(selectedPeople, (people) => {
+  selectedPayer.value = selectedPayer.value.filter(payer => people.some(person => person.id === payer.id))
+})
 const formDisabled = ref(false)
 const submitted = ref(false)
 const showToast = ref(false)
 const dialog = useTemplateRef<DialogTarget>('dialog')
 const trigger = useTemplateRef<FocusTarget>('trigger')
+const confirmDialog = useTemplateRef<DialogTarget>('confirmDialog')
+const confirmTrigger = useTemplateRef<FocusTarget>('confirmTrigger')
+const showConfirmation = ref(false)
+const showMobileMenu = ref(false)
+const menuPreview = useTemplateRef<{ focusFirst: () => void }>('menuPreview')
+const menuPreviewTrigger = useTemplateRef<FocusTarget>('menuPreviewTrigger')
+
+async function openMenuPreview(): Promise<void> {
+  showMobileMenu.value = true
+  await nextTick()
+  menuPreview.value?.focusFirst()
+}
+async function closeMenuPreview(): Promise<void> {
+  showMobileMenu.value = false
+  await nextTick()
+  menuPreviewTrigger.value?.focus()
+}
+
+async function openConfirmation(): Promise<void> {
+  showConfirmation.value = true
+  await nextTick()
+  confirmDialog.value?.showModal()
+  confirmDialog.value?.focusFirst('button')
+}
+async function closeConfirmation(): Promise<void> {
+  confirmDialog.value?.close()
+  showConfirmation.value = false
+  await nextTick()
+  confirmTrigger.value?.focus()
+}
 
 async function closeDialog(): Promise<void> {
   dialog.value?.close()
@@ -49,13 +97,7 @@ async function closeDialog(): Promise<void> {
         Examples use fictional data. Actions on this page only change the examples.
       </UiText>
       <div class="hero__actions">
-        <UiButton
-          variant="secondary"
-          :aria-pressed="dark"
-          @click="toggle"
-        >
-          {{ dark ? 'Preview light theme' : 'Preview dark theme' }}
-        </UiButton>
+        <UiThemeToggle />
       </div>
     </header>
 
@@ -399,6 +441,41 @@ async function closeDialog(): Promise<void> {
                 />
               </UiField>
               <UiField>
+                <label for="kit-amount">Amount in EUR</label>
+                <UiInput
+                  id="kit-amount"
+                  v-model="draft.amount"
+                  money
+                  inputmode="decimal"
+                  placeholder="10.01"
+                />
+              </UiField>
+              <DebtPeoplePicker
+                v-model="selectedPeople"
+                label="Share with"
+                :choices="examplePeople"
+              />
+              <DebtPeoplePicker
+                v-model="selectedPayer"
+                label="Who paid?"
+                :choices="selectedPeople"
+                single
+              />
+              <UiField>
+                <label for="related-share">Related expense share (optional)</label>
+                <UiText
+                  id="related-share-help"
+                  variant="help"
+                >
+                  This link is informational. It does not settle an expense or limit the payment amount.
+                </UiText>
+                <UiRelatedShareSelect
+                  v-model="relatedShare"
+                  :shares="exampleShares"
+                  @selected="draft.amount = euroInput($event.amount)"
+                />
+              </UiField>
+              <UiField>
                 <label for="kit-direction">Direction</label>
                 <UiSelect
                   id="kit-direction"
@@ -511,7 +588,9 @@ async function closeDialog(): Promise<void> {
                 Payment · €12.50
               </UiLink>
               <UiText>Alex → Sam</UiText>
-              <UiText>Removed · does not affect the balance</UiText>
+              <UiNotice tone="neutral">
+                Removed · does not affect the balance
+              </UiNotice>
               <time datetime="2026-10-25T12:00:00Z">25 Oct 2026</time>
             </UiCard>
           </ul>
@@ -536,6 +615,7 @@ async function closeDialog(): Promise<void> {
           <AppErrorState
             title="Expenses could not be loaded"
             message="Try again to load your expenses."
+            request-id="request-123"
             retry-label="Try again"
             @retry="showToast = true"
           />
@@ -549,6 +629,7 @@ async function closeDialog(): Promise<void> {
           <FormErrorSummary
             title="Check the form"
             message="Correct the highlighted fields and submit again."
+            request-id="request-123"
           />
         </section>
 
@@ -577,6 +658,20 @@ async function closeDialog(): Promise<void> {
                 @click="showToast = true"
               >
                 Show example toast
+              </UiButton>
+              <UiButton
+                ref="confirmTrigger"
+                variant="secondary"
+                @click="openConfirmation"
+              >
+                Open removal confirmation
+              </UiButton>
+              <UiButton
+                ref="menuPreviewTrigger"
+                variant="secondary"
+                @click="openMenuPreview"
+              >
+                Open mobile menu example
               </UiButton>
             </div>
           </UiCard>
@@ -618,12 +713,56 @@ async function closeDialog(): Promise<void> {
               </div>
             </UiCard>
           </UiDialog>
+          <UiDialog
+            v-if="showConfirmation"
+            ref="confirmDialog"
+            class="ui-dialog--confirm"
+            role="alertdialog"
+            aria-labelledby="kit-confirm-title"
+            aria-describedby="kit-confirm-description"
+            @cancel.prevent
+          >
+            <UiCard
+              as="div"
+              class="stack dialog-confirm"
+            >
+              <UiText
+                id="kit-confirm-title"
+                variant="heading3"
+              >
+                Remove this expense permanently?
+              </UiText>
+              <UiText id="kit-confirm-description">
+                This cannot be undone. The saved expense and participant list will remain read-only.
+              </UiText>
+              <UiButton
+                variant="danger"
+                @click="closeConfirmation"
+              >
+                Yes, remove expense
+              </UiButton>
+              <UiButton
+                variant="secondary"
+                @click="closeConfirmation"
+              >
+                Keep expense
+              </UiButton>
+            </UiCard>
+          </UiDialog>
           <UiToast
             v-if="showToast"
             @dismiss="showToast = false"
           >
             <UiText>Example notification. No request was sent.</UiText>
           </UiToast>
+          <UiMobileMenu
+            id="kit-mobile-navigation"
+            ref="menuPreview"
+            :open="showMobileMenu"
+            preview
+            :links="[{ label: 'Connections', to: '#ui-overlays' }, { label: 'Expenses', to: '#ui-overlays' }, { label: 'Transfers', to: '#ui-overlays' }, { label: 'My profile', to: '#ui-overlays' }]"
+            @close="closeMenuPreview"
+          />
         </section>
       </div>
     </div>

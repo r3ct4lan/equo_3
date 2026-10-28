@@ -87,6 +87,35 @@ describe('shared UI interactions', () => {
     wrapper.unmount()
   })
 
+  it('previews the same participant and related-share controls used by expense and payment forms', async () => {
+    const wrapper = await mountSuspended(UiKit)
+    const picker = wrapper.findAll('.people-picker')[0]!
+    await picker.get('.people-picker__toggle').trigger('click')
+    expect(picker.text()).toContain('alex@example.test')
+    await picker.get('input[value="kit-sam"]').setValue(true)
+    expect(picker.text()).toContain('Sam')
+    const payer = wrapper.findAll('.people-picker')[1]!
+    await payer.get('.people-picker__toggle').trigger('click')
+    expect(payer.find('input[value="kit-sam"]').exists()).toBe(true)
+    await wrapper.get('#related-share').setValue('kit-share')
+    expect(wrapper.get('#kit-amount').element.value).toBe('5.01')
+    expect(wrapper.findAll('.support-reference').some(reference => reference.text().includes('request-123'))).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('previews the mobile navigation and restores focus on close', async () => {
+    const wrapper = await mountSuspended(UiKit, { attachTo: document.body })
+    const trigger = wrapper.findAll('button').find(button => button.text() === 'Open mobile menu example')!
+    await trigger.trigger('click')
+    expect(wrapper.get('#kit-mobile-navigation').attributes('role')).toBe('dialog')
+    expect(wrapper.get('#kit-mobile-navigation').text()).toContain('Connections')
+    expect(wrapper.get('#kit-mobile-navigation .mobile-menu__theme').exists()).toBe(true)
+    await wrapper.get('#kit-mobile-navigation .mobile-menu__close').trigger('click')
+    expect(wrapper.find('#kit-mobile-navigation').exists()).toBe(false)
+    expect(document.activeElement).toBe(trigger.element)
+    wrapper.unmount()
+  })
+
   it('uses a native modal and restores focus after Escape closes the catalog confirmation', async () => {
     const wrapper = await mountSuspended(UiKit, { attachTo: document.body })
     const trigger = wrapper.findAll('button').find(button => button.text() === 'Open example dialog')!

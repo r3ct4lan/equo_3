@@ -44,7 +44,8 @@ export function auditCatalog(components, catalog) {
     }
   }
   visit(catalog)
-  return [...components.keys()].filter(name => (name.startsWith('Ui') || components.get(name).includes('data-slot=')) && !visited.has(name))
+  const sharedWidgets = new Set(['DebtPeoplePicker'])
+  return [...components.keys()].filter(name => (name.startsWith('Ui') || sharedWidgets.has(name) || components.get(name).includes('data-slot=')) && !visited.has(name))
 }
 
 async function check() {
