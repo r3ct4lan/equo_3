@@ -19,6 +19,12 @@
   scrollbar-color: var(--color-border) transparent;
 }
 
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 html {
   min-width: min(100%, var(--viewport-min));
   background: var(--color-background);
