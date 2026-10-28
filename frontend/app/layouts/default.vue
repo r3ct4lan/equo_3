@@ -52,7 +52,16 @@
           :aria-pressed="dark"
           @click="toggle"
         >
-          {{ dark ? 'Light theme' : 'Dark theme' }}
+          <RiMoonClearLine
+            v-if="dark"
+            aria-hidden="true"
+            focusable="false"
+          />
+          <RiSunLine
+            v-else
+            aria-hidden="true"
+            focusable="false"
+          />
         </UiButton>
       </div>
     </header>
@@ -79,6 +88,8 @@
 </template>
 
 <script setup lang="ts">
+import { RiMoonClearLine, RiSunLine } from '@remixicon/vue'
+
 const { state } = useCurrentUser()
 const session = computed(() => state.value)
 const { dark, toggle } = useTheme()
