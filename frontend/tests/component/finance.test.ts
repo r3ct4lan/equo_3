@@ -61,6 +61,7 @@ function signedIn(id = 'self'): void {
   })
 }
 function options(path: string) {
+  if (path === '/v1/debt-people') return page([self, other])
   if (path === '/v1/connects') return page([{
     otherUser: other
   }])
@@ -70,6 +71,8 @@ function options(path: string) {
 async function fill(wrapper: Awaited<ReturnType<typeof mountSuspended>>): Promise<void> {
   await wrapper.get('#debt-title').setValue('Dinner')
   await wrapper.get('#debt-amount').setValue('10.01')
+  await wrapper.findAll('.people-picker__toggle')[0]!.trigger('click')
+  await flushPromises()
   await wrapper.get('input[value="other"]').setValue(true)
 }
 describe('financial journey components', () => {
@@ -156,8 +159,9 @@ describe('financial journey components', () => {
     await wrapper.get('form').trigger('submit')
     expect(wrapper.text()).toContain('Enter a title')
     await fill(wrapper)
-    await wrapper.get('#debt-payer').setValue('other')
-    await wrapper.get('input[value="self"]').setValue(false)
+    await wrapper.findAll('.people-picker__toggle')[1]!.trigger('click')
+    await wrapper.findAll('.people-picker')[1]!.get('input[value="other"]').setValue(true)
+    await wrapper.findAll('.people-picker')[0]!.get('input[value="self"]').setValue(false)
     await wrapper.get('form').trigger('submit')
     expect(auth.protectedRequest.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(0)
     wrapper.unmount()
@@ -167,11 +171,11 @@ describe('financial journey components', () => {
     signedIn()
     await flushPromises()
     await fill(wrapper)
-    await wrapper.get('#debt-payer').setValue('other')
-    await wrapper.get('input[value="other"]').setValue(false)
+    await wrapper.findAll('.people-picker__toggle')[1]!.trigger('click')
+    await wrapper.findAll('.people-picker')[1]!.get('input[value="other"]').setValue(true)
+    await wrapper.findAll('.people-picker')[0]!.get('input[value="other"]').setValue(false)
     await flushPromises()
-    expect((wrapper.get('#debt-payer').element as HTMLSelectElement).value).toBe('')
-    expect(wrapper.find('#debt-payer option[value="other"]').exists()).toBe(false)
+    expect(wrapper.findAll('.people-picker')[1]!.find('input[value="other"]').exists()).toBe(false)
     await wrapper.get('form').trigger('submit')
     expect(auth.protectedRequest.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(0)
     wrapper.unmount()
@@ -257,14 +261,14 @@ describe('financial journey components', () => {
     wrapper.unmount()
   })
 
-  it('removes newly inactive participants when people are reloaded after a definitive rejection', async () => {
+  it('allows removing a participant after a definitive rejection', async () => {
     let reloaded = false
     auth.protectedRequest.mockImplementation(async (path, options_) => {
       if (options_?.method === 'POST') {
         reloaded = true
         throw new ApiClientError({ kind: 'api', status: 422, code: 'INACTIVE_USER', message: 'Safe error' })
       }
-      if (path === '/v1/connects') return page([{ otherUser: { ...other, isActive: !reloaded } }])
+      if (path === '/v1/debt-people') return page(reloaded ? [self] : [self, other])
       return page([])
     })
     const wrapper = await mountSuspended(CreateDebtForm)
@@ -273,9 +277,7 @@ describe('financial journey components', () => {
     await fill(wrapper)
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    await wrapper.findAll('button').find(button => button.text() === 'Reload people')!.trigger('click')
-    await flushPromises()
-    expect(wrapper.find('input[value="other"]').exists()).toBe(false)
+    await wrapper.get('button[aria-label="Remove Boris"]').trigger('click')
     await wrapper.get('form').trigger('submit')
     expect(auth.protectedRequest.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(1)
     expect(wrapper.text()).toContain('Enter a title')

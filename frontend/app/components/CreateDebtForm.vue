@@ -3,7 +3,7 @@ import type {
   BriefUser, CreateDebtBody, DebtView
 } from '~/types/finance'
 import {
-  debtCommand, eligibleDebtUsers, uncertainDebtResult
+  debtCommand, uncertainDebtResult
 } from '~/utils/debts'
 import {
   formatEuro, parseEuroCents, splitShare
@@ -18,13 +18,11 @@ const {
 const {
   state
 } = useCurrentUser()
-const users = ref<BriefUser[]>([])
-const loading = ref(false)
-const optionsError = ref<ApiClientError | null>(null)
 const values = reactive({
   title: '', description: '', amount: '', payerId: '', participantIds: [] as string[], includePayerInSplit: true
 })
-const selectedPeople = ref<string[]>([])
+const selectedPeople = ref<BriefUser[]>([])
+const payer = ref<BriefUser[]>([])
 const pending = ref(false)
 const error = ref<ApiClientError | null>(null)
 const invalid = ref(false)
@@ -34,44 +32,21 @@ let attempt: {
   body: CreateDebtBody
   key: string
 } | null = null
-const payerOptions = computed(() => users.value.filter(user => selectedPeople.value.includes(user.id)))
+const payerOptions = computed(() => selectedPeople.value)
 const share = computed(() => splitShare(parseEuroCents(values.amount) ?? 0, selectedPeople.value.length))
 const errorMessage = computed(() => {
   if (uncertain.value) return 'The result is not confirmed. Keep this page open and retry the same expense to check it safely.'
-  if (error.value?.code === 'INACTIVE_USER' || error.value?.code === 'INVALID_PARTICIPANT') return 'Someone selected is no longer available. Reload the available people and check the expense.'
+  if (error.value?.code === 'INACTIVE_USER' || error.value?.code === 'INVALID_PARTICIPANT') return 'Someone selected is no longer available. Remove them and check the expense.'
   if (error.value?.code === 'VALIDATION_ERROR') return 'Check the title, amount and selected people.'
   if (error.value?.code === 'IDEMPOTENCY_KEY_REUSED') return 'This expense could not be confirmed. Open your expenses before starting another.'
   return error.value ? 'The expense could not be saved. Check your session and try again.' : null
 })
-async function loadPeople(): Promise<void> {
-  const self = state.value.user
-  if (state.value.status !== 'authenticated' || !self) return
-  const requestGeneration = ++generation
-  loading.value = true
-  optionsError.value = null
-  users.value = []
-  try {
-    const result = await eligibleDebtUsers($auth, self, () => requestGeneration === generation && state.value.status === 'authenticated' && state.value.user?.id === self.id)
-    if (requestGeneration === generation && state.value.user?.id === self.id) {
-      users.value = result
-      const available = new Set(result.map(user => user.id))
-      selectedPeople.value = selectedPeople.value.filter(id => available.has(id))
-      if (!selectedPeople.value.includes(values.payerId)) values.payerId = ''
-    }
-  }
-  catch (failure) {
-    if (requestGeneration === generation) optionsError.value = toApiClientError(failure)
-  }
-  finally {
-    if (requestGeneration === generation) loading.value = false
-  }
-}
 async function submit(): Promise<void> {
   const viewer = state.value.user?.id
-  if (!viewer || state.value.status !== 'authenticated' || pending.value || loading.value || optionsError.value) return
+  if (!viewer || state.value.status !== 'authenticated' || pending.value) return
   if (!attempt) {
-    const body = selectedPeople.value.includes(values.payerId)
-      ? debtCommand({ ...values, participantIds: selectedPeople.value.filter(id => id !== values.payerId), includePayerInSplit: true }, viewer)
+    const body = selectedPeople.value.some(person => person.id === values.payerId)
+      ? debtCommand({ ...values, participantIds: selectedPeople.value.map(person => person.id).filter(id => id !== values.payerId), includePayerInSplit: true }, viewer)
       : null
     invalid.value = body === null
     if (!body) return
@@ -104,28 +79,34 @@ async function submit(): Promise<void> {
   }
 }
 watch(selectedPeople, (selected) => {
-  if (!selected.includes(values.payerId)) values.payerId = ''
+  if (!selected.some(person => person.id === values.payerId)) {
+    values.payerId = ''
+    payer.value = []
+  }
+})
+watch(payer, (selected) => {
+  values.payerId = selected[0]?.id ?? ''
 })
 onMounted(() => {
-  values.payerId = state.value.user?.id ?? ''
-  selectedPeople.value = values.payerId ? [values.payerId] : []
-  void loadPeople()
+  const self = state.value.user
+  values.payerId = self?.id ?? ''
+  selectedPeople.value = self ? [{ id: self.id, name: self.name, isActive: self.isActive }] : []
+  payer.value = [...selectedPeople.value]
 })
 watch(() => [state.value.status, state.value.user?.id], () => {
   ++generation
   attempt = null
   uncertain.value = false
   pending.value = false
-  loading.value = false
   error.value = null
-  users.value = []
   values.title = ''
   values.description = ''
   values.amount = ''
   values.participantIds = []
   values.payerId = state.value.user?.id ?? ''
-  selectedPeople.value = values.payerId ? [values.payerId] : []
-  void loadPeople()
+  const self = state.value.user
+  selectedPeople.value = self ? [{ id: self.id, name: self.name, isActive: self.isActive }] : []
+  payer.value = [...selectedPeople.value]
 })
 onBeforeUnmount(() => {
   ++generation
@@ -135,23 +116,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="stack">
-    <AppLoadingState
-      v-if="loading"
-      message="Loading available people…"
-    />
-    <AppErrorState
-      v-if="optionsError"
-      title="People could not be loaded"
-      message="Try again before creating an expense."
-      :request-id="optionsError.requestId"
-    />
-    <UiButton
-      v-if="optionsError"
-      variant="secondary"
-      @click="loadPeople()"
-    >
-      Reload people
-    </UiButton>
     <UiCard
       as="form"
       class="stack"
@@ -163,7 +127,7 @@ onBeforeUnmount(() => {
       />
       <fieldset
         class="stack"
-        :disabled="pending || uncertain || loading || !!optionsError"
+        :disabled="pending || uncertain"
       >
         <legend class="visually-hidden">
           Expense details
@@ -214,45 +178,16 @@ onBeforeUnmount(() => {
             :messages="error?.fieldErrors.totalAmount"
           />
         </UiField>
-        <fieldset class="stack">
-          <legend>Share with</legend>
-          <UiText v-if="users.length < 2">
-            Connect with someone before sharing an expense.
-          </UiText>
-          <label
-            v-for="user in users"
-            :key="user.id"
-            class="checkbox-label"
-          >
-            <UiCheckbox
-              v-model="selectedPeople"
-              :value="user.id"
-            />
-            {{ user.id === state.user?.id ? 'You' : user.name }}
-          </label>
-        </fieldset>
-        <UiField>
-          <label for="debt-payer">Who paid?</label>
-          <UiSelect
-            id="debt-payer"
-            v-model="values.payerId"
-            required
-          >
-            <option
-              value=""
-              disabled
-            >
-              Choose a payer
-            </option>
-            <option
-              v-for="user in payerOptions"
-              :key="user.id"
-              :value="user.id"
-            >
-              {{ user.id === state.user?.id ? 'You' : user.name }}
-            </option>
-          </UiSelect>
-        </UiField>
+        <DebtPeoplePicker
+          v-model="selectedPeople"
+          label="Share with"
+        />
+        <DebtPeoplePicker
+          v-model="payer"
+          label="Who paid?"
+          :choices="payerOptions"
+          single
+        />
         <UiText variant="help">
           Choose the payer from the selected participants. You must be included.
         </UiText>
@@ -262,17 +197,10 @@ onBeforeUnmount(() => {
       </fieldset>
       <UiButton
         type="submit"
-        :disabled="pending || loading || !!optionsError"
+        :disabled="pending"
         :pending="pending"
       >
         {{ pending ? 'Saving expense…' : uncertain ? 'Retry same expense' : 'Create expense' }}
-      </UiButton>
-      <UiButton
-        v-if="error && !uncertain && ['INACTIVE_USER', 'INVALID_PARTICIPANT'].includes(error.code)"
-        variant="secondary"
-        @click="loadPeople()"
-      >
-        Reload people
       </UiButton>
     </UiCard>
   </div>

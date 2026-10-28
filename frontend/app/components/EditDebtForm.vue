@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { BriefUser, DebtView } from '~/types/finance'
-import { eligibleDebtUsers } from '~/utils/debts'
 import { euroInput, updateDebtCommand, validDebtEtag } from '~/utils/debt-update'
 import { formatEuro, parseEuroCents, splitShare } from '~/utils/money'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
@@ -14,48 +13,26 @@ const values = reactive({
   participantIds: props.debt.participants.filter(p => !p.isPayer).map(p => p.user.id), includePayerInSplit: props.debt.includePayerInSplit
 })
 const people = ref<BriefUser[]>([])
-const loading = ref(false)
-const optionsError = ref(false)
 const pending = ref(false)
 const blocked = ref(false)
 const invalid = ref(false)
 const error = ref<ApiClientError | null>(null)
 let generation = 0
-const currentIds = computed(() => new Set(props.debt.participants.filter(p => !p.isPayer).map(p => p.user.id)))
+watch(people, (selected) => {
+  values.participantIds = selected.map(person => person.id)
+})
 const share = computed(() => splitShare(parseEuroCents(values.amount) ?? 0, values.participantIds.length + (values.includePayerInSplit ? 1 : 0)))
 const message = computed(() => {
   if (error.value?.code === 'VERSION_CONFLICT') return 'Someone changed this expense. Reload it and review the current values before saving again. Your draft has not been applied.'
   if (error.value && (error.value.status === null || error.value.status >= 500)) return 'The result is not confirmed. Reload the expense and review its current values before saving again.'
   if (['DEBT_FROZEN', 'DEBT_DELETED', 'DEBT_NOT_AVAILABLE', 'FORBIDDEN'].includes(error.value?.code ?? '')) return 'This expense can no longer be edited. Reload it to check its current state.'
-  if (error.value?.code === 'INACTIVE_USER' || error.value?.code === 'INVALID_PARTICIPANT') return 'A selected person is unavailable. Reload the people and review your selections.'
+  if (error.value?.code === 'INACTIVE_USER' || error.value?.code === 'INVALID_PARTICIPANT') return 'A selected person is unavailable. Remove them and review your selections.'
   if (invalid.value || error.value?.code === 'VALIDATION_ERROR') return 'Enter a title, a positive EUR amount and at least one participant other than the payer. The author must remain in the split when someone else paid.'
   return error.value ? 'The changes could not be saved. Check your session and try again.' : null
 })
-async function loadPeople(): Promise<void> {
-  const viewer = state.value.user
-  if (!viewer || state.value.status !== 'authenticated') return
-  const requestGeneration = ++generation
-  loading.value = true
-  optionsError.value = false
-  try {
-    const available = await eligibleDebtUsers($auth, viewer, () => requestGeneration === generation && state.value.status === 'authenticated' && state.value.user?.id === viewer.id)
-    if (requestGeneration !== generation) return
-    const users = new Map(available.map(user => [user.id, user]))
-    for (const p of props.debt.participants) users.set(p.user.id, p.user)
-    people.value = [...users.values()].filter(user => user.id !== props.debt.payer.id).sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
-    const permitted = new Set(people.value.map(user => user.id))
-    values.participantIds = values.participantIds.filter(id => permitted.has(id))
-  }
-  catch {
-    if (requestGeneration === generation) optionsError.value = true
-  }
-  finally {
-    if (requestGeneration === generation) loading.value = false
-  }
-}
 async function submit(): Promise<void> {
   const viewer = state.value.user?.id
-  if (!viewer || state.value.status !== 'authenticated' || pending.value || blocked.value || loading.value || optionsError.value || !validDebtEtag(props.etag)) return
+  if (!viewer || state.value.status !== 'authenticated' || pending.value || blocked.value || !validDebtEtag(props.etag)) return
   const command = updateDebtCommand(props.debt, values, viewer)
   invalid.value = !command
   if (!command) return
@@ -86,7 +63,6 @@ function clear(): void {
   values.participantIds = []
   values.includePayerInSplit = false
   pending.value = false
-  loading.value = false
   error.value = null
   blocked.value = true
 }
@@ -100,8 +76,7 @@ function reset(): void {
   values.includePayerInSplit = props.debt.includePayerInSplit
   blocked.value = false
   invalid.value = false
-  optionsError.value = false
-  void loadPeople()
+  people.value = props.debt.participants.filter(p => !p.isPayer).map(p => p.user)
 }
 watch(() => [state.value.status, state.value.user?.id, props.debt.id, props.debt.version, props.etag], reset)
 onMounted(reset)
@@ -126,18 +101,9 @@ onBeforeUnmount(clear)
       :message="message"
       :request-id="error?.requestId"
     />
-    <AppLoadingState
-      v-if="loading"
-      message="Loading available people…"
-    />
-    <AppErrorState
-      v-if="optionsError"
-      title="People could not be loaded"
-      message="Reload the people before saving."
-    />
     <fieldset
       class="stack edit-fields"
-      :disabled="pending || blocked || loading || optionsError"
+      :disabled="pending || blocked"
     >
       <legend class="visually-hidden">
         Expense details
@@ -174,23 +140,13 @@ onBeforeUnmount(clear)
           Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.
         </UiText>
       </UiField>
-      <fieldset class="stack">
-        <legend>Share with</legend>
-        <UiText>Keep or remove current participants. Adding a previously removed person restores their original record.</UiText>
-        <label
-          v-for="user in people"
-          :key="user.id"
-          class="checkbox-label"
-        >
-          <UiCheckbox
-            v-model="values.participantIds"
-            :value="user.id"
-            :disabled="user.id === debt.createdBy.id && user.id !== debt.payer.id"
-          />
-          {{ user.name }}{{ user.id === state.user?.id ? ' (you)' : '' }}{{ user.isActive ? '' : ' (inactive)' }}
-          · {{ currentIds.has(user.id) ? values.participantIds.includes(user.id) ? 'Current participant' : 'Will be removed' : values.participantIds.includes(user.id) ? 'Will be added or restored' : 'Add or restore' }}
-        </label>
-      </fieldset>
+      <DebtPeoplePicker
+        v-model="people"
+        label="Share with"
+        :debt-id="debt.id"
+        :exclude-ids="[debt.payer.id]"
+        :locked-ids="debt.createdBy.id === debt.payer.id ? [] : [debt.createdBy.id]"
+      />
       <label class="checkbox-label"><UiCheckbox
         v-model="values.includePayerInSplit"
       /> Include the payer in the split</label>
@@ -200,7 +156,7 @@ onBeforeUnmount(clear)
     </fieldset>
     <UiButton
       type="submit"
-      :disabled="pending || blocked || loading || optionsError || !validDebtEtag(etag)"
+      :disabled="pending || blocked || !validDebtEtag(etag)"
       :pending="pending"
     >
       {{ pending ? 'Saving changes…' : 'Save changes' }}
@@ -212,14 +168,6 @@ onBeforeUnmount(clear)
       @click="emit('reload')"
     >
       Reload expense and discard draft
-    </UiButton>
-    <UiButton
-      v-if="optionsError || ['INACTIVE_USER', 'INVALID_PARTICIPANT'].includes(error?.code ?? '')"
-      variant="secondary"
-      :disabled="pending || blocked"
-      @click="loadPeople()"
-    >
-      Reload people
     </UiButton>
     <UiButton
       variant="secondary"

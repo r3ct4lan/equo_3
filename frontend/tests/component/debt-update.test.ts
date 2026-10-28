@@ -33,6 +33,7 @@ function signedIn(id = 'self'): void {
   useCurrentUser().setAuthenticated({ id, name: 'Alex', email: 'private@example.test', isActive: true, createdAt: debt.createdAt })
 }
 function options(path: string) {
+  if (path === '/v1/debt-people') return page([self, payer, member, newPerson])
   if (path === '/v1/connects') return page([{ otherUser: payer }, { otherUser: newPerson }])
   if (path === '/v1/debts') return page([debt])
   return debt
@@ -60,6 +61,8 @@ describe('debt editing and actual response ETag', () => {
       : Promise.resolve(options(path)))
     const wrapper = await form()
     expect(wrapper.get('#edit-amount').element.value).toBe('10.01')
+    await wrapper.get('.people-picker__toggle').trigger('click')
+    await flushPromises()
     expect(wrapper.get('input[value="member"]').element.checked).toBe(true)
     expect(wrapper.text()).toContain('Casey (inactive)')
     expect(wrapper.get('input[value="self"]').attributes('disabled')).toBeDefined()
@@ -69,8 +72,7 @@ describe('debt editing and actual response ETag', () => {
     await wrapper.get('input[value="new"]').setValue(true)
     const payerToggle = wrapper.findAll('input[type="checkbox"]').find(input => !input.attributes('value'))!
     await payerToggle.setValue(false)
-    expect(wrapper.text()).toContain('Will be removed')
-    expect(wrapper.text()).toContain('Will be added or restored')
+    expect(wrapper.text()).toContain('Dana')
     expect(wrapper.text()).toContain('Each share: €6.01')
     await wrapper.get('form').trigger('submit')
     await wrapper.get('form').trigger('submit')
