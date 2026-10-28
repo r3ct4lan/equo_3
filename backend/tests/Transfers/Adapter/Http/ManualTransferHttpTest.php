@@ -365,6 +365,25 @@ final class ManualTransferHttpTest extends WebTestCase
         $this->failure(422, 'VALIDATION_ERROR');
     }
 
+    public function testRelatedShareDoesNotRevealDebtToExcludedParticipant(): void
+    {
+        $debtBody = ['title' => 'Private expense title', 'description' => null, 'totalAmount' => 1000, 'payerId' => $this->users[0], 'participantIds' => [$this->users[1], $this->users[2]], 'includePayerInSplit' => false];
+        $this->request('POST', '/api/v1/debts', 0, $debtBody, Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body();
+        $share = array_values(array_filter($debt['participants'], fn (array $p): bool => $p['user']['id'] === $this->users[1]))[0]['transferId'];
+        $this->request('POST', '/api/v1/connects/'.$this->connect().'/transfers', 0, [...$this->command(), 'relatedTransferId' => $share], Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $manualId = $this->body()['id'];
+        $this->request('PUT', '/api/v1/debts/'.$debt['id'], 0, ['title' => $debtBody['title'], 'description' => null, 'totalAmount' => 1000, 'participantIds' => [$this->users[2]], 'includePayerInSplit' => false], etag: '"1"');
+        self::assertResponseStatusCodeSame(200);
+        $this->request('GET', '/api/v1/transfers/'.$manualId, 1);
+        self::assertSame($share, $this->body()['relatedTransferId']);
+        self::assertStringNotContainsString('Private expense title', json_encode($this->body(), JSON_THROW_ON_ERROR));
+        $this->request('GET', '/api/v1/transfers/'.$share, 1);
+        self::assertSame(['id' => $debt['id'], 'isAccessible' => false], $this->body()['debtReference']);
+    }
+
     public function testWritersRequireStrictIfMatchAndRejectUnknownFields(): void
     {
         $manual = $this->createManual();

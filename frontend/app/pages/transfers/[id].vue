@@ -55,6 +55,12 @@ const { item: transfer, etag, pending, error, load } = useFinancialDetail<Transf
       <UiText v-else-if="transfer.debtReference">
         Related expense unavailable
       </UiText>
+      <UiLink
+        v-if="transfer.relatedTransferId"
+        :to="'/transfers/' + transfer.relatedTransferId"
+      >
+        Related expense share
+      </UiLink>
       <time :datetime="transfer.createdAt">{{ new Date(transfer.createdAt).toLocaleString() }}</time>
       <ManageManualTransfer
         v-if="transfer.type === 'MANUAL' && transfer.canEdit && transfer.canDelete && transfer.createdBy?.id === state.user?.id && etag && validTransferEtag(etag)"

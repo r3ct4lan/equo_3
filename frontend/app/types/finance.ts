@@ -49,6 +49,7 @@ export interface CreateManualTransferBody {
   senderId: string
   receiverId: string
   amount: number
+  relatedTransferId?: string | null
 }
 
 export interface UpdateDebtBody extends Record<string, unknown> {

@@ -2087,6 +2087,9 @@ test('manual payment survives a lost response and refreshes both histories after
     await page.getByRole('button', { name: 'Create expense', exact: true }).click()
     const debtResponse = await debtCreated
     expect(debtResponse.status()).toBe(201)
+    const createdDebt = await debtResponse.json() as { participants: Array<{ user: { id: string }, transferId: string | null }> }
+    const relatedShareId = createdDebt.participants.find(participant => participant.user.id === otherId)?.transferId
+    expect(relatedShareId).toBeTruthy()
     await expect(page).toHaveURL(/\/debts\/[0-9a-f-]{36}$/u)
     await page.goto('/connects/' + connectId)
     await waitForNuxtHydration(page)
@@ -2127,6 +2130,9 @@ test('manual payment survives a lost response and refreshes both histories after
       }
     }
     await page.setViewportSize({ width: 1280, height: 720 })
+    await page.getByRole('button', { name: 'Link an expense share (optional)', exact: true }).click()
+    await expect(page.getByLabel('Related expense share (optional)')).toContainText(title)
+    await page.getByLabel('Related expense share (optional)').selectOption(relatedShareId!)
     await page.getByLabel('Who transferred money?', { exact: true }).selectOption('other')
     await page.getByLabel('Payment amount in EUR', { exact: true }).fill('7.00')
     await expect(page.getByText(/Expected balance: -€1.99/u)).toBeVisible()
@@ -2160,6 +2166,7 @@ test('manual payment survives a lost response and refreshes both histories after
     expect(replay.status()).toBe(201)
     expect(replay.request().postData() === firstBody).toBe(true)
     expect(firstKey.length > 0 && replay.request().headers()['idempotency-key'] === firstKey).toBe(true)
+    expect(JSON.parse(firstBody).relatedTransferId).toBe(relatedShareId)
     const payment = await replay.json() as { id: string }
     expect(payment.id).toBe(transferId)
     await expect(page.getByText('Payment recorded.', { exact: true })).toBeVisible()
@@ -2175,6 +2182,7 @@ test('manual payment survives a lost response and refreshes both histories after
       await viewer.getByRole('link', { name: 'Payment · €7.00', exact: true }).click()
       await expect(viewer.getByRole('heading', { name: 'Payment · €7.00', exact: true })).toBeVisible()
       await expect(viewer.getByText(/Recorded by/u)).toBeVisible()
+      await expect(viewer.getByRole('link', { name: 'Related expense share', exact: true })).toHaveAttribute('href', '/transfers/' + relatedShareId)
       await expect(viewer.getByRole('button', { name: 'Edit payment', exact: true })).toHaveCount(canManage ? 1 : 0)
       await expect(viewer.getByRole('button', { name: 'Remove payment', exact: true })).toHaveCount(canManage ? 1 : 0)
     }

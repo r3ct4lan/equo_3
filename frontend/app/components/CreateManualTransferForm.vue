@@ -11,6 +11,8 @@ const { $auth } = useNuxtApp()
 const { state } = useCurrentUser()
 const direction = ref('you')
 const amount = ref('')
+const relatedShare = ref('')
+const relatedSelectorOpen = ref(false)
 const pending = ref(false)
 const uncertain = ref(false)
 const invalid = ref(false)
@@ -33,7 +35,7 @@ async function submit(): Promise<void> {
   if (!attempt) {
     invalid.value = !command.value
     if (!command.value) return
-    attempt = { body: { ...command.value }, key: crypto.randomUUID() }
+    attempt = { body: { ...command.value, ...(relatedShare.value ? { relatedTransferId: relatedShare.value } : {}) }, key: crypto.randomUUID() }
   }
   const requestGeneration = generation
   const connectId = props.connect.id
@@ -47,6 +49,8 @@ async function submit(): Promise<void> {
     attempt = null
     uncertain.value = false
     amount.value = ''
+    relatedShare.value = ''
+    relatedSelectorOpen.value = false
     emit('created', result)
   }
   catch (failure) {
@@ -68,6 +72,8 @@ function clear(): void {
   error.value = null
   amount.value = ''
   direction.value = 'you'
+  relatedShare.value = ''
+  relatedSelectorOpen.value = false
 }
 watch(() => [state.value.status, state.value.user?.id, props.connect.id], clear)
 onBeforeUnmount(clear)
@@ -113,6 +119,18 @@ onBeforeUnmount(clear)
           </option>
         </UiSelect>
       </UiField>
+      <UiButton
+        v-if="!relatedSelectorOpen"
+        variant="link"
+        @click="relatedSelectorOpen = true"
+      >
+        Link an expense share (optional)
+      </UiButton>
+      <RelatedShareSelector
+        v-else
+        v-model="relatedShare"
+        :connect-id="connect.id"
+      />
       <UiField>
         <label for="payment-amount">Payment amount in EUR</label>
         <UiInput

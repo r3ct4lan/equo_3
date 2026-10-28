@@ -37,6 +37,25 @@ describe('manual payment components', () => {
     auth.bootstrap.mockReset().mockResolvedValue(undefined)
     signedIn()
   })
+  it('selects a related share without exposing an unavailable expense', async () => {
+    const share = { ...transfer, id: 'share', type: 'DEBT_SHARE', debtReference: { id: 'hidden', isAccessible: false }, amount: 501 }
+    auth.protectedRequest.mockImplementation(async (_path, options) => options?.method === 'POST'
+      ? transfer
+      : { items: [share], pagination: { nextCursor: null, hasMore: false } })
+    const wrapper = await mountForm()
+    await wrapper.findAll('button').find(button => button.text().includes('Link an expense share'))!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Expense unavailable')
+    expect(wrapper.text()).not.toContain('hidden')
+    await wrapper.get('#related-share').setValue('share')
+    await fill(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/connects/connect/transfers', expect.objectContaining({
+      body: expect.objectContaining({ relatedTransferId: 'share', amount: 700 })
+    }))
+    wrapper.unmount()
+  })
   it('validates, previews overpayment and guards double submission until confirmed', async () => {
     let resolve: (value: unknown) => void = () => undefined
     auth.protectedRequest.mockImplementation(() => new Promise((done) => {
@@ -217,6 +236,25 @@ describe('manual payment correction components', () => {
     auth.protectedRequest.mockReset().mockResolvedValue(transfer)
     auth.bootstrap.mockReset().mockResolvedValue(undefined)
     signedIn()
+  })
+
+  it('can clear an existing historical share link while editing', async () => {
+    const historical = { ...transfer, relatedTransferId: 'old-share' }
+    auth.protectedRequest.mockImplementation(async (_path, options) => options?.method === 'PUT'
+      ? transfer
+      : { items: [], pagination: { nextCursor: null, hasMore: false } })
+    const wrapper = await mountSuspended(ManageManualTransfer, { props: { transfer: historical, etag: '"7"' } })
+    await wrapper.get('button').trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === 'Change related expense share')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Previously linked expense share')
+    await wrapper.get('#related-share').setValue('')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/manual', expect.objectContaining({
+      body: expect.objectContaining({ relatedTransferId: null })
+    }))
+    wrapper.unmount()
   })
 
   it('edits amount and direction once with the actual If-Match and then reloads', async () => {

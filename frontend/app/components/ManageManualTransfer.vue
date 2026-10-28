@@ -12,6 +12,8 @@ const { state } = useCurrentUser()
 const mode = ref<'idle' | 'edit' | 'delete'>('idle')
 const senderId = ref(props.transfer.sender.id)
 const amount = ref(euroInput(props.transfer.amount))
+const relatedShare = ref(props.transfer.relatedTransferId ?? '')
+const relatedSelectorOpen = ref(false)
 const pending = ref(false)
 const blocked = ref(false)
 const invalid = ref(false)
@@ -57,6 +59,8 @@ async function cancel(target: 'edit' | 'delete'): Promise<void> {
   invalid.value = false
   senderId.value = props.transfer.sender.id
   amount.value = euroInput(props.transfer.amount)
+  relatedShare.value = props.transfer.relatedTransferId ?? ''
+  relatedSelectorOpen.value = false
   await nextTick()
   const targetButton = target === 'edit' ? editTrigger.value : deleteTrigger.value
   targetButton?.focus()
@@ -67,7 +71,8 @@ async function save(): Promise<void> {
   if (!viewer || state.value.status !== 'authenticated' || pending.value || blocked.value || !validTransferEtag(props.etag)) return
   invalid.value = !updateBody.value
   if (!updateBody.value) return
-  await command('PUT', updateBody.value, 200, viewer)
+  const relation = relatedShare.value === (props.transfer.relatedTransferId ?? '') ? {} : { relatedTransferId: relatedShare.value || null }
+  await command('PUT', { ...updateBody.value, ...relation }, 200, viewer)
 }
 
 async function remove(): Promise<void> {
@@ -114,6 +119,8 @@ function reset(): void {
   mode.value = 'idle'
   senderId.value = props.transfer.sender.id
   amount.value = euroInput(props.transfer.amount)
+  relatedShare.value = props.transfer.relatedTransferId ?? ''
+  relatedSelectorOpen.value = false
   pending.value = false
   blocked.value = false
   invalid.value = false
@@ -194,6 +201,18 @@ onBeforeUnmount(() => ++generation)
               </option>
             </UiSelect>
           </UiField>
+          <UiButton
+            v-if="!relatedSelectorOpen"
+            variant="link"
+            @click="relatedSelectorOpen = true"
+          >
+            {{ relatedShare ? 'Change related expense share' : 'Link an expense share (optional)' }}
+          </UiButton>
+          <RelatedShareSelector
+            v-else
+            v-model="relatedShare"
+            :connect-id="transfer.connectId"
+          />
           <UiField>
             <label for="edit-payment-amount">Payment amount in EUR</label>
             <UiInput
