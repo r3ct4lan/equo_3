@@ -40,7 +40,7 @@ final readonly class TransferController
         if (!CreateManualTransferCommand::isUuid($connectId)) {
             throw new ApplicationFailure(ApplicationFailureCode::ResourceNotFound);
         }
-        $result = $this->createManualTransfer->handle(new CreateManualTransferCommand($connectId, $payload->senderId ?? '', $payload->receiverId ?? '', is_int($payload->amount) ? $payload->amount : 0, $key), $this->userId());
+        $result = $this->createManualTransfer->handle(new CreateManualTransferCommand($connectId, $payload->senderId ?? '', $payload->receiverId ?? '', is_int($payload->amount) ? $payload->amount : 0, $key, $payload->relatedTransferId), $this->userId());
         $body = $result['body'];
 
         return new JsonResponse($body, $result['status'], ['Cache-Control' => 'no-store', 'Location' => '/api/v1/transfers/'.$body['id'], 'ETag' => '"'.$body['version'].'"']);
@@ -53,7 +53,7 @@ final readonly class TransferController
         if (!CreateManualTransferCommand::isUuid($transferId)) {
             throw new ApplicationFailure(ApplicationFailureCode::TransferNotAvailable);
         }
-        $body = $this->updateManualTransfer->handle(new UpdateManualTransferCommand($transferId, $payload->senderId ?? '', $payload->receiverId ?? '', is_int($payload->amount) ? $payload->amount : 0, $expectedVersion), $this->userId());
+        $body = $this->updateManualTransfer->handle(new UpdateManualTransferCommand($transferId, $payload->senderId ?? '', $payload->receiverId ?? '', is_int($payload->amount) ? $payload->amount : 0, $expectedVersion, array_key_exists('relatedTransferId', $request->toArray()), $payload->relatedTransferId), $this->userId());
 
         return new JsonResponse($body, 200, ['Cache-Control' => 'no-store', 'ETag' => '"'.$body['version'].'"']);
     }

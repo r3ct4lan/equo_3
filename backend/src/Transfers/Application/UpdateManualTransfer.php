@@ -34,9 +34,16 @@ final readonly class UpdateManualTransfer
                 $sidesActive = $sidesActive && null !== $account && $account->isActive;
             }
             try {
-                $next = $transfer->reviseManual($command->senderId, $command->receiverId, $command->amount, $actorId, $command->expectedVersion, $sidesActive);
+                $relatedId = null === $command->relatedTransferId ? null : strtolower($command->relatedTransferId);
+                $next = $transfer->reviseManual($command->senderId, $command->receiverId, $command->amount, $actorId, $command->expectedVersion, $sidesActive, $command->relatedSpecified, $relatedId);
             } catch (ManualTransferRejected $e) {
                 throw ManualTransferFailureMapper::map($e, $command->expectedVersion, $transfer->version);
+            }
+            if ($command->relatedSpecified && null !== $relatedId && $relatedId !== $transfer->relatedTransferId) {
+                $target = $this->repository->find($relatedId, true);
+                if (null === $target || 'DEBT_SHARE' !== $target->type || $target->isDeleted || $target->connectId !== $transfer->connectId) {
+                    throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
+                }
             }
             if ($next !== $transfer) {
                 $this->repository->updateManual($next);
