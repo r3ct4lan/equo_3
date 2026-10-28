@@ -134,21 +134,21 @@ async function requestChange(): Promise<void> {
       >
         Confirmation email scheduled. Open the link sent to your new address.
       </UiText>
-      <FormSubmitButton
-        compact
-        :pending="isSubmitting"
-        pending-label="Sending confirmation…"
-      >
-        Send confirmation email
-      </FormSubmitButton>
-      <UiButton
-        variant="secondary"
-        compact
-        :disabled="isSubmitting"
-        @click="cancel"
-      >
-        Cancel
-      </UiButton>
+      <div class="form-actions">
+        <FormSubmitButton
+          :pending="isSubmitting"
+          pending-label="Sending confirmation…"
+        >
+          Send confirmation email
+        </FormSubmitButton>
+        <UiButton
+          variant="secondary"
+          :disabled="isSubmitting"
+          @click="cancel"
+        >
+          Cancel
+        </UiButton>
+      </div>
     </form>
   </UiCard>
 </template>
