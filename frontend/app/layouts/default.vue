@@ -122,7 +122,7 @@ function toggleMenu(): void {
   menuOpen.value = !menuOpen.value
   if (menuOpen.value) void nextTick(() => mobileMenu.value?.focusFirst())
 }
-watch(() => [route.fullPath, session.value.status, session.value.user?.id], () => closeMenu(false))
+watch([() => route.fullPath, () => session.value.user?.id], () => closeMenu(false))
 let desktopMedia: MediaQueryList | undefined
 function onViewportChange(event: MediaQueryListEvent): void {
   if (event.matches) closeMenu(false)
