@@ -87,6 +87,23 @@ final class PasswordResetHttpTest extends WebTestCase
         $this->failure(410, 'TOKEN_USED');
     }
 
+    public function testSamePasswordKeepsRecoveryLinkUsableForDifferentPassword(): void
+    {
+        $this->user(true);
+        $hash = self::getContainer()->get(PasswordHashingPort::class)->hash('Current password1!');
+        $this->db->update('app_user', ['password_hash' => $hash], ['id' => self::USER]);
+        $this->post('/password-reset-requests', ['email' => 'recovery@example.test']);
+        $token = $this->capability();
+        $this->post('/password-reset', ['token' => $token, 'newPassword' => 'Current password1!']);
+        $this->failure(422, 'PASSWORD_UNCHANGED');
+        self::assertSame($hash, $this->db->fetchOne('SELECT password_hash FROM app_user WHERE id = ?', [self::USER]));
+        self::assertStringNotContainsString('Current password1!', (string) $this->client->getResponse()->getContent());
+        $this->post('/password-reset', ['token' => $token, 'newPassword' => 'Current password1!']);
+        $this->failure(422, 'PASSWORD_UNCHANGED');
+        $this->post('/password-reset', ['token' => $token, 'newPassword' => 'Different password1!']);
+        self::assertResponseStatusCodeSame(204);
+    }
+
     #[DataProvider('tokenProvider')]
     public function testTokenLifecycleAndPurposeAreRecheckedWithoutWrites(string $state, int $status, string $code): void
     {

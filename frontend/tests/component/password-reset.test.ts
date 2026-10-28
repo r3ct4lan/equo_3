@@ -100,6 +100,23 @@ describe('password recovery', () => {
     wrapper.unmount()
   })
 
+  it('keeps the recovery form usable when the new password matches the old one', async () => {
+    authMock.resetPassword.mockRejectedValueOnce(new ApiClientError({ kind: 'api', status: 422, code: 'PASSWORD_UNCHANGED', message: 'Choose a different password.' }))
+    const wrapper = await mountSuspended(ResetPassword, { route: '/password-reset?token=v1.synthetic-capability' })
+    await flushPromises()
+    await vi.waitFor(() => expect(wrapper.find('input').exists()).toBe(true))
+    await wrapper.get('input').setValue('Current password1!')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('must differ')
+    await wrapper.get('input').setValue('Different password1!')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(authMock.resetPassword).toHaveBeenLastCalledWith('v1.synthetic-capability', 'Different password1!')
+    expect(wrapper.text()).toContain('Password saved')
+    wrapper.unmount()
+  })
+
   it('does not expose a form or call auth without a capability', async () => {
     const wrapper = await mountSuspended(ResetPassword, { route: '/password-reset' })
     await flushPromises()
