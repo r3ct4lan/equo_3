@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FocusTarget } from '~/types/ui'
+import type { DialogTarget, FocusTarget } from '~/types/ui'
 import { ApiClientError, toApiClientError, type ApiClientError as ApiError } from '~/utils/api-error'
 import { validDebtEtag } from '~/utils/debt-update'
 
@@ -12,6 +12,7 @@ const blocked = ref(false)
 const error = ref<ApiError | null>(null)
 const trigger = ref<FocusTarget | null>(null)
 const confirmButton = ref<FocusTarget | null>(null)
+const dialog = useTemplateRef<DialogTarget>('dialog')
 const message = computed(() => {
   if (error.value?.code === 'VERSION_CONFLICT') return 'Someone changed this expense. Reload it and review the current version before removing it.'
   if (error.value && (error.value.status === null || error.value.status >= 500)) return 'The result is not confirmed. Reload the expense before trying anything else.'
@@ -24,10 +25,12 @@ async function openConfirmation(): Promise<void> {
   confirming.value = true
   error.value = null
   await nextTick()
+  dialog.value?.showModal()
   confirmButton.value?.focus()
 }
 
 async function cancel(): Promise<void> {
+  dialog.value?.close()
   confirming.value = false
   error.value = null
   await nextTick()
@@ -82,47 +85,60 @@ async function remove(): Promise<void> {
     >
       Remove expense
     </UiButton>
-    <UiCard
+    <UiDialog
       v-if="confirming"
-      as="div"
-      class="stack"
+      ref="dialog"
       role="alertdialog"
       aria-labelledby="remove-confirm-title"
       aria-describedby="remove-confirm-description"
+      @cancel.prevent
     >
-      <UiText
-        id="remove-confirm-title"
-        variant="heading3"
+      <UiCard
+        as="div"
+        class="stack dialog-confirm"
       >
-        Remove this expense permanently?
-      </UiText>
-      <UiText id="remove-confirm-description">
-        This cannot be undone. The saved expense and participant list will remain read-only.
-      </UiText>
-      <FormErrorSummary
-        :message="message"
-        :request-id="error?.requestId"
-      />
-      <UiButton
-        ref="confirmButton"
-        variant="danger"
-        :disabled="pending || blocked"
-        :pending="pending"
-        @click="remove"
-      >
-        {{ pending ? 'Removing expense…' : 'Yes, remove expense' }}
-      </UiButton>
-      <UiButton
-        v-if="!blocked"
-        variant="secondary"
-        :disabled="pending"
-        @click="cancel"
-      >
-        Keep expense
-      </UiButton>
-    </UiCard>
+        <UiText
+          id="remove-confirm-title"
+          variant="heading3"
+        >
+          Remove this expense permanently?
+        </UiText>
+        <UiText id="remove-confirm-description">
+          This cannot be undone. The saved expense and participant list will remain read-only.
+        </UiText>
+        <FormErrorSummary
+          :message="message"
+          :request-id="error?.requestId"
+        />
+        <UiButton
+          ref="confirmButton"
+          variant="danger"
+          :disabled="pending || blocked"
+          :pending="pending"
+          @click="remove"
+        >
+          {{ pending ? 'Removing expense…' : 'Yes, remove expense' }}
+        </UiButton>
+        <UiButton
+          v-if="!blocked"
+          variant="secondary"
+          :disabled="pending"
+          @click="cancel"
+        >
+          Keep expense
+        </UiButton>
+        <UiButton
+          v-if="blocked"
+          variant="secondary"
+          :disabled="pending"
+          @click="emit('reload')"
+        >
+          Reload expense
+        </UiButton>
+      </UiCard>
+    </UiDialog>
     <UiButton
-      v-if="blocked"
+      v-if="blocked && !confirming"
       variant="secondary"
       :disabled="pending"
       @click="emit('reload')"
