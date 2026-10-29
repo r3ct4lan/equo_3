@@ -27,7 +27,7 @@ final class ReplayEmailOutboxCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $deliveryId = $input->getArgument('delivery-id');
-        if (!is_string($deliveryId) || 1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $deliveryId)) {
+        if (!is_string($deliveryId) || 1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD', $deliveryId)) {
             $output->writeln('<error>Delivery ID is invalid.</error>');
 
             return Command::INVALID;

@@ -61,7 +61,7 @@ final class PasswordChangeConcurrencyTest extends KernelTestCase
     }
 
     #[DataProvider('orders')]
-    public function testRealProcessesRespectPasswordChangeSerialOrderAndFreshChecks(string $first, string $second, string $outcome, int $used, int $unfinished, int $sessions): void
+    public function testRealProcessesRespectPasswordChangeSerialOrderAndFreshChecks(string $first, string $second, string $outcome, int $used, int $unfinished, int $sessions, string $secondPassword = 'New password1!'): void
     {
         $this->db->beginTransaction();
         self::assertSame('ok', SessionCommandRunner::perform($this->container(), ['operation' => $first] + $this->credentials));
@@ -71,7 +71,7 @@ final class PasswordChangeConcurrencyTest extends KernelTestCase
         try {
             $pid = (int) fgets($pipes[1]);
             self::assertGreaterThan(0, $pid);
-            fwrite($pipes[0], json_encode(['operation' => $second] + $this->credentials, JSON_THROW_ON_ERROR)."\n");
+            fwrite($pipes[0], json_encode(['operation' => $second, 'newPassword' => $secondPassword] + $this->credentials, JSON_THROW_ON_ERROR)."\n");
             fflush($pipes[0]);
             $deadline = microtime(true) + 4;
             do {
@@ -94,11 +94,12 @@ final class PasswordChangeConcurrencyTest extends KernelTestCase
         $hash = $this->db->fetchOne('SELECT password_hash FROM app_user WHERE id = ?', [$owner]);
         self::assertIsString($hash);
         $passwordChanged = in_array('change', [$first, $second], true);
-        self::assertSame($passwordChanged, $this->container()->get(PasswordHashingPort::class)->verify('New password1!', $hash));
+        $expectedPassword = 'ok' === $outcome && in_array($second, ['change', 'reset'], true) ? $secondPassword : 'New password1!';
+        self::assertSame($passwordChanged, $this->container()->get(PasswordHashingPort::class)->verify($expectedPassword, $hash));
         self::assertSame(!$passwordChanged, $this->container()->get(PasswordHashingPort::class)->verify('Correct password!', $hash));
     }
 
-    /** @return iterable<string, array{string, string, string, int, int, int}> */
+    /** @return iterable<string, array{string, string, string, int, int, int, 6?: string}> */
     public static function orders(): iterable
     {
         yield 'two changes verify fresh hash' => ['change', 'change', 'INVALID_CREDENTIALS', 0, 1, 0];
@@ -108,7 +109,8 @@ final class PasswordChangeConcurrencyTest extends KernelTestCase
         yield 'refresh waiting for change sees revoked state' => ['change', 'refresh', 'INVALID_REFRESH_TOKEN', 0, 1, 0];
         yield 'change then logout-all' => ['change', 'all', 'ok', 0, 1, 0];
         yield 'logout-all then change' => ['all', 'change', 'ok', 0, 1, 0];
-        yield 'change then reset retains capability semantics' => ['change', 'reset', 'ok', 1, 0, 0];
+        yield 'change then same-password reset preserves unused capability' => ['change', 'reset', 'PASSWORD_UNCHANGED', 0, 1, 0];
+        yield 'change then different-password reset retains capability semantics' => ['change', 'reset', 'ok', 1, 0, 0, 'Another password2!'];
         yield 'reset then change rejects stale current password' => ['reset', 'change', 'INVALID_CREDENTIALS', 1, 0, 0];
         yield 'current logout then change' => ['current', 'change', 'ok', 0, 1, 0];
         yield 'change then current logout' => ['change', 'current', 'ok', 0, 1, 0];

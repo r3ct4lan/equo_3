@@ -1,3 +1,6 @@
+FROM composer:2.10.3 AS composer-tool
+RUN composer self-update 2.11.0
+
 FROM php:8.4.27-fpm-bookworm AS runtime
 
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
@@ -13,7 +16,7 @@ COPY docker/php/zz-equo-access.conf /usr/local/etc/php-fpm.d/zz-equo-access.conf
 COPY docker/php/worker-entrypoint.sh /usr/local/bin/equo-worker-entrypoint
 RUN chmod 0755 /usr/local/bin/equo-worker-entrypoint
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer-tool /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/backend
 
 COPY backend/composer.json backend/composer.lock backend/symfony.lock ./

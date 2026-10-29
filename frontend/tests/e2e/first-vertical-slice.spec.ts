@@ -184,6 +184,8 @@ async function submitActivationRequest(
   email: string,
   password: string
 ): Promise<APIResponse> {
+  const reveal = page.getByRole('button', { name: 'Request another activation link', exact: true })
+  if (await reveal.isVisible()) await reveal.click()
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Current password').fill(password)
 
@@ -442,10 +444,14 @@ test('single card actions stay bounded and readable', async ({ page, request }) 
     await page.setViewportSize(viewport)
     for (const [path, labels] of [
       ['/connects', ['Get invitation']],
-      ['/me', ['Save name', 'Send confirmation email', 'Deactivate account']]
+      ['/me', ['Save name', 'Deactivate account']]
     ] as const) {
       await page.goto(path)
-      if (path === '/me') await page.getByRole('button', { name: 'Change email', exact: true }).click()
+      if (path === '/me') {
+        await page.getByRole('button', { name: 'Change email', exact: true }).click()
+        await expect(page.getByRole('button', { name: 'Send confirmation email', exact: true })).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible()
+      }
       for (const label of labels) {
         const button = page.getByRole('button', { name: label, exact: true })
         await expect(button).toBeVisible()
@@ -484,6 +490,7 @@ test('theme follows system initially and persists a keyboard choice before first
     await page.keyboard.press('Enter')
     await expect(page.locator('html')).not.toHaveClass(/dark/u)
     await page.goto('/login')
+    await waitForNuxtHydration(page)
     await expect(page.locator('html')).toHaveAttribute('data-first-paint-theme', 'light')
     await page.getByRole('button', { name: 'Open navigation menu' }).click()
     await expect(page.getByRole('button', { name: 'Switch to dark theme' })).toBeVisible()
@@ -748,6 +755,10 @@ test('E2E-02 shows field validation, permits correction and prevents double subm
 
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill('😀'.repeat(8))
+  await page.getByRole('button', { name: 'Create account' }).click()
+  await expect(page.getByText('Include at least one letter.', { exact: true })).toBeVisible()
+  await expect(page.getByText('Include at least one number.', { exact: true })).toBeVisible()
+  await page.getByLabel('Password').fill('Ж1!' + '😀'.repeat(5))
   let requests = 0
   page.on('request', (request) => {
     if (new URL(request.url()).pathname === '/api/v1/auth/register') {
@@ -1114,12 +1125,14 @@ test('E2E-08 limits protected request refresh and retry budget', async ({ browse
   const repeatedContext = await newSecureContext(browser)
   const repeated = await repeatedContext.newPage()
   let repeatedRefreshSuccesses = 0
+  let repeatedMeCalls = 0
   repeated.on('response', (response) => {
     if (new URL(response.url()).pathname === '/api/v1/auth/refresh' && response.status() === 200) {
       ++repeatedRefreshSuccesses
     }
   })
   await repeated.route('**/api/v1/me', async (route) => {
+    ++repeatedMeCalls
     await route.fulfill({
       status: 401,
       contentType: 'application/json',
@@ -1127,8 +1140,13 @@ test('E2E-08 limits protected request refresh and retry budget', async ({ browse
     })
   })
   await login(repeated, email, '/me', false)
-  await expect(repeated.getByRole('link', { name: 'Login' })).toBeVisible()
+  await expect.poll(() => repeatedMeCalls).toBe(2)
+  await expect(repeated.getByRole('navigation', { name: 'Primary navigation' })).toHaveCount(0)
   await expect(repeated.getByText(email)).toHaveCount(0)
+  await repeated.goto('/me')
+  await waitForNuxtHydration(repeated)
+  await expect(repeated).toHaveURL(/\/login(?:\?|$)/u)
+  await expect(repeated.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
   expect(repeatedRefreshSuccesses).toBe(1)
   await repeatedContext.close()
 })
@@ -1553,12 +1571,13 @@ test('unknown recovery stays neutral and capability is absent from SSR URL and s
   const activationSsr = await request.get(`${baseUrl}/activate?token=${synthetic}`)
   expect(activationSsr.status()).toBe(200)
   expect((await activationSsr.text()).includes(synthetic), 'Activation SSR must also exclude the capability').toBe(false)
+  const checked = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/password-reset/check')
   await followSecretUrl(page, `${baseUrl}/password-reset?token=${synthetic}`)
+  expect((await checked).status()).toBe(400)
   await expect(page).toHaveURL(/\/password-reset$/u)
   await expectNoPersistentSecrets(page, [synthetic])
-  await page.getByLabel('New password', { exact: true }).fill('New password1!')
-  await page.getByRole('button', { name: 'Save new password' }).click()
   await expect(page.getByRole('alert')).toContainText('Recovery link is invalid')
+  await expect(page.getByRole('button', { name: 'Save new password', exact: true })).toHaveCount(0)
   await expect(page.locator('input[name="newPassword"]')).toHaveCount(0)
   await page.reload()
   await expect(page.getByRole('alert')).toContainText('Recovery link is missing')
@@ -2197,6 +2216,10 @@ test('manual payment survives a lost response and refreshes both histories after
     await expect(page.getByRole('dialog')).not.toBeVisible()
     await expect(page.getByRole('button', { name: 'Make a payment', exact: true })).toBeFocused()
     await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
+    await expect(page.getByRole('combobox', { name: 'Who transferred money?', exact: true })).toHaveAttribute('aria-expanded', 'true')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('combobox', { name: 'Who transferred money?', exact: true })).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.getByRole('dialog')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog')).not.toBeVisible()
     await expect(page.getByRole('button', { name: 'Make a payment', exact: true })).toBeFocused()
@@ -2205,6 +2228,10 @@ test('manual payment survives a lost response and refreshes both histories after
     await expect(page.getByRole('dialog')).not.toBeVisible()
     await expect(page.getByRole('button', { name: 'Make a payment', exact: true })).toBeFocused()
     await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
+    const paymentDirection = page.getByRole('combobox', { name: 'Who transferred money?', exact: true })
+    await paymentDirection.press('Escape')
+    await expect(paymentDirection).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.getByRole('dialog')).toBeVisible()
     for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 400 }]) {
       await page.setViewportSize(viewport)
       const bounds = await page.getByRole('dialog').boundingBox()
@@ -2235,7 +2262,8 @@ test('manual payment survives a lost response and refreshes both histories after
     }
     await page.setViewportSize({ width: 1280, height: 720 })
     await page.getByRole('button', { name: 'Link an expense share (optional)', exact: true }).click()
-    await expect(page.getByLabel('Related expense share (optional)')).toContainText(title)
+    await page.getByRole('combobox', { name: 'Related expense share (optional)', exact: true }).focus()
+    await expect(page.getByRole('option').filter({ hasText: title })).toBeVisible()
     await selectOption(page.getByRole('combobox', { name: 'Related expense share (optional)', exact: true }), relatedShareId!)
     await selectOption(page.getByRole('combobox', { name: 'Who transferred money?', exact: true }), 'other')
     await page.getByLabel('Payment amount in EUR', { exact: true }).fill('7.00')
@@ -2330,20 +2358,22 @@ test('debt editing recalculates all shares, restores history and rejects a stale
     const memberEmail = await createActiveUser(request, uniqueEmail('edit-member'))
     const memberAccess = await login(member, memberEmail)
     const memberId = await profile(memberAccess)
-    async function connectWith(recipient: Page): Promise<string> {
-      await page.goto('/connects')
-      await waitForNuxtHydration(page)
-      const invited = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/connect-invitations')
-      await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
-      const invitation = await (await invited).json() as { url: string }
-      const accepted = recipient.waitForResponse(response => new URL(response.url()).pathname.endsWith('/accept'))
-      await followSecretUrl(recipient, invitation.url)
-      const result = (await (await accepted).json() as { id: string }).id
-      await expect(recipient).toHaveURL(/\/connects$/u)
-      return result
+    async function connectWith(recipientAccess: string): Promise<string> {
+      return await test.step('Prepare a financial connection through the API', async () => {
+        const invitation = await request.post(baseUrl + '/api/v1/connect-invitations', {
+          headers: { 'Authorization': 'Bearer ' + authorAccess, 'X-Forwarded-For': nextForwardedFor() }
+        })
+        expect(invitation.status()).toBe(200)
+        const token = (await invitation.json() as { token: string }).token
+        const accepted = await request.post(baseUrl + '/api/v1/connect-invitations/' + token + '/accept', {
+          headers: { 'Authorization': 'Bearer ' + recipientAccess, 'X-Forwarded-For': nextForwardedFor() }
+        })
+        expect(accepted.status()).toBe(201)
+        return (await accepted.json() as { id: string }).id
+      })
     }
-    const authorPayerConnect = await connectWith(payer)
-    await connectWith(member)
+    const authorPayerConnect = await connectWith(payerAccess)
+    await connectWith(memberAccess)
     await page.goto('/debts/new')
     await waitForNuxtHydration(page)
     const share = page.locator('.people-picker').nth(0)
@@ -2468,8 +2498,7 @@ test('debt editing recalculates all shares, restores history and rejects a stale
     await staleEditor.close()
   }
   finally {
-    await payerContext.close()
-    await memberContext.close()
+    await Promise.allSettled([payerContext.close(), memberContext.close()])
   }
 })
 
