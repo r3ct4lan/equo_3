@@ -217,6 +217,17 @@ final class InvitationHttpTest extends WebTestCase
         yield 'array' => ['limit[]=20'];
         yield 'bad cursor' => ['cursor=invalid'];
         yield 'unexpected' => ['otherUserId=foo'];
+        yield 'empty cursor' => ['cursor='];
+        yield 'oversized cursor' => ['cursor='.str_repeat('a', 257)];
+        yield 'invalid base64 length' => ['cursor=a'];
+        foreach ([
+            'missing fields' => '{}',
+            'wrong types' => '{"createdAt":42,"id":false}',
+            'invalid calendar date' => '{"createdAt":"2026-02-30T00:00:00Z","id":"00000000-0000-4000-8000-000000000001"}',
+            'malformed date' => '{"createdAt":"not-a-date","id":"00000000-0000-4000-8000-000000000001"}',
+        ] as $case => $json) {
+            yield $case => ['cursor='.rtrim(strtr(base64_encode($json), '+/', '-_'), '=')];
+        }
     }
 
     public function testInvitationCreationBodyIsAbsent(): void
