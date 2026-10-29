@@ -132,25 +132,12 @@ Implementation and placement rules are documented in
 
 ## Quality gate and CI
 
-`make check` is the complete local quality gate command. It covers backend style,
-PHPStan, Symfony/Doctrine validation, migrations on an isolated empty database,
-PHPUnit, frontend lint/typecheck/tests/build, dependency audits, common secret
-patterns, generated changes and Nginx smoke checks.
-
-`make check-full` additionally executes the auth/session browser journey in
-Chromium against a disposable HTTPS Compose project with tmpfs
-PostgreSQL/Redis/RabbitMQ and Mailpit. It covers registration, activation with an
-authenticated session, login, refresh rotation, protected `/me`, reload, invitations between two users,
-Connect reads, expense creation/shares/balances/history, third-user financial privacy,
-cookie/storage checks and safe error cases without touching the development database or named Docker
-volumes.
-
-Agents use targeted local checks instead of these complete local commands.
-GitHub Actions runs quick checks for pull requests and pushes to `codex/backlog`
-or `main`. After
-all code, tests and documentation for a batch of backlog tasks are committed,
-the full workflow is started manually on the final `codex/backlog` commit.
-Detailed commands, audit thresholds and the merge procedure are documented in
+Run targeted local checks for the changed component. Agents do not run complete
+local `make check`, `make check-full` or `make test-e2e` commands.
+Pull requests and pushes to `main`/`codex/backlog` run quick CI checks.
+The full workflow is dispatched manually on the final synchronized batch commit;
+its successful SHA must match the branch before merge.
+Commands, isolated environments, audit policy and the merge procedure are in
 [docs/quality-gate.md](docs/quality-gate.md).
 
 ## Repository structure
