@@ -23,3 +23,8 @@ frontend/test-results/
 /skills-lock.json
 /.agents/
 /.claude/
+
+# Local-only project documentation
+/docs/
+AGENTS.md
+agents.md
