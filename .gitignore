@@ -8,3 +8,8 @@
 Thumbs.db
 
 docker-compose.override.yml
+
+# Local-only project documentation
+/docs/
+AGENTS.md
+agents.md
