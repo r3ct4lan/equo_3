@@ -90,7 +90,7 @@ jobs:
           php-version: '8.4.27'
           extensions: amqp, ctype, iconv, intl, pdo_pgsql, redis, sockets
           coverage: none
-          tools: composer:v2
+          tools: composer:2.11.0
       - name: Resolve Composer cache directory
         id: composer-cache
         working-directory: backend
@@ -147,7 +147,7 @@ jobs:
           php-version: '8.4.27'
           extensions: amqp, ctype, iconv, intl, pdo_pgsql, redis, sockets
           coverage: none
-          tools: composer:v2
+          tools: composer:2.11.0
       - name: Resolve Composer cache directory
         id: composer-cache
         working-directory: backend
@@ -221,7 +221,7 @@ jobs:
         with:
           php-version: '8.4.27'
           coverage: none
-          tools: composer:v2
+          tools: composer:2.11.0
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:

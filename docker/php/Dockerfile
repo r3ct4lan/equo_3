@@ -13,7 +13,7 @@ COPY docker/php/zz-equo-access.conf /usr/local/etc/php-fpm.d/zz-equo-access.conf
 COPY docker/php/worker-entrypoint.sh /usr/local/bin/equo-worker-entrypoint
 RUN chmod 0755 /usr/local/bin/equo-worker-entrypoint
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.11.0 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/backend
 
 COPY backend/composer.json backend/composer.lock backend/symfony.lock ./
