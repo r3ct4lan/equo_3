@@ -16,3 +16,8 @@ backend/vendor/
 frontend/.nuxt/
 frontend/.output/
 frontend/node_modules/
+
+# Local-only project documentation
+/docs/
+AGENTS.md
+agents.md
