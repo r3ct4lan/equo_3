@@ -127,7 +127,7 @@ async function closeDialog(): Promise<void> {
           >
             Installed preset
           </UiText>
-          <UiText>Preset a6OvgsF6 · {{ preset.style }} · {{ preset.tailwind.baseColor }} · {{ preset.font }} / {{ preset.fontHeading }} · {{ preset.iconLibrary }}</UiText>
+          <UiText>Palette a643K172 · {{ preset.style }} · {{ preset.tailwind.baseColor }} · {{ preset.font }} / {{ preset.fontHeading }} · {{ preset.iconLibrary }}</UiText>
           <PresetCard>
             <PresetCardHeader>
               <PresetCardTitle>Shared expenses, in your style</PresetCardTitle>

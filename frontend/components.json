@@ -6,7 +6,7 @@
   "tailwind": {
     "config": "",
     "css": "app/assets/css/tailwind.css",
-    "baseColor": "zinc",
+    "baseColor": "mist",
     "cssVariables": true,
     "prefix": ""
   },
@@ -22,6 +22,6 @@
   },
   "fontHeading": "instrument-sans",
   "menuColor": "default",
-  "menuAccent": "subtle",
+  "menuAccent": "bold",
   "registries": {}
 }

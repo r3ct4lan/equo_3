@@ -1,7 +1,10 @@
 # Registry primitives
 
-Generated with `shadcn-vue@2.8.2` using the owner's preset `a6OvgsF6`:
-`reka-luma`, Zinc, teal primary, Roboto / Instrument Sans, Remix Icon, pointer.
+Components were generated with `shadcn-vue@2.8.2` using preset `a6OvgsF6`.
+The current light/dark palette comes from the owner's preset `a643K172`
+(`init --preset a643K172 --template nuxt --pointer`): Mist, Teal and bold menu
+accents. Component geometry remains `reka-luma`, with Roboto / Instrument Sans,
+Remix Icon and pointer buttons. Colors live in `assets/css/vars.css`.
 See `frontend/components.json` for the CLI configuration.
 
 The Nuxt module registers these components with the `Shadcn` prefix. Feature
