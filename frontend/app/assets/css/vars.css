@@ -18,13 +18,13 @@ CSS custom properties cannot be used in media query conditions. */
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.925 0.005 214.3);
   --input: oklch(0.925 0.005 214.3);
-  --ring: oklch(0.723 0.014 214.4);
-  --chart-1: oklch(0.855 0.138 181.071);
+  --ring: oklch(0.488 0.084 205.882 / 0.5);
+  --chart-1: oklch(0.488 0.084 205.882);
   --chart-2: oklch(0.704 0.14 182.503);
   --chart-3: oklch(0.6 0.118 184.704);
   --chart-4: oklch(0.511 0.096 186.391);
   --chart-5: oklch(0.437 0.078 188.216);
-  --radius: 0.45rem;
+  --radius: 0.2rem;
   --sidebar: oklch(0.987 0.002 197.1);
   --sidebar-foreground: oklch(0.148 0.004 228.8);
   --sidebar-primary: oklch(0.6 0.118 184.704);
@@ -36,9 +36,9 @@ CSS custom properties cannot be used in media query conditions. */
 
   color-scheme: light;
   --spacing: 0.25rem;
-  --radius-2xl: 1rem;
-  --radius-3xl: 1.5rem;
-  --radius-4xl: 2rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.75rem;
+  --radius-4xl: 1rem;
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -2px rgb(0 0 0 / 10%);
   --color-background: var(--background);
   --color-surface: var(--card);
@@ -57,7 +57,7 @@ CSS custom properties cannot be used in media query conditions. */
   --color-warning-border: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
   --color-error-surface: color-mix(in srgb, var(--destructive) 8%, var(--background));
   --radius-small: var(--radius);
-  --radius-medium: var(--radius-4xl);
+  --radius-medium: var(--radius-2xl);
   --shadow-surface: var(--shadow-md);
   --page-width: 70rem;
   --color-on-primary: var(--primary-foreground);
@@ -110,7 +110,7 @@ CSS custom properties cannot be used in media query conditions. */
   --panel-width: 48rem;
   --dialog-width: 42rem;
   --dialog-confirm-width: 30rem;
-  --compact-action-width: 18em;
+  --compact-action-width: 20em;
   --compact-action-min-height: 2.75rem;
   --toast-width: 24rem;
   --hero-width: 50rem;
