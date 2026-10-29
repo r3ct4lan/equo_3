@@ -2228,6 +2228,10 @@ test('manual payment survives a lost response and refreshes both histories after
     await expect(page.getByRole('dialog')).not.toBeVisible()
     await expect(page.getByRole('button', { name: 'Make a payment', exact: true })).toBeFocused()
     await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
+    const paymentDirection = page.getByRole('combobox', { name: 'Who transferred money?', exact: true })
+    await paymentDirection.press('Escape')
+    await expect(paymentDirection).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.getByRole('dialog')).toBeVisible()
     for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 400 }]) {
       await page.setViewportSize(viewport)
       const bounds = await page.getByRole('dialog').boundingBox()

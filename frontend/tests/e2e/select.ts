@@ -1,4 +1,5 @@
 import type { Locator } from '@playwright/test'
+import { expect } from './fixtures'
 
 export async function selectOption(input: Locator, value: string): Promise<void> {
   await input.focus()
@@ -14,4 +15,6 @@ export async function setPerson(picker: Locator, value: string, selected: boolea
   await option.waitFor({ state: 'visible' })
   const isSelected = await option.locator('..').locator('..').getAttribute('aria-selected') === 'true'
   if (isSelected !== selected) await option.click()
+  await input.press('Escape')
+  await expect(input).toHaveAttribute('aria-expanded', 'false')
 }
