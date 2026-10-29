@@ -97,9 +97,6 @@ docker compose exec frontend npm run typecheck
 docker compose exec frontend npm run build
 ```
 
-Implementation and placement rules are documented in
-[docs/frontend-foundation.md](docs/frontend-foundation.md).
-
 ## Quality gate and CI
 
 `make check` is the fast merge-oriented local entry point. It covers backend style,
@@ -115,10 +112,6 @@ Connect reads, expense creation/shares/balances/history, third-user financial pr
 cookie/storage checks and safe error cases without touching the development database or named Docker
 volumes.
 
-The equivalent GitHub Actions workflow runs for pull requests and pushes to
-`main`. Detailed commands, audit thresholds and recommended required checks are
-documented in [docs/quality-gate.md](docs/quality-gate.md).
-
 ## Repository structure
 
 ```text
@@ -126,14 +119,5 @@ backend/       Symfony 7.4 API and Messenger configuration
 frontend/      Nuxt 4 TypeScript application
 docker/nginx/  Nginx routing configuration
 docker/php/    PHP 8.4 FPM image
-docs/          Project documentation
 compose.yaml   Local development stack
 ```
-
-## Documentation
-
-AWS staging setup (production builds, HTTPS and private infrastructure ports) is
-documented in [the staging runbook](docs/operations/aws-staging.md).
-
-The project artifacts and documentation index are available in [docs/README.md](docs/README.md).
-Email delivery, safe replay, retention and key rotation procedures are in [the operations runbook](docs/operations/email-delivery.md).
