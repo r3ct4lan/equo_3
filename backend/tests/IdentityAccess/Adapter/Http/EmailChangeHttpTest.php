@@ -8,6 +8,8 @@ use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
 use App\IdentityAccess\Application\Port\PayloadCipherPort;
 use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -128,6 +130,128 @@ final class EmailChangeHttpTest extends WebTestCase
         $this->failure(410, 'TOKEN_USED');
     }
 
+    public function testRequestQuotaDoesNotReplaceTheLastUsableConfirmationOrRevokeSessions(): void
+    {
+        $this->session();
+        for ($i = 0; $i < 3; ++$i) {
+            $this->requestChange('new'.$i.'@example.test');
+            self::assertResponseStatusCodeSame(202);
+        }
+        $token = $this->capability();
+        $before = $this->emailChangeState();
+
+        $this->requestChange('blocked@example.test');
+
+        $this->failure(429, 'RATE_LIMIT_EXCEEDED');
+        self::assertGreaterThan(0, (int) $this->client->getResponse()->headers->get('Retry-After'));
+        self::assertSame($before, $this->emailChangeState());
+        $this->confirm($token);
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame('new2@example.test', $this->db->fetchOne('SELECT email FROM app_user WHERE id = ?', [self::USER]));
+        self::assertSame(0, (int) $this->db->fetchOne('SELECT COUNT(*) FROM user_session WHERE revoked_at IS NOT NULL'));
+    }
+
+    public function testConfirmationQuotaPreservesAnOtherwiseUsableTokenWithoutChangingEmail(): void
+    {
+        $this->session();
+        $this->requestChange('new@example.test');
+        $token = $this->capability();
+        $this->db->executeStatement('UPDATE app_user SET email = ? WHERE id = ?', ['new@example.test', self::OTHER]);
+        for ($i = 0; $i < 5; ++$i) {
+            $this->confirm($token);
+            $this->failure(409, 'EMAIL_ALREADY_IN_USE');
+        }
+        $this->db->executeStatement('UPDATE app_user SET email = ? WHERE id = ?', ['used@example.test', self::OTHER]);
+        $before = $this->emailChangeState();
+
+        $this->confirm($token);
+
+        $this->failure(429, 'RATE_LIMIT_EXCEEDED');
+        self::assertGreaterThan(0, (int) $this->client->getResponse()->headers->get('Retry-After'));
+        self::assertSame($before, $this->emailChangeState());
+        self::assertSame('current@example.test', $this->db->fetchOne('SELECT email FROM app_user WHERE id = ?', [self::USER]));
+    }
+
+    #[DataProvider('terminalTokens')]
+    public function testExpiredOrInvalidatedConfirmationDoesNotChangeEmailOrSessions(string $field, string $code): void
+    {
+        $this->session();
+        $this->requestChange('new@example.test');
+        $token = $this->capability();
+        if ('expires_at' === $field) {
+            $this->db->executeStatement("UPDATE user_action_token SET created_at = CURRENT_TIMESTAMP - INTERVAL '1 hour', expires_at = CURRENT_TIMESTAMP - INTERVAL '1 second'");
+        } else {
+            $this->db->executeStatement('UPDATE user_action_token SET invalidated_at = CURRENT_TIMESTAMP');
+        }
+        self::getContainer()->get(EntityManagerInterface::class)->clear();
+        $before = $this->emailChangeState();
+
+        $this->confirm($token);
+
+        $this->failure(410, $code);
+        self::assertSame($before, $this->emailChangeState());
+        self::assertSame('current@example.test', $this->db->fetchOne('SELECT email FROM app_user WHERE id = ?', [self::USER]));
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function terminalTokens(): iterable
+    {
+        yield 'expired' => ['expires_at', 'TOKEN_EXPIRED'];
+        yield 'invalidated' => ['invalidated_at', 'TOKEN_INVALIDATED'];
+    }
+
+    #[DataProvider('invalidTokenPayloads')]
+    public function testMalformedStoredConfirmationPayloadFailsSafely(string $payload): void
+    {
+        $this->session();
+        $this->requestChange('new@example.test');
+        $token = $this->capability();
+        $this->db->executeStatement('UPDATE user_action_token SET payload = ?', [$payload]);
+        self::getContainer()->get(EntityManagerInterface::class)->clear();
+        $before = $this->emailChangeState();
+
+        $this->confirm($token);
+
+        $this->failure(400, 'INVALID_TOKEN');
+        self::assertSame($before, $this->emailChangeState());
+        self::assertSame('current@example.test', $this->db->fetchOne('SELECT email FROM app_user WHERE id = ?', [self::USER]));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function invalidTokenPayloads(): iterable
+    {
+        yield 'null payload' => ['null'];
+        yield 'missing address' => ['{}'];
+        yield 'wrong address type' => ['{"newEmail":42}'];
+        yield 'malformed address' => ['{"newEmail":"private-invalid-address"}'];
+    }
+
+    public function testReplacementInvalidatesTheOldEmailConfirmationWithoutChangingAccountEmail(): void
+    {
+        $this->requestChange('old-request@example.test');
+        $old = $this->capability();
+        $this->requestChange('new-request@example.test');
+        $new = $this->capability();
+        self::assertNotSame($old, $new);
+
+        $this->confirm($old);
+        $this->failure(410, 'TOKEN_INVALIDATED');
+        self::assertSame('current@example.test', $this->db->fetchOne('SELECT email FROM app_user WHERE id = ?', [self::USER]));
+        $this->confirm($new);
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame('new-request@example.test', $this->db->fetchOne('SELECT email FROM app_user WHERE id = ?', [self::USER]));
+    }
+
+    /** @return array<string, mixed> */
+    private function emailChangeState(): array
+    {
+        return [
+            'tokens' => $this->db->fetchAllAssociative('SELECT id, payload, used_at, invalidated_at FROM user_action_token ORDER BY id'),
+            'deliveries' => $this->db->fetchFirstColumn('SELECT id FROM email_delivery_outbox ORDER BY id'),
+            'sessions' => $this->db->fetchAllAssociative('SELECT id, revoked_at FROM user_session ORDER BY id'),
+        ];
+    }
+
     private function requestChange(string $newEmail): void
     {
         $this->postRequest(['currentPassword' => 'Correct password!', 'newEmail' => $newEmail], $this->access());
@@ -156,7 +280,7 @@ final class EmailChangeHttpTest extends WebTestCase
 
     private function capability(): string
     {
-        $encrypted = $this->db->fetchOne('SELECT encrypted_payload FROM email_delivery_outbox ORDER BY created_at DESC LIMIT 1');
+        $encrypted = $this->db->fetchOne('SELECT outbox.encrypted_payload FROM email_delivery_outbox AS outbox INNER JOIN user_action_token AS token ON token.id = outbox.user_action_token_id WHERE token.invalidated_at IS NULL ORDER BY outbox.created_at DESC LIMIT 1');
         $encrypted = is_resource($encrypted) ? stream_get_contents($encrypted) : $encrypted;
         self::assertIsString($encrypted);
 

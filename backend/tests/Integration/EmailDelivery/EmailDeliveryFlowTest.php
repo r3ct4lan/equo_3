@@ -8,6 +8,8 @@ use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserActionTokenRecord
 use App\IdentityAccess\Adapter\Persistence\Doctrine\Record\UserRecord;
 use App\IdentityAccess\Application\Api\TokenDeliveryQuery;
 use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
+use App\Infrastructure\EmailDelivery\Command\RelayEmailOutboxCommand;
+use App\Infrastructure\EmailDelivery\Command\ReplayEmailOutboxCommand;
 use App\Infrastructure\EmailDelivery\Messaging\FinalDeliveryFailureSubscriber;
 use App\Infrastructure\EmailDelivery\Messaging\SendUserActionEmail;
 use App\Infrastructure\EmailDelivery\Messaging\SendUserActionEmailHandler;
@@ -22,7 +24,10 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use stdClass;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Mailer\Transport\TransportInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
@@ -73,6 +78,80 @@ final class EmailDeliveryFlowTest extends KernelTestCase
         $message = $sent[0]->getMessage();
         self::assertInstanceOf(SendUserActionEmail::class, $message);
         self::assertSame($outbox->id(), $message->deliveryId);
+    }
+
+    public function testRelayAndReplayCommandsRepublishOnlyDeliverableMessages(): void
+    {
+        $outbox = $this->fixture(EmailDeliveryStatus::Pending);
+        $relay = new CommandTester(new RelayEmailOutboxCommand(self::getContainer()->get(OutboxRelay::class)));
+        $replay = new CommandTester(new ReplayEmailOutboxCommand(self::getContainer()->get(EmailOutboxReplay::class)));
+
+        self::assertSame(Command::SUCCESS, $relay->execute([]));
+        self::assertSame("Processed 1 outbox deliveries.\n", $relay->getDisplay());
+        self::assertSame(EmailDeliveryStatus::Published, $outbox->status());
+        self::assertSame(Command::SUCCESS, $replay->execute(['delivery-id' => $outbox->id()]));
+        self::assertSame("Delivery was safely republished.\n", $replay->getDisplay());
+        $transport = self::getContainer()->get('messenger.transport.async');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        self::assertCount(2, $transport->getSent());
+
+        $outbox->markSent(new DateTimeImmutable('now'));
+        $this->entityManager->flush();
+        self::assertSame(Command::FAILURE, $replay->execute(['delivery-id' => $outbox->id()]));
+        self::assertCount(2, $transport->getSent());
+        self::assertSame(EmailDeliveryStatus::Sent, $outbox->status());
+    }
+
+    #[DataProvider('undeliverableTokens')]
+    public function testRelayClearsUndeliverableIntentWithoutPublishingIt(string $terminalColumn): void
+    {
+        $outbox = $this->fixture(EmailDeliveryStatus::Pending);
+        $this->connection->executeStatement(sprintf(
+            'UPDATE user_action_token SET %s = CURRENT_TIMESTAMP - INTERVAL \'1 second\' WHERE id = ?',
+            $terminalColumn,
+        ), [$outbox->userActionTokenId()]);
+        $this->entityManager->clear();
+
+        self::assertSame(1, self::getContainer()->get(OutboxRelay::class)->relayBatch());
+
+        $stored = $this->entityManager->find(EmailDeliveryOutboxRecord::class, $outbox->id());
+        self::assertInstanceOf(EmailDeliveryOutboxRecord::class, $stored);
+        self::assertSame(EmailDeliveryStatus::Failed, $stored->status());
+        self::assertNull($stored->encryptedPayload());
+        self::assertSame('Action token is no longer deliverable.', $stored->lastError());
+        $transport = self::getContainer()->get('messenger.transport.async');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        self::assertCount(0, $transport->getSent());
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function undeliverableTokens(): iterable
+    {
+        yield 'expired' => ['expires_at'];
+        yield 'used' => ['used_at'];
+        yield 'invalidated' => ['invalidated_at'];
+    }
+
+    public function testRetryOrUnrelatedFailureCannotTerminalizeAnEmailAndLateFailureCannotUndoSent(): void
+    {
+        $outbox = $this->fixture(EmailDeliveryStatus::Published);
+        $subscriber = new FinalDeliveryFailureSubscriber($this->entityManager);
+        $retry = new WorkerMessageFailedEvent(new Envelope(new SendUserActionEmail($outbox->id())), 'async', new RuntimeException('synthetic failure'));
+        $retry->setForRetry();
+        $subscriber->onMessageFailed($retry);
+        $subscriber->onMessageFailed(new WorkerMessageFailedEvent(new Envelope(new stdClass()), 'async', new RuntimeException('unrelated failure')));
+        self::assertSame(EmailDeliveryStatus::Published, $outbox->status());
+        self::assertNotNull($outbox->encryptedPayload());
+        self::assertNull($outbox->failedAt());
+
+        $now = new DateTimeImmutable('now');
+        $outbox->markSent($now);
+        $this->entityManager->flush();
+        $subscriber->onMessageFailed(new WorkerMessageFailedEvent(new Envelope(new SendUserActionEmail($outbox->id())), 'async', new RuntimeException('late failure')));
+        self::assertSame(EmailDeliveryStatus::Sent, $outbox->status());
+        self::assertSame($now, $outbox->sentAt());
+        self::assertNull($outbox->failedAt());
+        self::assertNull($outbox->lastError());
     }
 
     public function testConsumerUsesSynchronousMailerAndClearsPayloadAfterHandoff(): void

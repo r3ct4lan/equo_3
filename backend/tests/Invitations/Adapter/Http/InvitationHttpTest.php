@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Invitations\Adapter\Http;
 
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
+use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryOutboxRecord;
+use App\Infrastructure\EmailDelivery\Security\PayloadCipher;
 use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -123,6 +126,7 @@ final class InvitationHttpTest extends WebTestCase
     {
         yield 'create' => ['POST', '/api/v1/connect-invitations'];
         yield 'accept' => ['POST', '/api/v1/connect-invitations/invalid/accept'];
+        yield 'pending accept' => ['POST', '/api/v1/connect-invitations/pending/accept'];
         yield 'list' => ['GET', '/api/v1/connects'];
         yield 'detail' => ['GET', '/api/v1/connects/invalid'];
     }
@@ -213,12 +217,209 @@ final class InvitationHttpTest extends WebTestCase
         yield 'array' => ['limit[]=20'];
         yield 'bad cursor' => ['cursor=invalid'];
         yield 'unexpected' => ['otherUserId=foo'];
+        yield 'empty cursor' => ['cursor='];
+        yield 'oversized cursor' => ['cursor='.str_repeat('a', 257)];
+        yield 'invalid base64 length' => ['cursor=a'];
+        foreach ([
+            'missing fields' => '{}',
+            'wrong types' => '{"createdAt":42,"id":false}',
+            'invalid calendar date' => '{"createdAt":"2026-02-30T00:00:00Z","id":"00000000-0000-4000-8000-000000000001"}',
+            'malformed date' => '{"createdAt":"not-a-date","id":"00000000-0000-4000-8000-000000000001"}',
+        ] as $case => $json) {
+            yield $case => ['cursor='.rtrim(strtr(base64_encode($json), '+/', '-_'), '=')];
+        }
     }
 
     public function testInvitationCreationBodyIsAbsent(): void
     {
         $this->client->request('POST', '/api/v1/connect-invitations', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$this->access[0], 'CONTENT_TYPE' => 'application/json'], content: '{}');
         $this->failure(400, 'INVALID_REQUEST');
+    }
+
+    public function testRegistrationBindsInvitationWithoutConsumingItAndActivatedUserAcceptsExactlyOnce(): void
+    {
+        $token = $this->newInvitation();
+        $key = Uuid::v4()->toRfc4122();
+        $this->registerInvited($token, $key);
+        self::assertResponseStatusCodeSame(201);
+        $registered = $this->body();
+        $userId = $registered['user']['id'];
+        self::assertIsString($userId);
+        self::assertFalse($registered['user']['isActive']);
+        self::assertTrue($registered['activationRequired']);
+        $pendingId = $this->pendingId($userId);
+        self::assertSame(substr($token, 0, 36), $pendingId);
+        self::assertSame(0, (int) $this->db->fetchOne('SELECT COUNT(*) FROM connect'));
+        self::assertNull($this->db->fetchOne('SELECT used_at FROM connect_invitation WHERE id = ?', [$pendingId]));
+
+        $access = $this->activateInvited($userId);
+        // Activation issues a session; the separate protected continuation consumes the invitation.
+        self::assertSame($pendingId, $this->pendingId($userId));
+        $this->request('POST', '/api/v1/connect-invitations/pending/accept', $access);
+        self::assertResponseStatusCodeSame(201);
+        $accepted = $this->body();
+        self::assertSame('created', $accepted['invitationOutcome']);
+        self::assertSame($this->users[0], $accepted['otherUser']['id']);
+        self::assertArrayNotHasKey('email', $accepted['otherUser']);
+        self::assertNull($this->pendingId($userId));
+        self::assertSame($userId, $this->db->fetchOne('SELECT accepted_by_id FROM connect_invitation WHERE id = ?', [$pendingId]));
+        self::assertSame(1, (int) $this->db->fetchOne('SELECT COUNT(*) FROM connect'));
+
+        $this->request('POST', '/api/v1/connect-invitations/pending/accept', $access);
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame('', $this->client->getResponse()->getContent());
+        self::assertResponseHeaderSame('Referrer-Policy', 'no-referrer');
+        self::assertStringContainsString('no-store', (string) $this->client->getResponse()->headers->get('Cache-Control'));
+
+        $this->registerInvited($token, $key);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($registered, $this->body());
+        self::assertNull($this->pendingId($userId));
+        self::assertSame(1, (int) $this->db->fetchOne('SELECT COUNT(*) FROM user_action_token'));
+        self::assertSame(1, (int) $this->db->fetchOne('SELECT COUNT(*) FROM email_delivery_outbox'));
+        self::assertSame(1, (int) $this->db->fetchOne('SELECT COUNT(*) FROM connect'));
+    }
+
+    #[DataProvider('unavailableRegistrationInvitations')]
+    public function testUnavailableInvitationRollsBackRegistrationAndEmailIntent(string $case, int $status, string $code): void
+    {
+        $token = $this->newInvitation();
+        if ('invalid' === $case) {
+            $token = 'synthetic-invalid-invitation';
+        } elseif ('expired' === $case) {
+            $this->expireInvitation();
+        } elseif ('used' === $case) {
+            $this->request('POST', '/api/v1/connect-invitations/'.$token.'/accept', $this->access[1]);
+            self::assertResponseStatusCodeSame(201);
+        } else {
+            $this->db->executeStatement('UPDATE app_user SET is_active = false WHERE id = ?', [$this->users[0]]);
+        }
+        $before = $this->registrationCounts();
+
+        $this->registerInvited($token, Uuid::v4()->toRfc4122());
+
+        $this->failure($status, $code);
+        self::assertSame($before, $this->registrationCounts());
+        self::assertStringNotContainsString($token, (string) $this->client->getResponse()->getContent());
+    }
+
+    /** @return iterable<string, array{string, int, string}> */
+    public static function unavailableRegistrationInvitations(): iterable
+    {
+        yield 'invalid' => ['invalid', 404, 'RESOURCE_NOT_FOUND'];
+        yield 'expired' => ['expired', 410, 'TOKEN_EXPIRED'];
+        yield 'used' => ['used', 410, 'TOKEN_USED'];
+        yield 'inactive author' => ['inactive', 409, 'INACTIVE_USER'];
+    }
+
+    #[DataProvider('unavailablePendingInvitations')]
+    public function testFailedContinuationKeepsPendingInvitationAndDoesNotCreateAConnection(string $case, int $status, string $code): void
+    {
+        $token = $this->newInvitation();
+        $this->registerInvited($token, Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $userId = $this->body()['user']['id'];
+        self::assertIsString($userId);
+        $access = $this->activateInvited($userId);
+        if ('expired' === $case) {
+            $this->expireInvitation();
+        } elseif ('used' === $case) {
+            $this->request('POST', '/api/v1/connect-invitations/'.$token.'/accept', $this->access[1]);
+            self::assertResponseStatusCodeSame(201);
+        } elseif ('missing' === $case) {
+            $this->db->executeStatement('UPDATE app_user SET pending_invitation_id = ? WHERE id = ?', [Uuid::v4()->toRfc4122(), $userId]);
+            self::getContainer()->get(EntityManagerInterface::class)->clear();
+        } else {
+            $this->db->executeStatement('UPDATE app_user SET is_active = false WHERE id = ?', [$this->users[0]]);
+        }
+        $pendingId = $this->pendingId($userId);
+        $before = $this->registrationCounts();
+
+        $this->request('POST', '/api/v1/connect-invitations/pending/accept', $access);
+
+        $this->failure($status, $code);
+        self::assertSame($pendingId, $this->pendingId($userId));
+        self::assertSame($before, $this->registrationCounts());
+    }
+
+    /** @return iterable<string, array{string, int, string}> */
+    public static function unavailablePendingInvitations(): iterable
+    {
+        yield 'expired' => ['expired', 410, 'TOKEN_EXPIRED'];
+        yield 'used by another person' => ['used', 410, 'TOKEN_USED'];
+        yield 'missing record' => ['missing', 404, 'RESOURCE_NOT_FOUND'];
+        yield 'inactive author' => ['inactive', 409, 'INACTIVE_USER'];
+    }
+
+    public function testPendingContinuationWithoutInvitationIsEmptyAndRejectsABody(): void
+    {
+        $this->request('POST', '/api/v1/connect-invitations/pending/accept', $this->access[0]);
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame('', $this->client->getResponse()->getContent());
+        $this->client->request('POST', '/api/v1/connect-invitations/pending/accept', server: [
+            'HTTP_AUTHORIZATION' => 'Bearer '.$this->access[0], 'CONTENT_TYPE' => 'application/json',
+        ], content: '{}');
+        $this->failure(400, 'INVALID_REQUEST');
+        self::assertSame(0, (int) $this->db->fetchOne('SELECT COUNT(*) FROM connect'));
+    }
+
+    private function newInvitation(): string
+    {
+        $this->request('POST', '/api/v1/connect-invitations', $this->access[0]);
+        self::assertResponseStatusCodeSame(200);
+        $token = $this->body()['token'];
+        self::assertIsString($token);
+
+        return $token;
+    }
+
+    private function expireInvitation(): void
+    {
+        $this->db->executeStatement("UPDATE connect_invitation SET created_at = now() - INTERVAL '8 days', expires_at = now() - INTERVAL '1 day' WHERE created_by_id = ? AND used_at IS NULL", [$this->users[0]]);
+        self::getContainer()->get(EntityManagerInterface::class)->clear();
+    }
+
+    private function registerInvited(string $token, string $key): void
+    {
+        $this->client->request('POST', '/api/v1/auth/register', server: [
+            'CONTENT_TYPE' => 'application/json', 'HTTP_IDEMPOTENCY_KEY' => $key, 'REMOTE_ADDR' => '192.0.2.42',
+        ], content: json_encode(['name' => 'Invited newcomer', 'email' => 'newcomer@example.test', 'password' => 'New password1!', 'invitationToken' => $token], JSON_THROW_ON_ERROR));
+    }
+
+    private function activateInvited(string $userId): string
+    {
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        $outbox = $em->getRepository(EmailDeliveryOutboxRecord::class)->findOneBy(['recipientEmail' => 'newcomer@example.test']);
+        self::assertInstanceOf(EmailDeliveryOutboxRecord::class, $outbox);
+        $encrypted = $outbox->encryptedPayload();
+        self::assertNotNull($encrypted);
+        $payload = self::getContainer()->get(PayloadCipher::class)->decrypt($encrypted);
+        $this->client->request('POST', '/api/v1/auth/activate', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode(['token' => $payload['token']], JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($userId, $this->body()['user']['id']);
+        $access = $this->body()['accessToken'];
+        self::assertIsString($access);
+
+        return $access;
+    }
+
+    private function pendingId(string $userId): ?string
+    {
+        $value = $this->db->fetchOne('SELECT pending_invitation_id FROM app_user WHERE id = ?', [$userId]);
+        self::assertTrue(null === $value || is_string($value));
+
+        return $value;
+    }
+
+    /** @return array<string, int> */
+    private function registrationCounts(): array
+    {
+        $counts = [];
+        foreach (['app_user', 'user_action_token', 'email_delivery_outbox', 'idempotency_record', 'user_session', 'connect'] as $table) {
+            $counts[$table] = (int) $this->db->fetchOne('SELECT COUNT(*) FROM '.$table);
+        }
+
+        return $counts;
     }
 
     private function request(string $method, string $path, ?string $access = null): void
