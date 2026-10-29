@@ -18,3 +18,8 @@ frontend/.nuxtrc
 frontend/.output/
 frontend/node_modules/
 frontend/test-results/
+
+# Local-only project documentation
+/docs/
+AGENTS.md
+agents.md
