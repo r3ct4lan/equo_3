@@ -3,8 +3,25 @@ import type { BriefUser, Page } from '~/types/finance'
 import type { SelectOption } from '~/types/ui'
 
 type Person = BriefUser & { email?: string | null }
-const props = withDefaults(defineProps<{ label: string, debtId?: string, excludeIds?: string[], lockedIds?: string[], single?: boolean, choices?: Person[], disabled?: boolean }>(), {
-  debtId: undefined, excludeIds: () => [], lockedIds: () => [], single: false, choices: undefined, disabled: false
+const props = withDefaults(defineProps<{
+  label: string,
+  debtId?: string,
+  excludeIds?: string[],
+  lockedIds?: string[],
+  single?: boolean,
+  choices?: Person[],
+  disabled?: boolean,
+  emptyText?: string,
+  notFoundText?: string,
+}>(), {
+  debtId: undefined,
+  excludeIds: () => [],
+  lockedIds: () => [],
+  single: false,
+  choices: undefined,
+  disabled: false,
+  emptyText: undefined,
+  notFoundText: undefined,
 })
 const selected = defineModel<Person[]>({ required: true })
 const { $auth } = useNuxtApp()
@@ -29,6 +46,18 @@ function option(person: Person): SelectOption {
 }
 const options = computed(() => visible.value.map(option))
 const selection = computed(() => props.single ? (selected.value[0] ? option(selected.value[0]) : null) : selected.value.map(option))
+const emptyText = computed(() => {
+  if (loading.value || failed.value) {
+    return '';
+  } else {
+    const defaultText = 'No people found';
+    if (query.value !== '') {
+      return props.notFoundText !==undefined ? props.notFoundText : defaultText;
+    } else {
+      return props.emptyText !==undefined ? props.emptyText : defaultText;
+    }
+  }
+})
 function update(value: SelectOption | SelectOption[] | null): void {
   if (props.disabled) return
   const people = new Map([...selected.value, ...visible.value].map(person => [person.id, person]))
@@ -125,14 +154,15 @@ onBeforeUnmount(cancel)
       :internal-search="false"
       :loading="loading"
       :disabled="disabled"
-      :empty-text="loading || failed ? '' : 'No people found.'"
+      :empty-text="emptyText"
       placeholder="Choose people"
       @update:model-value="update"
       @search="query = $event"
       @open="onOpen"
       @close="onClose"
     >
-      <template #footer>
+      <template #footer
+                v-if="loading || failed || (cursor && !loading && !failed) || (choices && matchingChoices.length > choiceLimit)">
         <div
           role="status"
           aria-live="polite"

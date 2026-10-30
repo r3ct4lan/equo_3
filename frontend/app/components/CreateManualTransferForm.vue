@@ -13,7 +13,6 @@ const { state } = useCurrentUser()
 const direction = ref('you')
 const amount = ref('')
 const relatedShare = ref('')
-const relatedSelectorOpen = ref(false)
 const pending = ref(false)
 const uncertain = ref(false)
 const invalid = ref(false)
@@ -51,7 +50,6 @@ async function submit(): Promise<void> {
     uncertain.value = false
     amount.value = ''
     relatedShare.value = ''
-    relatedSelectorOpen.value = false
     emit('created', result)
   }
   catch (failure) {
@@ -74,7 +72,6 @@ function clear(): void {
   amount.value = ''
   direction.value = 'you'
   relatedShare.value = ''
-  relatedSelectorOpen.value = false
 }
 watch(() => [state.value.status, state.value.user?.id, props.connect.id], clear)
 onBeforeUnmount(clear)
@@ -116,15 +113,7 @@ onBeforeUnmount(clear)
           required
         />
       </UiField>
-      <UiButton
-        v-if="!relatedSelectorOpen"
-        variant="link"
-        @click="relatedSelectorOpen = true"
-      >
-        Link an expense share (optional)
-      </UiButton>
       <RelatedShareSelector
-        v-else
         v-model="relatedShare"
         :connect-id="connect.id"
         @selected="amount = euroInput($event.amount)"

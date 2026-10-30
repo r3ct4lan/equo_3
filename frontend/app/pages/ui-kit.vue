@@ -453,6 +453,7 @@ async function closeDialog(): Promise<void> {
                 label="Who paid?"
                 :disabled="formDisabled"
                 :choices="selectedPeople"
+                emptyText="First, select the participants"
                 single
               />
               <UiField>
@@ -488,17 +489,6 @@ async function closeDialog(): Promise<void> {
                 />
               </UiField>
               <label class="checkbox-label"><UiCheckbox v-model="draft.included" />Include the payer in the split</label>
-              <fieldset class="stack">
-                <legend>Participants</legend>
-                <label class="checkbox-label"><UiCheckbox
-                  v-model="draft.people"
-                  value="alex"
-                />Alex</label>
-                <label class="checkbox-label"><UiCheckbox
-                  v-model="draft.people"
-                  value="sam"
-                />Sam</label>
-              </fieldset>
               <FormSubmitButton>Preview submission</FormSubmitButton>
             </fieldset>
             <UiButton
