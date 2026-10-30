@@ -61,6 +61,8 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
   recorded.value = false
   if (state.value.status === 'authenticated') void load()
 })
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -72,17 +74,17 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
       id="connection-title"
       variant="heading1"
     >
-      Connection
+      {{ t('Connection') }}
     </UiText>
     <UiText
       v-if="recorded"
       role="status"
     >
-      Payment recorded.
+      {{ t('Payment recorded.') }}
     </UiText>
     <AppLoadingState
       v-if="pending || state.status === 'unknown'"
-      message="Loading connection…"
+      :message="t('Loading connection…')"
     />
     <UiCard
       v-if="connect && state.status === 'authenticated'"
@@ -94,21 +96,21 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
       </UiText>
       <ConnectBalance :amount="connect.balanceAmount" />
       <UiText v-if="!connect.otherUser.isActive">
-        This account is inactive. New expenses and transfers are unavailable until it is reactivated.
+        {{ t('This account is inactive. New expenses and transfers are unavailable until it is reactivated.') }}
       </UiText>
       <UiButton
         v-if="connect.canCreateDebt"
         icon="add"
         to="/debts/new"
       >
-        New expense
+        {{ t('New expense') }}
       </UiButton>
       <template v-if="connect.canCreateTransfer">
         <UiButton
           ref="paymentTrigger"
           @click="openPayment"
         >
-          Make a payment
+          {{ t('Make a payment') }}
         </UiButton>
         <UiDialog
           ref="paymentDialog"
@@ -120,7 +122,7 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
               variant="secondary"
               icon="close"
               class="ui-dialog__close"
-              aria-label="Close"
+              :aria-label="t('Close')"
               @click="closePayment()"
             />
           </template>
@@ -136,7 +138,7 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
     <AppErrorState
       v-if="error"
       :title="error.code === 'RESOURCE_NOT_FOUND' ? 'Connection unavailable' : 'Connection could not be loaded'"
-      message="Return to your connections or try again."
+      :message="t('Return to your connections or try again.')"
       :request-id="error.requestId"
     />
     <UiButton
@@ -146,13 +148,13 @@ watch(() => [state.value.status, state.value.user?.id, route.params.id], () => {
 
       @click="load()"
     >
-      Try again
+      {{ t('Try again') }}
     </UiButton>
     <UiButton
       variant="secondary"
       to="/connects"
     >
-      Your connections
+      {{ t('Your connections') }}
     </UiButton>
   </section>
 </template>

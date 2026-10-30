@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { LinkTo } from '~/types/ui'
-import { formatEuro } from '~/utils/money'
+import { formatEuro as formatEuroBase } from '~/utils/money'
+
+const { locale } = useLocale()
+const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 defineProps<{ titleId: string, title: string, amount: number, to: LinkTo, linkLabel: string }>()
 </script>

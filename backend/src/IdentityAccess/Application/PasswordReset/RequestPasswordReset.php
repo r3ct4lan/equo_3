@@ -49,7 +49,7 @@ final readonly class RequestPasswordReset
             $issued = $this->tokenCodec->issue();
             $token = new UserActionToken($this->uuid->generate(), $account->id, $issued->tokenHash, UserActionTokenPurpose::ResetPassword, $now, $now->modify('+30 minutes'));
             $this->repository->replaceToken($token, $now);
-            $this->outbox->enqueuePasswordReset($this->uuid->generate(), $token->id, $account->email, $this->payloadCipher->encrypt(['token' => $issued->publicToken]), $now);
+            $this->outbox->enqueuePasswordReset($this->uuid->generate(), $token->id, $account->email, $this->payloadCipher->encrypt(['token' => $issued->publicToken, 'locale' => $account->locale]), $now);
         });
     }
 }

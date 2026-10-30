@@ -15,10 +15,12 @@ const props = withDefaults(defineProps<{
   required?: boolean
   placeholder?: string
   emptyText?: string
-}>(), { id: undefined, multiple: false, detailed: false, internalSearch: true, loading: false, disabled: false, required: false, placeholder: 'Type to search', emptyText: 'No options found' })
+  selectedLabel?: string
+}>(), { id: undefined, multiple: false, detailed: false, internalSearch: true, loading: false, disabled: false, required: false, placeholder: 'Type to search', emptyText: 'No options found', selectedLabel: undefined })
 const model = defineModel<SelectOption | SelectOption[] | null>({ default: null })
 const emit = defineEmits<{ open: [], close: [], search: [query: string] }>()
 const attrs = useAttrs()
+const { t } = useTranslation()
 const generatedId = useId()
 const inputId = computed(() => props.id ?? generatedId)
 const root = useTemplateRef<HTMLElement>('root')
@@ -120,7 +122,7 @@ defineExpose({ focus: () => root.value?.querySelector('input')?.focus(), close }
       :loading="loading"
       :disabled="disabled"
       :required="required"
-      :placeholder="placeholder"
+      :placeholder="t(placeholder)"
       :name="label"
       :show-labels="false"
       :allow-empty="multiple"
@@ -132,6 +134,9 @@ defineExpose({ focus: () => root.value?.querySelector('input')?.focus(), close }
       @close="setOpen(false)"
       @search-change="emit('search', $event)"
     >
+      <template #singleLabel="{ option }">
+        {{ selectedLabel ?? option.label }}
+      </template>
       <template #option="{ option }">
         <span
           :data-value="option.value"
@@ -154,17 +159,17 @@ defineExpose({ focus: () => root.value?.querySelector('input')?.focus(), close }
             variant="link"
             size="xs"
             icon="close"
-            :aria-label="`Remove ${option.label}`"
+            :aria-label="`${t('Remove')} ${option.label}`"
             @mousedown.prevent
             @click.stop="remove(option)"
           />
         </span>
       </template>
       <template #noResult>
-        {{ emptyText }}
+        {{ t(emptyText) }}
       </template>
       <template #noOptions>
-        {{ emptyText }}
+        {{ t(emptyText) }}
       </template>
       <template #afterList>
         <li

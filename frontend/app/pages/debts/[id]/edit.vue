@@ -11,6 +11,8 @@ const canEdit = computed(() => debt.value?.canEdit && !debt.value.isDeleted && d
 async function saved(): Promise<void> {
   await navigateTo('/debts/' + encodeURIComponent(String(route.params.id)))
 }
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -22,11 +24,11 @@ async function saved(): Promise<void> {
       id="edit-expense-title"
       variant="heading1"
     >
-      Edit expense
+      {{ t('Edit expense') }}
     </UiText>
     <AppLoadingState
       v-if="pending || state.status === 'unknown'"
-      message="Loading expense…"
+      :message="t('Loading expense…')"
     />
     <EditDebtForm
       v-if="debt && canEdit && etag && validDebtEtag(etag)"
@@ -39,19 +41,19 @@ async function saved(): Promise<void> {
     />
     <AppErrorState
       v-if="error"
-      title="Expense unavailable"
-      message="Return to your expenses or reload the expense."
+      :title="t('Expense unavailable')"
+      :message="t('Return to your expenses or reload the expense.')"
       :request-id="error.requestId"
     />
     <AppErrorState
       v-if="debt && !canEdit"
-      title="Editing unavailable"
-      message="Only the author can edit an active expense when the author and payer are active."
+      :title="t('Editing unavailable')"
+      :message="t('Only the author can edit an active expense when the author and payer are active.')"
     />
     <AppErrorState
       v-if="debt && canEdit && !validDebtEtag(etag)"
-      title="Editing unavailable"
-      message="Reload the expense before saving changes."
+      :title="t('Editing unavailable')"
+      :message="t('Reload the expense before saving changes.')"
     />
     <UiButton
       v-if="error || (debt && canEdit && !validDebtEtag(etag))"
@@ -59,13 +61,13 @@ async function saved(): Promise<void> {
       :disabled="pending"
       @click="load()"
     >
-      Reload expense
+      {{ t('Reload expense') }}
     </UiButton>
     <UiButton
       variant="secondary"
       :to="'/debts/' + encodeURIComponent(String(route.params.id))"
     >
-      Back to expense
+      {{ t('Back to expense') }}
     </UiButton>
   </section>
 </template>

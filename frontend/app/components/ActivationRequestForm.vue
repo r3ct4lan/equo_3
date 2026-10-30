@@ -49,6 +49,8 @@ async function requestAnother(): Promise<void> {
 }
 
 onBeforeUnmount(dispose)
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -59,16 +61,16 @@ onBeforeUnmount(dispose)
   >
     <div>
       <UiText variant="eyebrow">
-        Activation email
+        {{ t('Activation email') }}
       </UiText>
       <UiText
         id="activation-request-title"
         variant="heading2"
       >
-        Request another activation link
+        {{ t('Request another activation link') }}
       </UiText>
       <UiText variant="help">
-        Enter the email and current password for the account. The result does not confirm whether the account exists or an email was sent.
+        {{ t('Enter the email and current password for the account. The result does not confirm whether the account exists or an email was sent.') }}
       </UiText>
     </div>
 
@@ -82,14 +84,14 @@ onBeforeUnmount(dispose)
     >
       <div class="stack">
         <div>
-          <strong>Request received</strong>
-          <UiText>If the details can be used for activation, we will send instructions to the email address you provided.</UiText>
+          <strong>{{ t('Request received') }}</strong>
+          <UiText>{{ t('If the details can be used for activation, we will send instructions to the email address you provided.') }}</UiText>
         </div>
         <UiButton
           variant="secondary"
           @click="requestAnother"
         >
-          Request another link
+          {{ t('Request another link') }}
         </UiButton>
       </div>
     </UiNotice>
@@ -112,11 +114,11 @@ onBeforeUnmount(dispose)
         :disabled="isSubmitting"
       >
         <legend class="visually-hidden">
-          Activation request details
+          {{ t('Activation request details') }}
         </legend>
 
         <UiField>
-          <label for="activation-request-email">Email</label>
+          <label for="activation-request-email">{{ t('Email') }}</label>
           <UiInput
             id="activation-request-email"
             ref="emailInput"
@@ -138,7 +140,7 @@ onBeforeUnmount(dispose)
         </UiField>
 
         <UiField>
-          <label for="activation-request-password">Current password</label>
+          <label for="activation-request-password">{{ t('Current password') }}</label>
           <UiInput
             id="activation-request-password"
             v-model="values.password"
@@ -161,9 +163,9 @@ onBeforeUnmount(dispose)
       <div class="form-actions">
         <FormSubmitButton
           :pending="isSubmitting"
-          pending-label="Requesting link…"
+          :pending-label="t('Requesting link…')"
         >
-          Request activation link
+          {{ t('Request activation link') }}
         </FormSubmitButton>
         <UiButton
           v-if="errorPresentation?.retryable"
@@ -171,7 +173,7 @@ onBeforeUnmount(dispose)
           :disabled="isSubmitting"
           @click="handleSubmit"
         >
-          Try again
+          {{ t('Try again') }}
         </UiButton>
       </div>
     </form>

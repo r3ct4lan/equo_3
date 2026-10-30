@@ -63,7 +63,7 @@ final class GetCurrentUserTest extends TestCase
 
         $result = (new GetCurrentUser(new CurrentUserRepository($user)))->handle($user->id);
         self::assertNotNull($result);
-        self::assertSame(['createdAt', 'email', 'id', 'isActive', 'name'], $this->sortedKeys($result->toArray()));
+        self::assertSame(['createdAt', 'email', 'id', 'isActive', 'locale', 'name'], $this->sortedKeys($result->toArray()));
         self::assertStringNotContainsString('password', json_encode($result->toArray(), JSON_THROW_ON_ERROR));
     }
 

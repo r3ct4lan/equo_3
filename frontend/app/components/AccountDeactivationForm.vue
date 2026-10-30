@@ -33,6 +33,8 @@ async function deactivate(): Promise<void> {
 onBeforeUnmount(() => {
   values.currentPassword = ''
 })
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -43,15 +45,15 @@ onBeforeUnmount(() => {
   >
     <div>
       <UiText variant="eyebrow">
-        Account lifecycle
+        {{ t('Account lifecycle') }}
       </UiText>
       <UiText
         id="deactivate-title"
         variant="heading2"
       >
-        Deactivate account
+        {{ t('Deactivate account') }}
       </UiText>
-      <UiText>Pause new expenses and payments without deleting your connections, balances, or history.</UiText>
+      <UiText>{{ t('Pause new expenses and payments without deleting your connections, balances, or history.') }}</UiText>
     </div>
     <UiButton
       v-if="!confirming"
@@ -60,7 +62,7 @@ onBeforeUnmount(() => {
       variant="secondary"
       @click="showConfirmation"
     >
-      Deactivate account
+      {{ t('Deactivate account') }}
     </UiButton>
     <form
       v-else
@@ -77,9 +79,9 @@ onBeforeUnmount(() => {
           id="deactivate-confirm-title"
           variant="heading3"
         >
-          Confirm account deactivation
+          {{ t('Confirm account deactivation') }}
         </UiText>
-        <UiText>You will be signed out on every device. To return, request an activation link using your email and password.</UiText>
+        <UiText>{{ t('You will be signed out on every device. To return, request an activation link using your email and password.') }}</UiText>
       </div>
       <FormErrorSummary
         :title="presentation?.title ?? 'Check the form'"
@@ -91,10 +93,10 @@ onBeforeUnmount(() => {
         :disabled="isSubmitting"
       >
         <legend class="visually-hidden">
-          Deactivation confirmation
+          {{ t('Deactivation confirmation') }}
         </legend>
         <UiField>
-          <label for="deactivate-current-password">Current password</label>
+          <label for="deactivate-current-password">{{ t('Current password') }}</label>
           <UiInput
             id="deactivate-current-password"
             v-model="values.currentPassword"
@@ -116,16 +118,16 @@ onBeforeUnmount(() => {
       <div class="form-actions">
         <FormSubmitButton
           :pending="isSubmitting"
-          pending-label="Deactivating…"
+          :pending-label="t('Deactivating…')"
         >
-          Confirm deactivation
+          {{ t('Confirm deactivation') }}
         </FormSubmitButton>
         <UiButton
           variant="secondary"
           :disabled="isSubmitting"
           @click="cancel"
         >
-          Cancel
+          {{ t('Cancel') }}
         </UiButton>
       </div>
     </form>

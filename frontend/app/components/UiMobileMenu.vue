@@ -20,6 +20,8 @@ function trapFocus(event: KeyboardEvent): void {
     focusable[0]?.focus()
   }
 }
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -35,14 +37,14 @@ function trapFocus(event: KeyboardEvent): void {
       class="mobile-menu"
       role="dialog"
       aria-modal="true"
-      aria-label="Navigation menu"
+      :aria-label="t('Navigation menu')"
       @keydown.tab="trapFocus"
       @keydown.esc.stop="emit('close', true)"
     >
       <UiButton
         variant="link"
         class="mobile-menu__close"
-        aria-label="Close navigation menu"
+        :aria-label="t('Close navigation menu')"
         @click="emit('close', true)"
       >
         <RiCloseLine
@@ -52,7 +54,7 @@ function trapFocus(event: KeyboardEvent): void {
       </UiButton>
       <nav
         v-if="links.length"
-        aria-label="Mobile navigation"
+        :aria-label="t('Mobile navigation')"
         class="mobile-menu__links"
         @click="emit('close', false)"
       >

@@ -257,6 +257,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
       name: response.user.name,
       email: response.user.email,
       isActive: response.user.isActive,
+      locale: response.user.locale,
       createdAt: ''
     })
     bootstrapPromise = Promise.resolve()

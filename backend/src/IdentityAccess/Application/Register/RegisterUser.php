@@ -64,6 +64,7 @@ final readonly class RegisterUser
             'email' => $email->value,
             'name' => $command->name,
             'password' => $command->password,
+            'locale' => $command->locale,
         ];
         if (null !== $command->invitationToken) {
             $canonicalFields['invitationToken'] = $command->invitationToken;
@@ -100,6 +101,7 @@ final readonly class RegisterUser
                 $email,
                 $this->passwordHasher->hash($command->password),
                 $now,
+                $command->locale,
             );
             $issuedToken = $this->tokenCodec->issue();
             $token = new UserActionToken(
@@ -117,7 +119,7 @@ final readonly class RegisterUser
                 $this->uuid->generate(),
                 $token->id,
                 $email->value,
-                $this->payloadCipher->encrypt(['token' => $issuedToken->publicToken]),
+                $this->payloadCipher->encrypt(['token' => $issuedToken->publicToken, 'locale' => $user->locale]),
                 $now,
             );
 
@@ -127,6 +129,7 @@ final readonly class RegisterUser
                 $user->email->value,
                 $user->isActive(),
                 $user->createdAt,
+                $user->locale,
             ));
             $this->idempotency->complete(
                 self::IDEMPOTENCY_SCOPE,
@@ -158,6 +161,7 @@ final readonly class RegisterUser
             $user['email'],
             $user['isActive'],
             new DateTimeImmutable($user['createdAt']),
+            is_string($user['locale'] ?? null) ? $user['locale'] : 'en',
         ));
     }
 }

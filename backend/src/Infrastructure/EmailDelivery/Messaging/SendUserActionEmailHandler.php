@@ -70,6 +70,15 @@ final readonly class SendUserActionEmailHandler
                 throw new RuntimeException('Email delivery payload has no action token.');
             }
 
+            if ('ru' === ($payload['locale'] ?? 'en')) {
+                $template = match ($outbox->templateKey()) {
+                    'activate-account' => ['Активируйте аккаунт Equo', '/activate', 'Активировать аккаунт'],
+                    'reset-password' => ['Сброс пароля Equo', '/password-reset', 'Выбрать новый пароль'],
+                    'change-email' => ['Подтвердите новый адрес электронной почты Equo', '/email-change', 'Подтвердить адрес'],
+                    default => $template,
+                };
+            }
+
             [$subject, $path, $label] = $template;
             $actionUrl = rtrim($this->frontendBaseUrl, '/').$path.'?token='.rawurlencode($token);
             $email = (new Email())

@@ -87,6 +87,18 @@ final class PasswordResetHttpTest extends WebTestCase
         $this->failure(410, 'TOKEN_USED');
     }
 
+    public function testRecoveryEmailCapturesAccountLanguage(): void
+    {
+        $this->user(true);
+        $this->db->executeStatement("UPDATE app_user SET locale = 'ru' WHERE id = ?", [self::USER]);
+        $this->post('/password-reset-requests', ['email' => 'recovery@example.test']);
+        self::assertResponseStatusCodeSame(202);
+        $encrypted = $this->db->fetchOne('SELECT encrypted_payload FROM email_delivery_outbox');
+        $encrypted = is_resource($encrypted) ? stream_get_contents($encrypted) : $encrypted;
+        self::assertIsString($encrypted);
+        self::assertSame('ru', self::getContainer()->get(PayloadCipher::class)->decrypt($encrypted)['locale']);
+    }
+
     public function testSamePasswordKeepsRecoveryLinkUsableForDifferentPassword(): void
     {
         $this->user(true);

@@ -1,7 +1,7 @@
 import { selectValue } from '../helpers/select'
-import { flushPromises } from '@vue/test-utils'
+import { config, flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import CreateManualTransferForm from '../../app/components/CreateManualTransferForm.vue'
 import ManageManualTransfer from '../../app/components/ManageManualTransfer.vue'
 import ConnectCard from '../../app/pages/connects/[id].vue'
@@ -19,6 +19,9 @@ const self = { id: 'self', name: 'Alex', isActive: true }
 const other = { id: 'other', name: 'Boris', isActive: true }
 const connect = { id: 'connect', otherUser: other, balanceAmount: 501, canCreateDebt: true, canCreateTransfer: true, createdAt: '2026-10-11T12:00:00Z' }
 const transfer = { id: 'manual', connectId: 'connect', sender: other, receiver: self, amount: 700, type: 'MANUAL', createdBy: self, debtReference: null, relatedTransferId: null, isDeleted: false, canEdit: true, canDelete: true, version: 1, createdAt: connect.createdAt }
+afterAll(() => {
+  delete config.global.stubs.RelatedShareSelector
+})
 function signedIn(id = 'self'): void {
   useCurrentUser().setAuthenticated({ id, name: 'Alex', email: 'private@example.test', isActive: true, createdAt: connect.createdAt })
 }
@@ -34,18 +37,18 @@ async function fill(wrapper: Awaited<ReturnType<typeof mountForm>>): Promise<voi
 }
 describe('manual payment components', () => {
   beforeEach(() => {
+    config.global.stubs.RelatedShareSelector = true
     auth.protectedRequest.mockReset().mockResolvedValue(transfer)
     auth.bootstrap.mockReset().mockResolvedValue(undefined)
     signedIn()
   })
   it('selects a related share without exposing an unavailable expense', async () => {
+    config.global.stubs.RelatedShareSelector = false
     const share = { ...transfer, id: 'share', type: 'DEBT_SHARE', debtReference: { id: 'hidden', isAccessible: false }, amount: 501 }
     auth.protectedRequest.mockImplementation(async (_path, options) => options?.method === 'POST'
       ? transfer
       : { items: [share], pagination: { nextCursor: null, hasMore: false } })
     const wrapper = await mountForm()
-    await wrapper.findAll('button').find(button => button.text().includes('Link an expense share'))!.trigger('click')
-    await flushPromises()
     await wrapper.get('#related-share').trigger('focus')
     expect(wrapper.text()).toContain('Expense unavailable')
     expect(wrapper.text()).not.toContain('hidden')
@@ -236,12 +239,14 @@ describe('manual payment components', () => {
 
 describe('manual payment correction components', () => {
   beforeEach(() => {
+    config.global.stubs.RelatedShareSelector = true
     auth.protectedRequest.mockReset().mockResolvedValue(transfer)
     auth.bootstrap.mockReset().mockResolvedValue(undefined)
     signedIn()
   })
 
   it('prefills the selected share when editing and leaves the amount editable', async () => {
+    config.global.stubs.RelatedShareSelector = false
     const share = { ...transfer, id: 'share', type: 'DEBT_SHARE', amount: 501 }
     auth.protectedRequest.mockImplementation(async (_path, options) => options?.method === 'PUT'
       ? transfer
@@ -262,6 +267,7 @@ describe('manual payment correction components', () => {
   })
 
   it('can clear an existing historical share link while editing', async () => {
+    config.global.stubs.RelatedShareSelector = false
     const historical = { ...transfer, relatedTransferId: 'old-share' }
     auth.protectedRequest.mockImplementation(async (_path, options) => options?.method === 'PUT'
       ? transfer

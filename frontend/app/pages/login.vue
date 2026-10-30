@@ -105,6 +105,8 @@ onMounted(async () => {
 })
 
 onUnmounted(clearRateLimitCountdown)
+
+const { t, tError } = useTranslation()
 </script>
 
 <template>
@@ -114,22 +116,22 @@ onUnmounted(clearRateLimitCountdown)
   >
     <div class="auth-intro stack">
       <UiText variant="eyebrow">
-        Welcome back
+        {{ t('Welcome back') }}
       </UiText>
       <UiText
         id="login-title"
         variant="heading1"
       >
-        Sign in
+        {{ t('Sign in') }}
       </UiText>
       <UiText variant="lede">
-        Use your activated account to continue to your Equo profile.
+        {{ t('Use your activated account to continue to your Equo profile.') }}
       </UiText>
       <UiText
         v-if="route.query.signedOut === '1'"
         role="status"
       >
-        {{ (route.query.passwordReset === '1' || route.query.passwordChanged === '1') ? 'Your password has been saved. Sign in with your new password.' : 'You are signed out.' }}
+        {{ (route.query.passwordReset === '1' || route.query.passwordChanged === '1') ? t('Your password has been saved. Sign in with your new password.') : t('You are signed out.') }}
       </UiText>
     </div>
 
@@ -145,10 +147,10 @@ onUnmounted(clearRateLimitCountdown)
           id="login-form-title"
           variant="heading2"
         >
-          Account details
+          {{ t('Account details') }}
         </UiText>
         <UiText variant="help">
-          Both fields are required.
+          {{ t('Both fields are required.') }}
         </UiText>
       </div>
 
@@ -165,8 +167,8 @@ onUnmounted(clearRateLimitCountdown)
         aria-live="off"
       >
         {{ rateLimitRemainingSeconds > 0
-          ? `Try again in ${rateLimitRemainingSeconds} ${rateLimitRemainingSeconds === 1 ? 'second' : 'seconds'}.`
-          : 'You can try again now.' }}
+          ? tError(`Try again in ${rateLimitRemainingSeconds} ${rateLimitRemainingSeconds === 1 ? 'second' : 'seconds'}.`)
+          : t('You can try again now.') }}
       </UiText>
 
       <fieldset
@@ -174,11 +176,11 @@ onUnmounted(clearRateLimitCountdown)
         :disabled="isSubmitting"
       >
         <legend class="visually-hidden">
-          Sign-in information
+          {{ t('Sign-in information') }}
         </legend>
 
         <UiField>
-          <label for="login-email">Email</label>
+          <label for="login-email">{{ t('Email') }}</label>
           <UiInput
             id="login-email"
             v-model="values.email"
@@ -199,7 +201,7 @@ onUnmounted(clearRateLimitCountdown)
         </UiField>
 
         <UiField>
-          <label for="login-password">Password</label>
+          <label for="login-password">{{ t('Password') }}</label>
           <UiInput
             id="login-password"
             v-model="values.password"
@@ -222,15 +224,15 @@ onUnmounted(clearRateLimitCountdown)
       <div class="form-actions">
         <FormSubmitButton
           :pending="isSubmitting"
-          pending-label="Signing in…"
+          :pending-label="t('Signing in…')"
         >
-          Sign in
+          {{ t('Sign in') }}
         </FormSubmitButton>
         <UiButton
           variant="secondary"
           to="/forgot-password"
         >
-          Forgot your password?
+          {{ t('Forgot your password?') }}
         </UiButton>
         <UiButton
           v-if="errorPresentation?.retryable"
@@ -238,19 +240,19 @@ onUnmounted(clearRateLimitCountdown)
           :disabled="isSubmitting"
           @click="retryLogin"
         >
-          Try again
+          {{ t('Try again') }}
         </UiButton>
         <UiButton
           variant="secondary"
           to="/activate"
         >
-          Need another activation link?
+          {{ t('Need another activation link?') }}
         </UiButton>
       </div>
       <UiText>
-        Don't have an account?
+        {{ t('Don\'t have an account?') }}
         <UiLink to="/register">
-          Create an account
+          {{ t('Create an account') }}
         </UiLink>
       </UiText>
     </UiCard>

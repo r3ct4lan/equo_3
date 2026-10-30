@@ -28,8 +28,20 @@ test('maps the public validation envelope and field violations', () => {
   assert.equal(error.requestId, '01J3M8N8CNQH9Y0G4SKY2GCG4A')
   assert.deepEqual(error.fieldErrors.email, [
     'Email has invalid format.',
-    'Email is required.'
+    'Value is required.'
   ])
+})
+
+test('does not display unknown server validation text', () => {
+  const error = toApiClientError({ response: { status: 422, _data: { error: {
+    code: 'VALIDATION_ERROR', message: 'invalid', details: { violations: [{ field: 'name', code: 'UNKNOWN', message: 'private detail' }] }
+  } } } })
+  assert.deepEqual(error.fieldErrors.name, ['Check this value.'])
+})
+
+test('does not display an unknown server error message', () => {
+  const error = toApiClientError({ response: { status: 500, _data: { error: { code: 'NEW_ERROR', message: 'private detail' } } } })
+  assert.equal(error.message, 'The request could not be completed.')
 })
 
 test('does not expose an HTML or proxy error response', () => {

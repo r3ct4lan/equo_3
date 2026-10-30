@@ -68,6 +68,8 @@ async function resetPassword(): Promise<void> {
   await nextTick()
   resultPanel.value?.focus()
 }
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -77,16 +79,16 @@ async function resetPassword(): Promise<void> {
   >
     <div class="auth-intro stack">
       <UiText variant="eyebrow">
-        Account recovery
+        {{ t('Account recovery') }}
       </UiText>
       <UiText
         id="reset-title"
         variant="heading1"
       >
-        Choose a new password
+        {{ t('Choose a new password') }}
       </UiText>
       <UiText variant="lede">
-        {{ PASSWORD_POLICY_HINT }} After saving, sign in with your new password.
+        {{ t(PASSWORD_POLICY_HINT) }} {{ t('After saving, sign in with your new password.') }}
       </UiText>
     </div>
     <UiCard
@@ -95,7 +97,7 @@ async function resetPassword(): Promise<void> {
     >
       <AppLoadingState
         v-if="state === 'preparing'"
-        message="Preparing recovery…"
+        :message="t('Preparing recovery…')"
       />
       <div
         v-else-if="state === 'missing'"
@@ -103,8 +105,8 @@ async function resetPassword(): Promise<void> {
         tabindex="-1"
       >
         <AppErrorState
-          title="Recovery link is missing"
-          message="Open the complete link from your recovery email."
+          :title="t('Recovery link is missing')"
+          :message="t('Open the complete link from your recovery email.')"
         />
       </div>
       <div
@@ -121,7 +123,7 @@ async function resetPassword(): Promise<void> {
         v-else-if="state === 'check-error'"
         :title="presentation?.title ?? 'Recovery link could not be checked'"
         :message="presentation?.message ?? 'Try checking the link again.'"
-        retry-label="Try again"
+        :retry-label="t('Try again')"
         @retry="checkLink"
       />
       <div
@@ -131,14 +133,14 @@ async function resetPassword(): Promise<void> {
         aria-live="polite"
         tabindex="-1"
       >
-        <strong>Password saved</strong>
-        <UiText>Sign in with your new password. If your account is inactive, activate it separately.</UiText>
+        <strong>{{ t('Password saved') }}</strong>
+        <UiText>{{ t('Sign in with your new password. If your account is inactive, activate it separately.') }}</UiText>
       </div>
       <form
         v-else
         class="stack"
         novalidate
-        aria-label="Choose a new password"
+        :aria-label="t('Choose a new password')"
         @submit.prevent="resetPassword"
       >
         <FormErrorSummary
@@ -151,10 +153,10 @@ async function resetPassword(): Promise<void> {
           :disabled="isSubmitting"
         >
           <legend class="visually-hidden">
-            New password
+            {{ t('New password') }}
           </legend>
           <UiField>
-            <label for="reset-password">New password</label>
+            <label for="reset-password">{{ t('New password') }}</label>
             <UiInput
               id="reset-password"
               v-model="values.newPassword"
@@ -175,9 +177,9 @@ async function resetPassword(): Promise<void> {
         </fieldset>
         <FormSubmitButton
           :pending="isSubmitting"
-          pending-label="Saving password…"
+          :pending-label="t('Saving password…')"
         >
-          Save new password
+          {{ t('Save new password') }}
         </FormSubmitButton>
       </form>
       <UiButton
@@ -185,13 +187,13 @@ async function resetPassword(): Promise<void> {
         variant="secondary"
         to="/forgot-password"
       >
-        Request a new recovery link
+        {{ t('Request a new recovery link') }}
       </UiButton>
       <UiButton
         variant="secondary"
         to="/login"
       >
-        Back to sign in
+        {{ t('Back to sign in') }}
       </UiButton>
     </UiCard>
   </section>

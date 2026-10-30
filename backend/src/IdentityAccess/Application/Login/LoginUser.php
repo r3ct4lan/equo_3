@@ -65,7 +65,7 @@ final readonly class LoginUser
                 $identity = $freshIdentity;
 
                 return $this->issueUserSession->issue(
-                    new LoginUserView($identity->id, $identity->name, $identity->email, $identity->isActive),
+                    new LoginUserView($identity->id, $identity->name, $identity->email, $identity->isActive, $identity->locale),
                     $now,
                 );
             });

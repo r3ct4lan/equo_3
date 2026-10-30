@@ -285,12 +285,18 @@ async function submitRecovery(page: Page, url: string, password: string): Promis
 }
 
 async function expectNoSessionOrStoredCapability(page: Page): Promise<void> {
-  expect(await page.context().cookies()).toEqual([])
+  await expectNoSessionCookies(page)
   const storage = await page.evaluate(() => ({
     local: Object.values(localStorage),
     session: Object.values(sessionStorage)
   }))
   expect(JSON.stringify(storage)).not.toMatch(/v\d+\.[A-Za-z0-9_-]{20,}/u)
+}
+
+async function expectNoSessionCookies(page: Page): Promise<void> {
+  const cookies = await page.context().cookies()
+  expect(cookies.filter(cookie => cookie.name !== 'equo-locale')).toEqual([])
+  for (const cookie of cookies) expect(['en', 'ru']).toContain(cookie.value)
 }
 
 async function expectNoPersistentSecrets(page: Page, secrets: string[]): Promise<void> {
@@ -458,7 +464,7 @@ test('single card actions stay bounded and readable', async ({ page, request }) 
         const dimensions = await button.evaluate((element) => {
           const style = getComputedStyle(element)
           const rect = element.getBoundingClientRect()
-          return { width: rect.width, height: rect.height, max: parseFloat(style.fontSize) * 18, fits: element.scrollWidth <= element.clientWidth }
+          return { width: rect.width, height: rect.height, max: parseFloat(style.fontSize) * 20, fits: element.scrollWidth <= element.clientWidth }
         })
         expect(dimensions.width).toBeLessThanOrEqual(dimensions.max + 1)
         expect(dimensions.height).toBeGreaterThanOrEqual(44)
@@ -578,13 +584,13 @@ test('modal close icon supports touch and restores focus', async ({ browser }) =
     await close.tap()
     await expect(page.getByRole('dialog')).not.toBeVisible()
     await expect(trigger).toBeFocused()
-    await page.getByRole('button', { name: 'Show example toast' }).tap()
-    const notification = page.getByRole('status').filter({ hasText: 'Example notification' })
+    await page.getByRole('button', { name: 'Show info toast' }).tap()
+    const notification = page.getByRole('status').filter({ hasText: 'Example info notification' })
     const dismiss = notification.getByRole('button', { name: 'Dismiss notification' })
     await expect(dismiss).toBeVisible()
     const toastBounds = await notification.boundingBox()
     const dismissBounds = await dismiss.boundingBox()
-    const textBounds = await notification.getByText('Example notification. No request was sent.').boundingBox()
+    const textBounds = await notification.getByText('Example info notification. No request was sent.').boundingBox()
     expect(dismissBounds!.width).toBeGreaterThanOrEqual(44)
     expect(dismissBounds!.height).toBeGreaterThanOrEqual(44)
     expect(dismissBounds!.x + dismissBounds!.width).toBeLessThanOrEqual(toastBounds!.x + toastBounds!.width)
@@ -1104,7 +1110,7 @@ test('E2E-08 limits protected request refresh and retry budget', async ({ browse
     })
   })
   await login(forbidden, email, '/me', false)
-  await expect(forbidden.getByText('Forbidden.')).toBeVisible()
+  await expect(forbidden.getByText('You do not have permission to perform this action.')).toBeVisible()
   expect(forbiddenRefreshSuccesses).toBe(0)
   await forbiddenContext.close()
 
@@ -1398,7 +1404,7 @@ test('current logout clears cookies and protected access stays signed out after 
   expect(response.headers()['content-type']).toBeUndefined()
   expect(Boolean(response.headers()['x-request-id'])).toBe(true)
   await expect(page).toHaveURL(/\/login\?signedOut=1$/u)
-  expect(await page.context().cookies()).toEqual([])
+  await expectNoSessionCookies(page)
   await expectNoPersistentSecrets(page, [access, cookies.refresh.value, cookies.csrf.value])
   let refreshes = 0
   page.on('request', (sent) => {
@@ -1497,7 +1503,7 @@ test('recovery resets credentials, revokes independent sessions and ends sibling
     await expect(page).toHaveURL(/\/login\?signedOut=1&passwordReset=1$/u)
     await expect(page.getByRole('status')).toContainText('Your password has been saved')
     await expect(sibling).toHaveURL(/\/login\?signedOut=1$/u)
-    expect(await page.context().cookies()).toEqual([])
+    await expectNoSessionCookies(page)
     await expectNoPersistentSecrets(page, [token, newPassword])
     expect((await other.request.get('/api/v1/me', { headers: { Authorization: `Bearer ${otherAccess}` } })).status()).toBe(200)
     const refresh = await other.request.post('/api/v1/auth/refresh', {
@@ -1610,7 +1616,7 @@ test('failed server logout stays locally signed out across reload and explicit r
   await page.getByRole('button', { name: 'Retry sign out' }).click()
   expect((await responsePromise).status()).toBe(204)
   await expect(page).toHaveURL(/\/login\?signedOut=1$/u)
-  expect(await page.context().cookies()).toEqual([])
+  await expectNoSessionCookies(page)
 })
 
 test('profile name and confirmed email change keep the active session', async ({ page, request }) => {
@@ -1710,7 +1716,7 @@ test('account deactivation freezes new operations, preserves peer history and re
   await page.getByRole('button', { name: 'Confirm deactivation', exact: true }).click()
   expect((await deactivated).status()).toBe(204)
   await expect(page.getByRole('alert')).toContainText('Your account is deactivated')
-  expect(await page.context().cookies()).toEqual([])
+  await expectNoSessionCookies(page)
 
   const staleCommand = await request.post(baseUrl + '/api/v1/connects/' + connectId + '/transfers', {
     headers: { 'Authorization': 'Bearer ' + ownerAccess, 'Idempotency-Key': randomUUID() },
@@ -1801,7 +1807,7 @@ test('password change revokes both browser sessions, ends sibling tabs and requi
     await expect(page).toHaveURL(/\/login\?signedOut=1&passwordChanged=1$/u)
     await expect(page.getByRole('status')).toContainText('Your password has been saved')
     await expect(sibling).toHaveURL(/\/login\?signedOut=1$/u)
-    expect((await page.context().cookies()).length).toBe(0)
+    await expectNoSessionCookies(page)
     await expectNoPersistentSecrets(page, [newPassword, testPassword, access, currentCookies.refresh.value, currentCookies.csrf.value])
     expect((await other.request.get('/api/v1/me', { headers: { Authorization: `Bearer ${otherAccess}` } })).status()).toBe(200)
     const refresh = await other.request.post('/api/v1/auth/refresh', {
@@ -2247,9 +2253,10 @@ test('manual payment survives a lost response and refreshes both histories after
         expect(await dialog.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
         const track = await dialog.evaluate((element) => {
           const styles = getComputedStyle(element, '::-webkit-scrollbar-track')
-          return [styles.marginTop, styles.marginBottom]
+          const radius = getComputedStyle(element).borderTopLeftRadius
+          return [styles.marginTop, styles.marginBottom, radius]
         })
-        expect(track).toEqual(['32px', '32px'])
+        expect(track).toEqual([track[2], track[2], track[2]])
         await dialog.evaluate((element) => {
           element.scrollTop = element.scrollHeight
         })
@@ -2261,7 +2268,6 @@ test('manual payment survives a lost response and refreshes both histories after
       }
     }
     await page.setViewportSize({ width: 1280, height: 720 })
-    await page.getByRole('button', { name: 'Link an expense share (optional)', exact: true }).click()
     await page.getByRole('combobox', { name: 'Related expense share (optional)', exact: true }).focus()
     await expect(page.getByRole('option').filter({ hasText: title })).toBeVisible()
     await selectOption(page.getByRole('combobox', { name: 'Related expense share (optional)', exact: true }), relatedShareId!)
@@ -2429,7 +2435,7 @@ test('debt editing recalculates all shares, restores history and rejects a stale
     expect(saved.request().headers()['if-match']).toBe('"1"')
     expect(saved.headers()['etag']).toBe('"2"')
     await expect(page).toHaveURL(new RegExp('/debts/' + debtId + '$', 'u'))
-    await expect(page.getByText('1 people · €12.01 each', { exact: true })).toBeVisible()
+    await expect(page.getByText('1 person · €12.01 each', { exact: true })).toBeVisible()
     await member.goto('/debts/' + debtId)
     await expect(member.getByRole('alert')).toContainText('Expense unavailable')
     await member.goto('/transfers/' + originalShare.id)

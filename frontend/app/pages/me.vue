@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CurrentUser } from '~/types/api'
 import { ME_ENDPOINT } from '~/utils/auth-session'
+import { formatDateTime } from '~/utils/locale'
 
 definePageMeta({
   middleware: 'auth'
@@ -12,18 +13,16 @@ useHead({
 
 const { $auth } = useNuxtApp()
 const currentUser = useCurrentUser()
+const { locale } = useLocale()
 const isLoadingProfile = ref(false)
 
 const user = computed(() => currentUser.state.value.user)
 const createdDate = computed(() => {
   if (!user.value?.createdAt) {
-    return 'Not available'
+    return t('Not available')
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  }).format(new Date(user.value.createdAt))
+  return formatDateTime(new Date(user.value.createdAt), locale.value)
 })
 
 async function loadProfile(): Promise<void> {
@@ -55,6 +54,8 @@ async function loadProfile(): Promise<void> {
 onMounted(() => {
   void loadProfile()
 })
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -64,29 +65,29 @@ onMounted(() => {
   >
     <div class="hero">
       <UiText variant="eyebrow">
-        Your account
+        {{ t('Your account') }}
       </UiText>
       <UiText
         id="profile-title"
         variant="heading1"
       >
-        My profile
+        {{ t('My profile') }}
       </UiText>
       <UiText variant="lede">
-        This protected page shows the profile confirmed by the backend.
+        {{ t('This protected page shows the profile confirmed by the backend.') }}
       </UiText>
     </div>
 
     <AppLoadingState
       v-if="currentUser.state.value.status === 'unknown' || isLoadingProfile"
-      message="Checking your session…"
+      :message="t('Checking your session…')"
     />
 
     <AppErrorState
       v-else-if="currentUser.state.value.status === 'error'"
-      title="We could not check your session"
+      :title="t('We could not check your session')"
       :message="currentUser.state.value.error?.message ?? 'Try again to check your session.'"
-      retry-label="Try again"
+      :retry-label="t('Try again')"
       @retry="$auth.retryBootstrap"
     />
 
@@ -98,7 +99,7 @@ onMounted(() => {
     >
       <div>
         <UiText variant="eyebrow">
-          Profile
+          {{ t('Profile') }}
         </UiText>
         <UiText
           id="profile-card-title"
@@ -110,20 +111,24 @@ onMounted(() => {
 
       <UiDescriptionList>
         <div>
-          <dt>Email</dt>
+          <dt>{{ t('Email') }}</dt>
           <dd>{{ user.email }}</dd>
         </div>
         <div>
-          <dt>Account</dt>
-          <dd>{{ user.isActive ? 'Active' : 'Inactive' }}</dd>
+          <dt>{{ t('Account') }}</dt>
+          <dd>{{ user.isActive ? t('Active') : t('Inactive') }}</dd>
         </div>
         <div>
-          <dt>Created</dt>
+          <dt>{{ t('Created') }}</dt>
           <dd>{{ createdDate }}</dd>
         </div>
       </UiDescriptionList>
     </UiCard>
     <ProfileNameForm
+      v-if="user"
+      :user="user"
+    />
+    <ProfileLanguageForm
       v-if="user"
       :user="user"
     />
@@ -135,7 +140,7 @@ onMounted(() => {
       variant="secondary"
       to="/account/security"
     >
-      Change password
+      {{ t('Change password') }}
     </UiButton>
     <LogoutActions />
   </section>

@@ -1,9 +1,15 @@
 <script setup lang="ts">
+import { formatDateTime } from '~/utils/locale'
 import type { TransferView } from '~/types/finance'
-import { formatEuro } from '~/utils/money'
+import { formatEuro as formatEuroBase } from '~/utils/money'
+
+const { locale } = useLocale()
+const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 const props = defineProps<{ connectId: string }>()
 const { items, pending, loaded, cursor, error, load } = useFinancialList<TransferView>(() => '/v1/connects/' + encodeURIComponent(props.connectId) + '/transfers')
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -15,16 +21,16 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
       id="history-title"
       variant="heading2"
     >
-      Operations
+      {{ t('Operations') }}
     </UiText>
     <AppLoadingState
       v-if="pending"
-      message="Loading operations…"
+      :message="t('Loading operations…')"
     />
     <AppEmptyState
       v-if="loaded && !items.length"
-      title="No shared expenses yet"
-      message="Your connection is ready."
+      :title="t('No shared expenses yet')"
+      :message="t('Your connection is ready.')"
     />
     <ul
       v-if="items.length"
@@ -37,25 +43,25 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
         class="stack"
       >
         <UiLink :to="'/transfers/' + transfer.id">
-          {{ transfer.type === 'DEBT_SHARE' ? 'Expense share' : 'Payment' }} · {{ formatEuro(transfer.amount) }}
+          {{ transfer.type === 'DEBT_SHARE' ? t('Expense share') : t('Payment') }} · {{ formatEuro(transfer.amount) }}
         </UiLink>
         <UiText>{{ transfer.sender.name }} → {{ transfer.receiver.name }}</UiText>
         <UiNotice
           v-if="transfer.isDeleted"
           tone="warning"
         >
-          Removed · does not affect the balance
+          {{ t('Removed · does not affect the balance') }}
         </UiNotice>
         <UiLink
           v-if="transfer.debtReference?.isAccessible"
           :to="'/debts/' + transfer.debtReference.id"
         >
-          {{ transfer.debtReference.title }}{{ transfer.debtReference.isDeleted ? ' (removed)' : '' }}
+          {{ transfer.debtReference.title }}{{ transfer.debtReference.isDeleted ? t(' (removed)') : '' }}
         </UiLink>
         <UiText v-else-if="transfer.debtReference">
-          Related expense unavailable
+          {{ t('Related expense unavailable') }}
         </UiText>
-        <time :datetime="transfer.createdAt">{{ new Date(transfer.createdAt).toLocaleString() }}</time>
+        <time :datetime="transfer.createdAt">{{ formatDateTime(new Date(transfer.createdAt), locale) }}</time>
       </UiCard>
     </ul>
     <UiButton
@@ -64,12 +70,12 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
       :disabled="pending"
       @click="load(true)"
     >
-      Load more operations
+      {{ t('Load more operations') }}
     </UiButton>
     <AppErrorState
       v-if="error"
-      title="Operations could not be loaded"
-      message="Try again to load the history."
+      :title="t('Operations could not be loaded')"
+      :message="t('Try again to load the history.')"
       :request-id="error.requestId"
     />
     <UiButton
@@ -79,7 +85,7 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
       @click="load(items.length
         > 0)"
     >
-      Try again
+      {{ t('Try again') }}
     </UiButton>
   </section>
 </template>

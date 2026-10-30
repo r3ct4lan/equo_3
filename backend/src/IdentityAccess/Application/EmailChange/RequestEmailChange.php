@@ -58,7 +58,7 @@ final readonly class RequestEmailChange
             $issued = $this->tokenCodec->issue();
             $token = new UserActionToken($this->uuid->generate(), $account->id, $issued->tokenHash, UserActionTokenPurpose::ChangeEmail, $now, $now->modify('+30 minutes'));
             $this->repository->replaceToken($token, ['newEmail' => $newEmail->value], $now);
-            $this->outbox->enqueueEmailChange($this->uuid->generate(), $token->id, $newEmail->value, $this->payloadCipher->encrypt(['token' => $issued->publicToken]), $now);
+            $this->outbox->enqueueEmailChange($this->uuid->generate(), $token->id, $newEmail->value, $this->payloadCipher->encrypt(['token' => $issued->publicToken, 'locale' => $account->locale]), $now);
         });
     }
 }

@@ -43,22 +43,24 @@ async function requestChange(): Promise<void> {
     scheduled.value = true
   }
 }
+
+const { t } = useTranslation()
 </script>
 
 <template>
   <UiCard
     as="section"
     class="stack"
-    aria-label="Change email"
+    :aria-label="t('Change email')"
   >
     <div>
       <UiText variant="eyebrow">
-        Sign-in address
+        {{ t('Sign-in address') }}
       </UiText>
       <UiText variant="heading2">
-        Change email
+        {{ t('Change email') }}
       </UiText>
-      <UiText>Your current email stays active until you confirm the link sent to the new address.</UiText>
+      <UiText>{{ t('Your current email stays active until you confirm the link sent to the new address.') }}</UiText>
     </div>
     <UiButton
       v-if="!expanded"
@@ -67,13 +69,13 @@ async function requestChange(): Promise<void> {
       variant="secondary"
       @click="openForm"
     >
-      Change email
+      {{ t('Change email') }}
     </UiButton>
     <form
       v-else
       class="stack"
       novalidate
-      aria-label="Change email"
+      :aria-label="t('Change email')"
       @submit.prevent="requestChange"
     >
       <FormErrorSummary
@@ -86,10 +88,10 @@ async function requestChange(): Promise<void> {
         :disabled="isSubmitting"
       >
         <legend class="visually-hidden">
-          Email change details
+          {{ t('Email change details') }}
         </legend>
         <UiField>
-          <label for="profile-new-email">New email</label>
+          <label for="profile-new-email">{{ t('New email') }}</label>
           <UiInput
             id="profile-new-email"
             ref="emailInput"
@@ -109,7 +111,7 @@ async function requestChange(): Promise<void> {
           />
         </UiField>
         <UiField>
-          <label for="profile-current-password">Current password</label>
+          <label for="profile-current-password">{{ t('Current password') }}</label>
           <UiInput
             id="profile-current-password"
             v-model="values.currentPassword"
@@ -132,21 +134,21 @@ async function requestChange(): Promise<void> {
         v-if="scheduled"
         role="status"
       >
-        Confirmation email scheduled. Open the link sent to your new address.
+        {{ t('Confirmation email scheduled. Open the link sent to your new address.') }}
       </UiText>
       <div class="form-actions">
         <FormSubmitButton
           :pending="isSubmitting"
-          pending-label="Sending confirmation…"
+          :pending-label="t('Sending confirmation…')"
         >
-          Send confirmation email
+          {{ t('Send confirmation email') }}
         </FormSubmitButton>
         <UiButton
           variant="secondary"
           :disabled="isSubmitting"
           @click="cancel"
         >
-          Cancel
+          {{ t('Cancel') }}
         </UiButton>
       </div>
     </form>

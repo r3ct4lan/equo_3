@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import type { DebtSummary } from '~/types/finance'
-import { formatEuro } from '~/utils/money'
+import { formatEuro as formatEuroBase } from '~/utils/money'
+import { formatPeople } from '~/utils/locale'
+
+const { locale } = useLocale()
+const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Expenses · Equo' })
 const { state } = useCurrentUser()
 const { items, pending, loaded, cursor, error, load } = useFinancialList<DebtSummary>(() => '/v1/debts')
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -17,23 +23,23 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<DebtSum
       id="debts-title"
       variant="heading1"
     >
-      Your expenses
+      {{ t('Your expenses') }}
     </UiText>
     <template v-if="state.status === 'authenticated'">
       <UiButton
         icon="add"
         to="/debts/new"
       >
-        New expense
+        {{ t('New expense') }}
       </UiButton>
       <AppLoadingState
         v-if="pending"
-        message="Loading expenses…"
+        :message="t('Loading expenses…')"
       />
       <AppEmptyState
         v-if="loaded && !items.length"
-        title="No expenses yet"
-        message="Add an expense to share its cost with your connections."
+        :title="t('No expenses yet')"
+        :message="t('Add an expense to share its cost with your connections.')"
       />
       <ul
         v-if="items.length"
@@ -48,16 +54,16 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<DebtSum
           <UiLink :to="'/debts/' + debt.id">
             {{ debt.title }}
           </UiLink>
-          <UiText>{{ formatEuro(debt.totalAmount) }} · paid by {{ debt.payer.name }}</UiText>
-          <UiText>{{ debt.participantCount }} people · {{ formatEuro(debt.shareAmount) }} each</UiText>
+          <UiText>{{ formatEuro(debt.totalAmount) }} · {{ t('paid by') }} {{ debt.payer.name }}</UiText>
+          <UiText>{{ formatPeople(debt.participantCount, locale) }} · {{ formatEuro(debt.shareAmount) }} {{ t('each') }}</UiText>
           <UiNotice
             v-if="debt.isDeleted"
             tone="warning"
           >
-            Removed · does not affect the balance
+            {{ t('Removed · does not affect the balance') }}
           </UiNotice>
           <UiText v-if="!debt.payer.isActive">
-            Payer inactive
+            {{ t('Payer inactive') }}
           </UiText>
         </UiCard>
       </ul>
@@ -67,12 +73,12 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<DebtSum
         :disabled="pending"
         @click="load(true)"
       >
-        Load more expenses
+        {{ t('Load more expenses') }}
       </UiButton>
       <AppErrorState
         v-if="error"
-        title="Expenses could not be loaded"
-        message="Try again to load your expenses."
+        :title="t('Expenses could not be loaded')"
+        :message="t('Try again to load your expenses.')"
         :request-id="error.requestId"
       />
       <UiButton
@@ -82,12 +88,12 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<DebtSum
         @click="load(items.length
           > 0)"
       >
-        Try again
+        {{ t('Try again') }}
       </UiButton>
     </template>
     <AppLoadingState
       v-else
-      message="Checking your session…"
+      :message="t('Checking your session…')"
     />
   </section>
 </template>

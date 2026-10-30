@@ -90,6 +90,17 @@ final class EmailChangeHttpTest extends WebTestCase
         self::assertSame([], $this->client->getResponse()->headers->getCookies());
     }
 
+    public function testConfirmationEmailCapturesAccountLanguage(): void
+    {
+        $this->db->executeStatement("UPDATE app_user SET locale = 'ru' WHERE id = ?", [self::USER]);
+        $this->requestChange('new@example.test');
+        self::assertResponseStatusCodeSame(202);
+        $encrypted = $this->db->fetchOne('SELECT encrypted_payload FROM email_delivery_outbox');
+        $encrypted = is_resource($encrypted) ? stream_get_contents($encrypted) : $encrypted;
+        self::assertIsString($encrypted);
+        self::assertSame('ru', self::getContainer()->get(PayloadCipherPort::class)->decrypt($encrypted)['locale']);
+    }
+
     public function testConfirmationRechecksUniquenessAndLeavesTokenReusableAfterConflict(): void
     {
         $this->requestChange('free@example.test');

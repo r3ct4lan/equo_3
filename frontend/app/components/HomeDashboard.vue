@@ -1,5 +1,7 @@
 <script setup lang="ts">
 const { data, pending, error, load } = useDashboard()
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -9,45 +11,45 @@ const { data, pending, error, load } = useDashboard()
   >
     <div class="hero">
       <UiText variant="eyebrow">
-        Your shared expenses
+        {{ t('Your shared expenses') }}
       </UiText>
       <UiText
         id="dashboard-title"
         variant="heading1"
       >
-        Your overview
+        {{ t('Your overview') }}
       </UiText>
       <UiText variant="lede">
-        What you owe, what you are owed, and your latest expenses.
+        {{ t('What you owe, what you are owed, and your latest expenses.') }}
       </UiText>
     </div>
 
     <AppLoadingState
       v-if="pending || (!data && !error)"
-      message="Loading your overview…"
+      :message="t('Loading your overview…')"
     />
     <AppErrorState
       v-else-if="error"
-      title="Your overview could not be loaded"
-      message="Try again to see your balances and latest expenses."
-      retry-label="Try again"
+      :title="t('Your overview could not be loaded')"
+      :message="t('Try again to see your balances and latest expenses.')"
+      :retry-label="t('Try again')"
       @retry="load"
     />
     <template v-else-if="data">
       <div class="dashboard-balances">
         <UiSummaryCard
           title-id="owed-title"
-          title="You owe"
+          :title="t('You owe')"
           :amount="data.balances.totalOwedAmount"
           to="/connects"
-          link-label="Across all your connections"
+          :link-label="t('Across all your connections')"
         />
         <UiSummaryCard
           title-id="receivable-title"
-          title="You are owed"
+          :title="t('You are owed')"
           :amount="data.balances.totalReceivableAmount"
           to="/connects"
-          link-label="Across all your connections"
+          :link-label="t('Across all your connections')"
         />
       </div>
 
@@ -60,24 +62,24 @@ const { data, pending, error, load } = useDashboard()
             id="recent-expenses-title"
             variant="heading2"
           >
-            Latest expenses
+            {{ t('Latest expenses') }}
           </UiText>
           <UiButton
             icon="add"
             to="/debts/new"
           >
-            New expense
+            {{ t('New expense') }}
           </UiButton>
         </div>
         <AppEmptyState
           v-if="!data.expenses.length"
-          title="No expenses yet"
-          message="Expenses you pay for or take part in will appear here."
+          :title="t('No expenses yet')"
+          :message="t('Expenses you pay for or take part in will appear here.')"
         />
         <ol
           v-else
           class="dashboard-expenses stack"
-          aria-label="Latest expenses"
+          :aria-label="t('Latest expenses')"
         >
           <UiExpenseRow
             v-for="expense in data.expenses"
@@ -93,7 +95,7 @@ const { data, pending, error, load } = useDashboard()
           v-if="data.expenses.length"
           to="/debts"
         >
-          View all
+          {{ t('View all') }}
         </UiLink>
       </section>
     </template>

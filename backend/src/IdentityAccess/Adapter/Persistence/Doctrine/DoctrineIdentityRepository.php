@@ -53,6 +53,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             $record->email(),
             $record->passwordHash(),
             $record->isActive(),
+            $record->locale(),
         );
     }
 
@@ -77,6 +78,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             $record->email(),
             $record->passwordHash(),
             $record->isActive(),
+            $record->locale(),
         );
     }
 
@@ -127,6 +129,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             $record->email(),
             $record->isActive(),
             $record->createdAt(),
+            $record->locale(),
         );
     }
 
@@ -140,6 +143,15 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
         $record->rename($name);
     }
 
+    public function changeLocale(string $userId, string $locale): void
+    {
+        $record = $this->entityManager->find(UserRecord::class, $userId);
+        if (!$record instanceof UserRecord) {
+            throw new RuntimeException('Current user was not found.');
+        }
+        $record->changeLocale($locale);
+    }
+
     public function addRegistration(User $user, UserActionToken $token, ?string $pendingInvitationId = null): void
     {
         $record = new UserRecord(
@@ -150,6 +162,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             $user->isActive(),
             $user->createdAt,
             $pendingInvitationId,
+            $user->locale,
         );
         $tokenRecord = new UserActionTokenRecord(
             $token->id,

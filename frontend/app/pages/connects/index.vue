@@ -10,6 +10,8 @@ const invitationFeedback = ref<ReturnType<typeof takeInvitationFeedback>>(null)
 onMounted(() => {
   invitationFeedback.value = takeInvitationFeedback()
 })
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -21,25 +23,25 @@ onMounted(() => {
       id="connects-title"
       variant="heading1"
     >
-      Your connections
+      {{ t('Your connections') }}
     </UiText>
     <UiToast
       v-if="invitationFeedback"
       :tone="invitationFeedback.kind === 'error' ? 'error' : 'info'"
       @dismiss="invitationFeedback = null"
     >
-      <UiText>{{ invitationFeedback.message }}</UiText>
+      <UiText>{{ t(invitationFeedback.message) }}</UiText>
     </UiToast>
     <template v-if="state.status === 'authenticated'">
       <CreateInvitation />
       <AppLoadingState
         v-if="pending"
-        message="Loading connections…"
+        :message="t('Loading connections…')"
       />
       <AppEmptyState
         v-if="loaded && items.length === 0"
-        title="No connections yet"
-        message="Send an invitation to someone you share expenses with."
+        :title="t('No connections yet')"
+        :message="t('Send an invitation to someone you share expenses with.')"
       />
       <ul
         v-if="items.length"
@@ -56,7 +58,7 @@ onMounted(() => {
           </UiLink>
           <ConnectBalance :amount="connect.balanceAmount" />
           <UiText v-if="!connect.otherUser.isActive">
-            This account is inactive.
+            {{ t('This account is inactive.') }}
           </UiText>
         </UiCard>
       </ul>
@@ -66,12 +68,12 @@ onMounted(() => {
         :disabled="pending"
         @click="load(true)"
       >
-        Load more
+        {{ t('Load more') }}
       </UiButton>
       <AppErrorState
         v-if="error"
-        title="Connections could not be loaded"
-        message="Try again to load your connections."
+        :title="t('Connections could not be loaded')"
+        :message="t('Try again to load your connections.')"
         :request-id="error.requestId"
       />
       <UiButton
@@ -81,12 +83,12 @@ onMounted(() => {
         @click="load(items.length
           > 0)"
       >
-        Try again
+        {{ t('Try again') }}
       </UiButton>
     </template>
     <AppLoadingState
       v-else
-      message="Checking your session…"
+      :message="t('Checking your session…')"
     />
   </section>
 </template>

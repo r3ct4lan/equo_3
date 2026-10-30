@@ -30,7 +30,7 @@ final readonly class LoginResult
         return $consumer($this->refreshToken, $this->csrfToken, $this->sessionExpiresAt);
     }
 
-    /** @return array{accessToken: string, expiresIn: int, user: array{id: string, name: string, email: string, isActive: bool}} */
+    /** @return array{accessToken: string, expiresIn: int, user: array{id: string, name: string, email: string, isActive: bool, locale: string}} */
     public function toResponseBody(): array
     {
         return [

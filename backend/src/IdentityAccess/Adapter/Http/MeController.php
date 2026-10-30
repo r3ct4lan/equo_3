@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Adapter\Http;
 
+use App\IdentityAccess\Adapter\Http\Request\ChangeLocaleRequest;
 use App\IdentityAccess\Adapter\Http\Request\RenameCurrentUserRequest;
 use App\IdentityAccess\Adapter\Security\AuthenticatedUser;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
+use App\IdentityAccess\Application\CurrentUser\ChangeLocale;
 use App\IdentityAccess\Application\CurrentUser\RenameCurrentUser;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -18,8 +20,19 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class MeController
 {
-    public function __construct(private Security $security, private RenameCurrentUser $rename)
+    public function __construct(private Security $security, private RenameCurrentUser $rename, private ChangeLocale $changeLocale)
     {
+    }
+
+    #[Route('/api/v1/me/locale', name: 'api_v1_me_locale', methods: ['PATCH'])]
+    public function locale(#[MapRequestPayload(acceptFormat: 'json')] ChangeLocaleRequest $payload): Response
+    {
+        $user = $this->security->getUser();
+        if (!$user instanceof AuthenticatedUser) {
+            throw new UnauthorizedHttpException('Bearer');
+        }
+
+        return new JsonResponse($this->changeLocale->handle($user->getUserIdentifier(), $payload->locale ?? '')->toArray());
     }
 
     #[Route('/api/v1/me', name: 'api_v1_me', methods: ['GET'])]

@@ -1,13 +1,19 @@
 <script setup lang="ts">
+import { formatDateTime } from '~/utils/locale'
 import type { TransferView } from '~/types/finance'
-import { formatEuro } from '~/utils/money'
+import { formatEuro as formatEuroBase } from '~/utils/money'
 import { validTransferEtag } from '~/utils/manual-transfer'
+
+const { locale } = useLocale()
+const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Operation · Equo' })
 const route = useRoute()
 const { state } = useCurrentUser()
 const { item: transfer, etag, pending, error, load } = useFinancialDetail<TransferView>(() => '/v1/transfers/' + encodeURIComponent(String(route.params.id)))
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -19,11 +25,11 @@ const { item: transfer, etag, pending, error, load } = useFinancialDetail<Transf
       id="transfer-title"
       variant="heading1"
     >
-      Operation
+      {{ t('Operation') }}
     </UiText>
     <AppLoadingState
       v-if="pending || state.status === 'unknown'"
-      message="Loading operation…"
+      :message="t('Loading operation…')"
     />
     <UiCard
       v-if="transfer && state.status === 'authenticated'"
@@ -31,37 +37,37 @@ const { item: transfer, etag, pending, error, load } = useFinancialDetail<Transf
       class="stack"
     >
       <UiText variant="heading2">
-        {{ transfer.type === 'DEBT_SHARE' ? 'Expense share' : 'Payment' }} · {{ formatEuro(transfer.amount) }}
+        {{ transfer.type === 'DEBT_SHARE' ? t('Expense share') : t('Payment') }} · {{ formatEuro(transfer.amount) }}
       </UiText>
       <UiText>{{ transfer.sender.name }} → {{ transfer.receiver.name }}</UiText>
       <UiText v-if="!transfer.sender.isActive || !transfer.receiver.isActive">
-        One of these accounts is inactive.
+        {{ t('One of these accounts is inactive.') }}
       </UiText>
       <UiText v-if="transfer.createdBy">
-        Recorded by {{ transfer.createdBy.name }}
+        {{ t('Recorded by') }} {{ transfer.createdBy.name }}
       </UiText>
       <UiNotice
         v-if="transfer.isDeleted"
         tone="warning"
       >
-        Removed · does not affect the balance
+        {{ t('Removed · does not affect the balance') }}
       </UiNotice>
       <UiLink
         v-if="transfer.debtReference?.isAccessible"
         :to="'/debts/' + transfer.debtReference.id"
       >
-        {{ transfer.debtReference.title }}{{ transfer.debtReference.isDeleted ? ' (removed)' : '' }}
+        {{ transfer.debtReference.title }}{{ transfer.debtReference.isDeleted ? t(' (removed)') : '' }}
       </UiLink>
       <UiText v-else-if="transfer.debtReference">
-        Related expense unavailable
+        {{ t('Related expense unavailable') }}
       </UiText>
       <UiLink
         v-if="transfer.relatedTransferId"
         :to="'/transfers/' + transfer.relatedTransferId"
       >
-        Related expense share
+        {{ t('Related expense share') }}
       </UiLink>
-      <time :datetime="transfer.createdAt">{{ new Date(transfer.createdAt).toLocaleString() }}</time>
+      <time :datetime="transfer.createdAt">{{ formatDateTime(new Date(transfer.createdAt), locale) }}</time>
       <ManageManualTransfer
         v-if="transfer.type === 'MANUAL' && transfer.canEdit && transfer.canDelete && transfer.createdBy?.id === state.user?.id && etag && validTransferEtag(etag)"
         :transfer="transfer"
@@ -73,13 +79,13 @@ const { item: transfer, etag, pending, error, load } = useFinancialDetail<Transf
         variant="secondary"
         :to="'/connects/' + transfer.connectId"
       >
-        Connection and history
+        {{ t('Connection and history') }}
       </UiButton>
     </UiCard>
     <AppErrorState
       v-if="error"
       :title="error.code === 'TRANSFER_NOT_AVAILABLE' ? 'Operation unavailable' : 'Operation could not be loaded'"
-      message="Return to your connections or try again."
+      :message="t('Return to your connections or try again.')"
       :request-id="error.requestId"
     />
     <UiButton
@@ -89,10 +95,10 @@ const { item: transfer, etag, pending, error, load } = useFinancialDetail<Transf
 
       @click="load()"
     >
-      Try again
+      {{ t('Try again') }}
     </UiButton>
     <UiLink to="/connects">
-      Your connections
+      {{ t('Your connections') }}
     </UiLink>
   </section>
 </template>

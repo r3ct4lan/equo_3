@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate } from '~/utils/locale'
 import type { InvitationPreview, InvitationAcceptance } from '~/types/connects'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 import { forgetInvitation, invitationErrorPresentation, rememberInvitation, setInvitationAcceptanceFeedback, setInvitationFeedback } from '~/utils/connect-invitations'
@@ -73,6 +74,10 @@ watch(() => props.token, () => {
   if (state.value.status === 'authenticated') void accept()
   else void load()
 })
+
+const { locale } = useLocale()
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -85,17 +90,17 @@ watch(() => props.token, () => {
       id="invitation-title"
       variant="heading1"
     >
-      Connect on Equo
+      {{ t('Connect on Equo') }}
     </UiText>
     <AppLoadingState
       v-if="pending || accepting || state.status === 'unknown'"
-      message="Loading invitation…"
+      :message="t('Loading invitation…')"
     />
     <template v-if="preview">
-      <UiText>{{ preview.inviter.name }} invited you to connect.</UiText>
-      <UiText>Valid until {{ new Date(preview.expiresAt).toLocaleDateString() }}.</UiText>
+      <UiText>{{ preview.inviter.name }} {{ t('invited you to connect.') }}</UiText>
+      <UiText>{{ t('Valid until') }} {{ formatDate(new Date(preview.expiresAt), locale) }}.</UiText>
       <UiText v-if="!preview.canAccept">
-        The sender's account must be active before you can connect.
+        {{ t('The sender\'s account must be active before you can connect.') }}
       </UiText>
       <div
         v-else-if="state.status === 'anonymous'"
@@ -104,13 +109,13 @@ watch(() => props.token, () => {
         <UiButton
           @click="signIn"
         >
-          Sign in to connect
+          {{ t('Sign in to connect') }}
         </UiButton>
         <UiButton
           variant="secondary"
           @click="register"
         >
-          Create an account
+          {{ t('Create an account') }}
         </UiButton>
       </div>
       <UiButton
@@ -118,7 +123,7 @@ watch(() => props.token, () => {
         variant="secondary"
         @click="$auth.retryBootstrap()"
       >
-        Try session again
+        {{ t('Try session again') }}
       </UiButton>
     </template>
     <AppErrorState
@@ -133,14 +138,14 @@ watch(() => props.token, () => {
       :disabled="pending || accepting"
       @click="preview ? accept() : load()"
     >
-      Try again
+      {{ t('Try again') }}
     </UiButton>
     <UiButton
       v-if="state.status === 'authenticated'"
       variant="secondary"
       to="/connects"
     >
-      Your connections
+      {{ t('Your connections') }}
     </UiButton>
   </UiCard>
 </template>

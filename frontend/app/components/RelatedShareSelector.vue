@@ -8,16 +8,18 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
   () => '/v1/connects/' + encodeURIComponent(props.connectId) + '/transfers'
 )
 const shares = computed(() => items.value.filter(item => item.type === 'DEBT_SHARE' && !item.isDeleted))
+
+const { t } = useTranslation()
 </script>
 
 <template>
   <UiField>
-    <label for="related-share">Related expense share (optional)</label>
+    <label for="related-share">{{ t('Related expense share (optional)') }}</label>
     <UiText
       id="related-share-help"
       variant="help"
     >
-      This link is informational. It does not settle an expense or limit the payment amount.
+      {{ t('This link is informational. It does not settle an expense or limit the payment amount.') }}
     </UiText>
     <UiRelatedShareSelect
       v-model="model"
@@ -28,26 +30,26 @@ const shares = computed(() => items.value.filter(item => item.type === 'DEBT_SHA
       v-if="pending"
       variant="help"
     >
-      Loading expense shares…
+      {{ t('Loading expense shares…') }}
     </UiText>
     <UiText
       v-else-if="loaded && !shares.length"
       variant="help"
     >
-      No available expense shares in the loaded history.
+      {{ t('No available expense shares in the loaded history.') }}
     </UiText>
     <UiText
       v-if="error"
       role="alert"
     >
-      Expense shares could not be loaded.
+      {{ t('Expense shares could not be loaded.') }}
     </UiText>
     <UiButton
       v-if="error"
       variant="secondary"
       @click="load(items.length > 0)"
     >
-      Try again
+      {{ t('Try again') }}
     </UiButton>
     <UiButton
       v-if="cursor"
@@ -55,7 +57,7 @@ const shares = computed(() => items.value.filter(item => item.type === 'DEBT_SHA
       :disabled="pending"
       @click="load(true)"
     >
-      Load more operations
+      {{ t('Load more operations') }}
     </UiButton>
   </UiField>
 </template>

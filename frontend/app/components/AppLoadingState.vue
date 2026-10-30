@@ -4,6 +4,7 @@ withDefaults(defineProps<{
 }>(), {
   message: 'Loading…'
 })
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -12,6 +13,6 @@ withDefaults(defineProps<{
     busy
   >
     <UiSpinner />
-    <span>{{ message }}</span>
+    <span>{{ t(message) }}</span>
   </UiNotice>
 </template>

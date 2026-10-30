@@ -90,6 +90,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   activationToken = null
 })
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -99,16 +101,16 @@ onBeforeUnmount(() => {
   >
     <div class="auth-intro stack">
       <UiText variant="eyebrow">
-        Account activation
+        {{ t('Account activation') }}
       </UiText>
       <UiText
         id="activation-title"
         variant="heading1"
       >
-        Activate your account
+        {{ t('Activate your account') }}
       </UiText>
       <UiText variant="lede">
-        Confirm the one-time link to activate your account and sign in on this device. The link value is never displayed or saved.
+        {{ t('Confirm the one-time link to activate your account and sign in on this device. The link value is never displayed or saved.') }}
       </UiText>
     </div>
 
@@ -119,7 +121,7 @@ onBeforeUnmount(() => {
       >
         <AppLoadingState
           v-if="state === 'preparing' || state === 'loading'"
-          message="Activating your account…"
+          :message="t('Activating your account…')"
         />
 
         <div
@@ -129,13 +131,13 @@ onBeforeUnmount(() => {
           tabindex="-1"
         >
           <UiText variant="heading2">
-            Ready to activate
+            {{ t('Ready to activate') }}
           </UiText>
-          <UiText>Opening the link has not activated your account or signed you in.</UiText>
+          <UiText>{{ t('Opening the link has not activated your account or signed you in.') }}</UiText>
           <UiButton
             @click="activateAccount"
           >
-            Activate and sign in
+            {{ t('Activate and sign in') }}
           </UiButton>
         </div>
 
@@ -148,10 +150,10 @@ onBeforeUnmount(() => {
           tabindex="-1"
         >
           <div>
-            <strong>Your account is active</strong>
-            <UiText>You are signed in and can start using Equo.</UiText>
+            <strong>{{ t('Your account is active') }}</strong>
+            <UiText>{{ t('You are signed in and can start using Equo.') }}</UiText>
             <UiLink to="/me">
-              Open your account
+              {{ t('Open your account') }}
             </UiLink>
           </div>
         </UiNotice>

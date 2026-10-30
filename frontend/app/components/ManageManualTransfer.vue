@@ -129,6 +129,8 @@ function reset(): void {
 
 watch(() => [props.transfer.id, props.transfer.version, props.etag, state.value.status, state.value.user?.id], reset)
 onBeforeUnmount(() => ++generation)
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -140,21 +142,21 @@ onBeforeUnmount(() => ++generation)
       id="manage-payment-title"
       variant="heading2"
     >
-      Manage payment
+      {{ t('Manage payment') }}
     </UiText>
     <div v-if="mode === 'idle' && !blocked">
       <UiButton
         ref="editTrigger"
         @click="openEdit"
       >
-        Edit payment
+        {{ t('Edit payment') }}
       </UiButton>
       <UiButton
         ref="deleteTrigger"
         variant="danger"
         @click="openDelete"
       >
-        Remove payment
+        {{ t('Remove payment') }}
       </UiButton>
     </div>
     <UiDialog
@@ -172,7 +174,7 @@ onBeforeUnmount(() => ++generation)
           id="edit-payment-title"
           variant="heading3"
         >
-          Edit payment
+          {{ t('Edit payment') }}
         </UiText>
         <FormErrorSummary
           :message="message"
@@ -183,15 +185,15 @@ onBeforeUnmount(() => ++generation)
           :disabled="pending || blocked"
         >
           <legend class="visually-hidden">
-            Payment changes
+            {{ t('Payment changes') }}
           </legend>
           <UiField>
-            <label for="edit-payment-direction">Who transferred money?</label>
+            <label for="edit-payment-direction">{{ t('Who transferred money?') }}</label>
             <UiSelect
               id="edit-payment-direction"
               ref="directionInput"
               v-model="senderId"
-              label="Who transferred money?"
+              :label="t('Who transferred money?')"
               :options="sides.map(side => ({ value: side.id, label: `${side.name} → ${sides.find(other => other.id !== side.id)?.name}` }))"
               :disabled="pending || blocked"
             />
@@ -201,7 +203,7 @@ onBeforeUnmount(() => ++generation)
             variant="link"
             @click="relatedSelectorOpen = true"
           >
-            {{ relatedShare ? 'Change related expense share' : 'Link an expense share (optional)' }}
+            {{ relatedShare ? t('Change related expense share') : t('Link an expense share (optional)') }}
           </UiButton>
           <RelatedShareSelector
             v-else
@@ -210,7 +212,7 @@ onBeforeUnmount(() => ++generation)
             @selected="amount = euroInput($event.amount)"
           />
           <UiField>
-            <label for="edit-payment-amount">Payment amount in EUR</label>
+            <label for="edit-payment-amount">{{ t('Payment amount in EUR') }}</label>
             <UiInput
               id="edit-payment-amount"
               v-model="amount"
@@ -227,7 +229,7 @@ onBeforeUnmount(() => ++generation)
           :disabled="pending || blocked"
           :pending="pending"
         >
-          {{ pending ? 'Saving changes…' : 'Save payment changes' }}
+          {{ pending ? t('Saving changes…') : t('Save payment changes') }}
         </UiButton>
         <UiButton
           v-if="!blocked"
@@ -235,7 +237,7 @@ onBeforeUnmount(() => ++generation)
           :disabled="pending"
           @click="cancel('edit')"
         >
-          Cancel editing
+          {{ t('Cancel editing') }}
         </UiButton>
         <UiButton
           v-if="blocked"
@@ -243,7 +245,7 @@ onBeforeUnmount(() => ++generation)
           :disabled="pending"
           @click="emit('reload')"
         >
-          Reload payment
+          {{ t('Reload payment') }}
         </UiButton>
       </UiCard>
     </UiDialog>
@@ -264,10 +266,10 @@ onBeforeUnmount(() => ++generation)
           id="remove-payment-title"
           variant="heading3"
         >
-          Remove this payment permanently?
+          {{ t('Remove this payment permanently?') }}
         </UiText>
         <UiText id="remove-payment-description">
-          This cannot be undone. The payment will remain in history but will stop affecting the balance.
+          {{ t('This cannot be undone. The payment will remain in history but will stop affecting the balance.') }}
         </UiText>
         <FormErrorSummary
           :message="message"
@@ -280,7 +282,7 @@ onBeforeUnmount(() => ++generation)
           :pending="pending"
           @click="remove"
         >
-          {{ pending ? 'Removing payment…' : 'Yes, remove payment' }}
+          {{ pending ? t('Removing payment…') : t('Yes, remove payment') }}
         </UiButton>
         <UiButton
           v-if="!blocked"
@@ -288,7 +290,7 @@ onBeforeUnmount(() => ++generation)
           :disabled="pending"
           @click="cancel('delete')"
         >
-          Keep payment
+          {{ t('Keep payment') }}
         </UiButton>
         <UiButton
           v-if="blocked"
@@ -296,7 +298,7 @@ onBeforeUnmount(() => ++generation)
           :disabled="pending"
           @click="emit('reload')"
         >
-          Reload payment
+          {{ t('Reload payment') }}
         </UiButton>
       </UiCard>
     </UiDialog>
@@ -306,7 +308,7 @@ onBeforeUnmount(() => ++generation)
       :disabled="pending"
       @click="emit('reload')"
     >
-      Reload payment
+      {{ t('Reload payment') }}
     </UiButton>
   </section>
 </template>

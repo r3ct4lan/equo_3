@@ -127,6 +127,8 @@ Structural media query breakpoints: 36rem / 52rem. */
   --focus-width: 0.1875rem;
   --control-height: calc(var(--spacing) * 9);
   --select-person-height: 4rem;
+  --language-select-width: 5.5rem;
+  --language-menu-width: 9rem;
   --control-check-size: 1.25rem;
   --header-height: 4rem;
   --viewport-min: 20rem;

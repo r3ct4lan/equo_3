@@ -176,6 +176,26 @@ final class EmailDeliveryFlowTest extends KernelTestCase
         self::assertNull($outbox->encryptedPayload());
     }
 
+    #[DataProvider('russianEmailProvider')]
+    public function testConsumerUsesQueuedLocale(UserActionTokenPurpose $purpose, string $template, string $subject): void
+    {
+        $outbox = $this->fixture(EmailDeliveryStatus::Published, purpose: $purpose, template: $template, locale: 'ru');
+        $transport = $this->createMock(TransportInterface::class);
+        $transport->expects(self::once())->method('send')->with(self::callback(static function (Email $email) use ($subject): bool {
+            return $email->getSubject() === $subject;
+        }));
+        $handler = new SendUserActionEmailHandler($this->entityManager, self::getContainer()->get(TokenDeliveryQuery::class), new PayloadCipher(self::PAYLOAD_KEY), $transport, 'http://localhost', 'no-reply@equo.local');
+        $handler(new SendUserActionEmail($outbox->id()));
+    }
+
+    /** @return iterable<array{UserActionTokenPurpose, string, string}> */
+    public static function russianEmailProvider(): iterable
+    {
+        yield [UserActionTokenPurpose::ActivateAccount, 'activate-account', 'Активируйте аккаунт Equo'];
+        yield [UserActionTokenPurpose::ResetPassword, 'reset-password', 'Сброс пароля Equo'];
+        yield [UserActionTokenPurpose::ChangeEmail, 'change-email', 'Подтвердите новый адрес электронной почты Equo'];
+    }
+
     public function testConsumerSkipsAlreadyFailedDeliveryWithoutCallingMailer(): void
     {
         $outbox = $this->fixture(EmailDeliveryStatus::Failed);
@@ -451,6 +471,7 @@ final class EmailDeliveryFlowTest extends KernelTestCase
         UserActionTokenPurpose $purpose = UserActionTokenPurpose::ActivateAccount,
         string $template = 'activate-account',
         bool $used = false,
+        ?string $locale = null,
     ): EmailDeliveryOutboxRecord {
         $now = new DateTimeImmutable('now');
         $suffix = bin2hex(random_bytes(6));
@@ -479,7 +500,7 @@ final class EmailDeliveryFlowTest extends KernelTestCase
             $token->id(),
             $user->email(),
             $template,
-            $terminal ? null : (new PayloadCipher(self::PAYLOAD_KEY))->encrypt(['token' => 'v1.public-token']),
+            $terminal ? null : (new PayloadCipher(self::PAYLOAD_KEY))->encrypt(['token' => 'v1.public-token', ...($locale ? ['locale' => $locale] : [])]),
             $status,
             $now,
             $now,

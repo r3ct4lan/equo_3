@@ -2,9 +2,12 @@
 import type { ConnectView } from '~/types/connects'
 import type { CreateManualTransferBody, TransferView } from '~/types/finance'
 import { manualTransferCommand, manualTransferPreview } from '~/utils/manual-transfer'
-import { formatEuro } from '~/utils/money'
+import { formatEuro as formatEuroBase } from '~/utils/money'
 import { euroInput } from '~/utils/debt-update'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
+
+const { locale } = useLocale()
+const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 const props = defineProps<{ connect: ConnectView }>()
 const emit = defineEmits<{ created: [transfer: TransferView], reload: [] }>()
@@ -75,6 +78,8 @@ function clear(): void {
 }
 watch(() => [state.value.status, state.value.user?.id, props.connect.id], clear)
 onBeforeUnmount(clear)
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -88,9 +93,9 @@ onBeforeUnmount(clear)
       id="payment-title"
       variant="heading2"
     >
-      Record a payment
+      {{ t('Record a payment') }}
     </UiText>
-    <UiText>Record money already transferred between you. Either person can record either direction, including an overpayment.</UiText>
+    <UiText>{{ t('Record money already transferred between you. Either person can record either direction, including an overpayment.') }}</UiText>
     <FormErrorSummary
       :message="message"
       :request-id="error?.requestId"
@@ -100,15 +105,15 @@ onBeforeUnmount(clear)
       :disabled="pending || uncertain || !connect.canCreateTransfer"
     >
       <legend class="visually-hidden">
-        Payment details
+        {{ t('Payment details') }}
       </legend>
       <UiField>
-        <label for="payment-direction">Who transferred money?</label>
+        <label for="payment-direction">{{ t('Who transferred money?') }}</label>
         <UiSelect
           id="payment-direction"
           v-model="direction"
-          label="Who transferred money?"
-          :options="[{ value: 'you', label: `You → ${connect.otherUser.name}` }, { value: 'other', label: `${connect.otherUser.name} → You` }]"
+          :label="t('Who transferred money?')"
+          :options="[{ value: 'you', label: `${t('You')} → ${connect.otherUser.name}` }, { value: 'other', label: `${connect.otherUser.name} → ${t('You')}` }]"
           :disabled="pending || uncertain || !connect.canCreateTransfer"
           required
         />
@@ -119,7 +124,7 @@ onBeforeUnmount(clear)
         @selected="amount = euroInput($event.amount)"
       />
       <UiField>
-        <label for="payment-amount">Payment amount in EUR</label>
+        <label for="payment-amount">{{ t('Payment amount in EUR') }}</label>
         <UiInput
           id="payment-amount"
           v-model="amount"
@@ -135,16 +140,16 @@ onBeforeUnmount(clear)
           id="payment-amount-help"
           variant="help"
         >
-          Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.
+          {{ t('Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.') }}
         </UiText>
       </UiField>
       <UiText
         v-if="preview !== null"
         variant="help"
       >
-        Expected balance: {{ formatEuro(preview) }}.
-        {{ preview > 0 ? 'They would owe you.' : preview < 0 ? 'You would owe them.' : 'You would be settled up.' }}
-        Your balance and operations will be refreshed after the payment is confirmed.
+        {{ t('Expected balance:') }} {{ formatEuro(preview) }}.
+        {{ preview > 0 ? t('They would owe you.') : preview < 0 ? t('You would owe them.') : t('You would be settled up.') }}
+        {{ t('Your balance and operations will be refreshed after the payment is confirmed.') }}
       </UiText>
     </fieldset>
     <UiButton
@@ -152,7 +157,7 @@ onBeforeUnmount(clear)
       :disabled="pending || !connect.canCreateTransfer"
       :pending="pending"
     >
-      {{ pending ? 'Saving payment…' : uncertain ? 'Retry same payment' : 'Record payment' }}
+      {{ pending ? t('Saving payment…') : uncertain ? t('Retry same payment') : t('Record payment') }}
     </UiButton>
     <UiButton
       v-if="error?.code === 'INACTIVE_USER' && !uncertain"
@@ -160,7 +165,7 @@ onBeforeUnmount(clear)
       :disabled="pending"
       @click="emit('reload')"
     >
-      Reload connection
+      {{ t('Reload connection') }}
     </UiButton>
   </UiCard>
 </template>

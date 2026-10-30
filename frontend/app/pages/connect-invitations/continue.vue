@@ -6,6 +6,8 @@ const token = ref<string | null>(null)
 onMounted(() => {
   token.value = recalledInvitation()
 })
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -15,7 +17,7 @@ onMounted(() => {
   />
   <AppEmptyState
     v-else
-    title="Open your invitation again"
-    message="Return to the invitation link to continue connecting."
+    :title="t('Open your invitation again')"
+    :message="t('Return to the invitation link to continue connecting.')"
   />
 </template>

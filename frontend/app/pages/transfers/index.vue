@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { formatDateTime } from '~/utils/locale'
 import type { TransferView } from '~/types/finance'
-import { formatEuro } from '~/utils/money'
+import { formatEuro as formatEuroBase } from '~/utils/money'
+
+const { locale } = useLocale()
+const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Transfers · Equo' })
@@ -11,6 +15,8 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
   () => '/v1/transfers',
   () => ({ direction: direction.value })
 )
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -23,42 +29,42 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
         id="transfers-title"
         variant="heading1"
       >
-        Transfers
+        {{ t('Transfers') }}
       </UiText>
-      <UiText>Payments and expense shares across your connections.</UiText>
+      <UiText>{{ t('Payments and expense shares across your connections.') }}</UiText>
     </div>
     <nav
       class="form-actions"
-      aria-label="Transfer direction"
+      :aria-label="t('Transfer direction')"
     >
       <UiButton
         :variant="direction === 'incoming' ? 'primary' : 'secondary'"
         :to="{ path: '/transfers', query: { direction: 'incoming' } }"
         :aria-current="direction === 'incoming' ? 'page' : undefined"
       >
-        Incoming
+        {{ t('Incoming') }}
       </UiButton>
       <UiButton
         :variant="direction === 'outgoing' ? 'primary' : 'secondary'"
         :to="{ path: '/transfers', query: { direction: 'outgoing' } }"
         :aria-current="direction === 'outgoing' ? 'page' : undefined"
       >
-        Outgoing
+        {{ t('Outgoing') }}
       </UiButton>
     </nav>
     <AppLoadingState
       v-if="pending && !loaded"
-      message="Loading transfers…"
+      :message="t('Loading transfers…')"
     />
     <AppEmptyState
       v-if="loaded && !items.length && !error"
-      title="No transfers yet"
-      message="Transfers in this direction will appear here."
+      :title="t('No transfers yet')"
+      :message="t('Transfers in this direction will appear here.')"
     />
     <ul
       v-if="items.length"
       class="stack"
-      aria-label="Transfers"
+      :aria-label="t('Transfers')"
     >
       <UiCard
         v-for="transfer in items"
@@ -67,16 +73,16 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
         class="stack"
       >
         <UiLink :to="'/transfers/' + transfer.id">
-          {{ transfer.type === 'DEBT_SHARE' ? 'Expense share' : 'Payment' }} · {{ formatEuro(transfer.amount) }}
+          {{ transfer.type === 'DEBT_SHARE' ? t('Expense share') : t('Payment') }} · {{ formatEuro(transfer.amount) }}
         </UiLink>
         <UiText>{{ transfer.sender.name }} → {{ transfer.receiver.name }}</UiText>
         <UiNotice
           v-if="transfer.isDeleted"
           tone="warning"
         >
-          Removed · does not affect the balance
+          {{ t('Removed · does not affect the balance') }}
         </UiNotice>
-        <time :datetime="transfer.createdAt">{{ new Date(transfer.createdAt).toLocaleString() }}</time>
+        <time :datetime="transfer.createdAt">{{ formatDateTime(new Date(transfer.createdAt), locale) }}</time>
       </UiCard>
     </ul>
     <UiButton
@@ -85,14 +91,14 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
       :disabled="pending"
       @click="load(true)"
     >
-      Load more transfers
+      {{ t('Load more transfers') }}
     </UiButton>
     <AppErrorState
       v-if="error"
-      title="Transfers could not be loaded"
-      message="Try again to load the transfers."
+      :title="t('Transfers could not be loaded')"
+      :message="t('Try again to load the transfers.')"
       :request-id="error.requestId"
-      retry-label="Try again"
+      :retry-label="t('Try again')"
       @retry="load(items.length > 0)"
     />
   </section>

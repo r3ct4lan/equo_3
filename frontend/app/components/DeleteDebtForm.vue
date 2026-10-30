@@ -63,6 +63,8 @@ async function remove(): Promise<void> {
     pending.value = false
   }
 }
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -74,16 +76,16 @@ async function remove(): Promise<void> {
       id="remove-expense-title"
       variant="heading2"
     >
-      Remove expense
+      {{ t('Remove expense') }}
     </UiText>
-    <UiText>This removes its automatic shares from every balance. Payment history remains available.</UiText>
+    <UiText>{{ t('This removes its automatic shares from every balance. Payment history remains available.') }}</UiText>
     <UiButton
       v-if="!confirming && !blocked"
       ref="trigger"
       variant="danger"
       @click="openConfirmation"
     >
-      Remove expense
+      {{ t('Remove expense') }}
     </UiButton>
     <UiDialog
       v-if="confirming"
@@ -102,10 +104,10 @@ async function remove(): Promise<void> {
           id="remove-confirm-title"
           variant="heading3"
         >
-          Remove this expense permanently?
+          {{ t('Remove this expense permanently?') }}
         </UiText>
         <UiText id="remove-confirm-description">
-          This cannot be undone. The saved expense and participant list will remain read-only.
+          {{ t('This cannot be undone. The saved expense and participant list will remain read-only.') }}
         </UiText>
         <FormErrorSummary
           :message="message"
@@ -118,7 +120,7 @@ async function remove(): Promise<void> {
           :pending="pending"
           @click="remove"
         >
-          {{ pending ? 'Removing expense…' : 'Yes, remove expense' }}
+          {{ pending ? t('Removing expense…') : t('Yes, remove expense') }}
         </UiButton>
         <UiButton
           v-if="!blocked"
@@ -126,7 +128,7 @@ async function remove(): Promise<void> {
           :disabled="pending"
           @click="cancel"
         >
-          Keep expense
+          {{ t('Keep expense') }}
         </UiButton>
         <UiButton
           v-if="blocked"
@@ -134,7 +136,7 @@ async function remove(): Promise<void> {
           :disabled="pending"
           @click="emit('reload')"
         >
-          Reload expense
+          {{ t('Reload expense') }}
         </UiButton>
       </UiCard>
     </UiDialog>
@@ -144,7 +146,7 @@ async function remove(): Promise<void> {
       :disabled="pending"
       @click="emit('reload')"
     >
-      Reload expense
+      {{ t('Reload expense') }}
     </UiButton>
   </section>
 </template>

@@ -18,6 +18,8 @@ watch(() => props.message, async (message) => {
   await nextTick()
   summary.value?.focus()
 })
+
+const { t, tError } = useTranslation()
 </script>
 
 <template>
@@ -29,13 +31,13 @@ watch(() => props.message, async (message) => {
     aria-live="assertive"
     tabindex="-1"
   >
-    <strong>{{ title ?? 'Check the form' }}</strong>
-    <UiText>{{ message }}</UiText>
+    <strong>{{ tError(title ?? 'Check the form') }}</strong>
+    <UiText>{{ tError(message) }}</UiText>
     <UiText
       v-if="safeRequestId(requestId)"
       class="support-reference"
     >
-      Support reference: <code>{{ safeRequestId(requestId) }}</code>
+      {{ t('Support reference:') }} <code>{{ safeRequestId(requestId) }}</code>
     </UiText>
   </div>
 </template>

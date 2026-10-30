@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { formatDate } from '~/utils/locale'
 import type { LinkTo } from '~/types/ui'
-import { formatEuro } from '~/utils/money'
+import { formatEuro as formatEuroBase } from '~/utils/money'
+
+const { locale } = useLocale()
+const { t } = useTranslation()
+const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 defineProps<{ to: LinkTo, title: string, amount: number, payerName: string, createdAt: string }>()
-const formatter = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' })
 </script>
 
 <template>
@@ -21,7 +25,7 @@ const formatter = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' })
       <time
         class="ui-caption"
         :datetime="createdAt"
-      >{{ formatter.format(new Date(createdAt)) }}</time>
+      >{{ formatDate(new Date(createdAt), locale) }}</time>
     </div>
     <div class="dashboard-expense-cost">
       <strong>{{ formatEuro(amount) }}</strong>
@@ -29,7 +33,7 @@ const formatter = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' })
         as="span"
         variant="caption"
       >
-        Paid by {{ payerName }}
+        {{ t('Paid by') }} {{ payerName }}
       </UiText>
     </div>
   </UiCard>
