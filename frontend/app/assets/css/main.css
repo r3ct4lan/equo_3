@@ -249,16 +249,8 @@ nav {
   top: var(--space-8);
 }
 
-.stack {
-  margin-bottom: var(--space-4);
-}
-
 .stack > * + * {
   margin-top: var(--space-4);
-}
-
-.stack--large > * + * {
-  margin-top: var(--space-section);
 }
 
 .state-message {
@@ -270,7 +262,6 @@ nav {
   border-radius: var(--radius-small);
 }
 
-.state-message p,
 .form-error-summary p {
   margin: var(--space-1) 0 0;
 }
@@ -470,6 +461,7 @@ nav {
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-small);
   background: var(--color-surface);
+  color: var(--color-text);
   box-shadow: var(--shadow-toast);
 }
 
@@ -479,6 +471,19 @@ nav {
   padding-right: var(--compact-action-min-height);
   overflow-wrap: anywhere;
 }
+
+.ui-toast__icon {
+  width: var(--space-5);
+  height: var(--space-5);
+  flex: 0 0 auto;
+  margin-top: var(--space-1);
+}
+
+.state-message--info .ui-toast__icon { color: var(--color-primary); }
+.state-message--success .ui-toast__icon { color: var(--color-success); }
+.state-message--error .ui-toast__icon { color: var(--color-error); }
+.state-message--neutral .ui-toast__icon { color: var(--color-text); }
+.state-message--warning .ui-toast__icon { color: var(--color-warning); }
 
 .ui-toast__close {
   position: absolute;

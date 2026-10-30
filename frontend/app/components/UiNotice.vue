@@ -15,11 +15,13 @@ defineExpose({ focus: () => root.value?.focus() })
     :role="role"
     :aria-busy="busy || undefined"
   >
-    <span
-      v-if="tone === 'success'"
-      class="status-card__marker"
-      aria-hidden="true"
-    />
+    <slot name="marker">
+      <span
+        v-if="tone === 'success'"
+        class="status-card__marker"
+        aria-hidden="true"
+      />
+    </slot>
     <slot />
   </div>
 </template>

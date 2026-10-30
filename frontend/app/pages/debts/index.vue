@@ -52,7 +52,7 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<DebtSum
           <UiText>{{ debt.participantCount }} people · {{ formatEuro(debt.shareAmount) }} each</UiText>
           <UiNotice
             v-if="debt.isDeleted"
-            tone="info"
+            tone="warning"
           >
             Removed · does not affect the balance
           </UiNotice>

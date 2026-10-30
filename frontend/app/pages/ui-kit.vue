@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DialogTarget, FocusTarget } from '~/types/ui'
+import type { DialogTarget, FocusTarget, NoticeTone } from '~/types/ui'
 import type { BriefUser, TransferView } from '~/types/finance'
 import themeSource from '~/assets/css/vars.css?raw'
 import preset from '../../components.json'
@@ -40,7 +40,8 @@ watch(selectedPeople, (people) => {
 })
 const formDisabled = ref(false)
 const submitted = ref(false)
-const showToast = ref(false)
+const noticeTones: NoticeTone[] = ['info', 'success', 'error', 'neutral', 'warning']
+const toastTone = ref<NoticeTone | null>(null)
 const dialog = useTemplateRef<DialogTarget>('dialog')
 const trigger = useTemplateRef<FocusTarget>('trigger')
 const confirmDialog = useTemplateRef<DialogTarget>('confirmDialog')
@@ -569,7 +570,7 @@ async function closeDialog(): Promise<void> {
                 Payment · €12.50
               </UiLink>
               <UiText>Alex → Sam</UiText>
-              <UiNotice tone="neutral">
+              <UiNotice tone="warning">
                 Removed · does not affect the balance
               </UiNotice>
               <time datetime="2026-10-25T12:00:00Z">25 Oct 2026</time>
@@ -598,7 +599,7 @@ async function closeDialog(): Promise<void> {
             message="Try again to load your expenses."
             request-id="request-123"
             retry-label="Try again"
-            @retry="showToast = true"
+            @retry="toastTone = 'info'"
           />
           <UiNotice tone="success">
             <div><strong>Changes saved</strong><UiText>Your details are up to date.</UiText></div>
@@ -635,10 +636,12 @@ async function closeDialog(): Promise<void> {
                 Open example dialog
               </UiButton>
               <UiButton
+                v-for="tone in noticeTones"
+                :key="tone"
                 variant="secondary"
-                @click="showToast = true"
+                @click="toastTone = tone"
               >
-                Show example toast
+                Show {{ tone }} toast
               </UiButton>
               <UiButton
                 ref="confirmTrigger"
@@ -731,10 +734,11 @@ async function closeDialog(): Promise<void> {
             </UiCard>
           </UiDialog>
           <UiToast
-            v-if="showToast"
-            @dismiss="showToast = false"
+            v-if="toastTone"
+            :tone="toastTone"
+            @dismiss="toastTone = null"
           >
-            <UiText>Example notification. No request was sent.</UiText>
+            <UiText>Example {{ toastTone }} notification. No request was sent.</UiText>
           </UiToast>
           <UiMobileMenu
             id="kit-mobile-navigation"
