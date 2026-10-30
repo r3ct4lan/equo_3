@@ -188,6 +188,7 @@ final class EmailDeliveryFlowTest extends KernelTestCase
         $handler(new SendUserActionEmail($outbox->id()));
     }
 
+    /** @return iterable<array{UserActionTokenPurpose, string, string}> */
     public static function russianEmailProvider(): iterable
     {
         yield [UserActionTokenPurpose::ActivateAccount, 'activate-account', 'Активируйте аккаунт Equo'];
