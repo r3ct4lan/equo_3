@@ -28,6 +28,16 @@ describe('login page', () => {
     useCurrentUser().reset()
   })
 
+  it('redirects an already authenticated user to the home page', async () => {
+    authMock.bootstrap.mockImplementation(async () => {
+      useCurrentUser().setAuthenticated({ id: '1', name: 'Alex', email: 'alex@example.test', isActive: true, createdAt: '2026-01-01T00:00:00Z' })
+    })
+    const wrapper = await mountSuspended(LoginPage, { route: '/login' })
+    await flushPromises()
+    expect(navigateMock).toHaveBeenCalledWith('/')
+    wrapper.unmount()
+  })
+
   it('renders accessible fields and client validation without calling auth', async () => {
     const wrapper = await mountSuspended(LoginPage, { route: '/login' })
     await flushPromises()

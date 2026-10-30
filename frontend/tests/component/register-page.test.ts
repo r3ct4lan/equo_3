@@ -5,15 +5,20 @@ import RegisterPage from '../../app/pages/register.vue'
 import { ApiClientError } from '../../app/utils/api-error'
 import { forgetInvitation, rememberInvitation } from '../../app/utils/connect-invitations'
 
-const { apiMock } = vi.hoisted(() => ({
-  apiMock: vi.fn()
+const { apiMock, authMock, navigateMock } = vi.hoisted(() => ({
+  apiMock: vi.fn(),
+  authMock: { bootstrap: vi.fn() },
+  navigateMock: vi.fn()
 }))
 
 mockNuxtImport('useNuxtApp', original => () => new Proxy(original(), {
   get(target, property, receiver) {
-    return property === '$api' ? apiMock : Reflect.get(target, property, receiver)
+    if (property === '$api') return apiMock
+    if (property === '$auth') return authMock
+    return Reflect.get(target, property, receiver)
   }
 }))
+mockNuxtImport('navigateTo', () => navigateMock)
 
 const validResponse = {
   user: {
@@ -35,7 +40,20 @@ async function validForm(wrapper: Awaited<ReturnType<typeof mountSuspended>>): P
 describe('registration page', () => {
   beforeEach(() => {
     apiMock.mockReset()
+    authMock.bootstrap.mockReset().mockResolvedValue(undefined)
+    navigateMock.mockReset()
+    useCurrentUser().reset()
     forgetInvitation()
+  })
+
+  it('redirects an authenticated user after restoring the session', async () => {
+    authMock.bootstrap.mockImplementation(async () => {
+      useCurrentUser().setAuthenticated({ id: '1', name: 'Alex', email: 'alex@example.test', isActive: true, createdAt: '2026-01-01T00:00:00Z' })
+    })
+    const wrapper = await mountSuspended(RegisterPage, { route: '/register' })
+    await flushPromises()
+    expect(navigateMock).toHaveBeenCalledWith('/')
+    wrapper.unmount()
   })
 
   it('binds an opened invitation to the new account without putting it in the page', async () => {

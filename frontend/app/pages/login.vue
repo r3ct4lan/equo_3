@@ -100,7 +100,7 @@ async function retryLogin(): Promise<void> {
 onMounted(async () => {
   await $auth.bootstrap()
   if (currentUser.state.value.status === 'authenticated') {
-    await navigateTo(redirectTarget.value)
+    await navigateTo(safeRedirectPath(route.query.redirect, '/'))
   }
 })
 

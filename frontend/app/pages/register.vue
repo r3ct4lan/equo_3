@@ -15,7 +15,15 @@ useHead({
   title: 'Create an account · Equo'
 })
 
-const { $api } = useNuxtApp()
+const { $api, $auth } = useNuxtApp()
+const currentUser = useCurrentUser()
+
+onMounted(async () => {
+  await $auth.bootstrap()
+  if (currentUser.state.value.status === 'authenticated') {
+    await navigateTo('/')
+  }
+})
 const { locale } = useLocale()
 const {
   values,
