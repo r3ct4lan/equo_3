@@ -102,6 +102,10 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
         $body = $this->jsonBody();
         self::assertSame('ru', $body['user']['locale']);
         self::assertSame('ru', $this->connection->fetchOne('SELECT locale FROM app_user WHERE id = ?', [$body['user']['id']]));
+        $outbox = $this->entityManager->getRepository(EmailDeliveryOutboxRecord::class)->findOneBy([]);
+        self::assertInstanceOf(EmailDeliveryOutboxRecord::class, $outbox);
+        self::assertNotNull($outbox->encryptedPayload());
+        self::assertSame('ru', self::getContainer()->get(PayloadCipher::class)->decrypt($outbox->encryptedPayload())['locale']);
         $this->jsonRequest('POST', '/api/v1/auth/register', $payload, $key);
         self::assertSame('ru', $this->jsonBody()['user']['locale']);
     }

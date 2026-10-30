@@ -139,6 +139,7 @@ final class MeHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
         self::assertSame('ru', $this->jsonBody()['locale']);
         self::assertSame('ru', $this->me($login['accessToken'])['locale']);
+        self::assertSame('ru', $this->login('locale@example.test')['user']['locale']);
 
         $this->client->request('PATCH', '/api/v1/me/locale', server: $server, content: '{"locale":"fr"}');
         self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);

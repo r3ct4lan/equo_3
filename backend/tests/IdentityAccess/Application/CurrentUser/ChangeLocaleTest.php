@@ -18,11 +18,11 @@ final class ChangeLocaleTest extends TestCase
     public function testChangesLocaleForActiveUser(): void
     {
         $repository = $this->createMock(CurrentUserProfileRepositoryPort::class);
-        $repository->method('currentUserForUpdate')->with('user')->willReturn(new CurrentUserState('user', true));
+        $repository->expects(self::once())->method('currentUserForUpdate')->with('user')->willReturn(new CurrentUserState('user', true));
         $repository->expects(self::once())->method('changeLocale')->with('user', 'ru');
         $profile = new UserView('user', 'Name', 'a@example.test', true, new DateTimeImmutable(), 'ru');
         $repository->method('currentUserProfile')->willReturn($profile);
-        $transaction = $this->createMock(TransactionPort::class);
+        $transaction = $this->createStub(TransactionPort::class);
         $transaction->method('run')->willReturnCallback(static fn (callable $callback) => $callback());
 
         self::assertSame('ru', (new ChangeLocale($repository, $transaction))->handle('user', 'ru')->locale);
@@ -30,7 +30,7 @@ final class ChangeLocaleTest extends TestCase
 
     public function testRejectsUnsupportedLocale(): void
     {
-        $repository = $this->createMock(CurrentUserProfileRepositoryPort::class);
+        $repository = $this->createStub(CurrentUserProfileRepositoryPort::class);
         $transaction = $this->createMock(TransactionPort::class);
         $transaction->expects(self::never())->method('run');
         $this->expectException(ApplicationFailure::class);
@@ -42,7 +42,7 @@ final class ChangeLocaleTest extends TestCase
         $repository = $this->createMock(CurrentUserProfileRepositoryPort::class);
         $repository->method('currentUserForUpdate')->willReturn(new CurrentUserState('user', false));
         $repository->expects(self::never())->method('changeLocale');
-        $transaction = $this->createMock(TransactionPort::class);
+        $transaction = $this->createStub(TransactionPort::class);
         $transaction->method('run')->willReturnCallback(static fn (callable $callback) => $callback());
         $this->expectException(ApplicationFailure::class);
         (new ChangeLocale($repository, $transaction))->handle('user', 'ru');
