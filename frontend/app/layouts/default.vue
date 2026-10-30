@@ -72,6 +72,7 @@
           :label="locale === 'ru' ? 'Язык' : 'Language'"
           :options="languageOptions"
           :model-value="locale"
+          :selected-label="locale.toUpperCase()"
           @update:model-value="changeLanguage"
         />
         <UiThemeToggle class="app-header__theme" />

@@ -140,6 +140,8 @@ p {
 .mobile-menu__theme { margin-top: auto; }
 
 .app-header__navigation { order: 1; }
+.app-header__language { order: 1; width: var(--language-select-width); flex: 0 0 var(--language-select-width); margin-left: auto; }
+.app-header__language .multiselect__content-wrapper { right: 0; min-width: var(--language-menu-width); }
 .app-header__theme { order: 2; }
 
 .brand {

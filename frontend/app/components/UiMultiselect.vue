@@ -15,7 +15,8 @@ const props = withDefaults(defineProps<{
   required?: boolean
   placeholder?: string
   emptyText?: string
-}>(), { id: undefined, multiple: false, detailed: false, internalSearch: true, loading: false, disabled: false, required: false, placeholder: 'Type to search', emptyText: 'No options found' })
+  selectedLabel?: string
+}>(), { id: undefined, multiple: false, detailed: false, internalSearch: true, loading: false, disabled: false, required: false, placeholder: 'Type to search', emptyText: 'No options found', selectedLabel: undefined })
 const model = defineModel<SelectOption | SelectOption[] | null>({ default: null })
 const emit = defineEmits<{ open: [], close: [], search: [query: string] }>()
 const attrs = useAttrs()
@@ -133,6 +134,9 @@ defineExpose({ focus: () => root.value?.querySelector('input')?.focus(), close }
       @close="setOpen(false)"
       @search-change="emit('search', $event)"
     >
+      <template #singleLabel="{ option }">
+        {{ selectedLabel ?? option.label }}
+      </template>
       <template #option="{ option }">
         <span
           :data-value="option.value"
