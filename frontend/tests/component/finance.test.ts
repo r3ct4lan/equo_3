@@ -8,6 +8,8 @@ import {
   beforeEach, describe, expect, it, vi
 } from 'vitest'
 import CreateDebtForm from '../../app/components/CreateDebtForm.vue'
+import NewDebtPage from '../../app/pages/debts/new.vue'
+import ConnectPage from '../../app/pages/connects/[id].vue'
 import DebtsPage from '../../app/pages/debts/index.vue'
 import ConnectsPage from '../../app/pages/connects/index.vue'
 import DebtCard from '../../app/pages/debts/[id]/index.vue'
@@ -174,6 +176,53 @@ describe('financial journey components', () => {
     await wrapper.findAll('.people-picker')[0]!.get('[data-value="self"]').trigger('click')
     await wrapper.get('form').trigger('submit')
     expect(auth.protectedRequest.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(0)
+    wrapper.unmount()
+  })
+  it('allows the author to pay without sharing and keeps them available as payer', async () => {
+    const wrapper = await mountSuspended(CreateDebtForm)
+    signedIn()
+    await flushPromises()
+    await fill(wrapper)
+    await wrapper.findAll('.people-picker')[0]!.get('[data-value="self"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.people-picker')[1]!.get('.multiselect__single').text()).toBe('You')
+    expect(wrapper.text()).toContain('Each share: €10.01')
+    await wrapper.findAll('input[role="combobox"]')[1]!.trigger('focus')
+    await wrapper.findAll('.people-picker')[1]!.get('[data-value="other"]').trigger('click')
+    await wrapper.findAll('input[role="combobox"]')[1]!.trigger('focus')
+    await wrapper.findAll('.people-picker')[1]!.get('[data-value="self"]').trigger('click')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    const command = auth.protectedRequest.mock.calls.find(call => call[1]?.method === 'POST')![1].body
+    expect(command).toMatchObject({ payerId: 'self', participantIds: ['other'], includePayerInSplit: false })
+    wrapper.unmount()
+  })
+  it('prefills the connection participant when opening a new expense from a connection', async () => {
+    auth.protectedRequest.mockImplementation(async (path: string) => path === '/v1/connects/connect'
+      ? { id: 'connect', otherUser: other, canCreateDebt: true, canCreateTransfer: false, balanceAmount: 0, createdAt: debt.createdAt }
+      : path === '/v1/connects/connect/transfers' ? page([]) : options(path))
+    const connection = await mountSuspended(ConnectPage, { route: '/connects/connect' })
+    await flushPromises()
+    expect(connection.get('a[href="/debts/new?connect=connect"]').text()).toContain('New expense')
+    connection.unmount()
+    const wrapper = await mountSuspended(NewDebtPage, { route: '/debts/new?connect=connect' })
+    await flushPromises()
+    const pickers = wrapper.findAll('.people-picker')
+    expect(pickers[0]!.get('.multiselect__tag').text()).toContain('Boris')
+    expect(pickers[0]!.text()).not.toContain('You')
+    expect(pickers[1]!.get('.multiselect__single').text()).toBe('You')
+    await wrapper.get('#debt-title').setValue('Dinner')
+    await wrapper.get('#debt-amount').setValue('10.01')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(auth.protectedRequest.mock.calls.find(call => call[1]?.method === 'POST')![1].body)
+      .toMatchObject({ payerId: 'self', participantIds: ['other'], includePayerInSplit: false })
+    wrapper.unmount()
+  })
+  it('prefills only the author when opening a new expense without a connection', async () => {
+    const wrapper = await mountSuspended(NewDebtPage, { route: '/debts/new' })
+    await flushPromises()
+    expect(wrapper.findAll('.people-picker')[0]!.get('.multiselect__tag').text()).toContain('You')
     wrapper.unmount()
   })
   it('clears the payer when they are removed from the selected participants', async () => {
