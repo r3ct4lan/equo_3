@@ -4,15 +4,15 @@ import type { SelectOption } from '~/types/ui'
 
 type Person = BriefUser & { email?: string | null }
 const props = withDefaults(defineProps<{
-  label: string,
-  debtId?: string,
-  excludeIds?: string[],
-  lockedIds?: string[],
-  single?: boolean,
-  choices?: Person[],
-  disabled?: boolean,
-  emptyText?: string,
-  notFoundText?: string,
+  label: string
+  debtId?: string
+  excludeIds?: string[]
+  lockedIds?: string[]
+  single?: boolean
+  choices?: Person[]
+  disabled?: boolean
+  emptyText?: string
+  notFoundText?: string
 }>(), {
   debtId: undefined,
   excludeIds: () => [],
@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<{
   choices: undefined,
   disabled: false,
   emptyText: undefined,
-  notFoundText: undefined,
+  notFoundText: undefined
 })
 const selected = defineModel<Person[]>({ required: true })
 const { $auth } = useNuxtApp()
@@ -48,13 +48,15 @@ const options = computed(() => visible.value.map(option))
 const selection = computed(() => props.single ? (selected.value[0] ? option(selected.value[0]) : null) : selected.value.map(option))
 const emptyText = computed(() => {
   if (loading.value || failed.value) {
-    return '';
-  } else {
-    const defaultText = 'No people found';
+    return ''
+  }
+  else {
+    const defaultText = 'No people found'
     if (query.value !== '') {
-      return props.notFoundText !==undefined ? props.notFoundText : defaultText;
-    } else {
-      return props.emptyText !==undefined ? props.emptyText : defaultText;
+      return props.notFoundText !== undefined ? props.notFoundText : defaultText
+    }
+    else {
+      return props.emptyText !== undefined ? props.emptyText : defaultText
     }
   }
 })
@@ -161,8 +163,10 @@ onBeforeUnmount(cancel)
       @open="onOpen"
       @close="onClose"
     >
-      <template #footer
-                v-if="loading || failed || (cursor && !loading && !failed) || (choices && matchingChoices.length > choiceLimit)">
+      <template
+        v-if="loading || failed || (cursor && !loading && !failed) || (choices && matchingChoices.length > choiceLimit)"
+        #footer
+      >
         <div
           role="status"
           aria-live="polite"

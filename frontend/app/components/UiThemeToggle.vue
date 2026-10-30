@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { RiMoonClearLine, RiSunLine } from '@remixicon/vue'
 import type { ButtonVariant } from '~/types/ui'
-import UiButton from "~/components/UiButton.vue";
-import {useTheme} from "~/composables/useTheme.ts";
+import UiButton from '~/components/UiButton.vue'
+import { useTheme } from '~/composables/useTheme.ts'
 
 withDefaults(defineProps<{ variant?: ButtonVariant }>(), { variant: 'secondary' })
 const { dark, toggle } = useTheme()

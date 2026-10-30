@@ -2,7 +2,7 @@
 import { NuxtLink } from '#components'
 import { RiAddLine, RiCloseLine } from '@remixicon/vue'
 import { Button as RegistryButton } from '~/components/ui/button'
-import type {ButtonSize, ButtonVariant, LinkTo} from '~/types/ui'
+import type { ButtonSize, ButtonVariant, LinkTo } from '~/types/ui'
 
 const props = withDefaults(defineProps<{
   variant?: ButtonVariant
