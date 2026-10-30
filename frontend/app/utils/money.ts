@@ -18,11 +18,15 @@ export function parseEuroCents(text: string): number | null {
   const cents = BigInt(match[1]!) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'))
   return cents > 0n && cents <= BigInt(MAX_AMOUNT_CENTS) ? Number(cents) : null
 }
-export function formatEuro(cents: number): string {
+export function formatEuro(cents: number, locale: 'en' | 'ru' = 'en'): string {
   if (!Number.isSafeInteger(cents)) throw new Error('Amount must be an exact integer.')
   const value = BigInt(cents)
   const absolute = value < 0n ? -value : value
-  return (value < 0n ? '-€' : '€') + (absolute / 100n).toLocaleString('en-IE') + '.' + String(absolute % 100n).padStart(2, '0')
+  const whole = (absolute / 100n).toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-IE')
+  const fraction = String(absolute % 100n).padStart(2, '0')
+  return locale === 'ru'
+    ? `${value < 0n ? '-' : ''}${whole},${fraction}\u00a0€`
+    : `${value < 0n ? '-€' : '€'}${whole}.${fraction}`
 }
 export function splitShare(cents: number, participantCount: number): number {
   if (!Number.isSafeInteger(cents) || cents <= 0 || !Number.isInteger(participantCount) || participantCount < 1) return 0
