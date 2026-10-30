@@ -127,6 +127,10 @@ onMounted(() => {
       v-if="user"
       :user="user"
     />
+    <ProfileLanguageForm
+      v-if="user"
+      :user="user"
+    />
     <EmailChangeForm v-if="user" />
     <AccountDeactivationForm v-if="user" />
     <UiButton

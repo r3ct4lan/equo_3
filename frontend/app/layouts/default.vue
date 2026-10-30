@@ -65,6 +65,14 @@
             My profile
           </UiLink>
         </nav>
+        <UiSelect
+          v-if="session.status === 'anonymous'"
+          class="app-header__language"
+          :label="locale === 'ru' ? 'Язык' : 'Language'"
+          :options="languageOptions"
+          :model-value="locale"
+          @update:model-value="changeLanguage"
+        />
         <UiThemeToggle class="app-header__theme" />
       </div>
       <UiMobileMenu
@@ -102,6 +110,12 @@ import { RiMenuLine } from '@remixicon/vue'
 import type { FocusTarget } from '~/types/ui'
 
 const { state } = useCurrentUser()
+const { locale, setLocale } = useLocale()
+const languageOptions = [{ label: 'English', value: 'en' }, { label: 'Русский', value: 'ru' }]
+function changeLanguage(value: string): void {
+  if (value === 'en' || value === 'ru') setLocale(value)
+}
+useHead(() => ({ htmlAttrs: { lang: locale.value } }))
 const session = computed(() => state.value)
 const menuOpen = ref(false)
 const menuButton = useTemplateRef<FocusTarget>('menuButton')

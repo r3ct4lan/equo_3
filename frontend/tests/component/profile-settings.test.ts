@@ -3,6 +3,7 @@ import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { useRoute } from '#app'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ProfileNameForm from '../../app/components/ProfileNameForm.vue'
+import ProfileLanguageForm from '../../app/components/ProfileLanguageForm.vue'
 import EmailChangeForm from '../../app/components/EmailChangeForm.vue'
 import EmailChangePage from '../../app/pages/email-change.vue'
 import AccountDeactivationForm from '../../app/components/AccountDeactivationForm.vue'
@@ -22,6 +23,7 @@ const user = {
   name: 'Old Name',
   email: 'old@example.test',
   isActive: true,
+  locale: 'en' as const,
   createdAt: '2026-08-08T12:00:00Z'
 }
 
@@ -31,6 +33,19 @@ describe('profile settings', () => {
     authMock.protectedRequest.mockReset()
     authMock.deactivateAccount.mockReset().mockResolvedValue(undefined)
     useCurrentUser().reset()
+  })
+
+  it('saves the language and applies the returned profile', async () => {
+    const updated = { ...user }
+    useCurrentUser().setAuthenticated(user)
+    authMock.protectedRequest.mockResolvedValue(updated)
+    const wrapper = await mountSuspended(ProfileLanguageForm, { props: { user } })
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(authMock.protectedRequest).toHaveBeenCalledWith('/v1/me/locale', { method: 'PATCH', body: { locale: 'en' } })
+    expect(useCurrentUser().state.value.user?.locale).toBe('en')
+    expect(wrapper.get('[role="status"]').text()).toContain('Language saved')
+    wrapper.unmount()
   })
 
   it('validates and saves a display name into current profile state', async () => {

@@ -16,6 +16,7 @@ useHead({
 })
 
 const { $api } = useNuxtApp()
+const { locale } = useLocale()
 const {
   values,
   fieldErrors,
@@ -31,6 +32,7 @@ const {
 })
 
 const attemptKeys = createRegistrationAttemptKeys()
+watch(locale, () => attemptKeys.formChanged())
 const registration = ref<RegisterResponse | null>(null)
 const successPanel = useTemplateRef<FocusTarget>('successPanel')
 const activationRequest = useTemplateRef<{ focusEmail: () => void }>('activationRequest')
@@ -69,6 +71,7 @@ async function submitRegistration(): Promise<void> {
         name: submittedValues.name,
         email: submittedValues.email,
         password: submittedValues.password,
+        locale: locale.value,
         ...(invitationToken ? { invitationToken } : {})
       } satisfies RegisterRequest
     }),

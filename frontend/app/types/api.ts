@@ -31,6 +31,7 @@ export interface CurrentUser {
   email: string
   isActive: boolean
   createdAt: UtcDateTime
+  locale: 'en' | 'ru'
 }
 
 export interface HealthResponse {
@@ -43,6 +44,7 @@ export interface RegisterRequest {
   email: string
   password: string
   invitationToken?: string
+  locale?: 'en' | 'ru'
 }
 
 export interface RegisteredUser {
@@ -51,6 +53,7 @@ export interface RegisteredUser {
   email: string
   isActive: false
   createdAt: UtcDateTime
+  locale: 'en' | 'ru'
 }
 
 export interface RegisterResponse {
@@ -84,6 +87,7 @@ export interface LoginResponse {
     name: string
     email: string
     isActive: true
+    locale: 'en' | 'ru'
   }
 }
 
