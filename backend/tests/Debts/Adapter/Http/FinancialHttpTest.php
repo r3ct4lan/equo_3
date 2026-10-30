@@ -132,11 +132,11 @@ final class FinancialHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         self::assertSame($this->users[2].'@example.test', $this->body()['items'][0]['email']);
         $this->request('GET', '/api/v1/debt-people?q='.rawurlencode($this->users[2].'@example.test'), 1);
-        self::assertSame([], $this->body()['items']);
+        self::assertSame($this->users[2].'@example.test', $this->body()['items'][0]['email']);
         $this->request('GET', '/api/v1/debt-people?q=Financial%20person%202', 1);
         self::assertCount(1, $this->body()['items']);
         self::assertSame($this->users[2], $this->body()['items'][0]['id']);
-        self::assertNull($this->body()['items'][0]['email']);
+        self::assertSame($this->users[2].'@example.test', $this->body()['items'][0]['email']);
         $this->request('GET', '/api/v1/debt-people?q=Financial%20person%203', 0);
         self::assertSame([], $this->body()['items']);
         $this->request('GET', '/api/v1/debt-people?q=%25', 0);
@@ -370,6 +370,7 @@ final class FinancialHttpTest extends WebTestCase
         }
         $connect01 = (string) $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id IN (?,?) AND second_user_id IN (?,?)', [$this->users[0], $this->users[1], $this->users[0], $this->users[1]]);
         $connect02 = (string) $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id IN (?,?) AND second_user_id IN (?,?)', [$this->users[0], $this->users[2], $this->users[0], $this->users[2]]);
+        $connect12 = (string) $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id IN (?,?) AND second_user_id IN (?,?)', [$this->users[1], $this->users[2], $this->users[1], $this->users[2]]);
         foreach ([0, 1, 2] as $viewer) {
             $this->request('GET', '/api/v1/debts/'.$debt['id'], $viewer);
             self::assertResponseStatusCodeSame(200);
@@ -381,8 +382,8 @@ final class FinancialHttpTest extends WebTestCase
             }
             $expectedConnects = match ($viewer) {
                 0 => [$this->users[0] => null, $this->users[1] => $connect01, $this->users[2] => $connect02],
-                1 => [$this->users[0] => $connect01, $this->users[1] => null, $this->users[2] => null],
-                2 => [$this->users[0] => $connect02, $this->users[1] => null, $this->users[2] => null],
+                1 => [$this->users[0] => $connect01, $this->users[1] => null, $this->users[2] => $connect12],
+                2 => [$this->users[0] => $connect02, $this->users[1] => $connect12, $this->users[2] => null],
             };
             self::assertEquals($expectedConnects, array_map(static fn (array $participant): ?string => $participant['connectId'], $participants));
             $this->request('GET', '/api/v1/debts', $viewer);

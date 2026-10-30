@@ -65,6 +65,13 @@ final readonly class CreateDebt
             }
             $debt = new Debt($debtId, $command->title, $command->description, new Money($command->totalAmount), $command->payerId, $authorId, $now, $participants);
             $this->repository->save($debt);
+            $participantIds = array_map(static fn (DebtParticipant $p): string => $p->userId, $participants);
+            sort($participantIds, SORT_STRING);
+            foreach ($participantIds as $i => $first) {
+                foreach (array_slice($participantIds, $i + 1) as $second) {
+                    $this->connects->ensurePair($first, $second);
+                }
+            }
             foreach ($participants as $p) {
                 if ($p->userId === $debt->payerId) {
                     continue;
