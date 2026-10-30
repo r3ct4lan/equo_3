@@ -1,12 +1,12 @@
 {
   "$schema": "https://shadcn-vue.com/schema.json",
   "style": "reka-luma",
-  "font": "roboto",
+  "font": "inter",
   "typescript": true,
   "tailwind": {
     "config": "",
     "css": "app/assets/css/tailwind.css",
-    "baseColor": "mist",
+    "baseColor": "neutral",
     "cssVariables": true,
     "prefix": ""
   },
@@ -20,8 +20,8 @@
     "lib": "@/lib",
     "composables": "@/composables"
   },
-  "fontHeading": "instrument-sans",
+  "fontHeading": "inter",
   "menuColor": "default",
-  "menuAccent": "bold",
+  "menuAccent": "subtle",
   "registries": {}
 }

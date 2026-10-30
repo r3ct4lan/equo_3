@@ -24,7 +24,10 @@ test('UI-001: installed preset remains usable on narrow screens and in dark mode
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.getByLabel('Name', { exact: true }).fill('Demo')
   await selectOption(page.getByRole('combobox', { name: 'Direction', exact: true }), 'other')
-  await page.getByRole('checkbox', { name: 'Sam', exact: true }).check()
+  const picker = page.locator('.people-picker').first()
+  await picker.getByRole('combobox').focus()
+  await picker.getByRole('option', { name: 'Sam', exact: true }).click()
+  await picker.getByRole('combobox').press('Escape')
   await page.getByRole('button', { name: 'Preview submission', exact: true }).click()
   await expect(page.getByText('No data was sent.', { exact: false })).toContainText('Direction: other. Participants: 2.')
 

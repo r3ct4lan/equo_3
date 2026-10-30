@@ -77,7 +77,11 @@ describe('shared UI interactions', () => {
     await wrapper.get('#kit-name').setValue('Sam')
     await wrapper.get('#kit-description').setValue('Dinner')
     await selectValue(wrapper, 'kit-direction', 'other')
-    await wrapper.get('input[value="sam"]').setValue(true)
+    const picker = wrapper.findAll('.people-picker')[0]!
+    await picker.get('input[role="combobox"]').trigger('focus')
+    await picker.get('[data-value="kit-sam"]').trigger('click')
+    await wrapper.get('input[type="checkbox"]').setValue(false)
+    expect(wrapper.get('input[type="checkbox"]').element.checked).toBe(false)
     await wrapper.get('form').trigger('submit')
     expect(wrapper.text()).toContain('Direction: other. Participants: 2.')
     expect(wrapper.get('#kit-name').element.value).toBe('Sam')

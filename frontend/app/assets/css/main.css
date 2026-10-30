@@ -1,6 +1,6 @@
 /* Theme values live in vars.css. Breakpoints are structural constants. */
 :root {
-  font-family: var(--font-family);
+  font-family: var(--font-sans);
   font-size: var(--font-body);
   font-weight: var(--weight-normal);
   color: var(--color-text);
@@ -36,6 +36,7 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
+  letter-spacing: var(--tracking-normal);
 }
 
 fieldset {
@@ -74,7 +75,7 @@ p {
 .ui-heading-1 {
   margin-bottom: var(--space-4);
   font-size: var(--font-heading-1);
-  font-family: var(--font-family-heading);
+  font-family: var(--font-sans);
   line-height: var(--line-heading-1);
   letter-spacing: var(--tracking-heading);
   font-weight: var(--weight-bold);
@@ -83,7 +84,7 @@ p {
 .ui-heading-2 {
   margin-bottom: var(--space-3);
   font-size: var(--font-heading-2);
-  font-family: var(--font-family-heading);
+  font-family: var(--font-sans);
   line-height: var(--line-heading-2);
   font-weight: var(--weight-bold);
 }
@@ -671,7 +672,7 @@ nav {
 .ui-heading-3 {
   margin-block: 0 var(--space-3);
   font-size: var(--font-heading-3);
-  font-family: var(--font-family-heading);
+  font-family: var(--font-sans);
   font-weight: var(--weight-bold);
 }
 

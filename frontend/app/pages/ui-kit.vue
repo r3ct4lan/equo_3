@@ -20,7 +20,7 @@ const sections = [
 const tokens = computed(() => uiThemeTokens(themeSource, dark.value))
 const colors = computed(() => tokens.value.filter(token => token.name.startsWith('--color-')))
 const variants = ['primary', 'secondary', 'danger', 'link'] as const
-const draft = reactive({ name: '', email: '', password: '', amount: '', direction: 'you', description: '', included: true, people: ['alex'] })
+const draft = reactive({ name: '', email: '', password: '', amount: '', direction: 'you', description: '', included: true })
 const examplePeople = [
   { id: 'kit-alex', name: 'Alex', isActive: true, email: 'alex@example.test' },
   { id: 'kit-sam', name: 'Sam', isActive: true, email: null },
@@ -127,11 +127,11 @@ async function closeDialog(): Promise<void> {
           >
             Installed preset
           </UiText>
-          <UiText>Palette a643K172 · {{ preset.style }} · {{ preset.tailwind.baseColor }} · {{ preset.font }} / {{ preset.fontHeading }} · {{ preset.iconLibrary }}</UiText>
+          <UiText>Theme claude blu 2 · {{ preset.style }} · {{ preset.font }} · {{ preset.iconLibrary }}</UiText>
           <PresetCard>
             <PresetCardHeader>
               <PresetCardTitle>Shared expenses, in your style</PresetCardTitle>
-              <PresetCardDescription>The same preset now styles the shared application components.</PresetCardDescription>
+              <PresetCardDescription>The same theme styles the shared application components.</PresetCardDescription>
               <PresetCardAction>
                 <RiStarLine
                   aria-label="Remix icon sample"
@@ -177,7 +177,7 @@ async function closeDialog(): Promise<void> {
             </PresetCardContent>
             <PresetCardFooter>
               <UiText variant="help">
-                Roboto body · Instrument Sans headings · local fonts · pointer buttons
+                Inter body and headings · local fonts · pointer buttons
               </UiText>
             </PresetCardFooter>
           </PresetCard>
@@ -453,7 +453,7 @@ async function closeDialog(): Promise<void> {
                 label="Who paid?"
                 :disabled="formDisabled"
                 :choices="selectedPeople"
-                emptyText="First, select the participants"
+                empty-text="First, select the participants"
                 single
               />
               <UiField>
@@ -501,7 +501,7 @@ async function closeDialog(): Promise<void> {
               v-if="submitted"
               tone="success"
             >
-              <div><strong>Example submitted</strong><UiText>No data was sent. Direction: {{ draft.direction }}. Participants: {{ draft.people.length }}.</UiText></div>
+              <div><strong>Example submitted</strong><UiText>No data was sent. Direction: {{ draft.direction }}. Participants: {{ selectedPeople.length }}.</UiText></div>
             </UiNotice>
           </UiCard>
         </section>
