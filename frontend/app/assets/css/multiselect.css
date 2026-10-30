@@ -135,8 +135,8 @@
 }
 
 .ui-multiselect .multiselect__option--selected {
-  background: var(--color-on-primary-soft);
-  color: var(--color-primary-soft);
+  background: var(--color-primary-soft);
+  color: var(--color-on-primary-soft);
   font-weight: var(--weight-bold);
 }
 

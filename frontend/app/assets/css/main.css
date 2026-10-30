@@ -143,7 +143,7 @@ p {
 .app-header__theme { order: 2; }
 
 .brand {
-  color: var(--chart-1);
+  color: var(--primary);
   font-size: var(--font-brand);
   font-weight: var(--weight-heavy);
   text-decoration: none;
@@ -247,6 +247,10 @@ nav {
 .auth-intro {
   position: sticky;
   top: var(--space-8);
+}
+
+.stack {
+  margin-bottom: var(--space-4);
 }
 
 .stack > * + * {
@@ -522,7 +526,6 @@ nav {
 
 .dashboard-expenses {
   padding: 0;
-  margin: 0;
   list-style: none;
 }
 

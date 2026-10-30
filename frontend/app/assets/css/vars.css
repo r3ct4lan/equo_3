@@ -25,10 +25,12 @@ Structural media query breakpoints: 36rem / 52rem. */
   --muted-foreground: oklch(0.6027 0.0062 211.0375);
   --accent: oklch(0.9122 0.0111 243.6627);
   --accent-foreground: oklch(0.2505 0.0149 235.6259);
-  --destructive: oklch(0.1931 0.0037 164.6298);
+  --destructive: oklch(0.626 0.221 25.261);
   --destructive-foreground: oklch(1.0000 0 0);
+  --positive: oklch(0.716 0.165 157.347);
+  --warning: oklch(0.793 0.171 70.67);
   --border: oklch(0.8840 0.0067 208.7806);
-  --input: oklch(0.7450 0.0121 252.1201);
+  --input: oklch(0.932 0.028 246.479);
   --ring: oklch(0.6112 0.1217 248.9572);
   --chart-1: oklch(0.5098 0.1320 257.5458);
   --chart-2: oklch(0.7360 0.1191 266.5038);
@@ -74,12 +76,12 @@ Structural media query breakpoints: 36rem / 52rem. */
   --color-primary: var(--primary);
   --color-link: var(--primary);
   --color-focus: var(--ring);
-  --color-success: var(--primary);
+  --color-success: var(--positive);
   --color-success-surface: color-mix(in srgb, var(--color-success) 8%, var(--background));
   --color-error: var(--destructive);
-  --color-warning: oklch(0.48 0.13 55);
-  --color-warning-surface: color-mix(in srgb, var(--color-warning) 10%, var(--background));
-  --color-warning-border: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+  --color-warning: color-mix(in srgb, var(--warning) 70%, var(--color-text));
+  --color-warning-surface: color-mix(in srgb, var(--warning) 10%, var(--background));
+  --color-warning-border: color-mix(in srgb, var(--warning) 40%, var(--color-border));
   --color-error-surface: color-mix(in srgb, var(--destructive) 8%, var(--background));
   --radius-small: var(--radius);
   --radius-medium: var(--radius-2xl);
@@ -208,6 +210,4 @@ Structural media query breakpoints: 36rem / 52rem. */
   --shadow-xl: 0px 4px 8px 0px hsl(0 0% 0% / 0.30), 0px 8px 10px -1px hsl(0 0% 0% / 0.30);
   --shadow-2xl: 0px 4px 8px 0px hsl(0 0% 0% / 0.75);
   color-scheme: dark;
-  /* Warning is an application status color, outside the registry palette. */
-  --color-warning: oklch(0.78 0.14 65);
 }
