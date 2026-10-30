@@ -5,6 +5,7 @@ import { RiInformationFill, RiCheckDoubleFill, RiErrorWarningFill, RiChat3Line, 
 withDefaults(defineProps<{ tone?: NoticeTone }>(), { tone: 'info' })
 defineEmits<{ dismiss: [] }>()
 const icons = { info: RiInformationFill, success: RiCheckDoubleFill, error: RiErrorWarningFill, neutral: RiChat3Line, warning: RiErrorWarningLine }
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -26,7 +27,7 @@ const icons = { info: RiInformationFill, success: RiCheckDoubleFill, error: RiEr
       variant="link"
       icon="close"
       class="ui-toast__close"
-      aria-label="Dismiss notification"
+      :aria-label="t('Dismiss notification')"
       @click="$emit('dismiss')"
     />
   </UiNotice>

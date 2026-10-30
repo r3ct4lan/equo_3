@@ -3,6 +3,7 @@ defineProps<{
   id: string
   messages?: readonly string[]
 }>()
+const { tError } = useTranslation()
 </script>
 
 <template>
@@ -17,7 +18,7 @@ defineProps<{
       v-for="message in messages"
       :key="message"
     >
-      {{ message }}
+      {{ tError(message) }}
     </li>
   </ul>
 </template>

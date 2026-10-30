@@ -8,6 +8,7 @@ import EmailChangeForm from '../../app/components/EmailChangeForm.vue'
 import EmailChangePage from '../../app/pages/email-change.vue'
 import AccountDeactivationForm from '../../app/components/AccountDeactivationForm.vue'
 import { ApiClientError } from '../../app/utils/api-error'
+import { selectValue } from '../helpers/select'
 
 const { apiMock, authMock } = vi.hoisted(() => ({ apiMock: vi.fn(), authMock: { protectedRequest: vi.fn(), deactivateAccount: vi.fn() } }))
 mockNuxtImport('useNuxtApp', original => () => new Proxy(original(), {
@@ -33,18 +34,20 @@ describe('profile settings', () => {
     authMock.protectedRequest.mockReset()
     authMock.deactivateAccount.mockReset().mockResolvedValue(undefined)
     useCurrentUser().reset()
+    useLocale().setLocale('en')
   })
 
   it('saves the language and applies the returned profile', async () => {
-    const updated = { ...user }
+    const updated = { ...user, locale: 'ru' as const }
     useCurrentUser().setAuthenticated(user)
     authMock.protectedRequest.mockResolvedValue(updated)
     const wrapper = await mountSuspended(ProfileLanguageForm, { props: { user } })
+    await selectValue(wrapper, 'profile-language', 'ru')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(authMock.protectedRequest).toHaveBeenCalledWith('/v1/me/locale', { method: 'PATCH', body: { locale: 'en' } })
-    expect(useCurrentUser().state.value.user?.locale).toBe('en')
-    expect(wrapper.get('[role="status"]').text()).toContain('Language saved')
+    expect(authMock.protectedRequest).toHaveBeenCalledWith('/v1/me/locale', { method: 'PATCH', body: { locale: 'ru' } })
+    expect(useCurrentUser().state.value.user?.locale).toBe('ru')
+    expect(wrapper.get('[role="status"]').text()).toContain('Язык сохранён')
     wrapper.unmount()
   })
 

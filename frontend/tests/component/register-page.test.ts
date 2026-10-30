@@ -111,7 +111,8 @@ describe('registration page', () => {
       body: {
         name: 'Alex Doe',
         email: 'alex@example.test',
-        password: 'A2345678901!'
+        password: 'A2345678901!',
+        locale: 'en'
       }
     }))
 

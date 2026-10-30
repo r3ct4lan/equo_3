@@ -6,11 +6,14 @@ import {
   debtCommand, uncertainDebtResult
 } from '~/utils/debts'
 import {
-  formatEuro, parseEuroCents, splitShare
+  formatEuro as formatEuroBase, parseEuroCents, splitShare
 } from '~/utils/money'
 import {
   toApiClientError, type ApiClientError
 } from '~/utils/api-error'
+
+const { locale } = useLocale()
+const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 const {
   $auth
@@ -112,6 +115,8 @@ onBeforeUnmount(() => {
   ++generation
   attempt = null
 })
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -130,10 +135,10 @@ onBeforeUnmount(() => {
         :disabled="pending || uncertain"
       >
         <legend class="visually-hidden">
-          Expense details
+          {{ t('Expense details') }}
         </legend>
         <UiField>
-          <label for="debt-title">Title</label>
+          <label for="debt-title">{{ t('Title') }}</label>
           <UiInput
             id="debt-title"
             v-model="values.title"
@@ -147,7 +152,7 @@ onBeforeUnmount(() => {
           />
         </UiField>
         <UiField>
-          <label for="debt-description">Description (optional)</label>
+          <label for="debt-description">{{ t('Description (optional)') }}</label>
           <UiTextarea
             id="debt-description"
             v-model="values.description"
@@ -155,7 +160,7 @@ onBeforeUnmount(() => {
           />
         </UiField>
         <UiField>
-          <label for="debt-amount">Amount in EUR</label>
+          <label for="debt-amount">{{ t('Amount in EUR') }}</label>
           <UiInput
             id="debt-amount"
             v-model="values.amount"
@@ -171,7 +176,7 @@ onBeforeUnmount(() => {
             id="amount-help"
             variant="help"
           >
-            Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.
+            {{ t('Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.') }}
           </UiText>
           <FormFieldError
             id="amount-errors"
@@ -180,21 +185,21 @@ onBeforeUnmount(() => {
         </UiField>
         <DebtPeoplePicker
           v-model="selectedPeople"
-          label="Share with"
+          :label="t('Share with')"
           :disabled="pending || uncertain"
         />
         <DebtPeoplePicker
           v-model="payer"
-          label="Who paid?"
+          :label="t('Who paid?')"
           :disabled="pending || uncertain"
           :choices="payerOptions"
           single
         />
         <UiText variant="help">
-          Choose the payer from the selected participants. You must be included.
+          {{ t('Choose the payer from the selected participants. You must be included.') }}
         </UiText>
         <UiText v-if="share">
-          Each share: {{ formatEuro(share) }}. Shares round up to the next cent.
+          {{ t('Each share:') }} {{ formatEuro(share) }}. {{ t('Shares round up to the next cent.') }}
         </UiText>
       </fieldset>
       <UiButton
@@ -202,7 +207,7 @@ onBeforeUnmount(() => {
         :disabled="pending"
         :pending="pending"
       >
-        {{ pending ? 'Saving expense…' : uncertain ? 'Retry same expense' : 'Create expense' }}
+        {{ pending ? t('Saving expense…') : uncertain ? t('Retry same expense') : t('Create expense') }}
       </UiButton>
     </UiCard>
   </div>

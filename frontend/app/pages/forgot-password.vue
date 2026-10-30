@@ -26,6 +26,8 @@ async function sendLink(): Promise<void> {
   }
 }
 onBeforeUnmount(() => controller?.abort())
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -35,16 +37,16 @@ onBeforeUnmount(() => controller?.abort())
   >
     <div class="auth-intro stack">
       <UiText variant="eyebrow">
-        Account recovery
+        {{ t('Account recovery') }}
       </UiText>
       <UiText
         id="recovery-title"
         variant="heading1"
       >
-        Forgot your password?
+        {{ t('Forgot your password?') }}
       </UiText>
       <UiText variant="lede">
-        Enter your email to request a link for choosing a new password.
+        {{ t('Enter your email to request a link for choosing a new password.') }}
       </UiText>
     </div>
     <UiCard
@@ -60,15 +62,15 @@ onBeforeUnmount(() => controller?.abort())
         tabindex="-1"
       >
         <div>
-          <strong>Request received</strong>
-          <UiText>If an account uses this address, we will send recovery instructions. The link expires in 30 minutes.</UiText>
+          <strong>{{ t('Request received') }}</strong>
+          <UiText>{{ t('If an account uses this address, we will send recovery instructions. The link expires in 30 minutes.') }}</UiText>
         </div>
       </UiNotice>
       <form
         v-else
         class="stack"
         novalidate
-        aria-label="Request recovery link"
+        :aria-label="t('Request recovery link')"
         @submit.prevent="sendLink"
       >
         <FormErrorSummary
@@ -81,10 +83,10 @@ onBeforeUnmount(() => controller?.abort())
           :disabled="isSubmitting"
         >
           <legend class="visually-hidden">
-            Recovery email
+            {{ t('Recovery email') }}
           </legend>
           <UiField>
-            <label for="recovery-email">Email</label>
+            <label for="recovery-email">{{ t('Email') }}</label>
             <UiInput
               id="recovery-email"
               v-model="values.email"
@@ -106,16 +108,16 @@ onBeforeUnmount(() => controller?.abort())
         </fieldset>
         <FormSubmitButton
           :pending="isSubmitting"
-          pending-label="Requesting link…"
+          :pending-label="t('Requesting link…')"
         >
-          Send recovery link
+          {{ t('Send recovery link') }}
         </FormSubmitButton>
       </form>
       <UiButton
         variant="secondary"
         to="/login"
       >
-        Back to sign in
+        {{ t('Back to sign in') }}
       </UiButton>
     </UiCard>
   </section>

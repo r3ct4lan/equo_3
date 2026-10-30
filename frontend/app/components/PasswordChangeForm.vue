@@ -21,6 +21,8 @@ async function changePassword(): Promise<void> {
   values.newPassword = ''
   saved.value = outcome.ok
 }
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -28,14 +30,14 @@ async function changePassword(): Promise<void> {
     v-if="saved"
     role="status"
   >
-    Password saved. Sign in with your new password.
+    {{ t('Password saved. Sign in with your new password.') }}
   </div>
   <UiCard
     v-else
     as="form"
     class="stack"
     novalidate
-    aria-label="Change password"
+    :aria-label="t('Change password')"
     @submit.prevent="changePassword"
   >
     <FormErrorSummary
@@ -48,10 +50,10 @@ async function changePassword(): Promise<void> {
       :disabled="isSubmitting"
     >
       <legend class="visually-hidden">
-        Password details
+        {{ t('Password details') }}
       </legend>
       <UiField>
-        <label for="change-current-password">Current password</label>
+        <label for="change-current-password">{{ t('Current password') }}</label>
         <UiInput
           id="change-current-password"
           v-model="values.currentPassword"
@@ -70,7 +72,7 @@ async function changePassword(): Promise<void> {
         />
       </UiField>
       <UiField>
-        <label for="change-new-password">New password</label>
+        <label for="change-new-password">{{ t('New password') }}</label>
         <UiInput
           id="change-new-password"
           v-model="values.newPassword"
@@ -92,9 +94,9 @@ async function changePassword(): Promise<void> {
     <FormSubmitButton
       compact
       :pending="isSubmitting"
-      pending-label="Saving password…"
+      :pending-label="t('Saving password…')"
     >
-      Save new password
+      {{ t('Save new password') }}
     </FormSubmitButton>
   </UiCard>
 </template>

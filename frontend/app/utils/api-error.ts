@@ -25,6 +25,19 @@ const HTTP_MESSAGES: Record<number, string> = {
   504: 'The service did not respond in time.'
 }
 
+const API_MESSAGES: Record<string, string> = {
+  AUTHENTICATION_REQUIRED: 'Authentication is required.',
+  INVALID_CREDENTIALS: 'Email or password is incorrect.',
+  ACCOUNT_INACTIVE: 'Account is inactive.',
+  RATE_LIMIT_EXCEEDED: 'Too many requests. Please try again later.',
+  VALIDATION_ERROR: 'Please correct the highlighted fields.',
+  RESOURCE_NOT_FOUND: 'The requested resource was not found.',
+  DEBT_NOT_AVAILABLE: 'This expense is no longer available.',
+  TRANSFER_NOT_AVAILABLE: 'This transfer is no longer available.',
+  VERSION_CONFLICT: 'The resource was changed by another request.',
+  FORBIDDEN: 'You do not have permission to perform this action.'
+}
+
 export class ApiClientError extends Error {
   readonly kind: ApiClientErrorKind
   readonly status: number | null
@@ -97,7 +110,7 @@ export function toApiClientError(error: unknown): ApiClientError {
       kind: 'api',
       status,
       code: envelope.error.code,
-      message: envelope.error.message,
+      message: API_MESSAGES[envelope.error.code] ?? 'The request could not be completed.',
       requestId: envelope.error.requestId ?? headerRequestId,
       retryAfterSeconds,
       details: envelope.error.details ?? null,
@@ -132,8 +145,13 @@ export function toApiClientError(error: unknown): ApiClientError {
 }
 
 function groupViolations(violations: readonly ApiViolation[]): FieldErrorMap {
+  const messages: Record<string, string> = {
+    REQUIRED: 'Value is required.',
+    INVALID_EMAIL: 'Email has invalid format.',
+    PASSWORD_POLICY_VIOLATION: 'Use 8–128 characters and include at least one letter, one number and one special character.'
+  }
   return violations.reduce<FieldErrorMap>((grouped, violation) => {
-    (grouped[violation.field] ??= []).push(violation.message)
+    (grouped[violation.field] ??= []).push(messages[violation.code] ?? 'Check this value.')
 
     return grouped
   }, {})

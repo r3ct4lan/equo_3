@@ -4,7 +4,7 @@
       variant="skip"
       href="#main-content"
     >
-      Skip to content
+      {{ t('Skip to content') }}
     </UiLink>
 
     <header
@@ -18,7 +18,7 @@
           class="app-header__menu-toggle"
           :aria-expanded="menuOpen"
           aria-controls="mobile-navigation"
-          aria-label="Open navigation menu"
+          :aria-label="t('Open navigation menu')"
           @click="toggleMenu"
         >
           <RiMenuLine
@@ -29,7 +29,7 @@
         <UiLink
           variant="brand"
           to="/"
-          aria-label="Equo home"
+          :aria-label="t('Equo home')"
         >
           Equo
         </UiLink>
@@ -38,35 +38,36 @@
           v-if="session.status === 'authenticated'"
           id="primary-navigation"
           class="app-header__navigation"
-          aria-label="Primary navigation"
+          :aria-label="t('Primary navigation')"
         >
           <UiLink
             variant="nav"
             to="/connects"
           >
-            Connections
+            {{ t('Connections') }}
           </UiLink>
           <UiLink
             variant="nav"
             to="/debts"
           >
-            Expenses
+            {{ t('Expenses') }}
           </UiLink>
           <UiLink
             variant="nav"
             to="/transfers"
           >
-            Transfers
+            {{ t('Transfers') }}
           </UiLink>
           <UiLink
             variant="nav"
             to="/me"
           >
-            My profile
+            {{ t('My profile') }}
           </UiLink>
         </nav>
         <UiSelect
           v-if="session.status === 'anonymous'"
+          id="guest-language"
           class="app-header__language"
           :label="locale === 'ru' ? 'Язык' : 'Language'"
           :options="languageOptions"
@@ -98,7 +99,7 @@
           as="small"
           variant="caption"
         >
-          Equo keeps shared expenses understandable.
+          {{ t('Equo keeps shared expenses understandable.') }}
         </UiText>
       </div>
     </footer>
@@ -115,15 +116,22 @@ const languageOptions = [{ label: 'English', value: 'en' }, { label: 'Русск
 function changeLanguage(value: string): void {
   if (value === 'en' || value === 'ru') setLocale(value)
 }
-useHead(() => ({ htmlAttrs: { lang: locale.value } }))
+useHead(() => ({
+  htmlAttrs: { lang: locale.value },
+  titleTemplate: (title?: string) => {
+    if (!title) return 'Equo'
+    const suffix = ' · Equo'
+    return title.endsWith(suffix) ? t(title.slice(0, -suffix.length)) + suffix : title
+  }
+}))
 const session = computed(() => state.value)
 const menuOpen = ref(false)
 const menuButton = useTemplateRef<FocusTarget>('menuButton')
 const mobileMenu = useTemplateRef<{ focusFirst: () => void }>('mobileMenu')
 const mobileLinks = computed(() => session.value.status === 'authenticated'
   ? [
-      { label: 'Connections', to: '/connects' }, { label: 'Expenses', to: '/debts' },
-      { label: 'Transfers', to: '/transfers' }, { label: 'My profile', to: '/me' }
+      { label: t('Connections'), to: '/connects' }, { label: t('Expenses'), to: '/debts' },
+      { label: t('Transfers'), to: '/transfers' }, { label: t('My profile'), to: '/me' }
     ]
   : [])
 const route = useRoute()
@@ -146,4 +154,6 @@ onMounted(() => {
   desktopMedia.addEventListener('change', onViewportChange)
 })
 onBeforeUnmount(() => desktopMedia?.removeEventListener('change', onViewportChange))
+
+const { t } = useTranslation()
 </script>

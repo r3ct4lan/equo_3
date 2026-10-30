@@ -51,6 +51,8 @@ async function confirmEmail(): Promise<void> {
   await nextTick()
   resultPanel.value?.focus()
 }
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -60,16 +62,16 @@ async function confirmEmail(): Promise<void> {
   >
     <div class="auth-intro stack">
       <UiText variant="eyebrow">
-        Email confirmation
+        {{ t('Email confirmation') }}
       </UiText>
       <UiText
         id="email-confirmation-title"
         variant="heading1"
       >
-        Confirm your new email
+        {{ t('Confirm your new email') }}
       </UiText>
       <UiText variant="lede">
-        Confirm the one-time link before Equo changes your sign-in address.
+        {{ t('Confirm the one-time link before Equo changes your sign-in address.') }}
       </UiText>
     </div>
     <UiCard
@@ -78,7 +80,7 @@ async function confirmEmail(): Promise<void> {
     >
       <AppLoadingState
         v-if="state === 'preparing' || state === 'loading'"
-        message="Confirming your email…"
+        :message="t('Confirming your email…')"
       />
       <div
         v-else-if="state === 'ready'"
@@ -87,13 +89,13 @@ async function confirmEmail(): Promise<void> {
         tabindex="-1"
       >
         <UiText variant="heading2">
-          Ready to confirm
+          {{ t('Ready to confirm') }}
         </UiText>
-        <UiText>Your email has not changed yet.</UiText>
+        <UiText>{{ t('Your email has not changed yet.') }}</UiText>
         <UiButton
           @click="confirmEmail"
         >
-          Confirm new email
+          {{ t('Confirm new email') }}
         </UiButton>
       </div>
       <UiNotice
@@ -104,10 +106,10 @@ async function confirmEmail(): Promise<void> {
         tabindex="-1"
       >
         <div>
-          <strong>Email changed</strong>
-          <UiText>Use your new email the next time you sign in. Existing signed-in devices remain active.</UiText>
+          <strong>{{ t('Email changed') }}</strong>
+          <UiText>{{ t('Use your new email the next time you sign in. Existing signed-in devices remain active.') }}</UiText>
           <UiLink to="/me">
-            Open your profile
+            {{ t('Open your profile') }}
           </UiLink>
         </div>
       </UiNotice>
@@ -117,8 +119,8 @@ async function confirmEmail(): Promise<void> {
         tabindex="-1"
       >
         <AppErrorState
-          title="Confirmation link is missing"
-          message="Open the complete one-time link from your confirmation email."
+          :title="t('Confirmation link is missing')"
+          :message="t('Open the complete one-time link from your confirmation email.')"
         />
       </div>
       <div
@@ -138,7 +140,7 @@ async function confirmEmail(): Promise<void> {
         variant="secondary"
         to="/me"
       >
-        Back to profile
+        {{ t('Back to profile') }}
       </UiButton>
     </UiCard>
   </section>

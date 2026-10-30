@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate } from '~/utils/locale'
 import type { InvitationLink } from '~/types/connects'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 import { invitationErrorPresentation } from '~/utils/connect-invitations'
@@ -42,13 +43,17 @@ async function copy(): Promise<void> {
 async function share(): Promise<void> {
   if (!link.value || !canShare.value) return
   try {
-    await navigator.share({ title: 'Connect on Equo', url: link.value.url })
+    await navigator.share({ title: t('Connect on Equo'), url: link.value.url })
     feedback.value = 'Invitation shared.'
   }
   catch {
     feedback.value = 'Sharing was cancelled or unavailable. You can copy the invitation instead.'
   }
 }
+
+const { locale } = useLocale()
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -61,35 +66,35 @@ async function share(): Promise<void> {
       id="invite-title"
       variant="heading2"
     >
-      Invite someone
+      {{ t('Invite someone') }}
     </UiText>
-    <UiText>Send a one-use invitation to someone you know. It stays valid for seven days.</UiText>
+    <UiText>{{ t('Send a one-use invitation to someone you know. It stays valid for seven days.') }}</UiText>
     <UiButton
       compact
       :disabled="pending"
       :pending="pending"
       @click="create"
     >
-      {{ pending ? 'Preparing invitation…' : 'Get invitation' }}
+      {{ pending ? t('Preparing invitation…') : t('Get invitation') }}
     </UiButton>
     <div
       v-if="link"
       class="stack"
     >
-      <UiText>Invitation ready. Valid until {{ new Date(link.expiresAt).toLocaleDateString() }}.</UiText>
+      <UiText>{{ t('Invitation ready. Valid until') }} {{ formatDate(new Date(link.expiresAt), locale) }}.</UiText>
       <div class="form-actions">
         <UiButton
           variant="secondary"
           @click="copy"
         >
-          Copy invitation
+          {{ t('Copy invitation') }}
         </UiButton>
         <UiButton
           v-if="canShare"
           variant="secondary"
           @click="share"
         >
-          Share invitation
+          {{ t('Share invitation') }}
         </UiButton>
       </div>
     </div>
@@ -97,7 +102,7 @@ async function share(): Promise<void> {
       v-if="feedback"
       role="status"
     >
-      {{ feedback }}
+      {{ t(feedback) }}
     </UiText>
     <AppErrorState
       v-if="presentation"

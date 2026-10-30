@@ -3,13 +3,14 @@ defineProps<{
   title: string
   message: string
 }>()
+const { t } = useTranslation()
 </script>
 
 <template>
   <UiNotice tone="neutral">
     <div>
-      <strong>{{ title }}</strong>
-      <UiText>{{ message }}</UiText>
+      <strong>{{ t(title) }}</strong>
+      <UiText>{{ t(message) }}</UiText>
     </div>
   </UiNotice>
 </template>

@@ -21,6 +21,8 @@ async function saveName(): Promise<void> {
     saved.value = true
   }
 }
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -28,24 +30,24 @@ async function saveName(): Promise<void> {
     as="form"
     class="stack"
     novalidate
-    aria-label="Change profile name"
+    :aria-label="t('Change profile name')"
     @submit.prevent="saveName"
   >
     <div>
       <UiText variant="eyebrow">
-        Profile details
+        {{ t('Profile details') }}
       </UiText>
       <UiText variant="heading2">
-        Display name
+        {{ t('Display name') }}
       </UiText>
     </div>
     <FormErrorSummary
-      title="Check the name"
+      :title="t('Check the name')"
       :message="summary"
       :request-id="formError?.requestId"
     />
     <UiField>
-      <label for="profile-name">Name</label>
+      <label for="profile-name">{{ t('Name') }}</label>
       <UiInput
         id="profile-name"
         v-model="values.name"
@@ -67,14 +69,14 @@ async function saveName(): Promise<void> {
       v-if="saved"
       role="status"
     >
-      Name saved.
+      {{ t('Name saved.') }}
     </UiText>
     <FormSubmitButton
       compact
       :pending="isSubmitting"
-      pending-label="Saving name…"
+      :pending-label="t('Saving name…')"
     >
-      Save name
+      {{ t('Save name') }}
     </FormSubmitButton>
   </UiCard>
 </template>

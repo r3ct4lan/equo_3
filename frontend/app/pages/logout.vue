@@ -20,6 +20,8 @@ async function retry(): Promise<void> {
     pending.value = false
   }
 }
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -33,10 +35,10 @@ async function retry(): Promise<void> {
       id="logout-result-title"
       variant="heading1"
     >
-      You are signed out here
+      {{ t('You are signed out here') }}
     </UiText>
     <UiText role="alert">
-      We could not confirm sign-out {{ all ? 'on all devices' : 'on the server' }}.
+      {{ all ? t('We could not confirm sign-out on all devices.') : t('We could not confirm sign-out on the server.') }}
       Server access may still be available. Try again when the service is reachable.
     </UiText>
     <div class="form-actions">
@@ -44,20 +46,20 @@ async function retry(): Promise<void> {
         :disabled="pending"
         @click="retry"
       >
-        {{ pending ? 'Trying again…' : 'Retry sign out' }}
+        {{ pending ? t('Trying again…') : t('Retry sign out') }}
       </UiButton>
       <UiButton
         variant="secondary"
         to="/login?signedOut=1"
       >
-        Go to sign in
+        {{ t('Go to sign in') }}
       </UiButton>
     </div>
     <UiText
       v-if="pending"
       role="status"
     >
-      Trying again…
+      {{ t('Trying again…') }}
     </UiText>
   </UiCard>
 </template>

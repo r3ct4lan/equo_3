@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { BriefUser, DebtView } from '~/types/finance'
 import { euroInput, updateDebtCommand, validDebtEtag } from '~/utils/debt-update'
-import { formatEuro, parseEuroCents, splitShare } from '~/utils/money'
+import { formatEuro as formatEuroBase, parseEuroCents, splitShare } from '~/utils/money'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
+
+const { locale } = useLocale()
+const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 const props = defineProps<{ debt: DebtView, etag: string }>()
 const emit = defineEmits<{ saved: [debt: DebtView], reload: [], cancel: [] }>()
@@ -81,6 +84,8 @@ function reset(): void {
 watch(() => [state.value.status, state.value.user?.id, props.debt.id, props.debt.version, props.etag], reset)
 onMounted(reset)
 onBeforeUnmount(clear)
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -94,9 +99,9 @@ onBeforeUnmount(clear)
       id="edit-fields-title"
       variant="heading2"
     >
-      Change expense
+      {{ t('Change expense') }}
     </UiText>
-    <UiText>Paid by {{ debt.payer.name }}. The payer cannot be changed.</UiText>
+    <UiText>{{ t('Paid by') }} {{ debt.payer.name }}. {{ t('The payer cannot be changed.') }}</UiText>
     <FormErrorSummary
       :message="message"
       :request-id="error?.requestId"
@@ -106,24 +111,24 @@ onBeforeUnmount(clear)
       :disabled="pending || blocked"
     >
       <legend class="visually-hidden">
-        Expense details
+        {{ t('Expense details') }}
       </legend>
       <UiField>
-        <label for="edit-title">Title</label><UiInput
+        <label for="edit-title">{{ t('Title') }}</label><UiInput
           id="edit-title"
           v-model="values.title"
           required
         />
       </UiField>
       <UiField>
-        <label for="edit-description">Description (optional)</label><UiTextarea
+        <label for="edit-description">{{ t('Description (optional)') }}</label><UiTextarea
           id="edit-description"
           v-model="values.description"
           rows="3"
         />
       </UiField>
       <UiField>
-        <label for="edit-amount">Amount in EUR</label>
+        <label for="edit-amount">{{ t('Amount in EUR') }}</label>
         <UiInput
           id="edit-amount"
           v-model="values.amount"
@@ -137,12 +142,12 @@ onBeforeUnmount(clear)
           id="edit-amount-help"
           variant="help"
         >
-          Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.
+          {{ t('Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.') }}
         </UiText>
       </UiField>
       <DebtPeoplePicker
         v-model="people"
-        label="Share with"
+        :label="t('Share with')"
         :disabled="pending || blocked"
         :debt-id="debt.id"
         :exclude-ids="[debt.payer.id]"
@@ -150,9 +155,9 @@ onBeforeUnmount(clear)
       />
       <label class="checkbox-label"><UiCheckbox
         v-model="values.includePayerInSplit"
-      /> Include the payer in the split</label>
+      /> {{ t('Include the payer in the split') }}</label>
       <UiText v-if="share">
-        Each share: {{ formatEuro(share) }}. Every current share will be recalculated.
+        {{ t('Each share:') }} {{ formatEuro(share) }}. {{ t('Every current share will be recalculated.') }}
       </UiText>
     </fieldset>
     <UiButton
@@ -160,7 +165,7 @@ onBeforeUnmount(clear)
       :disabled="pending || blocked || !validDebtEtag(etag)"
       :pending="pending"
     >
-      {{ pending ? 'Saving changes…' : 'Save changes' }}
+      {{ pending ? t('Saving changes…') : t('Save changes') }}
     </UiButton>
     <UiButton
       v-if="blocked"
@@ -168,14 +173,14 @@ onBeforeUnmount(clear)
       :disabled="pending"
       @click="emit('reload')"
     >
-      Reload expense and discard draft
+      {{ t('Reload expense and discard draft') }}
     </UiButton>
     <UiButton
       variant="secondary"
       :disabled="pending"
       @click="emit('cancel')"
     >
-      Cancel editing
+      {{ t('Cancel editing') }}
     </UiButton>
   </UiCard>
 </template>

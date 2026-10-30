@@ -14,18 +14,20 @@ withDefaults(defineProps<{
 defineEmits<{
   retry: []
 }>()
+
+const { t, tError } = useTranslation()
 </script>
 
 <template>
   <UiNotice tone="error">
     <div>
-      <strong>{{ title }}</strong>
-      <UiText>{{ message }}</UiText>
+      <strong>{{ tError(title) }}</strong>
+      <UiText>{{ tError(message) }}</UiText>
       <UiText
         v-if="safeRequestId(requestId)"
         class="support-reference"
       >
-        Support reference: <code>{{ safeRequestId(requestId) }}</code>
+        {{ t('Support reference:') }} <code>{{ safeRequestId(requestId) }}</code>
       </UiText>
     </div>
     <UiButton
@@ -33,7 +35,7 @@ defineEmits<{
       variant="secondary"
       @click="$emit('retry')"
     >
-      {{ retryLabel }}
+      {{ t(retryLabel) }}
     </UiButton>
   </UiNotice>
 </template>

@@ -36,6 +36,8 @@ async function signOut(all: boolean): Promise<void> {
     confirming.value = false
   }
 }
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -43,7 +45,7 @@ async function signOut(all: boolean): Promise<void> {
     v-if="currentUser.state.value.status === 'authenticated' || isSubmitting"
     as="section"
     class="stack"
-    aria-label="Sign out"
+    :aria-label="t('Sign out')"
     :aria-busy="isSubmitting"
   >
     <div class="form-actions">
@@ -52,7 +54,7 @@ async function signOut(all: boolean): Promise<void> {
         :disabled="isSubmitting || confirming"
         @click="signOut(false)"
       >
-        {{ isSubmitting ? 'Signing out…' : 'Sign out' }}
+        {{ isSubmitting ? t('Signing out…') : t('Sign out') }}
       </UiButton>
       <UiButton
         ref="allButton"
@@ -60,7 +62,7 @@ async function signOut(all: boolean): Promise<void> {
         :disabled="isSubmitting || confirming"
         @click="confirmAll"
       >
-        Sign out on all devices
+        {{ t('Sign out on all devices') }}
       </UiButton>
     </div>
     <div
@@ -76,22 +78,22 @@ async function signOut(all: boolean): Promise<void> {
         id="logout-confirm-title"
         variant="heading2"
       >
-        Sign out on all devices?
+        {{ t('Sign out on all devices?') }}
       </UiText>
-      <UiText>You will need to sign in again. Other devices may remain signed in for up to 15 minutes.</UiText>
+      <UiText>{{ t('You will need to sign in again. Other devices may remain signed in for up to 15 minutes.') }}</UiText>
       <div class="form-actions">
         <UiButton
           :disabled="isSubmitting"
           @click="signOut(true)"
         >
-          Confirm sign out
+          {{ t('Confirm sign out') }}
         </UiButton>
         <UiButton
           variant="secondary"
           :disabled="isSubmitting"
           @click="cancelAll"
         >
-          Cancel
+          {{ t('Cancel') }}
         </UiButton>
       </div>
     </div>
@@ -99,7 +101,7 @@ async function signOut(all: boolean): Promise<void> {
       v-if="isSubmitting"
       role="status"
     >
-      Signing out…
+      {{ t('Signing out…') }}
     </UiText>
   </UiCard>
 </template>

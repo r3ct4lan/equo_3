@@ -6,7 +6,7 @@ export function useLocale() {
   const currentUser = useCurrentUser()
   const locale = useState<AppLocale>('locale', () => {
     if (cookie.value === 'en' || cookie.value === 'ru') return cookie.value
-    const language = import.meta.server ? headers['accept-language']?.split(',')[0] : navigator.language
+    const language = import.meta.server ? headers['accept-language']?.split(',')[0]?.split(';')[0] : navigator.language
     return resolveLocale(language)
   })
 

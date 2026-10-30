@@ -14,6 +14,8 @@ const isNotFound = computed(() => props.error.statusCode === 404)
 useHead({
   title: computed(() => isNotFound.value ? 'Page not found · Equo' : 'Unexpected error · Equo')
 })
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -25,24 +27,24 @@ useHead({
       aria-labelledby="error-title"
     >
       <UiText variant="eyebrow">
-        {{ isNotFound ? '404' : 'Error' }}
+        {{ isNotFound ? '404' : t('Error') }}
       </UiText>
       <UiText
         id="error-title"
         variant="heading1"
       >
-        {{ isNotFound ? 'Page not found' : 'Something went wrong' }}
+        {{ isNotFound ? t('Page not found') : t('Something went wrong') }}
       </UiText>
       <UiText>
         {{ isNotFound
-          ? 'The requested page does not exist.'
-          : 'The page could not be displayed safely. Please return home and try again.' }}
+          ? t('The requested page does not exist.')
+          : t('The page could not be displayed safely. Please return home and try again.') }}
       </UiText>
       <div>
         <UiButton
           @click="clearError({ redirect: '/' })"
         >
-          Return home
+          {{ t('Return home') }}
         </UiButton>
       </div>
     </UiCard>

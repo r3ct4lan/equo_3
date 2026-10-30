@@ -42,7 +42,7 @@ let generation = 0
 const matchingChoices = computed(() => (props.choices ?? []).filter(person => person.name.toLocaleLowerCase().includes(query.value.trim().toLocaleLowerCase()) || person.email?.toLocaleLowerCase().includes(query.value.trim().toLocaleLowerCase())))
 const visible = computed(() => (props.choices ? matchingChoices.value.slice(0, choiceLimit.value) : results.value).filter(person => !props.excludeIds.includes(person.id)))
 function option(person: Person): SelectOption {
-  return { value: person.id, label: `${person.id === state.value.user?.id ? 'You' : person.name}${person.isActive ? '' : ' (inactive)'}`, description: person.email, $isDisabled: props.lockedIds.includes(person.id) }
+  return { value: person.id, label: `${person.id === state.value.user?.id ? t('You') : person.name}${person.isActive ? '' : t(' (inactive)')}`, description: person.email, $isDisabled: props.lockedIds.includes(person.id) }
 }
 const options = computed(() => visible.value.map(option))
 const selection = computed(() => props.single ? (selected.value[0] ? option(selected.value[0]) : null) : selected.value.map(option))
@@ -51,7 +51,7 @@ const emptyText = computed(() => {
     return ''
   }
   else {
-    const defaultText = 'No people found'
+    const defaultText = t('No people found')
     if (query.value !== '') {
       return props.notFoundText !== undefined ? props.notFoundText : defaultText
     }
@@ -139,6 +139,8 @@ watch(() => [state.value.status, state.value.user?.id, props.debtId], () => {
   picker.value?.close()
 })
 onBeforeUnmount(cancel)
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -157,7 +159,7 @@ onBeforeUnmount(cancel)
       :loading="loading"
       :disabled="disabled"
       :empty-text="emptyText"
-      placeholder="Choose people"
+      :placeholder="t('Choose people')"
       @update:model-value="update"
       @search="query = $event"
       @open="onOpen"
@@ -171,29 +173,29 @@ onBeforeUnmount(cancel)
           role="status"
           aria-live="polite"
         >
-          <span v-if="loading">Loading people…</span>
-          <span v-else-if="failed">People could not be loaded.</span>
+          <span v-if="loading">{{ t('Loading people…') }}</span>
+          <span v-else-if="failed">{{ t('People could not be loaded.') }}</span>
         </div>
         <UiButton
           v-if="failed"
           variant="secondary"
           @click="loadPage(retryCursor)"
         >
-          Retry
+          {{ t('Retry') }}
         </UiButton>
         <UiButton
           v-if="cursor && !loading && !failed"
           variant="secondary"
           @click="loadPage(cursor)"
         >
-          Load more
+          {{ t('Load more') }}
         </UiButton>
         <UiButton
           v-if="choices && matchingChoices.length > choiceLimit"
           variant="secondary"
           @click="moreChoices"
         >
-          Load more
+          {{ t('Load more') }}
         </UiButton>
       </template>
     </UiMultiselect>

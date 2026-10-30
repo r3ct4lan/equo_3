@@ -3,10 +3,12 @@ import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it } from 'vitest'
 import DefaultLayout from '../../app/layouts/default.vue'
 import { ApiClientError } from '../../app/utils/api-error'
+import { selectValue } from '../helpers/select'
 
 describe('navigation session states', () => {
   beforeEach(() => {
     useCurrentUser().reset()
+    useLocale().setLocale('en')
   })
 
   it('keeps the home brand without a menu while session is unknown', async () => {
@@ -28,6 +30,22 @@ describe('navigation session states', () => {
     expect(wrapper.find('header a[href="/login"]').exists()).toBe(false)
     expect(wrapper.find('header a[href="/register"]').exists()).toBe(false)
     expect(wrapper.find('footer a[href="/ui-kit"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('switches the guest language and retains the account language after sign-out', async () => {
+    useLocale().setLocale('en')
+    useCurrentUser().setAnonymous()
+    const wrapper = await mountSuspended(DefaultLayout)
+    await selectValue(wrapper, 'guest-language', 'ru')
+    expect(wrapper.text()).toContain('Перейти к содержимому')
+    useCurrentUser().setAuthenticated({ id: 'u1', name: 'Alex', email: 'alex@example.test', isActive: true, createdAt: '2026-08-08T12:00:00Z', locale: 'en' })
+    await nextTick()
+    expect(wrapper.get('nav a[href="/me"]').text()).toBe('My profile')
+    expect(wrapper.find('#guest-language').exists()).toBe(false)
+    useCurrentUser().setAnonymous()
+    await nextTick()
+    expect(useLocale().locale.value).toBe('en')
     wrapper.unmount()
   })
 

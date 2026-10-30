@@ -39,6 +39,7 @@ async function save(): Promise<void> {
       {{ locale === 'ru' ? 'Язык интерфейса' : 'Interface language' }}
     </UiText>
     <UiSelect
+      id="profile-language"
       v-model="selection"
       :label="locale === 'ru' ? 'Язык' : 'Language'"
       :options="options"

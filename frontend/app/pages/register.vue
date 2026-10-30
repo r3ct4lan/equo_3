@@ -89,6 +89,8 @@ async function submitRegistration(): Promise<void> {
   await nextTick()
   successPanel.value?.focus()
 }
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -98,16 +100,16 @@ async function submitRegistration(): Promise<void> {
   >
     <div class="auth-intro stack">
       <UiText variant="eyebrow">
-        Your Equo account
+        {{ t('Your Equo account') }}
       </UiText>
       <UiText
         id="registration-title"
         variant="heading1"
       >
-        Create an account
+        {{ t('Create an account') }}
       </UiText>
       <UiText variant="lede">
-        Register first, then use the one-time link sent to your email to activate your account.
+        {{ t('Register first, then use the one-time link sent to your email to activate your account.') }}
       </UiText>
     </div>
 
@@ -124,16 +126,16 @@ async function submitRegistration(): Promise<void> {
         tabindex="-1"
       >
         <UiText variant="eyebrow">
-          Activation required
+          {{ t('Activation required') }}
         </UiText>
         <UiText variant="heading2">
-          Check your email
+          {{ t('Check your email') }}
         </UiText>
         <UiText>
-          We created the account for <strong>{{ registration.user.email }}</strong>, but it is not active yet.
+          {{ t('We created the account for') }} <strong>{{ registration.user.email }}</strong>{{ t(', but it is not active yet.') }}
         </UiText>
         <UiText>
-          Open the activation email and follow its one-time link. Receiving the email does not sign you in.
+          {{ t('Open the activation email and follow its one-time link. Receiving the email does not sign you in.') }}
         </UiText>
       </UiCard>
 
@@ -148,7 +150,7 @@ async function submitRegistration(): Promise<void> {
         class="activation-request-link"
         @click="openActivationRequest"
       >
-        Request another activation link
+        {{ t('Request another activation link') }}
       </UiButton>
     </div>
 
@@ -165,10 +167,10 @@ async function submitRegistration(): Promise<void> {
           id="registration-form-title"
           variant="heading2"
         >
-          Registration details
+          {{ t('Registration details') }}
         </UiText>
         <UiText variant="help">
-          All fields are required.
+          {{ t('All fields are required.') }}
         </UiText>
       </div>
 
@@ -183,11 +185,11 @@ async function submitRegistration(): Promise<void> {
         :disabled="isSubmitting"
       >
         <legend class="visually-hidden">
-          Account information
+          {{ t('Account information') }}
         </legend>
 
         <UiField>
-          <label for="registration-name">Name</label>
+          <label for="registration-name">{{ t('Name') }}</label>
           <UiInput
             id="registration-name"
             v-model="values.name"
@@ -207,7 +209,7 @@ async function submitRegistration(): Promise<void> {
         </UiField>
 
         <UiField>
-          <label for="registration-email">Email</label>
+          <label for="registration-email">{{ t('Email') }}</label>
           <UiInput
             id="registration-email"
             v-model="values.email"
@@ -228,12 +230,12 @@ async function submitRegistration(): Promise<void> {
         </UiField>
 
         <UiField>
-          <label for="registration-password">Password</label>
+          <label for="registration-password">{{ t('Password') }}</label>
           <UiText
             id="registration-password-hint"
             variant="help"
           >
-            {{ PASSWORD_POLICY_HINT }}
+            {{ t(PASSWORD_POLICY_HINT) }}
           </UiText>
           <UiInput
             id="registration-password"
@@ -261,9 +263,9 @@ async function submitRegistration(): Promise<void> {
       <div class="form-actions">
         <FormSubmitButton
           :pending="isSubmitting"
-          pending-label="Creating account…"
+          :pending-label="t('Creating account…')"
         >
-          Create account
+          {{ t('Create account') }}
         </FormSubmitButton>
         <UiButton
           v-if="errorPresentation?.retryable"
@@ -271,13 +273,13 @@ async function submitRegistration(): Promise<void> {
           :disabled="isSubmitting"
           @click="submitRegistration"
         >
-          Try the same attempt again
+          {{ t('Try the same attempt again') }}
         </UiButton>
       </div>
       <UiText>
-        Already have an account?
+        {{ t('Already have an account?') }}
         <UiLink to="/login">
-          Sign in
+          {{ t('Sign in') }}
         </UiLink>
       </UiText>
     </UiCard>

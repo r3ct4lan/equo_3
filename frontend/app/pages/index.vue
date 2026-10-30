@@ -2,6 +2,8 @@
 useHead({ title: 'Equo' })
 const { state } = useCurrentUser()
 const { $auth } = useNuxtApp()
+
+const { t } = useTranslation()
 </script>
 
 <template>
@@ -12,28 +14,28 @@ const { $auth } = useNuxtApp()
     aria-labelledby="home-title"
   >
     <UiText variant="eyebrow">
-      Shared expenses, clearly
+      {{ t('Shared expenses, clearly') }}
     </UiText>
     <UiText
       id="home-title"
       variant="heading1"
     >
-      Welcome to Equo
+      {{ t('Welcome to Equo') }}
     </UiText>
     <UiText variant="lede">
-      Create an account, confirm your email, and get ready to make shared expenses easier to understand.
+      {{ t('Create an account, confirm your email, and get ready to make shared expenses easier to understand.') }}
     </UiText>
     <div class="hero__actions">
       <UiButton
         to="/register"
       >
-        Create an account
+        {{ t('Create an account') }}
       </UiButton>
       <UiButton
         variant="secondary"
         to="/login"
       >
-        Sign in
+        {{ t('Sign in') }}
       </UiButton>
     </div>
   </section>
@@ -50,13 +52,13 @@ const { $auth } = useNuxtApp()
     </UiText>
     <AppLoadingState
       v-if="state.status === 'unknown'"
-      message="Checking your session…"
+      :message="t('Checking your session…')"
     />
     <AppErrorState
       v-else
-      title="Your session could not be checked"
-      message="Try again to load your home page."
-      retry-label="Try again"
+      :title="t('Your session could not be checked')"
+      :message="t('Try again to load your home page.')"
+      :retry-label="t('Try again')"
       @retry="$auth.retryBootstrap()"
     />
   </section>
