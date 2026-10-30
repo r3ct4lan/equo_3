@@ -101,7 +101,7 @@ const { t } = useTranslation()
       <UiButton
         v-if="connect.canCreateDebt"
         icon="add"
-        to="/debts/new"
+        :to="{ path: '/debts/new', query: { connect: connect.id } }"
       >
         {{ t('New expense') }}
       </UiButton>

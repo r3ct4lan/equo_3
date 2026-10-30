@@ -12,6 +12,7 @@ import {
   toApiClientError, type ApiClientError
 } from '~/utils/api-error'
 
+const props = defineProps<{ initialPerson?: BriefUser }>()
 const { locale } = useLocale()
 const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
@@ -35,7 +36,12 @@ let attempt: {
   body: CreateDebtBody
   key: string
 } | null = null
-const payerOptions = computed(() => selectedPeople.value)
+const payerOptions = computed(() => {
+  const self = state.value.user
+  return self && !selectedPeople.value.some(person => person.id === self.id)
+    ? [{ id: self.id, name: self.name, isActive: self.isActive }, ...selectedPeople.value]
+    : selectedPeople.value
+})
 const share = computed(() => splitShare(parseEuroCents(values.amount) ?? 0, selectedPeople.value.length))
 const errorMessage = computed(() => {
   if (uncertain.value) return 'The result is not confirmed. Keep this page open and retry the same expense to check it safely.'
@@ -48,8 +54,8 @@ async function submit(): Promise<void> {
   const viewer = state.value.user?.id
   if (!viewer || state.value.status !== 'authenticated' || pending.value) return
   if (!attempt) {
-    const body = selectedPeople.value.some(person => person.id === values.payerId)
-      ? debtCommand({ ...values, participantIds: selectedPeople.value.map(person => person.id).filter(id => id !== values.payerId), includePayerInSplit: true }, viewer)
+    const body = payerOptions.value.some(person => person.id === values.payerId)
+      ? debtCommand({ ...values, participantIds: selectedPeople.value.map(person => person.id).filter(id => id !== values.payerId), includePayerInSplit: selectedPeople.value.some(person => person.id === values.payerId) }, viewer)
       : null
     invalid.value = body === null
     if (!body) return
@@ -82,7 +88,7 @@ async function submit(): Promise<void> {
   }
 }
 watch(selectedPeople, (selected) => {
-  if (!selected.some(person => person.id === values.payerId)) {
+  if (values.payerId !== state.value.user?.id && !selected.some(person => person.id === values.payerId)) {
     values.payerId = ''
     payer.value = []
   }
@@ -93,8 +99,8 @@ watch(payer, (selected) => {
 onMounted(() => {
   const self = state.value.user
   values.payerId = self?.id ?? ''
-  selectedPeople.value = self ? [{ id: self.id, name: self.name, isActive: self.isActive }] : []
-  payer.value = [...selectedPeople.value]
+  selectedPeople.value = props.initialPerson ? [props.initialPerson] : self ? [{ id: self.id, name: self.name, isActive: self.isActive }] : []
+  payer.value = self ? [{ id: self.id, name: self.name, isActive: self.isActive }] : []
 })
 watch(() => [state.value.status, state.value.user?.id], () => {
   ++generation
@@ -196,7 +202,7 @@ const { t } = useTranslation()
           single
         />
         <UiText variant="help">
-          {{ t('Choose the payer from the selected participants. You must be included.') }}
+          {{ t('Choose yourself or a selected participant as the payer. You must be the payer or a participant.') }}
         </UiText>
         <UiText v-if="share">
           {{ t('Each share:') }} {{ formatEuro(share) }}. {{ t('Shares round up to the next cent.') }}
