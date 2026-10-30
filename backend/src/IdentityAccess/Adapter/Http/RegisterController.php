@@ -49,6 +49,7 @@ final readonly class RegisterController
             $idempotencyKey,
             $request->getClientIp() ?? 'unknown',
             $payload->invitationToken,
+            $payload->locale,
         ));
     }
 }

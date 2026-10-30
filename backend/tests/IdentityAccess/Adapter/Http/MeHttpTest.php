@@ -71,7 +71,7 @@ final class MeHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
         self::assertResponseHeaderSame('Content-Type', 'application/json');
         self::assertResponseHasHeader('X-Request-Id');
-        self::assertSame(['createdAt', 'email', 'id', 'isActive', 'name'], $this->sortedKeys($body));
+        self::assertSame(['createdAt', 'email', 'id', 'isActive', 'locale', 'name'], $this->sortedKeys($body));
         self::assertSame($userId, $body['id']);
         self::assertSame('Me User', $body['name']);
         self::assertSame('me@example.test', $body['email']);
@@ -126,6 +126,26 @@ final class MeHttpTest extends WebTestCase
         self::assertSame('  New Name 😀  ', $this->connection->fetchOne('SELECT name FROM app_user WHERE id = ?', [$userId]));
         self::assertSame($sessionCount, $this->countSessions());
         self::assertSame([], $this->client->getResponse()->headers->getCookies());
+    }
+
+    public function testLocaleIsValidatedAndPersistedForAuthenticatedUser(): void
+    {
+        $userId = '87000000-0000-4000-8000-000000000308';
+        $this->insertUser($userId, 'Locale User', 'locale@example.test', true, 'Correct password!');
+        $login = $this->login('locale@example.test');
+        $server = ['CONTENT_TYPE' => 'application/json', 'HTTP_AUTHORIZATION' => 'Bearer '.$login['accessToken']];
+
+        $this->client->request('PATCH', '/api/v1/me/locale', server: $server, content: '{"locale":"ru"}');
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('ru', $this->jsonBody()['locale']);
+        self::assertSame('ru', $this->me($login['accessToken'])['locale']);
+
+        $this->client->request('PATCH', '/api/v1/me/locale', server: $server, content: '{"locale":"fr"}');
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+        self::assertSame('ru', $this->connection->fetchOne('SELECT locale FROM app_user WHERE id = ?', [$userId]));
+
+        $this->client->request('PATCH', '/api/v1/me/locale', server: ['CONTENT_TYPE' => 'application/json'], content: '{"locale":"en"}');
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
     }
 
     /** @param array<string, mixed> $payload */

@@ -15,10 +15,11 @@ final readonly class UserView
         public string $email,
         public bool $isActive,
         public DateTimeImmutable $createdAt,
+        public string $locale = 'en',
     ) {
     }
 
-    /** @return array{id: string, name: string, email: string, isActive: bool, createdAt: string} */
+    /** @return array{id: string, name: string, email: string, isActive: bool, createdAt: string, locale: string} */
     public function toArray(): array
     {
         return [
@@ -27,6 +28,7 @@ final readonly class UserView
             'email' => $this->email,
             'isActive' => $this->isActive,
             'createdAt' => $this->createdAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
+            'locale' => $this->locale,
         ];
     }
 }

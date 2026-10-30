@@ -30,6 +30,8 @@ class UserRecord
         private DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'pending_invitation_id', type: Types::GUID, nullable: true)]
         private ?string $pendingInvitationId = null,
+        #[ORM\Column(type: Types::STRING, length: 2, options: ['default' => 'en'])]
+        private string $locale = 'en',
     ) {
     }
 
@@ -41,6 +43,16 @@ class UserRecord
     public function name(): string
     {
         return $this->name;
+    }
+
+    public function locale(): string
+    {
+        return $this->locale;
+    }
+
+    public function changeLocale(string $locale): void
+    {
+        $this->locale = $locale;
     }
 
     public function email(): string

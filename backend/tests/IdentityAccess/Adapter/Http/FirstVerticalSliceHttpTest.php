@@ -54,7 +54,7 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
         self::assertSame(['activationRequired', 'user'], $this->sortedKeys($body));
-        self::assertSame(['createdAt', 'email', 'id', 'isActive', 'name'], $this->sortedKeys($body['user']));
+        self::assertSame(['createdAt', 'email', 'id', 'isActive', 'locale', 'name'], $this->sortedKeys($body['user']));
         self::assertSame('flow@example.test', $body['user']['email']);
         self::assertFalse($body['user']['isActive']);
         self::assertTrue($body['activationRequired']);
@@ -91,6 +91,19 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
         self::assertSame(1, $this->countRows('user_session'));
         self::assertSame(true, $this->connection->fetchOne('SELECT is_active FROM app_user LIMIT 1'));
         self::assertNotFalse($this->connection->fetchOne('SELECT used_at FROM user_action_token LIMIT 1'));
+    }
+
+    public function testRegistrationPersistsSelectedLocale(): void
+    {
+        $payload = [...$this->validRegistration('locale-register@example.test'), 'locale' => 'ru'];
+        $key = '11111111-1111-4111-8111-111111111199';
+        $this->jsonRequest('POST', '/api/v1/auth/register', $payload, $key);
+        self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
+        $body = $this->jsonBody();
+        self::assertSame('ru', $body['user']['locale']);
+        self::assertSame('ru', $this->connection->fetchOne('SELECT locale FROM app_user WHERE id = ?', [$body['user']['id']]));
+        $this->jsonRequest('POST', '/api/v1/auth/register', $payload, $key);
+        self::assertSame('ru', $this->jsonBody()['user']['locale']);
     }
 
     public function testRegistrationNormalizesEmailAndNeverReturnsSensitiveFields(): void

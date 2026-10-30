@@ -14,4 +14,6 @@ interface CurrentUserProfileRepositoryPort
     public function currentUserProfile(string $userId): ?UserView;
 
     public function renameCurrentUser(string $userId, string $name): void;
+
+    public function changeLocale(string $userId, string $locale): void;
 }

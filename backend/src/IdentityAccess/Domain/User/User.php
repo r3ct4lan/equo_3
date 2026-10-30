@@ -16,6 +16,7 @@ final class User
         public readonly string $passwordHash,
         private bool $active,
         public readonly DateTimeImmutable $createdAt,
+        public readonly string $locale,
     ) {
     }
 
@@ -25,12 +26,17 @@ final class User
         EmailAddress $email,
         string $passwordHash,
         DateTimeImmutable $createdAt,
+        string $locale = 'en',
     ): self {
         if ('' === trim($name)) {
             throw new DomainException('A user name must not be blank.');
         }
 
-        return new self($id, $name, $email, $passwordHash, false, $createdAt);
+        if (!in_array($locale, ['en', 'ru'], true)) {
+            throw new DomainException('Unsupported locale.');
+        }
+
+        return new self($id, $name, $email, $passwordHash, false, $createdAt, $locale);
     }
 
     public function isActive(): bool

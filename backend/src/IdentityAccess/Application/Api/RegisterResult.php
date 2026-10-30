@@ -10,7 +10,7 @@ final readonly class RegisterResult
     {
     }
 
-    /** @return array{user: array{id: string, name: string, email: string, isActive: bool, createdAt: string}, activationRequired: bool} */
+    /** @return array{user: array{id: string, name: string, email: string, isActive: bool, createdAt: string, locale: string}, activationRequired: bool} */
     public function toArray(): array
     {
         return ['user' => $this->user->toArray(), 'activationRequired' => $this->activationRequired];

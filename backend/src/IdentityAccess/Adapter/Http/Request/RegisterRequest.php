@@ -19,6 +19,8 @@ final readonly class RegisterRequest
         public ?string $password = null,
         #[Assert\Length(max: 512)]
         public ?string $invitationToken = null,
+        #[Assert\Choice(choices: ['en', 'ru'])]
+        public string $locale = 'en',
     ) {
     }
 }

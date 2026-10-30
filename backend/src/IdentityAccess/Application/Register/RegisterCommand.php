@@ -13,6 +13,7 @@ final readonly class RegisterCommand
         public string $idempotencyKey,
         public string $ipAddress,
         public ?string $invitationToken = null,
+        public string $locale = 'en',
     ) {
     }
 }
