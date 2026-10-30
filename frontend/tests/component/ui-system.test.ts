@@ -7,8 +7,20 @@ import FormErrorSummary from '../../app/components/FormErrorSummary.vue'
 import AppErrorState from '../../app/components/AppErrorState.vue'
 import UiToast from '../../app/components/UiToast.vue'
 import UiKit from '../../app/pages/ui-kit.vue'
+import { RiInformationFill, RiCheckDoubleFill, RiErrorWarningFill, RiChat3Line, RiErrorWarningLine } from '@remixicon/vue'
 
 describe('shared UI interactions', () => {
+  it('shows the matching decorative icon for each toast tone', async () => {
+    const icons = { info: RiInformationFill, success: RiCheckDoubleFill, error: RiErrorWarningFill, neutral: RiChat3Line, warning: RiErrorWarningLine } as const
+    const wrapper = await mountSuspended(UiToast)
+    for (const tone of Object.keys(icons) as Array<keyof typeof icons>) {
+      await wrapper.setProps({ tone })
+      expect(wrapper.findComponent(icons[tone]).exists()).toBe(true)
+      expect(wrapper.get('.ui-toast__icon').attributes('aria-hidden')).toBe('true')
+      expect(wrapper.find('.status-card__marker').exists()).toBe(false)
+    }
+    wrapper.unmount()
+  })
   it('dismisses a toast through its labelled decorative icon', async () => {
     const wrapper = await mountSuspended(UiToast, { slots: { default: 'Notification text' } })
     const button = wrapper.get('button[aria-label="Dismiss notification"]')
@@ -77,7 +89,11 @@ describe('shared UI interactions', () => {
     await wrapper.get('#kit-name').setValue('Sam')
     await wrapper.get('#kit-description').setValue('Dinner')
     await selectValue(wrapper, 'kit-direction', 'other')
-    await wrapper.get('input[value="sam"]').setValue(true)
+    const picker = wrapper.findAll('.people-picker')[0]!
+    await picker.get('input[role="combobox"]').trigger('focus')
+    await picker.get('[data-value="kit-sam"]').trigger('click')
+    await wrapper.get('input[type="checkbox"]').setValue(false)
+    expect(wrapper.get('input[type="checkbox"]').element.checked).toBe(false)
     await wrapper.get('form').trigger('submit')
     expect(wrapper.text()).toContain('Direction: other. Participants: 2.')
     expect(wrapper.get('#kit-name').element.value).toBe('Sam')
@@ -101,6 +117,19 @@ describe('shared UI interactions', () => {
     await selectValue(wrapper, 'related-share', 'kit-share')
     expect(wrapper.get('#kit-amount').element.value).toBe('5.01')
     expect(wrapper.findAll('.support-reference').some(reference => reference.text().includes('request-123'))).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('previews and dismisses every notice tone as a toast', async () => {
+    const wrapper = await mountSuspended(UiKit)
+    for (const tone of ['info', 'success', 'error', 'neutral', 'warning']) {
+      const trigger = wrapper.findAll('button').find(button => button.text() === `Show ${tone} toast`)!
+      await trigger.trigger('click')
+      expect(wrapper.get('.invitation-toast').classes()).toContain(`state-message--${tone}`)
+      expect(wrapper.get('.invitation-toast').text()).toContain(`Example ${tone} notification`)
+      await wrapper.get('.invitation-toast button[aria-label="Dismiss notification"]').trigger('click')
+      expect(wrapper.find('.invitation-toast').exists()).toBe(false)
+    }
     wrapper.unmount()
   })
 

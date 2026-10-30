@@ -57,6 +57,16 @@ final readonly class UpdateDebt
             }
             if ($next !== $debt) {
                 $this->repository->update($next);
+                $nextIds = array_map(static fn (DebtParticipant $p): string => $p->userId, $next->currentParticipants());
+                sort($nextIds, SORT_STRING);
+                $added = array_diff($nextIds, $current);
+                foreach ($nextIds as $i => $first) {
+                    foreach (array_slice($nextIds, $i + 1) as $second) {
+                        if (in_array($first, $added, true) || in_array($second, $added, true)) {
+                            $this->connects->ensurePair($first, $second);
+                        }
+                    }
+                }
                 $this->shares->recalculate($next->id, $next->payerId, array_map(static fn (DebtParticipant $p): array => ['participantId' => $p->id, 'userId' => $p->userId, 'isDeleted' => $p->isDeleted], $next->participants), $next->shareAmount(), $this->runtime->now());
             }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DialogTarget, FocusTarget } from '~/types/ui'
+import type { DialogTarget, FocusTarget, NoticeTone } from '~/types/ui'
 import type { BriefUser, TransferView } from '~/types/finance'
 import themeSource from '~/assets/css/vars.css?raw'
 import preset from '../../components.json'
@@ -20,7 +20,7 @@ const sections = [
 const tokens = computed(() => uiThemeTokens(themeSource, dark.value))
 const colors = computed(() => tokens.value.filter(token => token.name.startsWith('--color-')))
 const variants = ['primary', 'secondary', 'danger', 'link'] as const
-const draft = reactive({ name: '', email: '', password: '', amount: '', direction: 'you', description: '', included: true, people: ['alex'] })
+const draft = reactive({ name: '', email: '', password: '', amount: '', direction: 'you', description: '', included: true })
 const examplePeople = [
   { id: 'kit-alex', name: 'Alex', isActive: true, email: 'alex@example.test' },
   { id: 'kit-sam', name: 'Sam', isActive: true, email: null },
@@ -40,7 +40,8 @@ watch(selectedPeople, (people) => {
 })
 const formDisabled = ref(false)
 const submitted = ref(false)
-const showToast = ref(false)
+const noticeTones: NoticeTone[] = ['info', 'success', 'error', 'neutral', 'warning']
+const toastTone = ref<NoticeTone | null>(null)
 const dialog = useTemplateRef<DialogTarget>('dialog')
 const trigger = useTemplateRef<FocusTarget>('trigger')
 const confirmDialog = useTemplateRef<DialogTarget>('confirmDialog')
@@ -127,11 +128,11 @@ async function closeDialog(): Promise<void> {
           >
             Installed preset
           </UiText>
-          <UiText>Preset a6OvgsF6 · {{ preset.style }} · {{ preset.tailwind.baseColor }} · {{ preset.font }} / {{ preset.fontHeading }} · {{ preset.iconLibrary }}</UiText>
+          <UiText>Theme claude blu 2 · {{ preset.style }} · {{ preset.font }} · {{ preset.iconLibrary }}</UiText>
           <PresetCard>
             <PresetCardHeader>
               <PresetCardTitle>Shared expenses, in your style</PresetCardTitle>
-              <PresetCardDescription>The same preset now styles the shared application components.</PresetCardDescription>
+              <PresetCardDescription>The same theme styles the shared application components.</PresetCardDescription>
               <PresetCardAction>
                 <RiStarLine
                   aria-label="Remix icon sample"
@@ -177,7 +178,7 @@ async function closeDialog(): Promise<void> {
             </PresetCardContent>
             <PresetCardFooter>
               <UiText variant="help">
-                Roboto body · Instrument Sans headings · local fonts · pointer buttons
+                Inter body and headings · local fonts · pointer buttons
               </UiText>
             </PresetCardFooter>
           </PresetCard>
@@ -453,6 +454,7 @@ async function closeDialog(): Promise<void> {
                 label="Who paid?"
                 :disabled="formDisabled"
                 :choices="selectedPeople"
+                empty-text="First, select the participants"
                 single
               />
               <UiField>
@@ -488,17 +490,6 @@ async function closeDialog(): Promise<void> {
                 />
               </UiField>
               <label class="checkbox-label"><UiCheckbox v-model="draft.included" />Include the payer in the split</label>
-              <fieldset class="stack">
-                <legend>Participants</legend>
-                <label class="checkbox-label"><UiCheckbox
-                  v-model="draft.people"
-                  value="alex"
-                />Alex</label>
-                <label class="checkbox-label"><UiCheckbox
-                  v-model="draft.people"
-                  value="sam"
-                />Sam</label>
-              </fieldset>
               <FormSubmitButton>Preview submission</FormSubmitButton>
             </fieldset>
             <UiButton
@@ -511,7 +502,7 @@ async function closeDialog(): Promise<void> {
               v-if="submitted"
               tone="success"
             >
-              <div><strong>Example submitted</strong><UiText>No data was sent. Direction: {{ draft.direction }}. Participants: {{ draft.people.length }}.</UiText></div>
+              <div><strong>Example submitted</strong><UiText>No data was sent. Direction: {{ draft.direction }}. Participants: {{ selectedPeople.length }}.</UiText></div>
             </UiNotice>
           </UiCard>
         </section>
@@ -579,7 +570,7 @@ async function closeDialog(): Promise<void> {
                 Payment · €12.50
               </UiLink>
               <UiText>Alex → Sam</UiText>
-              <UiNotice tone="neutral">
+              <UiNotice tone="warning">
                 Removed · does not affect the balance
               </UiNotice>
               <time datetime="2026-10-25T12:00:00Z">25 Oct 2026</time>
@@ -608,7 +599,7 @@ async function closeDialog(): Promise<void> {
             message="Try again to load your expenses."
             request-id="request-123"
             retry-label="Try again"
-            @retry="showToast = true"
+            @retry="toastTone = 'info'"
           />
           <UiNotice tone="success">
             <div><strong>Changes saved</strong><UiText>Your details are up to date.</UiText></div>
@@ -645,10 +636,12 @@ async function closeDialog(): Promise<void> {
                 Open example dialog
               </UiButton>
               <UiButton
+                v-for="tone in noticeTones"
+                :key="tone"
                 variant="secondary"
-                @click="showToast = true"
+                @click="toastTone = tone"
               >
-                Show example toast
+                Show {{ tone }} toast
               </UiButton>
               <UiButton
                 ref="confirmTrigger"
@@ -741,10 +734,11 @@ async function closeDialog(): Promise<void> {
             </UiCard>
           </UiDialog>
           <UiToast
-            v-if="showToast"
-            @dismiss="showToast = false"
+            v-if="toastTone"
+            :tone="toastTone"
+            @dismiss="toastTone = null"
           >
-            <UiText>Example notification. No request was sent.</UiText>
+            <UiText>Example {{ toastTone }} notification. No request was sent.</UiText>
           </UiToast>
           <UiMobileMenu
             id="kit-mobile-navigation"

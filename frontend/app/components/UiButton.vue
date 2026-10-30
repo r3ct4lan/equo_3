@@ -2,10 +2,11 @@
 import { NuxtLink } from '#components'
 import { RiAddLine, RiCloseLine } from '@remixicon/vue'
 import { Button as RegistryButton } from '~/components/ui/button'
-import type { ButtonVariant, LinkTo } from '~/types/ui'
+import type { ButtonSize, ButtonVariant, LinkTo } from '~/types/ui'
 
 const props = withDefaults(defineProps<{
   variant?: ButtonVariant
+  size?: ButtonSize
   type?: 'button' | 'submit' | 'reset'
   to?: LinkTo
   disabled?: boolean
@@ -15,6 +16,7 @@ const props = withDefaults(defineProps<{
   icon?: 'add' | 'close'
 }>(), {
   variant: 'primary',
+  size: 'default',
   type: 'button',
   to: undefined,
   disabled: false,
@@ -43,6 +45,7 @@ function guardClick(event: MouseEvent): void {
     ref="root"
     :as="to !== undefined ? NuxtLink : 'button'"
     :variant="registryVariants[variant]"
+    :size="size"
     class="button"
     :class="['button--' + variant, { 'button--compact': compact }]"
     :to="to !== undefined && !blocked ? to : undefined"

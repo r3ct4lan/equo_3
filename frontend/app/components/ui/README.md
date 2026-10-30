@@ -1,7 +1,12 @@
 # Registry primitives
 
-Generated with `shadcn-vue@2.8.2` using the owner's preset `a6OvgsF6`:
-`reka-luma`, Zinc, teal primary, Roboto / Instrument Sans, Remix Icon, pointer.
+Components were generated with `shadcn-vue@2.8.2`, style `reka-luma`.
+The current light/dark theme is [claude blu 2](https://tweakcn.com/r/themes/cmmea3qbd000004jvb99v39cd),
+imported with `npx shadcn@latest add https://tweakcn.com/r/themes/cmmea3qbd000004jvb99v39cd`.
+Its colors, radius, shadows and tracking live in `assets/css/vars.css`.
+Inter serves both body and headings through Fontsource. Remix Icon and pointer
+buttons are retained. Application aliases reference the current theme tokens;
+warning colors remain an explicit application status extension.
 See `frontend/components.json` for the CLI configuration.
 
 The Nuxt module registers these components with the `Shadcn` prefix. Feature

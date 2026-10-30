@@ -72,7 +72,7 @@ const { items, pending, loaded, cursor, error, load } = useFinancialList<Transfe
         <UiText>{{ transfer.sender.name }} → {{ transfer.receiver.name }}</UiText>
         <UiNotice
           v-if="transfer.isDeleted"
-          tone="neutral"
+          tone="warning"
         >
           Removed · does not affect the balance
         </UiNotice>

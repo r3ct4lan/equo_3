@@ -26,7 +26,7 @@ describe('shared vue-multiselect select', () => {
     const wrapper = await mountSuspended(UiSelect, { props: { label: 'Expense', options: [{ value: '', label: 'No related expense' }, { value: 'share', label: 'Dinner' }], modelValue: 'share' }, attrs: { id: 'share' } })
     await wrapper.get('input').trigger('focus')
     await wrapper.get('input').setValue('missing')
-    expect(wrapper.text()).toContain('No options found.')
+    expect(wrapper.text()).toContain('No options found')
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
     await selectValue(wrapper, 'share', '')
     expect(wrapper.emitted('update:modelValue')).toEqual([['']])

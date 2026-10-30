@@ -113,6 +113,31 @@ final class DebtUpdateIntegrationTest extends KernelTestCase
         self::assertSame(3, (int) $this->db->fetchOne('SELECT COUNT(*) FROM transfer WHERE debt_id=?', [$next['id']]));
     }
 
+    public function testParticipantsBecomeConnectedAndConnectionsSurviveRemoval(): void
+    {
+        $connects = self::getContainer()->get('test.connect_service');
+        self::assertTrue($connects->exists($this->users[1], $this->users[2]));
+        self::assertFalse($connects->exists($this->users[2], $this->users[3]));
+        $updated = $this->service->handle(new UpdateDebtCommand($this->initial['id'], 'Dinner', null, 1001, [$this->users[0], $this->users[2], $this->users[3]], true, 1), $this->users[0]);
+        self::assertTrue($connects->exists($this->users[2], $this->users[3]));
+        self::assertTrue($connects->exists($this->users[1], $this->users[3]));
+        $this->service->handle(new UpdateDebtCommand($this->initial['id'], 'Dinner', null, 1001, [$this->users[0], $this->users[2]], true, $updated['version']), $this->users[0]);
+        self::assertTrue($connects->exists($this->users[2], $this->users[3]));
+        self::getContainer()->get('test.delete_debt')->handle($this->initial['id'], 3, $this->users[0]);
+        self::assertTrue($connects->exists($this->users[2], $this->users[3]));
+    }
+
+    public function testCreationConnectsNonPayers(): void
+    {
+        $pair = [$this->users[0], $this->users[4]];
+        sort($pair);
+        $this->db->insert('connect', ['id' => Uuid::v4()->toRfc4122(), 'first_user_id' => $pair[0], 'second_user_id' => $pair[1], 'created_at' => '2026-10-12 12:00:00+00']);
+        $connects = self::getContainer()->get('test.connect_service');
+        self::assertFalse($connects->exists($this->users[3], $this->users[4]));
+        self::getContainer()->get('test.create_debt')->handle(new CreateDebtCommand('Dinner', null, 1000, $this->users[0], [$this->users[3], $this->users[4]], true, Uuid::v4()->toRfc4122()), $this->users[0]);
+        self::assertTrue($connects->exists($this->users[3], $this->users[4]));
+    }
+
     public function testCurrentInactiveCanStayOrBeExcludedButNotRestored(): void
     {
         $author = $this->users[0];

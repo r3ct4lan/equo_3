@@ -1,6 +1,6 @@
 /* Theme values live in vars.css. Breakpoints are structural constants. */
 :root {
-  font-family: var(--font-family);
+  font-family: var(--font-sans);
   font-size: var(--font-body);
   font-weight: var(--weight-normal);
   color: var(--color-text);
@@ -36,6 +36,7 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
+  letter-spacing: var(--tracking-normal);
 }
 
 fieldset {
@@ -74,7 +75,7 @@ p {
 .ui-heading-1 {
   margin-bottom: var(--space-4);
   font-size: var(--font-heading-1);
-  font-family: var(--font-family-heading);
+  font-family: var(--font-sans);
   line-height: var(--line-heading-1);
   letter-spacing: var(--tracking-heading);
   font-weight: var(--weight-bold);
@@ -83,7 +84,7 @@ p {
 .ui-heading-2 {
   margin-bottom: var(--space-3);
   font-size: var(--font-heading-2);
-  font-family: var(--font-family-heading);
+  font-family: var(--font-sans);
   line-height: var(--line-heading-2);
   font-weight: var(--weight-bold);
 }
@@ -142,7 +143,7 @@ p {
 .app-header__theme { order: 2; }
 
 .brand {
-  color: var(--color-text);
+  color: var(--primary);
   font-size: var(--font-brand);
   font-weight: var(--weight-heavy);
   text-decoration: none;
@@ -159,9 +160,13 @@ p {
   text-decoration: none;
 }
 
+.nav-link:hover {
+  color: var(--color-link);
+}
+
 .nav-link.router-link-active {
   background: var(--color-primary-soft);
-  color: var(--color-primary-strong);
+  color: var(--color-on-primary-soft);
 }
 
 .nav-status {
@@ -248,10 +253,6 @@ nav {
   margin-top: var(--space-4);
 }
 
-.stack--large > * + * {
-  margin-top: var(--space-section);
-}
-
 .state-message {
   display: flex;
   align-items: flex-start;
@@ -261,7 +262,6 @@ nav {
   border-radius: var(--radius-small);
 }
 
-.state-message p,
 .form-error-summary p {
   margin: var(--space-1) 0 0;
 }
@@ -328,7 +328,6 @@ nav {
 
 .field-errors {
   margin: 0;
-  padding-left: var(--space-5);
   color: var(--color-error);
 }
 
@@ -462,6 +461,7 @@ nav {
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-small);
   background: var(--color-surface);
+  color: var(--color-text);
   box-shadow: var(--shadow-toast);
 }
 
@@ -471,6 +471,19 @@ nav {
   padding-right: var(--compact-action-min-height);
   overflow-wrap: anywhere;
 }
+
+.ui-toast__icon {
+  width: var(--space-5);
+  height: var(--space-5);
+  flex: 0 0 auto;
+  margin-top: var(--space-1);
+}
+
+.state-message--info .ui-toast__icon { color: var(--color-primary); }
+.state-message--success .ui-toast__icon { color: var(--color-success); }
+.state-message--error .ui-toast__icon { color: var(--color-error); }
+.state-message--neutral .ui-toast__icon { color: var(--color-text); }
+.state-message--warning .ui-toast__icon { color: var(--color-warning); }
 
 .ui-toast__close {
   position: absolute;
@@ -518,7 +531,6 @@ nav {
 
 .dashboard-expenses {
   padding: 0;
-  margin: 0;
   list-style: none;
 }
 
@@ -572,7 +584,7 @@ nav {
   }
 
   .dashboard-expense-cost {
-    text-align: left;
+    text-align: start;
   }
 }
 
@@ -622,7 +634,7 @@ nav {
   height: auto;
   padding: 0;
   color: var(--color-link);
-  text-align: left;
+  text-align: start;
   text-decoration: underline;
   cursor: pointer;
 }
@@ -633,6 +645,7 @@ nav {
   min-height: var(--compact-action-min-height);
   height: auto;
   white-space: normal;
+  text-align: start;
 }
 
 .ui-dialog::backdrop {
@@ -667,7 +680,7 @@ nav {
 .ui-heading-3 {
   margin-block: 0 var(--space-3);
   font-size: var(--font-heading-3);
-  font-family: var(--font-family-heading);
+  font-family: var(--font-sans);
   font-weight: var(--weight-bold);
 }
 
@@ -718,7 +731,7 @@ strong, label, legend { font-weight: var(--weight-bold); }
 .ui-kit-token-table th, .ui-kit-token-table td {
   padding: var(--space-3);
   border-bottom: var(--border-width) solid var(--color-border);
-  text-align: left;
+  text-align: start;
   overflow-wrap: anywhere;
 }
 .ui-kit-token-table code { white-space: normal; }
@@ -727,3 +740,9 @@ strong, label, legend { font-weight: var(--weight-bold); }
   .ui-kit-nav { position: static; flex-flow: row wrap; }
 }
 .people-picker { display: grid; gap: var(--space-2); }
+
+.theme-toggle {
+  &:hover {
+    color: var(--color-primary);
+  }
+}

@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<{
   required?: boolean
   placeholder?: string
   emptyText?: string
-}>(), { id: undefined, multiple: false, detailed: false, internalSearch: true, loading: false, disabled: false, required: false, placeholder: 'Select an option', emptyText: 'No options found.' })
+}>(), { id: undefined, multiple: false, detailed: false, internalSearch: true, loading: false, disabled: false, required: false, placeholder: 'Type to search', emptyText: 'No options found' })
 const model = defineModel<SelectOption | SelectOption[] | null>({ default: null })
 const emit = defineEmits<{ open: [], close: [], search: [query: string] }>()
 const attrs = useAttrs()
@@ -152,10 +152,12 @@ defineExpose({ focus: () => root.value?.querySelector('input')?.focus(), close }
           <UiButton
             v-if="!option.$isDisabled"
             variant="link"
+            size="xs"
+            icon="close"
             :aria-label="`Remove ${option.label}`"
             @mousedown.prevent
             @click.stop="remove(option)"
-          >×</UiButton>
+          />
         </span>
       </template>
       <template #noResult>
