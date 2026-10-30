@@ -55,7 +55,7 @@ final class LoginHttpTest extends WebTestCase
         self::assertResponseHeaderSame('Content-Type', 'application/json');
         self::assertSame(['accessToken', 'expiresIn', 'user'], $this->sortedKeys($body));
         self::assertSame(900, $body['expiresIn']);
-        self::assertSame(['email', 'id', 'isActive', 'name'], $this->sortedKeys($body['user']));
+        self::assertSame(['email', 'id', 'isActive', 'locale', 'name'], $this->sortedKeys($body['user']));
         self::assertSame($userId, $body['user']['id']);
         self::assertSame('Login User', $body['user']['name']);
         self::assertSame('login@example.test', $body['user']['email']);

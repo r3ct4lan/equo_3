@@ -11,10 +11,11 @@ final readonly class LoginUserView
         public string $name,
         public string $email,
         public bool $isActive,
+        public string $locale = 'en',
     ) {
     }
 
-    /** @return array{id: string, name: string, email: string, isActive: bool} */
+    /** @return array{id: string, name: string, email: string, isActive: bool, locale: string} */
     public function toArray(): array
     {
         return [
@@ -22,6 +23,7 @@ final readonly class LoginUserView
             'name' => $this->name,
             'email' => $this->email,
             'isActive' => $this->isActive,
+            'locale' => $this->locale,
         ];
     }
 }

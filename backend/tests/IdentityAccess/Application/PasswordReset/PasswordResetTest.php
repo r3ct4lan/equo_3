@@ -51,7 +51,7 @@ final class PasswordResetTest extends TestCase
         $codec = $this->createStub(ActionTokenCodecPort::class);
         $codec->method('issue')->willReturn(new IssuedActionToken('v1.capability', 'v1:digest'));
         $cipher = $this->createMock(PayloadCipherPort::class);
-        $cipher->expects(self::once())->method('encrypt')->with(['token' => 'v1.capability'])->willReturn('encrypted');
+        $cipher->expects(self::once())->method('encrypt')->with(['token' => 'v1.capability', 'locale' => 'en'])->willReturn('encrypted');
         $outbox = $this->createMock(PasswordResetOutboxPort::class);
         $outbox->expects(self::once())->method('enqueuePasswordReset')->with('delivery-id', 'token-id', 'user@example.test', 'encrypted', $now);
         $limits = $this->createMock(PasswordResetRateLimitPort::class);

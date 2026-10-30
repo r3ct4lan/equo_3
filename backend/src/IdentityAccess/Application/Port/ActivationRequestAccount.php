@@ -11,6 +11,7 @@ final readonly class ActivationRequestAccount
         public string $email,
         private string $passwordHash,
         public bool $isActive,
+        public string $locale = 'en',
     ) {
     }
 

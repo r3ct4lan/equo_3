@@ -32,7 +32,7 @@ final readonly class DoctrineEmailChangeRepository implements EmailChangeReposit
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)->getOneOrNullResult();
 
         return $user instanceof UserRecord
-            ? new StoredLoginIdentity($user->id(), $user->name(), $user->email(), $user->passwordHash(), $user->isActive())
+            ? new StoredLoginIdentity($user->id(), $user->name(), $user->email(), $user->passwordHash(), $user->isActive(), $user->locale())
             : null;
     }
 

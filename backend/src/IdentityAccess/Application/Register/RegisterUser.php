@@ -119,7 +119,7 @@ final readonly class RegisterUser
                 $this->uuid->generate(),
                 $token->id,
                 $email->value,
-                $this->payloadCipher->encrypt(['token' => $issuedToken->publicToken]),
+                $this->payloadCipher->encrypt(['token' => $issuedToken->publicToken, 'locale' => $user->locale]),
                 $now,
             );
 

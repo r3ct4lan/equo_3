@@ -70,7 +70,7 @@ final readonly class RequestActivation
                 $this->uuid->generate(),
                 $token->id,
                 $account->email,
-                $this->payloadCipher->encrypt(['token' => $issuedToken->publicToken]),
+                $this->payloadCipher->encrypt(['token' => $issuedToken->publicToken, 'locale' => $account->locale]),
                 $now,
             );
         });

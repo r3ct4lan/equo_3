@@ -53,6 +53,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             $record->email(),
             $record->passwordHash(),
             $record->isActive(),
+            $record->locale(),
         );
     }
 
@@ -77,6 +78,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             $record->email(),
             $record->passwordHash(),
             $record->isActive(),
+            $record->locale(),
         );
     }
 

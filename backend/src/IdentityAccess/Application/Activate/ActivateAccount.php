@@ -62,7 +62,7 @@ final readonly class ActivateAccount
             }
 
             return $this->issueUserSession->issue(
-                new LoginUserView($user->id, $user->name, $user->email, true),
+                new LoginUserView($user->id, $user->name, $user->email, true, $user->locale),
                 $now,
             );
         });
