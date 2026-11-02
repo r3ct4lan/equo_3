@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NuxtLink } from '#components'
-import { RiAddLine, RiCloseLine } from '@remixicon/vue'
+import { RiAddLine, RiArrowLeftLine, RiCloseLine } from '@remixicon/vue'
 import { Button as RegistryButton } from '~/components/ui/button'
 import type { ButtonSize, ButtonVariant, LinkTo } from '~/types/ui'
 
@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{
   pending?: boolean
   pendingLabel?: string
   compact?: boolean
-  icon?: 'add' | 'close'
+  icon?: 'add' | 'back' | 'close'
 }>(), {
   variant: 'primary',
   size: 'default',
@@ -63,6 +63,11 @@ function guardClick(event: MouseEvent): void {
     />
     <RiCloseLine
       v-if="icon === 'close'"
+      aria-hidden="true"
+      focusable="false"
+    />
+    <RiArrowLeftLine
+      v-if="icon === 'back'"
       aria-hidden="true"
       focusable="false"
     />

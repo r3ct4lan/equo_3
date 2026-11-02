@@ -143,6 +143,7 @@ const { t } = useTranslation()
     <UiButton
       v-if="state.status === 'authenticated'"
       variant="secondary"
+      icon="back"
       to="/connects"
     >
       {{ t('Your connections') }}

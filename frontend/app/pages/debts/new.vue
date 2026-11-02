@@ -18,8 +18,12 @@ const { t } = useTranslation()
     </UiText>
     <UiText>{{ t('Record what was paid and share the cost equally.') }}</UiText>
     <CreateDebtForm />
-    <UiLink to="/debts">
+    <UiButton
+      variant="secondary"
+      icon="back"
+      to="/debts"
+    >
       {{ t('Your expenses') }}
-    </UiLink>
+    </UiButton>
   </section>
 </template>

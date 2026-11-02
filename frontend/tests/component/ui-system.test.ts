@@ -10,6 +10,18 @@ import UiKit from '../../app/pages/ui-kit.vue'
 import { RiInformationFill, RiCheckDoubleFill, RiErrorWarningFill, RiChat3Line, RiErrorWarningLine } from '@remixicon/vue'
 
 describe('shared UI interactions', () => {
+  it('keeps catalog examples in English without changing the selected language', async () => {
+    const locale = useState<'en' | 'ru'>('locale')
+    locale.value = 'ru'
+    const wrapper = await mountSuspended(UiKit)
+    expect(wrapper.get('#ui-connections').text()).toContain('They owe you.')
+    expect(wrapper.get('#ui-expenses').text()).toContain('Paid by Alex')
+    expect(wrapper.get('#ui-expenses').text()).toContain('Payer inactive')
+    expect(wrapper.text()).not.toMatch(/[А-Яа-яЁё]/u)
+    expect(locale.value).toBe('ru')
+    wrapper.unmount()
+    locale.value = 'en'
+  })
   it('shows the matching decorative icon for each toast tone', async () => {
     const icons = { info: RiInformationFill, success: RiCheckDoubleFill, error: RiErrorWarningFill, neutral: RiChat3Line, warning: RiErrorWarningLine } as const
     const wrapper = await mountSuspended(UiToast)

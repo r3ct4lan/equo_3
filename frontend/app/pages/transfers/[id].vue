@@ -50,7 +50,7 @@ const { t } = useTranslation()
         v-if="transfer.isDeleted"
         tone="warning"
       >
-        {{ t('Removed · does not affect the balance') }}
+        {{ t('Removed') }}
       </UiNotice>
       <UiLink
         v-if="transfer.debtReference?.isAccessible"
@@ -97,8 +97,12 @@ const { t } = useTranslation()
     >
       {{ t('Try again') }}
     </UiButton>
-    <UiLink to="/connects">
+    <UiButton
+      variant="secondary"
+      icon="back"
+      to="/connects"
+    >
       {{ t('Your connections') }}
-    </UiLink>
+    </UiButton>
   </section>
 </template>

@@ -76,7 +76,7 @@ const { t } = useTranslation()
           :title="t('No expenses yet')"
           :message="t('Expenses you pay for or take part in will appear here.')"
         />
-        <ol
+        <div
           v-else
           class="dashboard-expenses stack"
           :aria-label="t('Latest expenses')"
@@ -90,7 +90,7 @@ const { t } = useTranslation()
             :payer-name="expense.payer.name"
             :created-at="expense.createdAt"
           />
-        </ol>
+        </div>
         <UiLink
           v-if="data.expenses.length"
           to="/debts"
