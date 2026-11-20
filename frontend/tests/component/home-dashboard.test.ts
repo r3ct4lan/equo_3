@@ -23,12 +23,15 @@ const expenses = Array.from({ length: 5 }, (_, i) => ({
   participantCount: 2, shareAmount: 501, canEdit: false, version: 1,
   createdAt: '2026-10-18T12:00:00Z'
 }))
+const connections = { items: [{ id: 'connect' }], pagination: { nextCursor: null, hasMore: false } }
+const emptyPage = { items: [], pagination: { nextCursor: null, hasMore: false } }
 const summary = { totalOwedAmount: 3000, totalReceivableAmount: 5000 }
 const list = { items: expenses, pagination: { nextCursor: 'next', hasMore: true } }
 function signedIn(id = 'self') {
   useCurrentUser().setAuthenticated({ id, name: 'Alex', email: 'self@example.test', isActive: true, createdAt: '2026-10-18T12:00:00Z' })
 }
 function respond(path: string) {
+  if (path === '/v1/connects') return connections
   return path === '/v1/transfers/balance-summary' ? summary : list
 }
 
@@ -72,6 +75,53 @@ describe('home dashboard', () => {
     wrapper.unmount()
   })
 
+  it('offers an invitation after a confirmed empty connections list and copies its link', async () => {
+    const url = 'https://example.test/connect-invitations/sample'
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.spyOn(navigator.clipboard, 'writeText').mockImplementation(writeText)
+    try {
+      auth.protectedRequest.mockImplementation(async (path: string) => {
+        if (path === '/v1/connects') return emptyPage
+        if (path === '/v1/connect-invitations') {
+          return { url, token: 'sample', expiresAt: '2026-11-27T00:00:00Z', created: true }
+        }
+        return respond(path)
+      })
+      const wrapper = await mountSuspended(HomePage)
+      await flushPromises()
+      expect(wrapper.text()).toContain('Invite a friend')
+      expect(wrapper.text()).not.toContain('Your overview')
+      expect(auth.protectedRequest.mock.calls).toEqual([['/v1/connects', { query: { limit: '1' } }]])
+      await wrapper.get('button').trigger('click')
+      await flushPromises()
+      expect(auth.protectedRequest).toHaveBeenLastCalledWith('/v1/connect-invitations', { method: 'POST' })
+      await wrapper.findAll('button').find(button => button.text() === 'Copy invitation')!.trigger('click')
+      await flushPromises()
+      expect(writeText).toHaveBeenCalledWith(url)
+      expect(wrapper.get('[role="status"]').text()).toBe('Invitation copied.')
+    }
+    finally {
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('waits for the connections check and retries after a failed request', async () => {
+    let reject: (failure: Error) => void = () => undefined
+    auth.protectedRequest.mockImplementationOnce(() => new Promise((_, fail) => {
+      reject = fail
+    }))
+    const wrapper = await mountSuspended(HomePage)
+    expect(wrapper.text()).not.toMatch(/Invite a friend|Your overview/)
+    expect(wrapper.text()).toContain('Loading your connections')
+    reject(new Error('private details'))
+    await flushPromises()
+    expect(wrapper.text()).toContain('Your connections could not be loaded')
+    expect(wrapper.text()).not.toMatch(/Invite a friend|private details/)
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Your overview')
+  })
+
   it('renders separate totals and five linked dated expenses through the shared client', async () => {
     const wrapper = await mountSuspended(HomePage)
     await flushPromises()
@@ -92,7 +142,7 @@ describe('home dashboard', () => {
     expect(wrapper.text()).not.toMatch(/Sign in|Create an account|API connection/)
     expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/balance-summary')
     expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/debts', { query: { limit: 5, status: 'active' } })
-    expect(auth.protectedRequest).toHaveBeenCalledTimes(2)
+    expect(auth.protectedRequest).toHaveBeenCalledTimes(3)
     expect(api).not.toHaveBeenCalled()
     wrapper.unmount()
   })
@@ -101,8 +151,10 @@ describe('home dashboard', () => {
     let resolve: (value: unknown) => void = () => undefined
     auth.protectedRequest.mockImplementation((path: string) => path === '/v1/transfers/balance-summary'
       ? new Promise((done) => { resolve = done })
-      : Promise.resolve({ items: [], pagination: { nextCursor: null, hasMore: false } }))
+      : Promise.resolve(path === '/v1/connects' ? connections : emptyPage))
+
     const wrapper = await mountSuspended(HomePage)
+    await flushPromises()
     expect(wrapper.text()).toContain('Loading your overview')
     expect(wrapper.text()).not.toContain('€0.00')
     resolve({ totalOwedAmount: 0, totalReceivableAmount: 0 })
@@ -117,18 +169,18 @@ describe('home dashboard', () => {
   it('does not turn a failed expense request into zeros and retries explicitly', async () => {
     auth.protectedRequest.mockImplementation(async (path: string) => {
       if (path === '/v1/debts') throw new ApiClientError({ kind: 'network', code: 'NETWORK_ERROR', message: 'unsafe SQL details' })
-      return summary
+      return respond(path)
     })
     const wrapper = await mountSuspended(HomePage)
     await flushPromises()
     expect(wrapper.text()).toContain('Your overview could not be loaded')
     expect(wrapper.text()).not.toMatch(/€0.00|€30.00|unsafe SQL|No expenses yet/)
-    expect(auth.protectedRequest).toHaveBeenCalledTimes(2)
+    expect(auth.protectedRequest).toHaveBeenCalledTimes(3)
     auth.protectedRequest.mockImplementation(async (path: string) => respond(path))
     await wrapper.get('button').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('€30.00')
-    expect(auth.protectedRequest).toHaveBeenCalledTimes(4)
+    expect(auth.protectedRequest).toHaveBeenCalledTimes(5)
     wrapper.unmount()
   })
 
@@ -138,12 +190,11 @@ describe('home dashboard', () => {
     const wrapper = await mountSuspended(HomePage)
     auth.protectedRequest.mockImplementation(async (path: string) => path === '/v1/debts'
       ? { items: [], pagination: { nextCursor: null, hasMore: false } }
-      : { totalOwedAmount: 0, totalReceivableAmount: 100 })
+      : path === '/v1/connects' ? connections : { totalOwedAmount: 0, totalReceivableAmount: 100 })
     signedIn('next-account')
     await flushPromises()
     expect(wrapper.text()).toContain('€1.00')
-    oldRequests[0]!(summary)
-    oldRequests[1]!(list)
+    oldRequests.forEach(resolve => resolve(emptyPage))
     await flushPromises()
     expect(wrapper.text()).not.toMatch(/Dinner|€30.00|€50.00/)
     useCurrentUser().setAnonymous()
