@@ -1,6 +1,6 @@
 /* Theme: claude blu 2. Source: https://tweakcn.com/r/themes/cmmea3qbd000004jvb99v39cd
 Single source for theme values. Inter is served locally through Fontsource.
-Structural media query breakpoints: 36rem / 52rem. */
+Responsive variants use the default Tailwind breakpoints. */
 :root {
   --font-sans: 'Inter Variable', sans-serif;
   --font-mono: monospace;
@@ -83,6 +83,7 @@ Structural media query breakpoints: 36rem / 52rem. */
   --color-warning: color-mix(in srgb, var(--warning) 70%, var(--color-text));
   --color-warning-surface: color-mix(in srgb, var(--warning) 10%, var(--background));
   --color-warning-border: color-mix(in srgb, var(--warning) 40%, var(--color-border));
+  --color-warning-card: color-mix(in srgb, var(--color-warning-surface) 50%, var(--card));
   --radius-small: var(--radius);
   --radius-medium: var(--radius-2xl);
   --shadow-surface: var(--shadow-md);
@@ -129,7 +130,7 @@ Structural media query breakpoints: 36rem / 52rem. */
   --select-person-height: 4rem;
   --language-select-width: 5.5rem;
   --language-menu-width: 9rem;
-  --control-check-size: 1.25rem;
+  --control-check-size: 1rem;
   --header-height: 4rem;
   --viewport-min: 20rem;
   --panel-width: 48rem;
@@ -140,7 +141,7 @@ Structural media query breakpoints: 36rem / 52rem. */
   --toast-width: 24rem;
   --hero-width: 50rem;
   --lede-width: 42rem;
-  --description-label-width: 7rem;
+  --description-label-width: 5rem;
   --space-page: clamp(2rem, 4vw, 5rem);
   --space-panel: clamp(1.25rem, 4vw, 2rem);
   --space-section: clamp(2rem, 6vw, 4rem);
@@ -177,14 +178,14 @@ Structural media query breakpoints: 36rem / 52rem. */
 
 .dark {
   --background: oklch(0.1776 0 0);
-  --foreground: oklch(0.7905 0.0126 259.8241);
+  --foreground: oklch(0.902 0.019 248.041);
   --card: oklch(0.2638 0.0024 247.9155);
   --card-foreground: oklch(0.9755 0.0045 258.3245);
   --popover: oklch(0.3046 0.0023 247.9001);
   --popover-foreground: oklch(0.9176 0.0026 228.7865);
   --primary: oklch(0.6576 0.1208 252.0832);
-  --secondary: oklch(0.9774 0.0042 236.4961);
-  --secondary-foreground: oklch(0.3046 0.0023 247.9001);
+  --secondary: oklch(0.3046 0.0023 247.9001);
+  --secondary-foreground: oklch(0.9774 0.0042 236.4961);
   --muted: oklch(0.2171 0.0025 247.9411);
   --muted-foreground: oklch(0.7559 0.0125 239.9659);
   --accent: oklch(0.2038 0.0067 258.3676);

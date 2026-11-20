@@ -18,11 +18,16 @@ test('formats exact euro amounts using the selected language', () => {
   assert.equal(formatEuro(-105, 'ru'), '-1,05\u00a0€')
 })
 
-test('formats dates consistently in UTC', () => {
+test('formats dates in UTC and includes the year only when it differs from the current year', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-12-31T23:30:00Z') })
   const date = new Date('2026-10-30T12:00:00Z')
-  assert.equal(formatDate(date, 'ru'), '30.10.2026')
+  assert.equal(formatDate(date, 'ru'), '30.10')
+  assert.equal(formatDate(date, 'en'), '30 Oct')
+  assert.equal(formatDateTime(date, 'ru'), '30.10, 12:00')
+  assert.equal(formatDate(new Date('2025-10-30T12:00:00Z'), 'ru'), '30.10.2025')
+  assert.equal(formatDate(new Date('2027-01-01T00:00:00Z'), 'en'), '01 Jan 2027')
+  t.mock.timers.setTime(Date.parse('2027-01-01T00:00:00Z'))
   assert.equal(formatDate(date, 'en'), '30 Oct 2026')
-  assert.equal(formatDateTime(date, 'ru'), '30.10.2026, 12:00')
 })
 
 test('translates interface messages and uses a safe fallback for unknown errors', () => {

@@ -113,6 +113,7 @@ const { t } = useTranslation()
     </UiButton>
     <UiButton
       variant="secondary"
+      icon="back"
       to="/debts"
     >
       {{ t('Your expenses') }}

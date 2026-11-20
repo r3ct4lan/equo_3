@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineNuxtConfig({
 
   modules: ['shadcn-nuxt'],
+  components: [{ path: '~/components', ignore: ['ui/**'] }],
   devtools: { enabled: true }, app: { head: { script: [{ src: '/theme-init.js' }] } },
   css: ['~/assets/css/tailwind.css', '~/assets/css/vars.css', '~/assets/css/main.css', '~/assets/css/multiselect.css'],
   vue: { optionsApi: true },

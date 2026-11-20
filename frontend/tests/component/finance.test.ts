@@ -1,11 +1,11 @@
 import {
-  flushPromises
+  enableAutoUnmount, flushPromises
 } from '@vue/test-utils'
 import {
   mockNuxtImport, mountSuspended
 } from '@nuxt/test-utils/runtime'
 import {
-  beforeEach, describe, expect, it, vi
+  afterEach, beforeEach, describe, expect, it, vi
 } from 'vitest'
 import CreateDebtForm from '../../app/components/CreateDebtForm.vue'
 import NewDebtPage from '../../app/pages/debts/new.vue'
@@ -19,6 +19,8 @@ import ConnectBalance from '../../app/components/ConnectBalance.vue'
 import {
   ApiClientError
 } from '../../app/utils/api-error'
+
+enableAutoUnmount(afterEach)
 
 const {
   auth, navigation
@@ -260,6 +262,9 @@ describe('financial journey components', () => {
     const wrapper = await mountSuspended(DebtsPage)
     await flushPromises()
     expect(wrapper.text()).toContain('Dinner')
+    expect(wrapper.get('.dashboard-expense a').attributes('href')).toBe('/debts/debt')
+    expect(wrapper.get('.dashboard-expense time').attributes('datetime')).toBe(debt.createdAt)
+    expect(wrapper.get('.dashboard-expense').text()).toContain('€10.01')
     await wrapper.get('button').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Lunch')
@@ -267,6 +272,14 @@ describe('financial journey components', () => {
     await flushPromises()
     expect(wrapper.text()).not.toContain('Dinner')
     expect(wrapper.text()).toContain('No expenses yet')
+    wrapper.unmount()
+  })
+  it('shows removed and inactive payer notices on expense rows', async () => {
+    auth.protectedRequest.mockResolvedValue(page([{ ...debt, isDeleted: true, payer: { ...self, isActive: false } }]))
+    const wrapper = await mountSuspended(DebtsPage)
+    await flushPromises()
+    expect(wrapper.get('.dashboard-expense').text()).toContain('Removed')
+    expect(wrapper.get('.dashboard-expense').text()).toContain('Payer inactive')
     wrapper.unmount()
   })
   it('shows roles, inactive people and removed expense without premature writer controls', async () => {
@@ -330,7 +343,7 @@ describe('financial journey components', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Payment · €5.01')
     expect(wrapper.text()).toContain('Recorded by Alex')
-    expect(wrapper.text()).toContain('does not affect the balance')
+    expect(wrapper.text()).toContain('Removed')
     wrapper.unmount()
   })
 
@@ -374,9 +387,9 @@ describe('financial journey components', () => {
   })
 
   it.each([
-    [501, 'Balance: €5.01', 'They owe you.', 'connect-balance__value--positive'],
-    [-501, 'Balance: -€5.01', 'You owe them.', 'connect-balance__value--negative'],
-    [0, 'Balance: €0.00', 'You are settled up.', null]
+    [501, '€5.01', 'They owe you', 'connect-balance__value--positive'],
+    [-501, '-€5.01', 'You owe them', 'connect-balance__value--negative'],
+    [0, '€0.00', 'You are settled up', null]
   ])('shows balance %s once with its viewer-relative meaning', async (amount, balance, meaning, tone) => {
     const wrapper = await mountSuspended(ConnectBalance, {
       props: {

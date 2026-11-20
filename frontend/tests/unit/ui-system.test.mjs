@@ -7,7 +7,7 @@ test('styles guard rejects new literals and undefined tokens while allowing layo
   assert.deepEqual(auditStyles('.x { padding: var(--space-4); color: var(--color-primary); width: 100%; } .visually-hidden { width: 1px; margin: -1px; }', tokens), [])
   assert.equal(auditStyles('.x { color: #abc; padding: 13px; border-color: red; gap: var(--missing); }', tokens).length, 4)
   assert.equal(auditStyles('@media (max-width: 47rem) { .x { display: grid; } }', tokens).length, 1)
-  assert.deepEqual(auditStyles('@media (max-width: 36rem) { .x { display: grid; } } @media (width <= 36rem) { .x { display: grid; } }', tokens), [])
+  assert.deepEqual(auditStyles('@variant max-sm { .x { display: grid; } } @variant max-md { .x { display: grid; } }', tokens), [])
 })
 
 test('catalog guard follows composed specimens and detects a shared primitive missing from the catalog', () => {
