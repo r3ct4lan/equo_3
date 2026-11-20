@@ -5,6 +5,7 @@ definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Account security · Equo' })
 const currentUser = useCurrentUser()
 const { $auth } = useNuxtApp()
+const email = computed(() => currentUser.state.value.user?.email)
 
 const { t } = useTranslation()
 </script>
@@ -24,11 +25,19 @@ const { t } = useTranslation()
       >
         {{ t('Account security') }}
       </UiText>
-      <UiText variant="lede">
+      <UiText
+        v-if="email"
+        variant="lede"
+      >
         {{ t(PASSWORD_POLICY_HINT) }} {{ t('Saving signs you out on all devices. Sign in again with your new password.') }}
       </UiText>
     </div>
-    <PasswordChangeForm v-if="currentUser.state.value.status === 'authenticated'" />
+    <PasswordChangeForm v-if="email" />
+    <AppEmptyState
+      v-else-if="currentUser.state.value.status === 'authenticated'"
+      :title="t('No email added')"
+      :message="t('Use your profile to manage your sign-in methods.')"
+    />
     <AppErrorState
       v-else-if="currentUser.state.value.status === 'error'"
       :title="t('We could not check your session')"

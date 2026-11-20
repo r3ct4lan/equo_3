@@ -85,6 +85,39 @@ final class MeHttpTest extends WebTestCase
         self::assertStringNotContainsString('roles', json_encode($body, JSON_THROW_ON_ERROR));
     }
 
+    public function testMeReturnsProfileForTelegramOnlyAccount(): void
+    {
+        $userId = '87000000-0000-4000-8000-000000000309';
+        $this->connection->insert('app_user', [
+            'id' => $userId,
+            'name' => 'Telegram User',
+            'telegram_id' => 4294967297,
+            'is_active' => 'true',
+            'created_at' => '2026-11-21 12:00:00+00',
+        ]);
+        $access = self::getContainer()->get(AccessTokenIssuerPort::class)->issue($userId)->accessToken;
+
+        $profile = $this->me($access);
+
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame($userId, $profile['id']);
+        self::assertSame('Telegram User', $profile['name']);
+        self::assertArrayHasKey('email', $profile);
+        self::assertNull($profile['email']);
+        self::assertArrayNotHasKey('telegramId', $profile);
+
+        $this->client->request('GET', '/api/v1/debt-people?q=Telegram', server: [
+            'HTTP_AUTHORIZATION' => 'Bearer '.$access,
+        ]);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame([[
+            'id' => $userId,
+            'name' => 'Telegram User',
+            'isActive' => true,
+            'email' => null,
+        ]], $this->jsonBody()['items']);
+    }
+
     public function testMeReadsFreshDatabaseStateAndRejectsInactiveUserWithSameJwt(): void
     {
         $userId = '87000000-0000-4000-8000-000000000302';

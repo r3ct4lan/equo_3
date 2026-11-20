@@ -43,18 +43,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             ->where('user.email = :email')->setParameter('email', $normalizedEmail)
             ->getQuery()->setHint(Query::HINT_REFRESH, true)->getOneOrNullResult();
 
-        if (!$record instanceof UserRecord) {
-            return null;
-        }
-
-        return new StoredLoginIdentity(
-            $record->id(),
-            $record->name(),
-            $record->email(),
-            $record->passwordHash(),
-            $record->isActive(),
-            $record->locale(),
-        );
+        return $record instanceof UserRecord ? $record->passwordIdentity() : null;
     }
 
     public function accountForUpdate(string $normalizedEmail): ?ActivationRequestAccount
@@ -69,17 +58,13 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)
             ->getOneOrNullResult();
 
-        if (!$record instanceof UserRecord) {
+        $email = $record instanceof UserRecord ? $record->email() : null;
+        $passwordHash = $record instanceof UserRecord ? $record->passwordHash() : null;
+        if (!$record instanceof UserRecord || null === $email || null === $passwordHash) {
             return null;
         }
 
-        return new ActivationRequestAccount(
-            $record->id(),
-            $record->email(),
-            $record->passwordHash(),
-            $record->isActive(),
-            $record->locale(),
-        );
+        return new ActivationRequestAccount($record->id(), $email, $passwordHash, $record->isActive(), $record->locale());
     }
 
     public function currentUserState(string $userId): ?CurrentUserState
@@ -157,7 +142,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
         $record = new UserRecord(
             $user->id,
             $user->name,
-            $user->email->value,
+            $user->email?->value,
             $user->passwordHash,
             $user->isActive(),
             $user->createdAt,

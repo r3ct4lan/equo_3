@@ -275,10 +275,12 @@ final class ActivationRequestHttpTest extends WebTestCase
             $now,
             $now->modify('+24 hours'),
         );
+        $email = $user->email();
+        self::assertNotNull($email);
         $outbox = new EmailDeliveryOutboxRecord(
             Uuid::v7()->toRfc4122(),
             $token->id(),
-            $user->email(),
+            $email,
             'activate-account',
             self::getContainer()->get(PayloadCipher::class)->encrypt(['token' => 'v1.old-public-token']),
             EmailDeliveryStatus::Pending,

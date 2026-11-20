@@ -28,7 +28,7 @@ export interface ApiErrorEnvelope {
 export interface CurrentUser {
   id: Uuid
   name: string
-  email: string
+  email: string | null
   isActive: boolean
   createdAt: UtcDateTime
   locale: 'en' | 'ru'
@@ -85,7 +85,7 @@ export interface LoginResponse {
   user: {
     id: Uuid
     name: string
-    email: string
+    email: string | null
     isActive: true
     locale: 'en' | 'ru'
   }

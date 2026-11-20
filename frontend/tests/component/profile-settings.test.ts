@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { useRoute } from '#app'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import ProfilePage from '../../app/pages/me.vue'
 import ProfileNameForm from '../../app/components/ProfileNameForm.vue'
 import ProfileLanguageForm from '../../app/components/ProfileLanguageForm.vue'
 import EmailChangeForm from '../../app/components/EmailChangeForm.vue'
@@ -35,6 +36,21 @@ describe('profile settings', () => {
     authMock.deactivateAccount.mockReset().mockResolvedValue(undefined)
     useCurrentUser().reset()
     useLocale().setLocale('en')
+  })
+
+  it('shows a profile without email and hides password-only actions', async () => {
+    const telegramUser = { ...user, email: null }
+    useCurrentUser().setAuthenticated(telegramUser)
+    authMock.protectedRequest.mockResolvedValue(telegramUser)
+    const wrapper = await mountSuspended(ProfilePage, { global: { stubs: { LogoutActions: true } } })
+    await flushPromises()
+    useCurrentUser().setAuthenticated(telegramUser)
+    await flushPromises()
+
+    expect(wrapper.get('#profile-card-title').text()).toBe(telegramUser.name)
+    expect(wrapper.get('dl').text()).toContain('No email added')
+    expect(wrapper.text()).not.toMatch(/Change email|Change password|Deactivate account/)
+    wrapper.unmount()
   })
 
   it('saves the language and applies the returned profile', async () => {
