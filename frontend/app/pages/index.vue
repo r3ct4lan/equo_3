@@ -3,6 +3,7 @@ import type { ConnectView } from '~/types/connects'
 
 useHead({ title: 'Equo' })
 const { state } = useCurrentUser()
+const isTelegramMiniApp = useState('telegram-mini-app', () => false)
 const { $auth } = useNuxtApp()
 const { items, pending, loaded, error, load } = useFinancialList<ConnectView>(
   () => '/v1/connects', () => ({ limit: '1' })
@@ -82,8 +83,8 @@ const { t } = useTranslation()
     />
     <AppErrorState
       v-else
-      :title="t('Your session could not be checked')"
-      :message="t('Try again to load your home page.')"
+      :title="isTelegramMiniApp ? t('Telegram sign-in could not be completed') : t('Your session could not be checked')"
+      :message="isTelegramMiniApp ? t('Try again or reopen Equo from Telegram.') : t('Try again to load your home page.')"
       :retry-label="t('Try again')"
       @retry="$auth.retryBootstrap()"
     />

@@ -19,6 +19,8 @@ enum ApplicationFailureCode: string
     case TokenInvalidated = 'TOKEN_INVALIDATED';
     case RateLimitExceeded = 'RATE_LIMIT_EXCEEDED';
     case InvalidCredentials = 'INVALID_CREDENTIALS';
+    case TelegramAuthenticationFailed = 'TELEGRAM_AUTHENTICATION_FAILED';
+    case TelegramUnavailable = 'TELEGRAM_UNAVAILABLE';
     case AccountInactive = 'ACCOUNT_INACTIVE';
     case AuthenticationRequired = 'AUTHENTICATION_REQUIRED';
     case InvalidRefreshToken = 'INVALID_REFRESH_TOKEN';

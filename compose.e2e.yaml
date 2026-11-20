@@ -37,6 +37,7 @@ x-backend-environment: &backend-environment
   EQUO_CSRF_SIGNING_KEY_VERSION: v1
   EQUO_CSRF_SIGNING_KEY_RING: ${E2E_CSRF_SIGNING_KEY_RING:?scripts/test-e2e.sh must generate E2E_CSRF_SIGNING_KEY_RING}
   EQUO_APPLICATION_ORIGIN: https://nginx
+  EQUO_TELEGRAM_BOT_TOKEN: equo-e2e-mini-app-key
 
 services:
   postgres:
@@ -171,6 +172,7 @@ services:
     environment:
       CI: ${CI:-}
       E2E_BASE_URL: https://nginx
+      E2E_TELEGRAM_BOT_TOKEN: equo-e2e-mini-app-key
       E2E_MAILPIT_URL: http://mailpit:8025
     volumes:
       - ./frontend/test-results:/workspace/frontend/test-results

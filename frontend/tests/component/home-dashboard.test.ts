@@ -41,6 +41,7 @@ describe('home dashboard', () => {
     auth.retryBootstrap.mockReset().mockResolvedValue(undefined)
     api.mockReset()
     signedIn()
+    useState('telegram-mini-app', () => false).value = false
   })
 
   it('shows guest actions without a health panel or any financial requests', async () => {
@@ -69,6 +70,26 @@ describe('home dashboard', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Your session could not be checked')
     expect(wrapper.text()).not.toContain('private details')
+    await wrapper.get('button').trigger('click')
+    expect(auth.retryBootstrap).toHaveBeenCalledOnce()
+    expect(auth.protectedRequest).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('offers a Telegram retry without displaying another account during a failed launch', async () => {
+    useState('telegram-mini-app', () => false).value = true
+    const wrapper = await mountSuspended(HomePage)
+    useCurrentUser().setError(new ApiClientError({
+      kind: 'api',
+      status: 401,
+      code: 'TELEGRAM_AUTHENTICATION_FAILED',
+      message: 'private launch details'
+    }))
+    await flushPromises()
+    auth.protectedRequest.mockClear()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('Telegram sign-in could not be completed')
+    expect(wrapper.text()).not.toMatch(/Your overview|private launch details/)
     await wrapper.get('button').trigger('click')
     expect(auth.retryBootstrap).toHaveBeenCalledOnce()
     expect(auth.protectedRequest).not.toHaveBeenCalled()

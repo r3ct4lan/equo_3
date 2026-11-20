@@ -4,6 +4,7 @@ import { ApiClientError, type FieldErrorMap } from './api-error.ts'
 import { ACTIVATE_ENDPOINT } from './auth-flow.ts'
 
 export const LOGIN_ENDPOINT = '/v1/auth/login'
+export const TELEGRAM_MINI_APP_ENDPOINT = '/v1/auth/telegram/mini-app'
 export const REFRESH_ENDPOINT = '/v1/auth/refresh'
 export const LOGOUT_ENDPOINT = '/v1/auth/logout'
 export const LOGOUT_ALL_ENDPOINT = '/v1/auth/logout-all'
@@ -39,6 +40,7 @@ export interface AuthSessionDependencies {
   createBroadcastChannel?: (name: string) => Pick<BroadcastChannel, 'postMessage' | 'close' | 'addEventListener'>
   sessionStorage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
   signedOut?: boolean
+  telegramInitData?: string
 }
 
 export function validateLogin(values: Readonly<LoginValues>): FieldErrorMap {
@@ -165,6 +167,7 @@ export function safeRedirectPath(raw: unknown, fallback = '/me'): string {
 
 export function createAuthSession(dependencies: AuthSessionDependencies): AuthSession {
   let accessToken: string | null = null
+  let telegramUserId: string | null = null
   let refreshPromise: Promise<void> | null = null
   let bootstrapPromise: Promise<void> | null = null
   let logoutPromise: Promise<void> | null = null
@@ -286,6 +289,23 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   async function runBootstrap(): Promise<void> {
     const started = generation
     try {
+      if (dependencies.telegramInitData !== undefined) {
+        const signIn = async (): Promise<void> => {
+          if (started !== generation || signedOut) return
+          const response = await dependencies.api<LoginResponse>(TELEGRAM_MINI_APP_ENDPOINT, {
+            method: 'POST',
+            body: { initData: dependencies.telegramInitData }
+          })
+          if (started !== generation || signedOut) return
+          telegramUserId = response.user.id
+          adoptSession(response)
+        }
+        const locks = dependencies.navigator?.locks
+        if (locks) await locks.request(AUTH_REFRESH_LOCK, signIn)
+        else await signIn()
+        return
+      }
+
       await refresh()
       const user = await authenticatedMe()
       if (started !== generation || signedOut) {
@@ -307,7 +327,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
 
       clearToken()
 
-      if (normalized.status === 401 || normalized.code === 'ACCOUNT_INACTIVE') {
+      if (dependencies.telegramInitData === undefined && (normalized.status === 401 || normalized.code === 'ACCOUNT_INACTIVE')) {
         dependencies.currentUser.setAnonymous()
         return
       }
@@ -438,6 +458,23 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
             }
           : {})
       })
+      if (telegramUserId !== null) {
+        const profile = await dependencies.api<CurrentUser>(ME_ENDPOINT, {
+          method: 'GET',
+          accessToken: response.accessToken
+        })
+        if (profile.id !== telegramUserId) {
+          const error = new ApiClientError({
+            kind: 'api',
+            status: 401,
+            code: 'TELEGRAM_AUTHENTICATION_FAILED',
+            message: 'The Telegram session could not be verified.'
+          })
+          clearToken()
+          dependencies.currentUser.setError(error)
+          throw error
+        }
+      }
       if (started !== generation || signedOut) {
         throw authenticationRequired()
       }

@@ -1,5 +1,5 @@
 import type { APIRequestContext, APIResponse, Browser, BrowserContext, Cookie, Page, Route } from '@playwright/test'
-import { randomUUID } from 'node:crypto'
+import { createHmac, randomUUID } from 'node:crypto'
 import { expect, test } from './fixtures'
 import { selectOption, setPerson } from './select'
 
@@ -2710,6 +2710,38 @@ test('manual payment correction updates balance, rejects a stale editor and pres
   await expectNoPersistentSecrets(page, [authorAccess, peerAccess, testPassword])
   await expectNoPersistentSecrets(staleEditor, [authorAccess, peerAccess, testPassword])
   await staleEditor.close()
+})
+
+test('Telegram Mini App replaces a stored browser login and reopens the same profile', async ({ page, request }) => {
+  const email = await createActiveUser(request, uniqueEmail('mini-app-browser'))
+  const browserAccess = await login(page, email)
+  const browserProfile = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + browserAccess } })
+  const browserId = (await browserProfile.json() as { id: string }).id
+
+  const botToken = process.env.E2E_TELEGRAM_BOT_TOKEN ?? 'equo-e2e-mini-app-key'
+  const key = createHmac('sha256', 'WebAppData').update(botToken).digest()
+  const user = JSON.stringify({ id: 4294967297, first_name: 'Telegram', last_name: 'Fixture', language_code: 'en' })
+  const openMiniApp = async () => {
+    const authDate = String(Math.floor(Date.now() / 1000))
+    const hash = createHmac('sha256', key).update(`auth_date=${authDate}\nuser=${user}`).digest('hex')
+    const initData = new URLSearchParams({ auth_date: authDate, user, hash })
+    const fragment = new URLSearchParams({ tgWebAppData: initData.toString(), tgWebAppPlatform: 'tdesktop' })
+    const response = page.waitForResponse(result => new URL(result.url()).pathname === '/api/v1/auth/telegram/mini-app')
+    await followSecretUrl(page, baseUrl + '/#' + fragment)
+    const result = await response
+    expect(result.status()).toBe(200)
+    const { user: profile } = await result.json() as { user: { id: string, name: string, email: string | null } }
+    expect(profile.email).toBeNull()
+    expect(profile.name).toBe('Telegram Fixture')
+    return profile.id
+  }
+
+  const telegramId = await openMiniApp()
+  expect(telegramId === browserId).toBe(false)
+  await expect(page.getByRole('heading', { name: 'Invite a friend', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'My profile', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Telegram Fixture', exact: true })).toBeVisible()
+  expect(await openMiniApp()).toBe(telegramId)
 })
 
 test('home dashboard separates debts, shows five recent expenses and clears on logout', async ({ page, request }, testInfo) => {

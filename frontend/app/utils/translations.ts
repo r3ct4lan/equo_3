@@ -462,6 +462,8 @@ const russian: Record<string, string> = {
   'Transfers': 'Переводы',
   'Transfers could not be loaded': 'Не удалось загрузить переводы',
   'Transfers in this direction will appear here.': 'Здесь появятся переводы в этом направлении.',
+  'Telegram sign-in could not be completed': 'Не удалось войти через Telegram',
+  'Try again or reopen Equo from Telegram.': 'Попробуйте снова или откройте Equo из Telegram.',
   'Try again': 'Попробовать снова',
   'Try again to check your session.': 'Попробуйте снова проверить сессию.',
   'Try again to load the history.': 'Попробуйте снова загрузить историю.',

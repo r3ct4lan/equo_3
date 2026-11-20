@@ -23,6 +23,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class MeHttpTest extends WebTestCase
 {
+    private const string TEST_TELEGRAM_TOKEN = 'equo-test-mini-app-key';
     private const string ORIGIN = 'https://equo.test';
     private const string AUDIENCE = 'equo-api';
     private const string ISSUER = 'https://equo.test';
@@ -116,6 +117,64 @@ final class MeHttpTest extends WebTestCase
             'isActive' => true,
             'email' => null,
         ]], $this->jsonBody()['items']);
+    }
+
+    public function testTelegramLaunchIssuesSessionAndReusesTheAccount(): void
+    {
+        $data = $this->signedTelegramData(['id' => 4294967297, 'first_name' => 'Telegram', 'last_name' => 'User']);
+        $first = $this->telegramLaunch($data);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('Telegram User', $first['user']['name']);
+        self::assertNull($first['user']['email']);
+        self::assertArrayNotHasKey('telegramId', $first['user']);
+        self::assertEqualsCanonicalizing(['equo_refresh', '__Host-equo_csrf'], array_keys($this->responseCookies()));
+        $second = $this->telegramLaunch($data);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame($first['user']['id'], $second['user']['id']);
+        self::assertSame(1, (int) $this->connection->fetchOne('SELECT count(*) FROM app_user WHERE telegram_id = ?', [4294967297]));
+        self::assertSame(2, $this->countSessions());
+    }
+
+    public function testTelegramLaunchRejectsInvalidExpiredAndIncompleteProofs(): void
+    {
+        $valid = $this->signedTelegramData(['id' => 4294967297, 'first_name' => 'Telegram']);
+        foreach ([
+            str_replace('Telegram', 'Modified', $valid),
+            $this->signedTelegramData(['id' => 4294967297], -301),
+            $this->signedTelegramData(['id' => 4294967297], 31),
+            $this->signedTelegramData(['first_name' => 'No ID']),
+            $this->signedTelegramData(['id' => 0]),
+            $valid.'&auth_date=1',
+        ] as $invalid) {
+            $body = $this->telegramLaunch($invalid);
+            self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+            self::assertSame('TELEGRAM_AUTHENTICATION_FAILED', $body['error']['code']);
+            self::assertSame([], $this->responseCookies());
+        }
+
+        self::assertSame(0, $this->countSessions());
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT count(*) FROM app_user WHERE telegram_id IS NOT NULL'));
+    }
+
+    public function testTelegramLaunchRequiresSameOriginAndRejectsInactiveUser(): void
+    {
+        $id = 4294967297;
+        $data = $this->signedTelegramData(['id' => $id]);
+        $this->telegramLaunch($data, 'https://another.test');
+        self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+        $this->connection->insert('app_user', [
+            'id' => '87000000-0000-4000-8000-000000000309',
+            'name' => 'Inactive Telegram User',
+            'telegram_id' => $id,
+            'is_active' => 'false',
+            'created_at' => '2026-11-21 12:00:00+00',
+        ]);
+        $result = $this->telegramLaunch($data);
+
+        self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+        self::assertSame('ACCOUNT_INACTIVE', $result['error']['code']);
+        self::assertSame([], $this->responseCookies());
+        self::assertSame(0, $this->countSessions());
     }
 
     public function testMeReadsFreshDatabaseStateAndRejectsInactiveUserWithSameJwt(): void
@@ -405,6 +464,30 @@ final class MeHttpTest extends WebTestCase
         ]);
     }
 
+    /** @param array<string, int|string> $user */
+    private function signedTelegramData(array $user, int $timeOffset = 0): string
+    {
+        $values = [
+            'auth_date' => (string) (time() + $timeOffset),
+            'user' => json_encode($user, JSON_THROW_ON_ERROR),
+        ];
+        $key = hash_hmac('sha256', self::TEST_TELEGRAM_TOKEN, 'WebAppData', true);
+        $values['hash'] = hash_hmac('sha256', 'auth_date='.$values['auth_date']."\n".'user='.$values['user'], $key);
+
+        return http_build_query($values, encoding_type: PHP_QUERY_RFC3986);
+    }
+
+    /** @return array<string, mixed> */
+    private function telegramLaunch(string $initData, string $origin = self::ORIGIN): array
+    {
+        $this->client->request('POST', '/api/v1/auth/telegram/mini-app', server: [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_ORIGIN' => $origin,
+        ], content: json_encode(['initData' => $initData], JSON_THROW_ON_ERROR));
+
+        return $this->jsonBody();
+    }
+
     private function storedHash(): string
     {
         $hash = $this->connection->fetchOne('SELECT refresh_token_hash FROM user_session');
@@ -557,6 +640,7 @@ final class MeHttpTest extends WebTestCase
         $this->setEnv('EQUO_CSRF_SIGNING_KEY_VERSION', 'v1');
         $this->setEnv('EQUO_CSRF_SIGNING_KEY_RING', self::CSRF_KEY_RING);
         $this->setEnv('EQUO_APPLICATION_ORIGIN', self::ORIGIN);
+        $this->setEnv('EQUO_TELEGRAM_BOT_TOKEN', self::TEST_TELEGRAM_TOKEN);
     }
 
     private function setEnv(string $name, string $value): void
