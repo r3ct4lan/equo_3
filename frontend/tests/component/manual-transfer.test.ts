@@ -1,12 +1,14 @@
 import { selectValue } from '../helpers/select'
-import { config, flushPromises } from '@vue/test-utils'
+import { config, enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CreateManualTransferForm from '../../app/components/CreateManualTransferForm.vue'
 import ManageManualTransfer from '../../app/components/ManageManualTransfer.vue'
 import ConnectCard from '../../app/pages/connects/[id].vue'
 import TransferCard from '../../app/pages/transfers/[id].vue'
 import { ApiClientError } from '../../app/utils/api-error'
+
+enableAutoUnmount(afterEach)
 
 const { auth } = vi.hoisted(() => ({ auth: { protectedRequest: vi.fn(), bootstrap: vi.fn() } }))
 mockNuxtImport('useNuxtApp', original => () => new Proxy(original(), {
@@ -145,8 +147,8 @@ describe('manual payment components', () => {
     const wrapper = await mountSuspended(ConnectCard, { route: '/connects/connect' })
     signedIn()
     await flushPromises()
-    expect(wrapper.text()).toContain('Balance: €5.01')
-    expect(wrapper.text()).toContain('They owe you.')
+    expect(wrapper.get('.connect-balance__amount').text()).toBe('€5.01')
+    expect(wrapper.text()).toContain('They owe you')
     expect((wrapper.get('dialog').element as HTMLDialogElement).open).toBe(false)
     await wrapper.findAll('button').find(button => button.text() === 'Make a payment')!.trigger('click')
     await flushPromises()
@@ -156,8 +158,8 @@ describe('manual payment components', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(wrapper.text()).toContain('Payment recorded')
-    expect(wrapper.text()).toContain('Balance: -€1.99')
-    expect(wrapper.text()).toContain('You owe them.')
+    expect(wrapper.get('.connect-balance__amount').text()).toBe('-€1.99')
+    expect(wrapper.text()).toContain('You owe them')
     expect((wrapper.get('dialog').element as HTMLDialogElement).open).toBe(false)
     expect(wrapper.text()).toContain('Payment · €7.00')
     expect(auth.protectedRequest.mock.calls.filter(call => call[0] === '/v1/connects/connect').length).toBeGreaterThanOrEqual(2)
