@@ -1,13 +1,39 @@
 <script setup lang="ts">
+import type { ConnectView } from '~/types/connects'
+
 useHead({ title: 'Equo' })
 const { state } = useCurrentUser()
 const { $auth } = useNuxtApp()
+const { items, pending, loaded, error, load } = useFinancialList<ConnectView>(
+  () => '/v1/connects', () => ({ limit: '1' })
+)
 
 const { t } = useTranslation()
 </script>
 
 <template>
-  <HomeDashboard v-if="state.status === 'authenticated'" />
+  <div v-if="state.status === 'authenticated'">
+    <AppLoadingState
+      v-if="pending || (!loaded && !error)"
+      :message="t('Loading your connections…')"
+    />
+    <AppErrorState
+      v-else-if="error"
+      :title="t('Your connections could not be loaded')"
+      :message="t('Try again to load your home page.')"
+      :retry-label="t('Try again')"
+      @retry="load()"
+    />
+    <HomeDashboard
+      v-else-if="items.length"
+      :key="state.user?.id"
+    />
+    <CreateInvitation
+      v-else
+      :key="state.user?.id"
+      home
+    />
+  </div>
   <section
     v-else-if="state.status === 'anonymous'"
     class="hero"

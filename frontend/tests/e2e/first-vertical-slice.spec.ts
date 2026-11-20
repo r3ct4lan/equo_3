@@ -2723,10 +2723,10 @@ test('home dashboard separates debts, shows five recent expenses and clears on l
 
   const ownerEmail = await createActiveUser(request, uniqueEmail('dashboard-owner'))
   const ownerAccess = await login(page, ownerEmail, '/', false)
-  await expect(page.getByRole('heading', { name: 'Your overview', exact: true })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'You owe', exact: true })).toContainText('€0.00')
-  await expect(page.getByRole('region', { name: 'You are owed', exact: true })).toContainText('€0.00')
-  await expect(page.getByText('No expenses yet', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Invite a friend', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your overview', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Copy invitation', exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toHaveCount(0)
   const ownerProfile = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + ownerAccess } })
   const ownerId = (await ownerProfile.json() as { id: string }).id

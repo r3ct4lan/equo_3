@@ -4,6 +4,8 @@ import type { InvitationLink } from '~/types/connects'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 import { invitationErrorPresentation } from '~/utils/connect-invitations'
 
+defineProps<{ home?: boolean }>()
+
 const { $auth } = useNuxtApp()
 const link = ref<InvitationLink | null>(null)
 const pending = ref(false)
@@ -64,9 +66,9 @@ const { t } = useTranslation()
   >
     <UiText
       id="invite-title"
-      variant="heading2"
+      :variant="home ? 'heading1' : 'heading2'"
     >
-      {{ t('Invite someone') }}
+      {{ home ? t('Invite a friend') : t('Invite someone') }}
     </UiText>
     <UiText>{{ t('Send a one-use invitation to someone you know. It stays valid for seven days.') }}</UiText>
     <UiButton
