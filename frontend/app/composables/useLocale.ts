@@ -1,6 +1,8 @@
 import { resolveLocale, type AppLocale } from '~/utils/locale'
+import { localeOverrideKey } from '~/utils/locale-context'
 
 export function useLocale() {
+  const localeOverride = getCurrentInstance() ? inject(localeOverrideKey, null) : null
   const headers = useRequestHeaders(['accept-language'])
   const cookie = useCookie<AppLocale | null>('equo-locale', { default: () => null, maxAge: 31536000, sameSite: 'lax' })
   const currentUser = useCurrentUser()
@@ -19,5 +21,5 @@ export function useLocale() {
     if (value === 'en' || value === 'ru') setLocale(value)
   }, { immediate: true })
 
-  return { locale: readonly(locale), setLocale }
+  return { locale: localeOverride ?? readonly(locale), setLocale }
 }

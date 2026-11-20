@@ -12,19 +12,19 @@ const { t } = useTranslation()
 <template>
   <div class="connect-balance">
     <UiText class="connect-balance__amount">
-      {{ t('Balance:') }} <strong
+      <strong
         class="connect-balance__value"
         :class="{ 'connect-balance__value--positive': amount > 0, 'connect-balance__value--negative': amount < 0 }"
       >{{ formatEuro(amount) }}</strong>
     </UiText>
     <UiText v-if="amount > 0">
-      {{ t('They owe you.') }}
+      {{ t('They owe you') }}
     </UiText>
     <UiText v-else-if="amount < 0">
-      {{ t('You owe them.') }}
+      {{ t('You owe them') }}
     </UiText>
     <UiText v-else>
-      {{ t('You are settled up.') }}
+      {{ t('You are settled up') }}
     </UiText>
   </div>
 </template>

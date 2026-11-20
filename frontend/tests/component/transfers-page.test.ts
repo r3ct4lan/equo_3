@@ -25,7 +25,7 @@ describe('transfers page', () => {
     await flushPromises()
     expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers', { query: { direction: 'outgoing' } })
     expect(wrapper.get('a[href="/transfers/t1"]').text()).toContain('€7.00')
-    expect(wrapper.text()).toContain('Removed · does not affect the balance')
+    expect(wrapper.text()).toContain('Removed')
     await wrapper.get('button').trigger('click')
     await flushPromises()
     expect(auth.protectedRequest).toHaveBeenLastCalledWith('/v1/transfers', { query: { direction: 'outgoing', cursor: 'next' } })

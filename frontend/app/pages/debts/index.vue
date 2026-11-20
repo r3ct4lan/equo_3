@@ -1,10 +1,5 @@
 <script setup lang="ts">
 import type { DebtSummary } from '~/types/finance'
-import { formatEuro as formatEuroBase } from '~/utils/money'
-import { formatPeople } from '~/utils/locale'
-
-const { locale } = useLocale()
-const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Expenses · Equo' })
@@ -45,27 +40,18 @@ const { t } = useTranslation()
         v-if="items.length"
         class="stack"
       >
-        <UiCard
+        <UiExpenseRow
           v-for="debt in items"
           :key="debt.id"
-          as="li"
-          class="stack"
-        >
-          <UiLink :to="'/debts/' + debt.id">
-            {{ debt.title }}
-          </UiLink>
-          <UiText>{{ formatEuro(debt.totalAmount) }} · {{ t('paid by') }} {{ debt.payer.name }}</UiText>
-          <UiText>{{ formatPeople(debt.participantCount, locale) }} · {{ formatEuro(debt.shareAmount) }} {{ t('each') }}</UiText>
-          <UiNotice
-            v-if="debt.isDeleted"
-            tone="warning"
-          >
-            {{ t('Removed · does not affect the balance') }}
-          </UiNotice>
-          <UiText v-if="!debt.payer.isActive">
-            {{ t('Payer inactive') }}
-          </UiText>
-        </UiCard>
+          :to="'/debts/' + debt.id"
+          :title="debt.title"
+          :amount="debt.totalAmount"
+          :payer-name="debt.payer.name"
+          :created-at="debt.createdAt"
+          :is-deleted="debt.isDeleted"
+          :payer-inactive="!debt.payer.isActive"
+          :split="debt"
+        />
       </ul>
       <UiButton
         v-if="cursor"

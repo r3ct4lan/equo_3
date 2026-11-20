@@ -8,7 +8,7 @@ export function formatDate(date: Date, locale: AppLocale): string {
   return new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-IE', {
     day: '2-digit',
     month: locale === 'ru' ? '2-digit' : 'short',
-    year: 'numeric',
+    ...(date.getUTCFullYear() !== new Date().getUTCFullYear() ? { year: 'numeric' } : {}),
     timeZone: 'UTC'
   }).format(date)
 }

@@ -86,7 +86,7 @@ describe('home dashboard', () => {
     expect(wrapper.get('a[href="/debts"]').text()).toBe('View all')
     expect(wrapper.get('a[href="/debts/expense-0"]').text()).toBe('Dinner 0')
     expect(wrapper.get('time').attributes('datetime')).toBe('2026-10-18T12:00:00Z')
-    expect(wrapper.text()).toContain('18 Oct 2026')
+    expect(wrapper.get('time').text()).toBe(new Date().getUTCFullYear() === 2026 ? '18 Oct' : '18 Oct 2026')
     expect(wrapper.text()).toContain('Paid by Boris')
     expect(wrapper.text()).toContain('€10.01')
     expect(wrapper.text()).not.toMatch(/Sign in|Create an account|API connection/)

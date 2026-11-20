@@ -8,13 +8,17 @@ import { euroInput } from '~/utils/debt-update'
 import { Button as PresetButton } from '~/components/ui/button'
 import { Card as PresetCard, CardHeader as PresetCardHeader, CardTitle as PresetCardTitle, CardDescription as PresetCardDescription, CardAction as PresetCardAction, CardContent as PresetCardContent, CardFooter as PresetCardFooter } from '~/components/ui/card'
 import { RiStarLine } from '@remixicon/vue'
+import { localeOverrideKey } from '~/utils/locale-context'
+
+provide(localeOverrideKey, computed(() => 'en'))
 
 const { dark } = useTheme()
 useHead({ title: 'UI kit · Equo', meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 
 const sections = [
   ['preset', 'Installed preset'], ['tokens', 'Theme tokens'], ['typography', 'Typography'], ['buttons', 'Buttons & links'],
-  ['forms', 'Form controls'], ['cards', 'Cards & financial data'], ['states', 'Feedback & states'],
+  ['forms', 'Form controls'], ['cards', 'Cards & financial data'],
+  ['connections', 'Connection cards'], ['expenses', 'Expense cards'], ['transfers', 'Transfer cards'], ['states', 'Feedback & states'],
   ['overlays', 'Dialog & toast']
 ] as const
 const tokens = computed(() => uiThemeTokens(themeSource, dark.value))
@@ -307,6 +311,13 @@ async function closeDialog(): Promise<void> {
                 New expense
               </UiButton>
               <UiButton
+                variant="secondary"
+                icon="back"
+                to="#ui-buttons"
+              >
+                Your expenses
+              </UiButton>
+              <UiButton
                 icon="add"
                 disabled
               >
@@ -546,7 +557,7 @@ async function closeDialog(): Promise<void> {
             <ConnectBalance :amount="-1250" />
             <ConnectBalance :amount="0" />
           </UiCard>
-          <ol
+          <ul
             class="dashboard-expenses stack"
             aria-label="Example expenses"
           >
@@ -557,7 +568,7 @@ async function closeDialog(): Promise<void> {
               payer-name="Alex"
               created-at="2026-10-25T12:00:00Z"
             />
-          </ol>
+          </ul>
           <ul
             class="dashboard-expenses stack"
             aria-label="Example operations"
@@ -576,6 +587,288 @@ async function closeDialog(): Promise<void> {
               <time datetime="2026-10-25T12:00:00Z">25 Oct 2026</time>
             </UiCard>
           </ul>
+        </section>
+
+        <section
+          id="ui-connections"
+          class="stack"
+          aria-labelledby="connections-heading"
+        >
+          <UiText
+            id="connections-heading"
+            variant="heading2"
+          >
+            Connection cards
+          </UiText>
+          <UiText variant="help">
+            List and detail examples use fictional data and do not send requests.
+          </UiText>
+          <UiText variant="heading3">
+            Connection list
+          </UiText>
+          <ul class="stack">
+            <UiCard
+              as="li"
+              class="stack"
+            >
+              <UiLink href="#ui-connections">
+                Sam
+              </UiLink>
+              <ConnectBalance :amount="2500" />
+            </UiCard>
+            <UiCard
+              as="li"
+              class="stack"
+            >
+              <UiLink href="#ui-connections">
+                Morgan
+              </UiLink>
+              <ConnectBalance :amount="-1250" />
+              <UiText>This account is inactive.</UiText>
+            </UiCard>
+          </ul>
+          <UiText variant="heading3">
+            Connection detail
+          </UiText>
+          <UiCard
+            as="div"
+            class="stack"
+          >
+            <UiText variant="heading2">
+              Sam
+            </UiText>
+            <ConnectBalance :amount="2500" />
+            <UiButton
+              icon="add"
+              to="#ui-connections"
+            >
+              New expense
+            </UiButton>
+            <UiButton to="#ui-connections">
+              Make a payment
+            </UiButton>
+            <section
+              class="stack"
+              aria-labelledby="kit-history-heading"
+            >
+              <UiText
+                id="kit-history-heading"
+                variant="heading2"
+              >
+                Operations
+              </UiText>
+              <ul class="stack">
+                <UiCard
+                  as="li"
+                  class="stack"
+                >
+                  <UiLink href="#ui-transfers">
+                    Expense share · €12.50
+                  </UiLink>
+                  <UiText>Sam → Alex</UiText>
+                  <UiLink href="#ui-expenses">
+                    Shared dinner
+                  </UiLink>
+                  <time datetime="2026-10-25T12:00:00Z">25 Oct 2026, 12:00</time>
+                </UiCard>
+              </ul>
+            </section>
+          </UiCard>
+          <UiButton
+            variant="secondary"
+            icon="back"
+            to="#ui-connections"
+          >
+            Your connections
+          </UiButton>
+        </section>
+
+        <section
+          id="ui-expenses"
+          class="stack"
+          aria-labelledby="expenses-heading"
+        >
+          <UiText
+            id="expenses-heading"
+            variant="heading2"
+          >
+            Expense cards
+          </UiText>
+          <UiText variant="heading3">
+            Expense list
+          </UiText>
+          <ul
+            class="stack"
+            aria-label="Expense list examples"
+          >
+            <UiExpenseRow
+              to="#ui-expenses"
+              title="Shared dinner"
+              :amount="2500"
+              payer-name="Alex"
+              created-at="2026-10-25T12:00:00Z"
+            />
+            <UiExpenseRow
+              to="#ui-expenses"
+              title="Removed expense"
+              :amount="1200"
+              payer-name="Morgan"
+              created-at="2026-10-24T12:00:00Z"
+              is-deleted
+              payer-inactive
+            />
+          </ul>
+          <UiText variant="heading3">
+            Expense detail
+          </UiText>
+          <UiCard
+            as="div"
+            class="stack"
+          >
+            <UiText>Dinner with friends</UiText>
+            <UiDescriptionList>
+              <div><dt>Total</dt><dd>€25.00</dd></div>
+              <div><dt>Paid by</dt><dd>Alex</dd></div>
+              <div><dt>Recorded by</dt><dd>Alex</dd></div>
+              <div><dt>Split</dt><dd>2 people · €12.50 each</dd></div>
+            </UiDescriptionList>
+            <UiButton to="#ui-expenses">
+              Edit expense
+            </UiButton>
+            <section
+              class="stack"
+              aria-labelledby="kit-remove-expense-title"
+            >
+              <UiText
+                id="kit-remove-expense-title"
+                variant="heading2"
+              >
+                Remove expense
+              </UiText>
+              <UiText>This removes its automatic shares from every balance. Payment history remains available.</UiText>
+              <UiButton
+                variant="danger"
+                to="#ui-expenses"
+              >
+                Remove expense
+              </UiButton>
+            </section>
+            <UiText variant="heading2">
+              Participants
+            </UiText>
+            <ul class="stack">
+              <li>Alex (you) · €12.50 · payer · author</li>
+              <li>
+                <UiLink href="#ui-connections">
+                  Sam
+                </UiLink> · €12.50 <UiLink href="#ui-transfers">
+                  View operation
+                </UiLink>
+              </li>
+            </ul>
+            <UiText variant="help">
+              Shares round up to the next cent.
+            </UiText>
+            <time datetime="2026-10-25T12:00:00Z">25 Oct 2026, 12:00</time>
+          </UiCard>
+          <UiButton
+            variant="secondary"
+            icon="back"
+            to="#ui-expenses"
+          >
+            Your expenses
+          </UiButton>
+        </section>
+
+        <section
+          id="ui-transfers"
+          class="stack"
+          aria-labelledby="transfers-heading"
+        >
+          <UiText
+            id="transfers-heading"
+            variant="heading2"
+          >
+            Transfer cards
+          </UiText>
+          <UiText variant="heading3">
+            Transfer list
+          </UiText>
+          <nav
+            class="form-actions"
+            aria-label="Example transfer direction"
+          >
+            <UiButton
+              to="#ui-transfers"
+              aria-current="page"
+            >
+              Incoming
+            </UiButton>
+            <UiButton
+              variant="secondary"
+              to="#ui-transfers"
+            >
+              Outgoing
+            </UiButton>
+          </nav>
+          <ul class="stack">
+            <UiCard
+              as="li"
+              class="stack"
+            >
+              <UiLink href="#ui-transfers">
+                Payment · €12.50
+              </UiLink>
+              <UiText>Sam → Alex</UiText>
+              <time datetime="2026-10-25T12:00:00Z">25 Oct 2026, 12:00</time>
+            </UiCard>
+            <UiCard
+              as="li"
+              class="stack"
+            >
+              <UiLink href="#ui-transfers">
+                Expense share · €12.50
+              </UiLink>
+              <UiText>Sam → Alex</UiText>
+              <UiNotice tone="warning">
+                Removed · does not affect the balance
+              </UiNotice>
+              <time datetime="2026-10-24T12:00:00Z">24 Oct 2026, 12:00</time>
+            </UiCard>
+          </ul>
+          <UiText variant="heading3">
+            Transfer detail
+          </UiText>
+          <UiCard
+            as="div"
+            class="stack"
+          >
+            <UiText variant="heading2">
+              Payment · €12.50
+            </UiText>
+            <UiText>Sam → Alex</UiText>
+            <UiText>Recorded by Sam</UiText>
+            <UiLink href="#ui-expenses">
+              Shared dinner
+            </UiLink>
+            <UiLink href="#ui-transfers">
+              Related expense share
+            </UiLink>
+            <time datetime="2026-10-25T12:00:00Z">25 Oct 2026, 12:00</time>
+            <UiButton
+              variant="secondary"
+              to="#ui-connections"
+            >
+              Connection and history
+            </UiButton>
+          </UiCard>
+          <UiButton
+            variant="secondary"
+            icon="back"
+            to="#ui-connections"
+          >
+            Your connections
+          </UiButton>
         </section>
 
         <section

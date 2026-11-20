@@ -80,8 +80,12 @@ const { t } = useTranslation()
       :key="state.user?.id"
       :initial-person="connection?.otherUser"
     />
-    <UiLink to="/debts">
+    <UiButton
+      variant="secondary"
+      icon="back"
+      to="/debts"
+    >
       {{ t('Your expenses') }}
-    </UiLink>
+    </UiButton>
   </section>
 </template>
