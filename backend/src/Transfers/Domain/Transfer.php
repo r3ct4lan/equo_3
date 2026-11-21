@@ -11,7 +11,7 @@ final readonly class Transfer
 {
     public function __construct(public string $id, public string $connectId, public string $senderId, public string $receiverId, public int $amount, public string $type, public ?string $createdById, public DateTimeImmutable $createdAt, public ?string $debtId = null, public ?string $debtParticipantId = null, public ?string $relatedTransferId = null, public bool $isDeleted = false, public int $version = 1)
     {
-        if ($amount < 1 || $amount > 2147483647 || $senderId === $receiverId || $version < 1) {
+        if ($amount < 1 || $amount > 9007199254740991 || $senderId === $receiverId || $version < 1) {
             throw new InvalidArgumentException('Transfer fields are invalid.');
         }
         if ('DEBT_SHARE' === $type) {
@@ -19,7 +19,7 @@ final readonly class Transfer
                 throw new InvalidArgumentException('Automatic transfer links are invalid.');
             }
         } elseif ('MANUAL' === $type) {
-            if (!in_array($createdById, [$senderId, $receiverId], true) || null !== $debtId || null !== $debtParticipantId) {
+            if ($amount > 2147483647 || !in_array($createdById, [$senderId, $receiverId], true) || null !== $debtId || null !== $debtParticipantId) {
                 throw new InvalidArgumentException('Manual transfer links are invalid.');
             }
         } else {

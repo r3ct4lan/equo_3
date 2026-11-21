@@ -28,12 +28,14 @@ final readonly class DoctrineAccountMergeSnapshot implements AccountMergeSnapsho
             affected_debts AS (
                 SELECT debt.*
                 FROM debt CROSS JOIN pair
-                WHERE debt.payer_id IN (pair.primary_id, pair.joined_id)
+                WHERE NOT debt.hidden_by_merge AND (
+                       debt.payer_id IN (pair.primary_id, pair.joined_id)
                    OR debt.created_by_id IN (pair.primary_id, pair.joined_id)
                    OR EXISTS (
                        SELECT 1 FROM debt_participant
                        WHERE debt_id = debt.id AND user_id IN (pair.primary_id, pair.joined_id)
                    )
+                )
             ),
             internal_expenses AS (
                 SELECT debt.id, debt.created_at, debt.total_amount, debt.title
@@ -47,10 +49,12 @@ final readonly class DoctrineAccountMergeSnapshot implements AccountMergeSnapsho
             affected_transfers AS (
                 SELECT transfer.*
                 FROM transfer CROSS JOIN pair
-                WHERE transfer.sender_id IN (pair.primary_id, pair.joined_id)
+                WHERE NOT transfer.hidden_by_merge AND (
+                       transfer.sender_id IN (pair.primary_id, pair.joined_id)
                    OR transfer.receiver_id IN (pair.primary_id, pair.joined_id)
                    OR transfer.created_by_id IN (pair.primary_id, pair.joined_id)
                    OR transfer.debt_id IN (SELECT id FROM affected_debts)
+                )
             ),
             internal_transfers AS (
                 SELECT transfer.id, transfer.created_at, transfer.amount

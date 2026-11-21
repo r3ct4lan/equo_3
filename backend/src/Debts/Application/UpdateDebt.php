@@ -57,6 +57,8 @@ final readonly class UpdateDebt
             }
             if ($next !== $debt) {
                 $this->repository->update($next);
+            }
+            if (!$next->hasSameSplitAs($debt)) {
                 $nextIds = array_map(static fn (DebtParticipant $p): string => $p->userId, $next->currentParticipants());
                 sort($nextIds, SORT_STRING);
                 $added = array_diff($nextIds, $current);

@@ -57,6 +57,9 @@ services:
 
     App\IdentityAccess\Domain\User\PasswordPolicy: ~
 
+    App\Debts\Application\Port\MergeExpenseRepositoryPort:
+        alias: App\Infrastructure\Persistence\Doctrine\DoctrineMergeExpenseRepository
+
     App\Debts\Application\Port\DebtPeopleSearchPort:
         alias: App\Debts\Adapter\Persistence\Doctrine\DoctrineDebtPeopleSearch
 

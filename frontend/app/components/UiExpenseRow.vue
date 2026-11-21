@@ -15,7 +15,7 @@ defineProps<{
   createdAt: string
   isDeleted?: boolean
   payerInactive?: boolean
-  split?: { participantCount: number, shareAmount: number }
+  split?: { participantCount: number, shareAmount: number | null }
 }>()
 </script>
 
@@ -51,7 +51,8 @@ defineProps<{
       as="span"
       variant="caption"
     >
-      {{ formatPeople(split.participantCount, locale) }} · {{ formatEuro(split.shareAmount) }} {{ t('each') }}
+      {{ formatPeople(split.participantCount, locale) }} ·
+      {{ split.shareAmount === null ? t('Different share amounts') : formatEuro(split.shareAmount) + ' ' + t('each') }}
     </UiText>
     <UiText
       v-if="isDeleted"

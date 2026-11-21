@@ -187,6 +187,8 @@ const russian: Record<string, string> = {
   'paid by': 'оплатил',
   'Each share:': 'Доля каждого:',
   'Every current share will be recalculated.': 'Все текущие доли будут пересчитаны.',
+  'Different share amounts': 'Разные суммы долей',
+  'Current shares will stay the same.': 'Текущие доли сохранятся.',
   'The payer cannot be changed.': 'Плательщика изменить нельзя.',
   'Expected balance:': 'Ожидаемый баланс:',
   'Your balance and operations will be refreshed after the payment is confirmed.': 'Баланс и операции обновятся после подтверждения платежа.',

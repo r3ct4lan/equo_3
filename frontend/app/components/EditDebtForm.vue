@@ -24,7 +24,16 @@ let generation = 0
 watch(people, (selected) => {
   values.participantIds = selected.map(person => person.id)
 })
-const share = computed(() => splitShare(parseEuroCents(values.amount) ?? 0, values.participantIds.length + (values.includePayerInSplit ? 1 : 0)))
+const splitChanged = computed(() => {
+  const original = props.debt.participants.filter(participant => !participant.isPayer).map(participant => participant.user.id)
+  return parseEuroCents(values.amount) !== props.debt.totalAmount
+    || values.includePayerInSplit !== props.debt.includePayerInSplit
+    || values.participantIds.length !== original.length
+    || values.participantIds.some(id => !original.includes(id))
+})
+const share = computed(() => splitChanged.value
+  ? splitShare(parseEuroCents(values.amount) ?? 0, values.participantIds.length + (values.includePayerInSplit ? 1 : 0))
+  : props.debt.shareAmount)
 const message = computed(() => {
   if (error.value?.code === 'VERSION_CONFLICT') return 'Someone changed this expense. Reload it and review the current values before saving again. Your draft has not been applied.'
   if (error.value && (error.value.status === null || error.value.status >= 500)) return 'The result is not confirmed. Reload the expense and review its current values before saving again.'
@@ -157,7 +166,11 @@ const { t } = useTranslation()
         v-model="values.includePayerInSplit"
       /> {{ t('Include the payer in the split') }}</label>
       <UiText v-if="share">
-        {{ t('Each share:') }} {{ formatEuro(share) }}. {{ t('Every current share will be recalculated.') }}
+        {{ t('Each share:') }} {{ formatEuro(share) }}.
+        {{ splitChanged ? t('Every current share will be recalculated.') : '' }}
+      </UiText>
+      <UiText v-else-if="!splitChanged">
+        {{ t('Current shares will stay the same.') }}
       </UiText>
     </fieldset>
     <UiButton

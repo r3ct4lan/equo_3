@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Debts\Adapter\Http;
 
+use App\Debts\Adapter\Persistence\Doctrine\DoctrineDebtRepository;
+use App\Debts\Application\MergeExpenses;
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
+use App\Infrastructure\Persistence\Doctrine\DoctrineMergeExpenseRepository;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -109,6 +112,34 @@ final class FinancialHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
 
         return $this->body();
+    }
+
+    public function testMergedSharesAgreeInExpenseDetailsHistoryAndBalance(): void
+    {
+        $debt = $this->create();
+        $id = $debt['id'];
+        self::assertIsString($id);
+        $merge = new MergeExpenses(new DoctrineDebtRepository($this->db), new DoctrineMergeExpenseRepository($this->db));
+        $merge->apply($this->users[1], $this->users[2]);
+
+        $this->request('GET', '/api/v1/debts/'.$id);
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->body();
+        self::assertNull($body['shareAmount']);
+        self::assertSame(2, $body['participantCount']);
+        $amounts = array_column($body['participants'], 'shareAmount');
+        sort($amounts, SORT_NUMERIC);
+        self::assertSame([334, 668], $amounts);
+
+        $this->request('GET', '/api/v1/transfers?direction=outgoing');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([668], array_column($this->body()['items'], 'amount'));
+        $this->request('GET', '/api/v1/transfers/balance-summary');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['totalOwedAmount' => 0, 'totalReceivableAmount' => 668], $this->body());
+
+        $this->request('GET', '/api/v1/debts/'.$id, 2);
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testBalanceSummaryIsPrivateEmptyAndRejectsQueryOverrides(): void
