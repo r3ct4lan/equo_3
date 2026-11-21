@@ -9,6 +9,7 @@ use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use App\IdentityAccess\Application\Port\AccountMergeSnapshotPort;
 use App\IdentityAccess\Application\Port\ClockPort;
 use App\IdentityAccess\Application\Port\CredentialRepositoryPort;
+use App\IdentityAccess\Application\Port\StoredEmailChangeToken;
 use App\IdentityAccess\Application\Port\TransactionPort;
 use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
 
@@ -24,19 +25,42 @@ final readonly class ReviewAccountMerge
 
     public function preview(string $userId, string $sessionId): AccountMergePreview
     {
-        return $this->transaction->run(fn (): AccountMergePreview => $this->inspect($userId, $sessionId));
+        return $this->transaction->run(function () use ($userId, $sessionId): AccountMergePreview {
+            $this->requireSession($userId, $sessionId);
+
+            return $this->fromProof($userId, $this->requireProof($userId, $sessionId));
+        });
     }
 
-    private function inspect(string $userId, string $sessionId): AccountMergePreview
+    public function requireSession(string $userId, string $sessionId): void
     {
         $user = $this->credentials->accountForUpdate($userId);
         if (null === $user || !$user->active || !$this->credentials->activeSession($userId, $sessionId, $this->clock->now())) {
             throw new ApplicationFailure(ApplicationFailureCode::AuthenticationRequired);
         }
-        $proof = $this->credentials->currentAction($userId, $sessionId, UserActionTokenPurpose::MergeAccount);
+    }
+
+    public function requireProof(string $userId, string $sessionId): StoredEmailChangeToken
+    {
+        return $this->credentials->currentAction($userId, $sessionId, UserActionTokenPurpose::MergeAccount)
+            ?? throw new ApplicationFailure(ApplicationFailureCode::InvalidToken);
+    }
+
+    public function targetId(string $userId, StoredEmailChangeToken $proof): string
+    {
         $target = $proof->payload['targetId'] ?? null;
+        if (!is_string($target) || $target === $userId) {
+            throw new ApplicationFailure(ApplicationFailureCode::InvalidToken);
+        }
+
+        return $target;
+    }
+
+    public function fromProof(string $userId, StoredEmailChangeToken $proof): AccountMergePreview
+    {
+        $target = $this->targetId($userId, $proof);
         $mode = $proof->payload['mode'] ?? null;
-        if (null === $proof || !is_string($target) || $target === $userId || !is_string($mode)) {
+        if (!is_string($mode)) {
             throw new ApplicationFailure(ApplicationFailureCode::InvalidToken);
         }
         $snapshot = $this->accounts->snapshot($userId, $target);

@@ -75,6 +75,9 @@ services:
     App\IdentityAccess\Application\Port\AccountMergeLedgerPort:
         alias: App\Infrastructure\Persistence\Doctrine\DoctrineMergeLedger
 
+    App\IdentityAccess\Application\Port\AccountMergeExecutionPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineAccountMergeExecution
+
     App\IdentityAccess\Application\Port\AccountMergeSnapshotPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineAccountMergeSnapshot
 

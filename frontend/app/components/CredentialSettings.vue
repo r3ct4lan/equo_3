@@ -101,6 +101,9 @@ onMounted(() => {
     case 'linked':
       feedback.value = 'Sign-in method updated.'
       break
+    case 'merged':
+      feedback.value = 'Your accounts have been merged.'
+      break
     case 'cancelled':
       feedback.value = 'Sign-in method request cancelled.'
       break

@@ -21,6 +21,7 @@ enum ApplicationFailureCode: string
     case InvalidCredentials = 'INVALID_CREDENTIALS';
     case TelegramAuthenticationFailed = 'TELEGRAM_AUTHENTICATION_FAILED';
     case CredentialConflict = 'CREDENTIAL_CONFLICT';
+    case MergeBusy = 'MERGE_BUSY';
     case TelegramUnavailable = 'TELEGRAM_UNAVAILABLE';
     case AccountInactive = 'ACCOUNT_INACTIVE';
     case AuthenticationRequired = 'AUTHENTICATION_REQUIRED';

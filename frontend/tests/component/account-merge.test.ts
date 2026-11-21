@@ -45,6 +45,30 @@ describe('account merge preview', () => {
     expect(wrapper.text()).not.toContain('opaque-preview-version')
   })
 
+  it('asks for a separate confirmation when affected operations have changed', async () => {
+    const changed = {
+      ...preview,
+      version: 'updated-preview-version',
+      disappearingTransfers: [{ ...preview.disappearingTransfers[0]!, amount: 1550 }]
+    }
+    auth.protectedRequest.mockResolvedValueOnce(preview)
+      .mockResolvedValueOnce({ status: 'preview_changed', preview: changed })
+      .mockResolvedValueOnce({ status: 'merged' })
+    const wrapper = await mountSuspended(MergePage, { route: '/account/merge' })
+    await flushPromises()
+    await wrapper.findAll('button').find(value => value.text() === 'Confirm merge')!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('The operations changed. Review the updated preview before confirming.')
+    expect(wrapper.text()).toMatch(/15[.,]50/)
+    expect(auth.protectedRequest).toHaveBeenCalledTimes(2)
+    await wrapper.findAll('button').find(value => value.text() === 'Confirm merge')!.trigger('click')
+    await flushPromises()
+    expect(auth.protectedRequest).toHaveBeenLastCalledWith('/v1/account/credentials/merge/confirm', {
+      method: 'POST', body: { version: 'updated-preview-version' }
+    })
+  })
+
   it('cancels the pending proof from the preview', async () => {
     auth.protectedRequest.mockResolvedValueOnce(preview).mockResolvedValueOnce(undefined)
     const wrapper = await mountSuspended(MergePage, { route: '/account/merge' })

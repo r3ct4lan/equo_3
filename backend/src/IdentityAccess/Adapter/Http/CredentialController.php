@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Adapter\Http;
 
+use App\IdentityAccess\Adapter\Http\Request\ConfirmMergeRequest;
 use App\IdentityAccess\Adapter\Http\Request\EmailChangeConfirmationRequest;
 use App\IdentityAccess\Adapter\Http\Request\LinkEmailRequest;
 use App\IdentityAccess\Adapter\Http\Request\TelegramCredentialRequest;
@@ -11,6 +12,7 @@ use App\IdentityAccess\Adapter\Security\AuthenticatedUser;
 use App\IdentityAccess\Adapter\Security\TelegramMiniAppVerifier;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
+use App\IdentityAccess\Application\Credentials\ConfirmAccountMerge;
 use App\IdentityAccess\Application\Credentials\CredentialManagement;
 use App\IdentityAccess\Application\Credentials\ReviewAccountMerge;
 use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
@@ -32,6 +34,7 @@ final readonly class CredentialController
         private RequestLimiter $limiter,
         private AuthCookieFactory $cookies,
         private ReviewAccountMerge $merge,
+        private ConfirmAccountMerge $confirmMerge,
     ) {
     }
 
@@ -50,6 +53,15 @@ final readonly class CredentialController
         $this->limit($user);
 
         return $this->json($this->merge->preview($user, $session)->toArray());
+    }
+
+    #[Route('/merge/confirm', name: 'api_v1_account_merge_confirm', methods: ['POST'])]
+    public function confirmMerge(#[MapRequestPayload(acceptFormat: 'json')] ConfirmMergeRequest $request): JsonResponse
+    {
+        [$user, $session] = $this->actor();
+        $this->limit($user);
+
+        return $this->json($this->confirmMerge->confirm($user, $session, $request->version));
     }
 
     #[Route('/telegram/start', name: 'api_v1_account_telegram_start', methods: ['POST'])]

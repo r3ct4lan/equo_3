@@ -10,6 +10,7 @@ use App\Infrastructure\EmailDelivery\Security\PayloadCipher;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\DriverManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer\Hmac\Sha256 as HmacSha256;
@@ -559,6 +560,163 @@ final class MeHttpTest extends WebTestCase
         );
         $this->mergePreview($first['accessToken']);
         self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+    }
+
+    public function testTelegramReplacementMergeRechecksThePreviewAndPreservesTheConfirmingSession(): void
+    {
+        $primary = '87000000-0000-4000-8000-000000000375';
+        $joined = '87000000-0000-4000-8000-000000000376';
+        $this->insertUser($primary, 'Primary', 'swap-primary@example.test', true, 'Correct password!');
+        $this->insertUser($joined, 'Joined', 'swap-joined@example.test', true, 'Correct password!');
+        $this->connection->update('app_user', ['telegram_id' => 4294967297], ['id' => $primary]);
+        $this->connection->update('app_user', ['telegram_id' => 4294967298], ['id' => $joined]);
+        $internalTransfer = $this->insertInternalMergeHistory($primary, $joined);
+        $first = $this->login('swap-primary@example.test');
+        $other = $this->login('swap-primary@example.test');
+        $target = $this->login('swap-joined@example.test');
+
+        $newIdentity = $this->signedTelegramData(['id' => 4294967298]);
+        $this->credentialRequest('/telegram/proof', $first['accessToken'], [
+            'initData' => $newIdentity, 'currentPassword' => 'Correct password!',
+        ]);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        $initial = $this->mergePreview($first['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        $this->connection->update('transfer', ['amount' => 1550, 'version' => 2], ['id' => $internalTransfer]);
+
+        $this->credentialRequest('/merge/confirm', $first['accessToken'], ['version' => $initial['version']]);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        $changed = $this->jsonBody();
+        self::assertSame('preview_changed', $changed['status']);
+        self::assertSame(1550, $changed['preview']['disappearingTransfers'][0]['amount']);
+        self::assertFalse((bool) $this->connection->fetchOne('SELECT hidden_by_merge FROM transfer WHERE id = ?', [$internalTransfer]));
+
+        $approved = ['version' => $changed['preview']['version']];
+        $this->credentialRequest('/merge/confirm', $first['accessToken'], $approved);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('merged', $this->jsonBody()['status']);
+        self::assertSame($primary, $this->connection->fetchOne('SELECT merged_into_id FROM app_user WHERE id = ?', [$joined]));
+        self::assertTrue((bool) $this->connection->fetchOne('SELECT hidden_by_merge FROM transfer WHERE id = ?', [$internalTransfer]));
+        self::assertSame($primary, $this->me($first['accessToken'])['id']);
+        $this->me($other['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+        $this->me($target['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+
+        $this->credentialRequest('/merge/confirm', $first['accessToken'], $approved);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('merged', $this->jsonBody()['status']);
+        self::assertSame($primary, $this->telegramLaunch($newIdentity)['user']['id']);
+        self::assertSame('swap-primary@example.test', $this->me($first['accessToken'])['email']);
+    }
+
+    public function testMergeContentionAndFailureCannotApplyAnyPartOfTheMerge(): void
+    {
+        $primary = '87000000-0000-4000-8000-000000000378';
+        $joined = '87000000-0000-4000-8000-000000000379';
+        $this->insertUser($primary, 'Primary', 'atomic-primary@example.test', true, 'Correct password!');
+        $this->insertUser($joined, 'Joined', 'atomic-joined@example.test', true, 'Correct password!');
+        $this->connection->update('app_user', ['telegram_id' => 4294967298], ['id' => $joined]);
+        $transferId = $this->insertInternalMergeHistory($primary, $joined);
+        $this->connection->insert('connect_invitation', [
+            'id' => '87000000-0000-4000-8000-000000000380',
+            'created_by_id' => $joined,
+            'token_hash' => hash('sha256', 'test-merge-invitation'),
+            'created_at' => (new DateTimeImmutable('-1 minute'))->format(DATE_ATOM),
+            'expires_at' => (new DateTimeImmutable('+7 days'))->format(DATE_ATOM),
+        ]);
+        $first = $this->login('atomic-primary@example.test');
+        $this->login('atomic-joined@example.test');
+        $this->credentialRequest('/telegram/proof', $first['accessToken'], ['initData' => $this->signedTelegramData(['id' => 4294967298])]);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        $preview = $this->mergePreview($first['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        $confirmation = ['version' => $preview['version']];
+
+        $writer = DriverManager::getConnection($this->connection->getParams());
+        $writer->beginTransaction();
+        try {
+            $writer->executeStatement('LOCK TABLE transfer IN ROW SHARE MODE');
+            $this->credentialRequest('/merge/confirm', $first['accessToken'], $confirmation);
+            self::assertResponseStatusCodeSame(Response::HTTP_CONFLICT);
+            self::assertSame('MERGE_BUSY', $this->jsonBody()['error']['code']);
+        } finally {
+            $writer->rollBack();
+            $writer->close();
+        }
+
+        $this->connection->executeStatement(<<<'SQL'
+            CREATE FUNCTION equo_test_reject_account_merge() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN
+                IF NEW.merged_into_id IS NOT NULL THEN
+                    RAISE EXCEPTION 'Forced test failure';
+                END IF;
+                RETURN NEW;
+            END
+            $$
+            SQL);
+        $this->connection->executeStatement(<<<'SQL'
+            CREATE TRIGGER equo_test_reject_account_merge BEFORE UPDATE ON app_user
+            FOR EACH ROW EXECUTE FUNCTION equo_test_reject_account_merge()
+            SQL);
+        $this->credentialRequest('/merge/confirm', $first['accessToken'], $confirmation);
+        self::assertResponseStatusCodeSame(Response::HTTP_INTERNAL_SERVER_ERROR);
+        self::assertSame($preview['version'], $this->mergePreview($first['accessToken'])['version']);
+        self::assertFalse((bool) $this->connection->fetchOne('SELECT hidden_by_merge FROM transfer WHERE id = ?', [$transferId]));
+        self::assertSame(1, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM connect_invitation WHERE created_by_id = ?', [$joined]));
+        self::assertSame(2, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM user_session WHERE revoked_at IS NULL'));
+
+        $this->connection->executeStatement('DROP TRIGGER equo_test_reject_account_merge ON app_user');
+        $this->credentialRequest('/merge/confirm', $first['accessToken'], $confirmation);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('merged', $this->jsonBody()['status']);
+    }
+
+    #[DataProvider('mergeCredentials')]
+    public function testOrdinaryMergePreservesAllPrimarySessionsAndMovesTheSecondCredential(bool $emailFirst): void
+    {
+        $email = 'ordinary-merge@example.test';
+        $emailUser = '87000000-0000-4000-8000-000000000377';
+        $this->insertUser($emailUser, 'Email owner', $email, true, 'Correct password!');
+        $initData = $this->signedTelegramData(['id' => 4294967298]);
+        $emailSession = $this->login($email);
+        $telegramSession = $this->telegramLaunch($initData);
+        if ($emailFirst) {
+            $first = $emailSession;
+            $other = $this->login($email);
+            $target = $telegramSession;
+            $primary = $emailUser;
+            $this->credentialRequest('/telegram/proof', $first['accessToken'], ['initData' => $initData]);
+        } else {
+            $first = $telegramSession;
+            $other = $this->telegramLaunch($initData);
+            $target = $emailSession;
+            $primary = $telegramSession['user']['id'];
+            $this->credentialRequest('/email/start', $first['accessToken'], ['email' => $email, 'password' => 'Correct password!']);
+            self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
+            $this->credentialRequest('/email/confirm', $first['accessToken'], ['token' => $this->emailLinkToken($email)]);
+        }
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('merge_required', $this->jsonBody()['status']);
+        $preview = $this->mergePreview($first['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        $this->credentialRequest('/merge/confirm', $first['accessToken'], ['version' => $preview['version']]);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('merged', $this->jsonBody()['status']);
+
+        self::assertSame($primary, $this->me($first['accessToken'])['id']);
+        self::assertSame($primary, $this->me($other['accessToken'])['id']);
+        $this->me($target['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+        self::assertSame($primary, $this->telegramLaunch($initData)['user']['id']);
+        self::assertSame($primary, $this->me($this->login($email)['accessToken'])['id']);
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function mergeCredentials(): iterable
+    {
+        yield 'email account adds Telegram' => [true];
+        yield 'Telegram account adds email' => [false];
     }
 
     public function testTelegramReplacementPreservesOnlyTheConfirmingSession(): void

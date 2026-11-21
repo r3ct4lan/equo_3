@@ -29,12 +29,20 @@ const { t } = useTranslation()
 const preview = shallowRef<MergePreview | null>(null)
 const loading = ref(true)
 const cancelling = ref(false)
+const confirming = ref(false)
+const changed = ref(false)
 const error = shallowRef<ApiClientError | null>(null)
 const credentials = '/v1/account/credentials'
 const confirmationUnavailable = computed(() => error.value?.code === 'INVALID_TOKEN' || error.value?.code === 'CREDENTIAL_CONFLICT')
+const errorMessage = computed(() => {
+  if (confirmationUnavailable.value) return 'Confirm access to both accounts again from your profile.'
+  if (error.value?.code === 'MERGE_BUSY') return 'These accounts are being updated. Try confirming again.'
+  return 'Check your connection and try again.'
+})
 
 async function load(): Promise<void> {
   loading.value = true
+  changed.value = false
   error.value = null
   try {
     preview.value = await $auth.protectedRequest<MergePreview>(credentials + '/merge')
@@ -48,8 +56,37 @@ async function load(): Promise<void> {
   }
 }
 
+async function confirm(): Promise<void> {
+  if (!preview.value || confirming.value || cancelling.value) return
+  const version = preview.value.version
+  confirming.value = true
+  changed.value = false
+  error.value = null
+  try {
+    const result = await $auth.protectedRequest<{ status: 'merged' } | { status: 'preview_changed', preview: MergePreview }>(credentials + '/merge/confirm', {
+      method: 'POST',
+      body: { version }
+    })
+    if (result.status === 'preview_changed') {
+      preview.value = result.preview
+      changed.value = true
+    }
+    else {
+      preview.value = null
+      await navigateTo('/me?credentials=merged')
+    }
+  }
+  catch (failure) {
+    error.value = toApiClientError(failure)
+    if (confirmationUnavailable.value) preview.value = null
+  }
+  finally {
+    confirming.value = false
+  }
+}
+
 async function cancel(): Promise<void> {
-  if (cancelling.value) return
+  if (cancelling.value || confirming.value) return
   cancelling.value = true
   error.value = null
   try {
@@ -88,7 +125,7 @@ onMounted(() => {
     <AppErrorState
       v-if="error"
       :title="t('Could not review the account merge')"
-      :message="confirmationUnavailable ? t('Confirm access to both accounts again from your profile.') : t('Check your connection and try again.')"
+      :message="t(errorMessage)"
       :retry-label="confirmationUnavailable || preview ? undefined : t('Try again')"
       @retry="load"
     />
@@ -99,6 +136,12 @@ onMounted(() => {
       {{ t('Back to profile') }}
     </UiLink>
     <template v-if="preview">
+      <UiNotice
+        v-if="changed"
+        tone="warning"
+      >
+        {{ t('The operations changed. Review the updated preview before confirming.') }}
+      </UiNotice>
       <UiCard class="stack">
         <UiText variant="heading2">
           {{ t('Sign-in methods after the merge') }}
@@ -171,8 +214,17 @@ onMounted(() => {
       </UiCard>
       <div class="form-actions">
         <UiButton
+          variant="danger"
+          :pending="confirming"
+          :disabled="cancelling"
+          @click="confirm"
+        >
+          {{ t('Confirm merge') }}
+        </UiButton>
+        <UiButton
           variant="secondary"
           :pending="cancelling"
+          :disabled="confirming"
           @click="cancel"
         >
           {{ t('Cancel merge') }}

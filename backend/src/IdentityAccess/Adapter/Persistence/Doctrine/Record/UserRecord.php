@@ -8,6 +8,7 @@ use App\IdentityAccess\Application\Port\StoredLoginIdentity;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use LogicException;
 use Symfony\Component\Serializer\Attribute\Ignore;
 
 #[ORM\Entity]
@@ -38,6 +39,9 @@ class UserRecord
         private ?int $telegramId = null,
         #[ORM\Column(name: 'strict_session_access', type: Types::BOOLEAN, options: ['default' => false])]
         private bool $strictSessionAccess = false,
+        #[ORM\ManyToOne(targetEntity: self::class)]
+        #[ORM\JoinColumn(name: 'merged_into_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+        private ?self $mergedInto = null,
     ) {
     }
 
@@ -110,6 +114,9 @@ class UserRecord
 
     public function activate(): void
     {
+        if (null !== $this->mergedInto) {
+            throw new LogicException('Absorbed accounts cannot be activated.');
+        }
         $this->isActive = true;
     }
 

@@ -101,6 +101,7 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
                 ApplicationFailureCode::InvalidCredentials => $this->definition(Response::HTTP_UNAUTHORIZED, 'INVALID_CREDENTIALS', 'Email or password is incorrect.'),
                 ApplicationFailureCode::TelegramAuthenticationFailed => $this->definition(Response::HTTP_UNAUTHORIZED, 'TELEGRAM_AUTHENTICATION_FAILED', 'Telegram sign-in could not be verified.'),
                 ApplicationFailureCode::CredentialConflict => $this->definition(Response::HTTP_CONFLICT, 'CREDENTIAL_CONFLICT', 'Sign-in methods changed. Start the request again.'),
+                ApplicationFailureCode::MergeBusy => $this->definition(Response::HTTP_CONFLICT, 'MERGE_BUSY', 'The accounts are being updated. Try again.'),
                 ApplicationFailureCode::TelegramUnavailable => $this->definition(Response::HTTP_SERVICE_UNAVAILABLE, 'TELEGRAM_UNAVAILABLE', 'Telegram sign-in is unavailable.'),
                 ApplicationFailureCode::AccountInactive => $this->definition(Response::HTTP_FORBIDDEN, 'ACCOUNT_INACTIVE', 'Account is inactive.'),
                 ApplicationFailureCode::AuthenticationRequired => $this->definition(Response::HTTP_UNAUTHORIZED, 'AUTHENTICATION_REQUIRED', 'Authentication is required.'),
