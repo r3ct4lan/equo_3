@@ -80,7 +80,8 @@ final readonly class TelegramOidcClient
 
         $audiences = is_string($claims->aud ?? null) ? [$claims->aud] : ($claims->aud ?? null);
         $now = $this->clock->now()->getTimestamp();
-        $id = $claims->id ?? null;
+        $idClaim = $claims->id ?? null;
+        $id = is_int($idClaim) ? $idClaim : (is_string($idClaim) && 1 === preg_match('/\A[1-9][0-9]{0,15}\z/D', $idClaim) ? (int) $idClaim : null);
         $expiresAt = $claims->exp ?? null;
         $issuedAt = $claims->iat ?? null;
         if (self::ISSUER !== ($claims->iss ?? null) || !is_string($claims->sub ?? null) || '' === $claims->sub
