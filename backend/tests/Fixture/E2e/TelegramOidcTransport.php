@@ -45,7 +45,7 @@ final class TelegramOidcTransport
             $now = time();
             $claims = [
                 'iss' => 'https://oauth.telegram.org', 'sub' => 'e2e-provider-'.$parts[1], 'aud' => $clientId,
-                'iat' => $now, 'exp' => $now + 60, 'id' => (int) $parts[1], 'name' => 'Telegram Fixture '.$parts[1],
+                'iat' => $now, 'exp' => $now + 60, 'id' => $parts[1], 'name' => 'Telegram Fixture '.$parts[1],
             ];
 
             return new MockResponse(json_encode(['id_token' => JWT::encode($claims, $key, 'RS256', $kid)], JSON_THROW_ON_ERROR));
