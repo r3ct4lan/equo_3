@@ -110,7 +110,7 @@ final readonly class TelegramOidcClient
 
     private function requireConfiguration(): void
     {
-        if (1 !== preg_match('/\A[1-9][0-9]{0,15}\z/D', $this->clientId) || '' === $this->clientSecret || !str_starts_with($this->origin, 'https://')) {
+        if (1 !== preg_match('/\A[1-9][0-9]{0,15}\z/D', $this->clientId) || '' === $this->clientSecret || !TelegramDeploymentConfiguration::isHttpsOrigin($this->origin)) {
             throw new ApplicationFailure(ApplicationFailureCode::TelegramUnavailable);
         }
     }

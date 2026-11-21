@@ -11,6 +11,8 @@ parameters:
     env(EQUO_TELEGRAM_BOT_TOKEN): ''
     env(EQUO_TELEGRAM_CLIENT_ID): ''
     env(EQUO_TELEGRAM_CLIENT_SECRET): ''
+    env(NUXT_PUBLIC_TELEGRAM_BOT_USERNAME): ''
+    env(NUXT_PUBLIC_TELEGRAM_LOGIN_ENABLED): 'false'
 
 services:
     # default configuration for services in *this* file

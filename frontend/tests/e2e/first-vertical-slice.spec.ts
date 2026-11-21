@@ -1,4 +1,4 @@
-import type { APIRequestContext, APIResponse, Browser, BrowserContext, Cookie, Page, Route } from '@playwright/test'
+import type { APIRequestContext, APIResponse, Browser, BrowserContext, Cookie, Page, Response, Route } from '@playwright/test'
 import { createHmac, randomUUID } from 'node:crypto'
 import { expect, test } from './fixtures'
 import { selectOption, setPerson } from './select'
@@ -2712,26 +2712,88 @@ test('manual payment correction updates balance, rejects a stale editor and pres
   await staleEditor.close()
 })
 
-async function openTelegramMiniApp(page: Page, id: number, name: string, startParam?: string): Promise<string> {
+function signedMiniAppLaunch(id: number, name: string, startParam?: string): string {
   const botToken = process.env.E2E_TELEGRAM_BOT_TOKEN ?? 'equo-e2e-mini-app-key'
   const key = createHmac('sha256', 'WebAppData').update(botToken).digest()
   const fields = new URLSearchParams({
     auth_date: String(Math.floor(Date.now() / 1000)),
+    query_id: randomUUID(),
     user: JSON.stringify({ id, first_name: name, language_code: 'en' })
   })
   if (startParam) fields.set('start_param', startParam)
   fields.sort()
   const check = Array.from(fields, ([key, value]) => key + '=' + value).join('\n')
   fields.set('hash', createHmac('sha256', key).update(check).digest('hex'))
-  const fragment = new URLSearchParams({ tgWebAppData: fields.toString(), tgWebAppPlatform: 'tdesktop' })
+  return fields.toString()
+}
+
+async function openTelegramLaunch(page: Page, id: number, name: string, startParam?: string): Promise<Response> {
+  const fragment = new URLSearchParams({ tgWebAppData: signedMiniAppLaunch(id, name, startParam), tgWebAppPlatform: 'tdesktop' })
+  if (page.url() !== 'about:blank' && new URL(page.url()).pathname === '/') await page.goto('about:blank')
   const response = page.waitForResponse(result => new URL(result.url()).pathname === '/api/v1/auth/telegram/mini-app')
   await followSecretUrl(page, baseUrl + '/#' + fragment)
-  const result = await response
+  return await response
+}
+
+async function openTelegramMiniApp(page: Page, id: number, name: string, startParam?: string, expectedEmail: string | null = null): Promise<string> {
+  const result = await openTelegramLaunch(page, id, name, startParam)
   expect(result.status()).toBe(200)
   const { user: profile } = await result.json() as { user: { id: string, name: string, email: string | null } }
-  expect(profile.email).toBeNull()
+  expect(profile.email).toBe(expectedEmail)
   expect(profile.name).toBe(name)
   return profile.id
+}
+
+async function approveTelegramInBrowser(page: Page, telegramId: number): Promise<void> {
+  await page.route('https://oauth.telegram.org/auth?*', async (route) => {
+    const authorization = new URL(route.request().url())
+    const state = authorization.searchParams.get('state')
+    const challenge = authorization.searchParams.get('code_challenge')
+    expect(state !== null && challenge !== null).toBe(true)
+    expect(authorization.searchParams.get('code_challenge_method')).toBe('S256')
+    const callback = new URL('/api/v1/auth/telegram/oidc/callback', baseUrl)
+    callback.searchParams.set('state', state!)
+    callback.searchParams.set('code', String(telegramId) + '.' + challenge)
+    await route.fulfill({ status: 303, headers: { location: callback.href } })
+  }, { times: 1 })
+}
+
+async function telegramAccess(request: APIRequestContext, id: number, name: string): Promise<string> {
+  const response = await request.post(baseUrl + '/api/v1/auth/telegram/mini-app', {
+    headers: { 'Origin': baseUrl, 'X-Forwarded-For': nextForwardedFor() },
+    data: { initData: signedMiniAppLaunch(id, name) }
+  })
+  expect(response.status()).toBe(200)
+  return (await response.json() as { accessToken: string }).accessToken
+}
+
+async function invitationFrom(request: APIRequestContext, bearer: string): Promise<string> {
+  const response = await request.post(baseUrl + '/api/v1/connect-invitations', { headers: { Authorization: 'Bearer ' + bearer } })
+  expect(response.ok()).toBe(true)
+  return (await response.json() as { token: string }).token
+}
+
+async function connectForTelegramScenario(request: APIRequestContext, from: string, to: string): Promise<string> {
+  const token = await invitationFrom(request, from)
+  const response = await request.post(baseUrl + '/api/v1/connect-invitations/' + encodeURIComponent(token) + '/accept', {
+    headers: { 'Authorization': 'Bearer ' + to, 'X-Forwarded-For': nextForwardedFor() }
+  })
+  expect(response.ok()).toBe(true)
+  return (await response.json() as { id: string }).id
+}
+
+async function profileId(request: APIRequestContext, bearer: string): Promise<string> {
+  const response = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + bearer } })
+  expect(response.ok()).toBe(true)
+  return (await response.json() as { id: string }).id
+}
+
+async function recordTelegramScenarioExpense(request: APIRequestContext, bearer: string, payerId: string, participantId: string, title: string, amount: number): Promise<void> {
+  const response = await request.post(baseUrl + '/api/v1/debts', {
+    headers: { 'Authorization': 'Bearer ' + bearer, 'Idempotency-Key': randomUUID() },
+    data: { title, totalAmount: amount, payerId, participantIds: [participantId], includePayerInSplit: false }
+  })
+  expect(response.status()).toBe(201)
 }
 
 test('Telegram Mini App replaces a stored browser login and reopens the same profile', async ({ page, request }) => {
@@ -2789,6 +2851,105 @@ test('Telegram invitation creates the first connection explicitly and preserves 
   finally {
     await receiverContext.close()
   }
+})
+
+test('Telegram OIDC opens the same account in the browser and the Mini App', async ({ page }) => {
+  const telegramId = 4294967310
+  await page.goto('/login')
+  await approveTelegramInBrowser(page, telegramId)
+  await page.getByRole('link', { name: 'Sign in with Telegram', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Invite a friend', exact: true })).toBeVisible()
+  const me = page.waitForResponse(response => response.ok() && new URL(response.url()).pathname === '/api/v1/me')
+  await page.getByRole('link', { name: 'My profile', exact: true }).click()
+  const browserProfile = (await (await me).json() as { id: string }).id
+  expect(await openTelegramMiniApp(page, telegramId, 'Telegram Fixture ' + telegramId)).toBe(browserProfile)
+})
+
+test('linking an occupied Telegram account previews and merges both financial histories', async ({ page, request }) => {
+  test.setTimeout(110_000)
+  const primaryEmail = await createActiveUser(request, uniqueEmail('telegram-merge'))
+  const friendEmail = await createActiveUser(request, uniqueEmail('telegram-merge-friend'))
+  const primary = await login(page, primaryEmail)
+  const friend = await loginViaApi(request, friendEmail)
+  const telegramId = 4294967311
+  const target = await telegramAccess(request, telegramId, 'Telegram Merge')
+  const [primaryId, friendId, targetId] = await Promise.all([
+    profileId(request, primary), profileId(request, friend), profileId(request, target)
+  ])
+  const existing = await connectForTelegramScenario(request, primary, friend)
+  await connectForTelegramScenario(request, target, friend)
+  await connectForTelegramScenario(request, primary, target)
+  await recordTelegramScenarioExpense(request, friend, friendId, primaryId, 'Friend paid', 2000)
+  await recordTelegramScenarioExpense(request, target, targetId, friendId, 'Telegram paid', 5000)
+  await recordTelegramScenarioExpense(request, primary, primaryId, targetId, 'Internal meal', 1500)
+
+  await approveTelegramInBrowser(page, telegramId)
+  await page.getByRole('button', { name: 'Link Telegram', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Review account merge', exact: true })).toBeVisible()
+  await expect(page.getByText('Internal meal', { exact: false })).toBeVisible()
+  await expect(page.getByText('€15.00', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
+  await expect(page.getByText('Your accounts have been merged.', { exact: true })).toBeVisible()
+  const oldAccess = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + target } })
+  expect(oldAccess.status()).toBe(401)
+  const reauthenticated = await telegramAccess(request, telegramId, 'Telegram Merge')
+  expect(await profileId(request, reauthenticated)).toBe(primaryId)
+
+  for (const [access, expectedBalance] of [[reauthenticated, 3000], [friend, -3000]] as const) {
+    const ledger = await request.get(baseUrl + '/api/v1/connects/' + existing, { headers: { Authorization: 'Bearer ' + access } })
+    expect(ledger.status()).toBe(200)
+    const view = await ledger.json() as { balanceAmount: number }
+    expect(view.balanceAmount).toBe(expectedBalance)
+  }
+})
+
+test('replacing Telegram keeps the confirming session and revokes the other browser session', async ({ page, request }) => {
+  test.setTimeout(90_000)
+  const email = await createActiveUser(request, uniqueEmail('telegram-replace'))
+  const first = await login(page, email)
+  const originalId = await profileId(request, first)
+  const sibling = await loginViaApi(request, email)
+  await approveTelegramInBrowser(page, 4294967312)
+  await page.getByRole('button', { name: 'Link Telegram', exact: true }).click()
+  await expect(page.getByText('Sign-in method updated.', { exact: true })).toBeVisible()
+
+  await approveTelegramInBrowser(page, 4294967313)
+  const replacement = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/telegram/oidc/callback')
+  await page.locator('#replace-telegram-password').fill(testPassword)
+  await page.getByRole('button', { name: 'Change Telegram', exact: true }).click()
+  expect((await replacement).status()).toBe(303)
+  await expect(page.getByText('Sign-in method updated.', { exact: true })).toBeVisible()
+  await expect(page.getByText(email, { exact: true })).toBeVisible()
+  expect(await profileId(request, first)).toBe(originalId)
+  const revoked = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + sibling } })
+  expect(revoked.status()).toBe(401)
+  expect(await profileId(request, await telegramAccess(request, 4294967313, 'Updated Telegram'))).toBe(originalId)
+})
+
+test('Telegram reactivation explicitly opens the same account and continues an invitation', async ({ page, request }) => {
+  test.setTimeout(100_000)
+  const id = 4294967314
+  const name = 'Telegram Lifecycle'
+  const original = await openTelegramMiniApp(page, id, name)
+  await page.getByRole('link', { name: 'My profile', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0)
+  await approveTelegramInBrowser(page, id)
+  await page.getByRole('button', { name: 'Confirm with Telegram', exact: true }).click()
+  await page.getByRole('button', { name: 'Deactivate account', exact: true }).click()
+  await expect(page.getByText('Your account is deactivated', { exact: true })).toBeVisible()
+
+  const friend = await loginViaApi(request, await createActiveUser(request, uniqueEmail('telegram-invite-after-reactivation')))
+  const token = await invitationFrom(request, friend)
+  const start = 'invite_' + Buffer.from(token).toString('base64url')
+  expect((await openTelegramLaunch(page, id, name, start)).status()).toBe(403)
+  const reactivation = page.waitForResponse(result => new URL(result.url()).pathname === '/api/v1/auth/telegram/mini-app/reactivate')
+  await page.getByRole('button', { name: 'Activate and sign in', exact: true }).click()
+  const reactivated = await reactivation
+  expect(reactivated.status()).toBe(200)
+  expect((await reactivated.json() as { user: { id: string } }).user.id).toBe(original)
+  await expect(page.getByRole('button', { name: 'Accept invitation', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Accept invitation', exact: true }).click()
+  await expect(page).toHaveURL(/\/connects$/u)
 })
 
 test('home dashboard separates debts, shows five recent expenses and clears on logout', async ({ page, request }, testInfo) => {
