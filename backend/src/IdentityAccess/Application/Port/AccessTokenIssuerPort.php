@@ -6,5 +6,5 @@ namespace App\IdentityAccess\Application\Port;
 
 interface AccessTokenIssuerPort
 {
-    public function issue(string $userId): IssuedAccessToken;
+    public function issue(string $userId, ?string $sessionId = null): IssuedAccessToken;
 }

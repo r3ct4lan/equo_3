@@ -25,6 +25,7 @@ describe('login page', () => {
     authMock.bootstrap.mockReset().mockResolvedValue(undefined)
     authMock.login.mockReset().mockResolvedValue(undefined)
     navigateMock.mockReset()
+    Object.assign(useRuntimeConfig().public, { telegramLoginEnabled: false })
     useCurrentUser().reset()
   })
 
@@ -36,6 +37,21 @@ describe('login page', () => {
     await flushPromises()
     expect(navigateMock).toHaveBeenCalledWith('/')
     wrapper.unmount()
+  })
+
+  it('offers Telegram sign-in again after a cancelled or failed provider response', async () => {
+    Object.assign(useRuntimeConfig().public, { telegramLoginEnabled: true })
+    for (const [outcome, message] of [
+      ['cancelled', 'Telegram sign-in was cancelled'],
+      ['failed', 'Telegram sign-in could not be completed']
+    ]) {
+      const wrapper = await mountSuspended(LoginPage, { route: '/login?telegram=' + outcome })
+      await flushPromises()
+      expect(wrapper.get('a[href="/api/v1/auth/telegram/oidc/start"]').text()).toBe('Sign in with Telegram')
+      expect(wrapper.text()).toContain(message)
+      expect(authMock.login).not.toHaveBeenCalled()
+      wrapper.unmount()
+    }
   })
 
   it('renders accessible fields and client validation without calling auth', async () => {

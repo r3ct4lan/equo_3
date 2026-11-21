@@ -89,6 +89,7 @@ report_duration build "$phase_started_at"
 phase_started_at=$(date +%s)
 $compose up -d --wait rabbitmq
 $compose up -d --wait postgres redis mailpit
+$compose run --rm -T backend php bin/console app:telegram:check-configuration --no-interaction
 $compose run --rm -T backend php bin/console doctrine:migrations:migrate --no-interaction
 $compose up -d --wait backend frontend nginx
 $compose up -d worker

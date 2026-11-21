@@ -19,7 +19,7 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
 
     public function balance(string $connectId, string $viewerId): int
     {
-        $value = $this->db->fetchOne('SELECT COALESCE(SUM(CASE WHEN sender_id=:user THEN amount::bigint ELSE -amount::bigint END),0) FROM transfer WHERE connect_id=:connect AND is_deleted=false', ['user' => $viewerId, 'connect' => $connectId]);
+        $value = $this->db->fetchOne('SELECT COALESCE(SUM(CASE WHEN sender_id=:user THEN amount::bigint ELSE -amount::bigint END),0) FROM transfer WHERE connect_id=:connect AND is_deleted=false AND NOT hidden_by_merge', ['user' => $viewerId, 'connect' => $connectId]);
         $amount = filter_var($value, FILTER_VALIDATE_INT);
         if (false === $amount) {
             throw new RuntimeException('Ledger balance exceeds the supported integer range.');
@@ -36,7 +36,7 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
             FROM (
                 SELECT connect_id, SUM(CASE WHEN sender_id = :viewer THEN amount::bigint ELSE -amount::bigint END) AS balance
                 FROM transfer
-                WHERE is_deleted = false AND (sender_id = :viewer OR receiver_id = :viewer)
+                WHERE is_deleted = false AND NOT hidden_by_merge AND (sender_id = :viewer OR receiver_id = :viewer)
                 GROUP BY connect_id
             ) AS balances
             SQL, ['viewer' => $viewerId]);
@@ -62,14 +62,14 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
 
     public function find(string $id, bool $forUpdate = false): ?Transfer
     {
-        $row = $this->db->fetchAssociative('SELECT * FROM transfer WHERE id=?'.($forUpdate ? ' FOR UPDATE' : ''), [$id]);
+        $row = $this->db->fetchAssociative('SELECT * FROM transfer WHERE id=? AND NOT hidden_by_merge'.($forUpdate ? ' FOR UPDATE' : ''), [$id]);
 
         return false === $row ? null : $this->map($row);
     }
 
     public function page(string $connectId, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array
     {
-        $sql = 'SELECT * FROM transfer WHERE connect_id=:connect';
+        $sql = 'SELECT * FROM transfer WHERE connect_id=:connect AND NOT hidden_by_merge';
         $params = ['connect' => $connectId];
         if (null !== $before) {
             $sql .= ' AND (created_at,id) < (:before,:id)';
@@ -87,7 +87,7 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
             throw new InvalidArgumentException('Invalid transfer direction.');
         }
         $side = 'incoming' === $direction ? 'receiver_id' : 'sender_id';
-        $sql = 'SELECT t.* FROM transfer t INNER JOIN connect c ON c.id=t.connect_id WHERE t.'.$side.'=:viewer AND (c.first_user_id=:viewer OR c.second_user_id=:viewer)';
+        $sql = 'SELECT t.* FROM transfer t INNER JOIN connect c ON c.id=t.connect_id WHERE NOT t.hidden_by_merge AND t.'.$side.'=:viewer AND (c.first_user_id=:viewer OR c.second_user_id=:viewer)';
         $params = ['viewer' => $userId];
         if (null !== $before) {
             $sql .= ' AND (t.created_at,t.id) < (:before,:id)';
@@ -129,7 +129,7 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
     public function sharesForDebt(string $debtId): array
     {
         $result = [];
-        foreach ($this->db->fetchAllAssociative("SELECT debt_participant_id, id FROM transfer WHERE debt_id=? AND type='DEBT_SHARE'", [$debtId]) as $row) {
+        foreach ($this->db->fetchAllAssociative("SELECT debt_participant_id, id FROM transfer WHERE debt_id=? AND type='DEBT_SHARE' AND NOT hidden_by_merge", [$debtId]) as $row) {
             $result[(string) $row['debt_participant_id']] = (string) $row['id'];
         }
 

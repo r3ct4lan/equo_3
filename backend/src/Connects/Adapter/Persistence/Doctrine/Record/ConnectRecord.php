@@ -22,6 +22,7 @@ class ConnectRecord
         #[ORM\Column(name: 'first_user_id', type: Types::GUID)] private string $firstUserId,
         #[ORM\Column(name: 'second_user_id', type: Types::GUID)] private string $secondUserId,
         #[ORM\Column(name: 'created_at', type: Types::DATETIMETZ_IMMUTABLE)] private DateTimeImmutable $createdAt,
+        #[ORM\Column(name: 'hidden_by_merge', type: Types::BOOLEAN, options: ['default' => false])] private bool $hiddenByMerge = false,
     ) {
     }
 

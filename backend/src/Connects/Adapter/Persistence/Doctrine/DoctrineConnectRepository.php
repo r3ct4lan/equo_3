@@ -19,19 +19,19 @@ final readonly class DoctrineConnectRepository implements ConnectRepositoryPort
 
     public function exists(CanonicalPair $pair): bool
     {
-        return false !== $this->db->fetchOne('SELECT 1 FROM connect WHERE first_user_id=? AND second_user_id=?', [$pair->first, $pair->second]);
+        return false !== $this->db->fetchOne('SELECT 1 FROM connect WHERE first_user_id=? AND second_user_id=? AND NOT hidden_by_merge', [$pair->first, $pair->second]);
     }
 
     public function findPairId(CanonicalPair $pair): ?string
     {
-        $id = $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id=? AND second_user_id=?', [$pair->first, $pair->second]);
+        $id = $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id=? AND second_user_id=? AND NOT hidden_by_merge', [$pair->first, $pair->second]);
 
         return false === $id ? null : (string) $id;
     }
 
     public function find(string $id): ?Connect
     {
-        $row = $this->db->fetchAssociative('SELECT * FROM connect WHERE id = ?', [$id]);
+        $row = $this->db->fetchAssociative('SELECT * FROM connect WHERE id = ? AND NOT hidden_by_merge', [$id]);
 
         return false === $row ? null : $this->map($row);
     }
@@ -39,7 +39,7 @@ final readonly class DoctrineConnectRepository implements ConnectRepositoryPort
     public function getOrCreate(Connect $candidate): array
     {
         $created = 1 === $this->db->executeStatement('INSERT INTO connect (id, first_user_id, second_user_id, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (first_user_id, second_user_id) DO NOTHING', [$candidate->id, $candidate->pair->first, $candidate->pair->second, $candidate->createdAt->format('Y-m-d H:i:sP')]);
-        $row = $this->db->fetchAssociative('SELECT * FROM connect WHERE first_user_id = ? AND second_user_id = ?', [$candidate->pair->first, $candidate->pair->second]);
+        $row = $this->db->fetchAssociative('SELECT * FROM connect WHERE first_user_id = ? AND second_user_id = ? AND NOT hidden_by_merge', [$candidate->pair->first, $candidate->pair->second]);
         if (false === $row) {
             throw new RuntimeException('Connect was not found after creation.');
         }
@@ -49,7 +49,7 @@ final readonly class DoctrineConnectRepository implements ConnectRepositoryPort
 
     public function page(string $userId, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array
     {
-        $sql = 'SELECT * FROM connect WHERE (first_user_id = :user OR second_user_id = :user)';
+        $sql = 'SELECT * FROM connect WHERE NOT hidden_by_merge AND (first_user_id = :user OR second_user_id = :user)';
         $params = ['user' => $userId];
         if (null !== $before) {
             $sql .= ' AND (created_at, id) < (:before, :id)';

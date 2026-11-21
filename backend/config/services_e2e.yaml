@@ -4,3 +4,13 @@ services:
         autoconfigure: true
         public: true
         tags: ['controller.service_arguments']
+
+    equo.e2e.telegram_http:
+        class: Symfony\Component\HttpClient\MockHttpClient
+        factory: ['App\Tests\Fixture\E2e\TelegramOidcTransport', 'create']
+        arguments: ['%env(EQUO_TELEGRAM_CLIENT_ID)%']
+
+    App\IdentityAccess\Adapter\Security\TelegramOidcClient:
+        autowire: true
+        arguments:
+            $http: '@equo.e2e.telegram_http'

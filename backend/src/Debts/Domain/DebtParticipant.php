@@ -8,7 +8,7 @@ use DateTimeImmutable;
 
 final readonly class DebtParticipant
 {
-    public function __construct(public string $id, public string $debtId, public string $userId, public DateTimeImmutable $createdAt, public bool $isDeleted = false)
+    public function __construct(public string $id, public string $debtId, public string $userId, public DateTimeImmutable $createdAt, public bool $isDeleted = false, public ?int $actualShareAmount = null)
     {
     }
 }

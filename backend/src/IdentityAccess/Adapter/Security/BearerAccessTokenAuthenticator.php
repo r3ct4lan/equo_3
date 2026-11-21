@@ -6,6 +6,7 @@ namespace App\IdentityAccess\Adapter\Security;
 
 use App\IdentityAccess\Application\CurrentUser\GetCurrentUser;
 use App\IdentityAccess\Application\Port\AccessTokenVerifierPort;
+use App\IdentityAccess\Application\Port\SessionAccessPolicyPort;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
@@ -25,6 +26,7 @@ final class BearerAccessTokenAuthenticator extends AbstractAuthenticator
         private AccessTokenVerifierPort $accessTokenVerifier,
         private GetCurrentUser $getCurrentUser,
         private AuthenticationEntryPointInterface $entryPoint,
+        private SessionAccessPolicyPort $sessionAccess,
     ) {
     }
 
@@ -33,7 +35,7 @@ final class BearerAccessTokenAuthenticator extends AbstractAuthenticator
         $path = $request->getPathInfo();
 
         return in_array($path, [self::PROTECTED_PATH, '/api/v1/me/locale', '/api/v1/debt-people', '/api/v1/auth/logout-all', '/api/v1/account/password-change', '/api/v1/account/email-change-requests', '/api/v1/account/deactivate'], true)
-            || 1 === preg_match('~^/api/v1/(?:connects|debts|transfers)(?:/|$)~D', $path)
+            || 1 === preg_match('~^/api/v1/(?:connects|debts|transfers|account/credentials)(?:/|$)~D', $path)
             || ('POST' === $request->getMethod() && ('/api/v1/connect-invitations' === $path || 1 === preg_match('~^/api/v1/connect-invitations/[^/]+/accept$~D', $path)));
     }
 
@@ -48,13 +50,13 @@ final class BearerAccessTokenAuthenticator extends AbstractAuthenticator
 
         $profile = $this->getCurrentUser->handle($verified->userId);
 
-        if (null === $profile || $profile->id !== $verified->userId) {
+        if (null === $profile || $profile->id !== $verified->userId || !$this->sessionAccess->allows($verified->userId, $verified->sessionId)) {
             throw $this->authenticationFailed();
         }
 
         return new SelfValidatingPassport(new UserBadge(
             $verified->userId,
-            static fn (string $userIdentifier): AuthenticatedUser => new AuthenticatedUser($profile),
+            static fn (string $userIdentifier): AuthenticatedUser => new AuthenticatedUser($profile, $verified->sessionId),
         ));
     }
 

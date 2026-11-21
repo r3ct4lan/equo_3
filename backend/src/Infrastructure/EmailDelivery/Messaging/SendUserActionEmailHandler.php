@@ -50,6 +50,7 @@ final readonly class SendUserActionEmailHandler
                 'ACTIVATE_ACCOUNT' === $state->purpose->value && 'activate-account' === $outbox->templateKey() => ['Activate your Equo account', '/activate', 'Activate account'],
                 'RESET_PASSWORD' === $state->purpose->value && 'reset-password' === $outbox->templateKey() => ['Reset your Equo password', '/password-reset', 'Choose a new password'],
                 'CHANGE_EMAIL' === $state->purpose->value && 'change-email' === $outbox->templateKey() => ['Confirm your new Equo email', '/email-change', 'Confirm new email'],
+                'LINK_EMAIL' === $state->purpose->value && 'link-email' === $outbox->templateKey() => ['Confirm your new Equo email', '/account/link-email', 'Confirm new email'],
                 default => null,
             };
             if (null === $state || !$state->isDeliverableAt($now) || null === $template) {
@@ -75,12 +76,13 @@ final readonly class SendUserActionEmailHandler
                     'activate-account' => ['Активируйте аккаунт Equo', '/activate', 'Активировать аккаунт'],
                     'reset-password' => ['Сброс пароля Equo', '/password-reset', 'Выбрать новый пароль'],
                     'change-email' => ['Подтвердите новый адрес электронной почты Equo', '/email-change', 'Подтвердить адрес'],
+                    'link-email' => ['Подтвердите новый адрес электронной почты Equo', '/account/link-email', 'Подтвердить адрес'],
                     default => $template,
                 };
             }
 
             [$subject, $path, $label] = $template;
-            $actionUrl = rtrim($this->frontendBaseUrl, '/').$path.'?token='.rawurlencode($token);
+            $actionUrl = rtrim($this->frontendBaseUrl, '/').$path.('link-email' === $outbox->templateKey() ? '#token=' : '?token=').rawurlencode($token);
             $email = (new Email())
                 ->from($this->fromAddress)
                 ->to($outbox->recipientEmail())

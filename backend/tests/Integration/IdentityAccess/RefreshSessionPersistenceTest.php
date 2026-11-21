@@ -122,7 +122,7 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
 
         try {
             $this->refresh(new DateTimeImmutable('2026-08-09T12:00:00Z'), $sessionId, accessTokenIssuer: new class implements AccessTokenIssuerPort {
-                public function issue(string $userId): IssuedAccessToken
+                public function issue(string $userId, ?string $sessionId = null): IssuedAccessToken
                 {
                     throw new RuntimeException('Controlled access failure.');
                 }
@@ -160,7 +160,7 @@ final class RefreshSessionPersistenceTest extends KernelTestCase
             $this->refreshTokenCodec($sessionId),
             $this->csrf(),
             $accessTokenIssuer ?? new class implements AccessTokenIssuerPort {
-                public function issue(string $userId): IssuedAccessToken
+                public function issue(string $userId, ?string $sessionId = null): IssuedAccessToken
                 {
                     return new IssuedAccessToken('access-for-'.$userId, 900);
                 }

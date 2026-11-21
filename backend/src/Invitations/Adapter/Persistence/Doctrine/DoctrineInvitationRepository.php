@@ -31,7 +31,7 @@ final readonly class DoctrineInvitationRepository implements InvitationRepositor
 
     public function available(string $authorId, DateTimeImmutable $now): ?ConnectInvitation
     {
-        $r = $this->em->createQueryBuilder()->select('i')->from(ConnectInvitationRecord::class, 'i')->where('i.createdById = :author AND i.usedAt IS NULL AND i.expiresAt > :now')->setParameter('author', $authorId)->setParameter('now', $now)->orderBy('i.createdAt', 'DESC')->setMaxResults(1)->getQuery()->setHint(Query::HINT_REFRESH, true)->getOneOrNullResult();
+        $r = $this->em->createQueryBuilder()->select('i')->from(ConnectInvitationRecord::class, 'i')->where('i.createdById = :author AND i.usedAt IS NULL AND i.expiresAt > :now')->setParameter('author', $authorId)->setParameter('now', $now)->orderBy('i.createdAt', 'DESC')->addOrderBy('i.id', 'DESC')->setMaxResults(1)->getQuery()->setHint(Query::HINT_REFRESH, true)->getOneOrNullResult();
 
         return $r instanceof ConnectInvitationRecord ? $r->toDomain() : null;
     }

@@ -53,7 +53,7 @@ final class SessionCommandRunner
         $codec = $container->get(RefreshTokenCodecPort::class);
         $csrf = $container->get(CsrfTokenCodecPort::class);
         $issuer = new readonly class implements AccessTokenIssuerPort {
-            public function issue(string $userId): IssuedAccessToken
+            public function issue(string $userId, ?string $sessionId = null): IssuedAccessToken
             {
                 return new IssuedAccessToken('test-only-access', 900);
             }

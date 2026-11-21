@@ -10,10 +10,14 @@ export default defineNuxtConfig({
   runtimeConfig: {
     apiInternalBase: '',
     public: {
-      apiBase: '/api'
+      apiBase: '/api',
+      telegramLoginEnabled: false,
+      telegramBotUsername: ''
     }
   },
   routeRules: {
+    '/account/link-email': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
+    '/account/merge': { headers: { 'cache-control': 'no-store' } },
     '/connect-invitations/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } }
   },
   compatibilityDate: '2026-07-26',

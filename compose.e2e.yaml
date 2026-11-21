@@ -37,6 +37,11 @@ x-backend-environment: &backend-environment
   EQUO_CSRF_SIGNING_KEY_VERSION: v1
   EQUO_CSRF_SIGNING_KEY_RING: ${E2E_CSRF_SIGNING_KEY_RING:?scripts/test-e2e.sh must generate E2E_CSRF_SIGNING_KEY_RING}
   EQUO_APPLICATION_ORIGIN: https://nginx
+  EQUO_TELEGRAM_BOT_TOKEN: equo-e2e-mini-app-key
+  EQUO_TELEGRAM_CLIENT_ID: '123456789'
+  EQUO_TELEGRAM_CLIENT_SECRET: equo-e2e-oidc-only
+  NUXT_PUBLIC_TELEGRAM_BOT_USERNAME: EquoE2eBot
+  NUXT_PUBLIC_TELEGRAM_LOGIN_ENABLED: 'true'
 
 services:
   postgres:
@@ -135,6 +140,8 @@ services:
       CHOKIDAR_USEPOLLING: 'false'
       WATCHPACK_POLLING: 'false'
       NUXT_PUBLIC_API_BASE: /api
+      NUXT_PUBLIC_TELEGRAM_BOT_USERNAME: EquoE2eBot
+      NUXT_PUBLIC_TELEGRAM_LOGIN_ENABLED: 'true'
       NUXT_API_INTERNAL_BASE: http://nginx/api
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
@@ -171,6 +178,7 @@ services:
     environment:
       CI: ${CI:-}
       E2E_BASE_URL: https://nginx
+      E2E_TELEGRAM_BOT_TOKEN: equo-e2e-mini-app-key
       E2E_MAILPIT_URL: http://mailpit:8025
     volumes:
       - ./frontend/test-results:/workspace/frontend/test-results

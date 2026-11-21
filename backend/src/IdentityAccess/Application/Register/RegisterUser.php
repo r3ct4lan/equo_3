@@ -126,7 +126,7 @@ final readonly class RegisterUser
             $result = new RegisterResult(new UserView(
                 $user->id,
                 $user->name,
-                $user->email->value,
+                $email->value,
                 $user->isActive(),
                 $user->createdAt,
                 $user->locale,

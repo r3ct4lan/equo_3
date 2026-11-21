@@ -4,9 +4,11 @@ import type { InvitationPreview, InvitationAcceptance } from '~/types/connects'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 import { forgetInvitation, invitationErrorPresentation, rememberInvitation, setInvitationAcceptanceFeedback, setInvitationFeedback } from '~/utils/connect-invitations'
 
-const props = defineProps<{ token: string | null }>()
+const props = defineProps<{ token: string | null, explicit?: boolean }>()
 const { $api, $auth } = useNuxtApp()
 const { state } = useCurrentUser()
+const miniApp = useState('telegram-mini-app', () => false)
+const explicitAcceptance = computed(() => props.explicit || miniApp.value)
 const preview = ref<InvitationPreview | null>(null)
 let generation = 0
 const pending = ref(false)
@@ -63,7 +65,7 @@ async function accept(): Promise<void> {
 }
 onMounted(async () => {
   await $auth.bootstrap()
-  if (state.value.status === 'authenticated') {
+  if (state.value.status === 'authenticated' && !explicitAcceptance.value) {
     await accept()
   }
   else {
@@ -71,7 +73,7 @@ onMounted(async () => {
   }
 })
 watch(() => props.token, () => {
-  if (state.value.status === 'authenticated') void accept()
+  if (state.value.status === 'authenticated' && !explicitAcceptance.value) void accept()
   else void load()
 })
 
@@ -118,6 +120,14 @@ const { t } = useTranslation()
           {{ t('Create an account') }}
         </UiButton>
       </div>
+      <UiButton
+        v-else-if="explicitAcceptance && state.status === 'authenticated'"
+        :disabled="accepting"
+        :pending="accepting"
+        @click="accept"
+      >
+        {{ t('Accept invitation') }}
+      </UiButton>
       <UiButton
         v-else
         variant="secondary"

@@ -42,6 +42,55 @@ final class FinancialModelTest extends TestCase
         }
     }
 
+    public function testTwoParticipantsBecomingOneKeepTheirTotalShare(): void
+    {
+        $now = new DateTimeImmutable('2026-10-11T12:00:00Z');
+        $debt = new Debt('debt', 'Dinner', null, new Money(6000), 'payer', 'payer', $now, [
+            new DebtParticipant('primary-part', 'debt', 'primary', $now),
+            new DebtParticipant('joined-part', 'debt', 'joined', $now),
+            new DebtParticipant('payer-part', 'debt', 'payer', $now),
+        ]);
+        $merged = $debt->mergeAccounts('primary', 'joined');
+        self::assertInstanceOf(Debt::class, $merged);
+        self::assertSame(['primary' => 4000, 'payer' => 2000], array_column($merged->currentParticipants(), 'actualShareAmount', 'userId'));
+        self::assertTrue($merged->includePayerInSplit());
+        self::assertFalse($merged->accessibleTo('joined'));
+        self::assertNull($merged->uniformShare());
+    }
+
+    public function testMergedPayerKeepsOwnShareAndAnInternalExpenseDisappears(): void
+    {
+        $now = new DateTimeImmutable('2026-10-11T12:00:00Z');
+        $debt = new Debt('debt', 'Dinner', null, new Money(6000), 'joined', 'joined', $now, [
+            new DebtParticipant('primary-part', 'debt', 'primary', $now),
+            new DebtParticipant('other-part', 'debt', 'other', $now),
+        ]);
+        $merged = $debt->mergeAccounts('primary', 'joined');
+        self::assertInstanceOf(Debt::class, $merged);
+        self::assertSame('primary', $merged->payerId);
+        self::assertSame('primary', $merged->createdById);
+        self::assertSame(['primary' => 3000, 'other' => 3000], array_column($merged->currentParticipants(), 'actualShareAmount', 'userId'));
+
+        $internal = new Debt('debt', 'Dinner', null, new Money(6000), 'joined', 'joined', $now, [
+            new DebtParticipant('primary-part', 'debt', 'primary', $now),
+        ]);
+        self::assertNull($internal->mergeAccounts('primary', 'joined'));
+    }
+
+    public function testMergingRoundedSharesKeepsTheCentAboveTheOriginalStorageLimit(): void
+    {
+        $now = new DateTimeImmutable('2026-10-11T12:00:00Z');
+        $debt = new Debt('debt', 'Dinner', null, new Money(Money::MAX_CENTS), 'payer', 'payer', $now, [
+            new DebtParticipant('primary-part', 'debt', 'primary', $now),
+            new DebtParticipant('joined-part', 'debt', 'joined', $now),
+        ]);
+        $merged = $debt->mergeAccounts('primary', 'joined');
+        self::assertInstanceOf(Debt::class, $merged);
+        self::assertSame(2147483648, $merged->uniformShare());
+        $transfer = new Transfer('share', 'connect', 'payer', 'primary', 2147483648, 'DEBT_SHARE', null, $now, 'debt', 'primary-part');
+        self::assertSame(2147483648, $transfer->amount);
+    }
+
     #[DataProvider('invalidAmounts')]
     public function testInvalidMoneyRejected(int $amount): void
     {

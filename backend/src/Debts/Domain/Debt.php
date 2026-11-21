@@ -70,8 +70,13 @@ final readonly class Debt
             }
         }
         sort($oldCurrent, SORT_STRING);
-        if ($this->title === $update->title && $this->description === $update->description && $this->totalAmount->cents === $update->totalAmount->cents && $oldCurrent === $ids) {
-            return $this;
+        $splitChanged = $this->totalAmount->cents !== $update->totalAmount->cents || $oldCurrent !== $ids;
+        if (!$splitChanged) {
+            if ($this->title === $update->title && $this->description === $update->description) {
+                return $this;
+            }
+
+            return new self($this->id, $update->title, $update->description, $this->totalAmount, $this->payerId, $this->createdById, $this->createdAt, $this->participants, false, $this->version + 1);
         }
         $participants = [];
         $known = [];
@@ -127,6 +132,60 @@ final readonly class Debt
     public function shareAmount(): int
     {
         return $this->totalAmount->share(count($this->currentParticipants()));
+    }
+
+    public function shareFor(DebtParticipant $participant): int
+    {
+        return $participant->actualShareAmount ?? $this->shareAmount();
+    }
+
+    public function uniformShare(): ?int
+    {
+        $amounts = array_unique(array_map($this->shareFor(...), $this->currentParticipants()));
+
+        return 1 === count($amounts) ? $amounts[0] : null;
+    }
+
+    public function hasSameSplitAs(self $other): bool
+    {
+        $before = array_column($this->currentParticipants(), 'userId');
+        $after = array_column($other->currentParticipants(), 'userId');
+        sort($before, SORT_STRING);
+        sort($after, SORT_STRING);
+
+        return $this->totalAmount->cents === $other->totalAmount->cents && $before === $after;
+    }
+
+    public function mergeAccounts(string $primary, string $joined): ?self
+    {
+        $byUser = array_column($this->participants, null, 'userId');
+        if ($this->payerId !== $joined && $this->createdById !== $joined && !isset($byUser[$joined])) {
+            return $this;
+        }
+
+        $payer = $this->payerId === $joined ? $primary : $this->payerId;
+        $author = $this->createdById === $joined ? $primary : $this->createdById;
+        $amounts = [];
+        foreach ($this->currentParticipants() as $participant) {
+            $user = $participant->userId === $joined ? $primary : $participant->userId;
+            $amounts[$user] = ($amounts[$user] ?? 0) + $this->shareFor($participant);
+        }
+        if ([] === array_diff_key($amounts, [$payer => true])) {
+            return null;
+        }
+
+        $participants = [];
+        foreach ($this->participants as $participant) {
+            if ($participant->userId === $joined && isset($byUser[$primary])) {
+                $participants[] = new DebtParticipant($participant->id, $this->id, $joined, $participant->createdAt, true);
+                continue;
+            }
+            $user = $participant->userId === $joined ? $primary : $participant->userId;
+            $amount = $amounts[$user] ?? null;
+            $participants[] = new DebtParticipant($participant->id, $this->id, $user, $participant->createdAt, null === $amount, $amount);
+        }
+
+        return new self($this->id, $this->title, $this->description, $this->totalAmount, $payer, $author, $this->createdAt, $participants, $this->isDeleted, $this->version + 1);
     }
 
     public function accessibleTo(string $userId): bool
