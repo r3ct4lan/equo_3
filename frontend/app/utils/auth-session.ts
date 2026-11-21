@@ -18,7 +18,7 @@ export const AUTH_CHANNEL = 'equo:auth'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u
 const CSRF_COOKIE_NAME = '__Host-equo_csrf'
-const SIGNED_OUT_KEY = 'equo:signed-out'
+export const SIGNED_OUT_KEY = 'equo:signed-out'
 
 export interface LoginErrorPresentation {
   title: string

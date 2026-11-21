@@ -9,6 +9,17 @@ useHead({
 const route = useRoute()
 const { $auth } = useNuxtApp()
 const currentUser = useCurrentUser()
+const miniApp = useState('telegram-mini-app', () => false)
+const { public: config } = useRuntimeConfig()
+const telegramEnabled = computed(() => String(config.telegramLoginEnabled) === 'true' && !miniApp.value)
+const telegramMessage = computed(() => {
+  switch (route.query.telegram) {
+    case 'cancelled': return 'Telegram sign-in was cancelled'
+    case 'failed': return 'Telegram sign-in could not be completed'
+    case 'inactive': return 'Account is not active'
+    default: return null
+  }
+})
 const {
   values,
   fieldErrors,
@@ -153,6 +164,22 @@ const { t, tError } = useTranslation()
           {{ t('Both fields are required.') }}
         </UiText>
       </div>
+
+      <template v-if="telegramEnabled">
+        <UiNotice
+          v-if="telegramMessage"
+          tone="info"
+        >
+          {{ t(telegramMessage) }}
+        </UiNotice>
+        <UiButton
+          variant="secondary"
+          to="/api/v1/auth/telegram/oidc/start"
+          external
+        >
+          {{ t('Sign in with Telegram') }}
+        </UiButton>
+      </template>
 
       <FormErrorSummary
         :title="summaryTitle"

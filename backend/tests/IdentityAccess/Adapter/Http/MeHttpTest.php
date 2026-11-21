@@ -19,7 +19,10 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie as BrowserKitCookie;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class MeHttpTest extends WebTestCase
 {
@@ -32,6 +35,7 @@ final class MeHttpTest extends WebTestCase
     private KernelBrowser $client;
     private Connection $connection;
     private PasswordHashingPort $passwordHasher;
+    private ?string $oidcChallenge = null;
 
     /** @var array{private: string, public: string} */
     private array $keys;
@@ -175,6 +179,86 @@ final class MeHttpTest extends WebTestCase
         self::assertSame('ACCOUNT_INACTIVE', $result['error']['code']);
         self::assertSame([], $this->responseCookies());
         self::assertSame(0, $this->countSessions());
+    }
+
+    public function testTelegramOidcExchangesTheCodeAndUsesTheSameAccountAsMiniApp(): void
+    {
+        $this->mockTelegramOidcProvider($this->telegramIdToken(4294967297));
+        $query = $this->telegramOidcStart();
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/callback?'.http_build_query([
+            'state' => $query['state'],
+            'code' => 'valid-code',
+        ]));
+        self::assertResponseRedirects('/');
+        self::assertArrayHasKey('equo_refresh', $this->responseCookies());
+        $browserUser = $this->connection->fetchOne('SELECT id FROM app_user WHERE telegram_id = ?', [4294967297]);
+        self::assertIsString($browserUser);
+        $miniApp = $this->telegramLaunch($this->signedTelegramData(['id' => 4294967297, 'first_name' => 'Another name']));
+        self::assertSame($browserUser, $miniApp['user']['id']);
+        self::assertSame('Web User', $miniApp['user']['name']);
+
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/callback?'.http_build_query([
+            'state' => $query['state'],
+            'code' => 'valid-code',
+        ]));
+        self::assertResponseRedirects('/login?telegram=failed');
+        self::assertArrayNotHasKey('equo_refresh', $this->responseCookies());
+        self::assertSame(2, $this->countSessions());
+    }
+
+    public function testMiniAppAccountIsReusedOnTheWebsite(): void
+    {
+        $miniApp = $this->telegramLaunch($this->signedTelegramData(['id' => 4294967297, 'first_name' => 'Mini App User']));
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        $this->mockTelegramOidcProvider($this->telegramIdToken(4294967297));
+        $query = $this->telegramOidcStart();
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/callback?'.http_build_query([
+            'state' => $query['state'],
+            'code' => 'valid-code',
+        ]));
+        self::assertResponseRedirects('/');
+        self::assertArrayHasKey('equo_refresh', $this->responseCookies());
+        self::assertSame($miniApp['user']['id'], $this->connection->fetchOne('SELECT id FROM app_user WHERE telegram_id = ?', [4294967297]));
+        self::assertSame(2, $this->countSessions());
+    }
+
+    public function testTelegramOidcRejectsStateMismatchAndHandlesCancellation(): void
+    {
+        $query = $this->telegramOidcStart();
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/callback?state='.str_repeat('x', 43).'&code=valid-code');
+        self::assertResponseRedirects('/login?telegram=failed');
+        self::assertArrayNotHasKey('equo_refresh', $this->responseCookies());
+
+        $query = $this->telegramOidcStart();
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/callback?'.http_build_query([
+            'state' => $query['state'],
+            'error' => 'access_denied',
+        ]));
+        self::assertResponseRedirects('/login?telegram=cancelled');
+        self::assertArrayNotHasKey('equo_refresh', $this->responseCookies());
+        self::assertSame(0, $this->countSessions());
+    }
+
+    #[DataProvider('invalidTelegramOidcClaims')]
+    public function testTelegramOidcRejectsInvalidToken(?int $telegramId, string $audience, bool $wrongSignature): void
+    {
+        $this->mockTelegramOidcProvider($this->telegramIdToken($telegramId, $audience, $wrongSignature));
+        $query = $this->telegramOidcStart();
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/callback?'.http_build_query([
+            'state' => $query['state'],
+            'code' => 'valid-code',
+        ]));
+        self::assertResponseRedirects('/login?telegram=failed');
+        self::assertArrayNotHasKey('equo_refresh', $this->responseCookies());
+        self::assertSame(0, $this->countSessions());
+    }
+
+    /** @return iterable<string, array{?int, string, bool}> */
+    public static function invalidTelegramOidcClaims(): iterable
+    {
+        yield 'missing Telegram ID' => [null, '123456789', false];
+        yield 'wrong audience' => [4294967297, '123456780', false];
+        yield 'wrong signature' => [4294967297, '123456789', true];
     }
 
     public function testMeReadsFreshDatabaseStateAndRejectsInactiveUserWithSameJwt(): void
@@ -464,6 +548,76 @@ final class MeHttpTest extends WebTestCase
         ]);
     }
 
+    /** @return array{state: string} */
+    private function telegramOidcStart(): array
+    {
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/start');
+        $location = $this->client->getResponse()->headers->get('Location');
+        self::assertResponseStatusCodeSame(Response::HTTP_SEE_OTHER);
+        self::assertIsString($location);
+        self::assertStringStartsWith('https://oauth.telegram.org/auth?', $location);
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+        self::assertSame('S256', $query['code_challenge_method']);
+        self::assertSame('openid profile', $query['scope']);
+        self::assertIsString($query['state']);
+        self::assertIsString($query['code_challenge']);
+
+        $this->oidcChallenge = $query['code_challenge'];
+
+        return ['state' => $query['state']];
+    }
+
+    private function telegramIdToken(?int $telegramId, string $audience = '123456789', bool $wrongSignature = false): string
+    {
+        $pem = $wrongSignature ? self::rsaKeyPair()['private'] : $this->keys['private'];
+        $config = Configuration::forAsymmetricSigner(
+            new Sha256(),
+            InMemory::plainText(self::nonEmpty($pem)),
+            InMemory::plainText(self::nonEmpty($this->keys['public'])),
+        );
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $builder = $config->builder()->withHeader('kid', 'telegram-test-key')
+            ->issuedBy('https://oauth.telegram.org')->permittedFor(self::nonEmpty($audience))
+            ->relatedTo('opaque-subject')->issuedAt($now)->expiresAt($now->modify('+5 minutes'))
+            ->withClaim('name', 'Web User');
+        if (null !== $telegramId) {
+            $builder = $builder->withClaim('id', $telegramId);
+        }
+
+        return $builder->getToken($config->signer(), $config->signingKey())->toString();
+    }
+
+    private function mockTelegramOidcProvider(string $token): void
+    {
+        $key = openssl_pkey_get_public($this->keys['public']);
+        self::assertNotFalse($key);
+        $details = openssl_pkey_get_details($key);
+        self::assertIsArray($details);
+        self::assertIsString($details['rsa']['n']);
+        self::assertIsString($details['rsa']['e']);
+        $keys = ['keys' => [[
+            'kid' => 'telegram-test-key', 'kty' => 'RSA', 'alg' => 'RS256', 'use' => 'sig',
+            'n' => rtrim(strtr(base64_encode($details['rsa']['n']), '+/', '-_'), '='),
+            'e' => rtrim(strtr(base64_encode($details['rsa']['e']), '+/', '-_'), '='),
+        ]]];
+        self::getContainer()->set(HttpClientInterface::class, new MockHttpClient(
+            function (string $method, string $url, array $options) use ($token, $keys): MockResponse {
+                if ('POST' === $method && 'https://oauth.telegram.org/token' === $url) {
+                    self::assertIsString($options['body']);
+                    parse_str($options['body'], $body);
+                    self::assertIsString($body['code_verifier']);
+                    self::assertSame($this->oidcChallenge, rtrim(strtr(base64_encode(hash('sha256', $body['code_verifier'], true)), '+/', '-_'), '='));
+                    self::assertSame('valid-code', $body['code']);
+
+                    return new MockResponse(json_encode(['id_token' => $token], JSON_THROW_ON_ERROR));
+                }
+                self::assertSame('https://oauth.telegram.org/.well-known/jwks.json', $url);
+
+                return new MockResponse(json_encode($keys, JSON_THROW_ON_ERROR));
+            },
+        ));
+    }
+
     /** @param array<string, int|string> $user */
     private function signedTelegramData(array $user, int $timeOffset = 0): string
     {
@@ -641,6 +795,8 @@ final class MeHttpTest extends WebTestCase
         $this->setEnv('EQUO_CSRF_SIGNING_KEY_RING', self::CSRF_KEY_RING);
         $this->setEnv('EQUO_APPLICATION_ORIGIN', self::ORIGIN);
         $this->setEnv('EQUO_TELEGRAM_BOT_TOKEN', self::TEST_TELEGRAM_TOKEN);
+        $this->setEnv('EQUO_TELEGRAM_CLIENT_ID', '123456789');
+        $this->setEnv('EQUO_TELEGRAM_CLIENT_SECRET', 'equo-test-oidc-client');
     }
 
     private function setEnv(string $name, string $value): void

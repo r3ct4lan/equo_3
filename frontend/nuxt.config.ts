@@ -10,7 +10,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     apiInternalBase: '',
     public: {
-      apiBase: '/api'
+      apiBase: '/api',
+      telegramLoginEnabled: false
     }
   },
   routeRules: {

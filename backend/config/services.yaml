@@ -9,6 +9,8 @@
 parameters:
     env(EQUO_EMAIL_OUTBOX_THRESHOLDS): ''
     env(EQUO_TELEGRAM_BOT_TOKEN): ''
+    env(EQUO_TELEGRAM_CLIENT_ID): ''
+    env(EQUO_TELEGRAM_CLIENT_SECRET): ''
 
 services:
     # default configuration for services in *this* file

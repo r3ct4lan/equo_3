@@ -1,4 +1,4 @@
-import { createAuthSession } from '~/utils/auth-session'
+import { createAuthSession, SIGNED_OUT_KEY } from '~/utils/auth-session'
 import { readTelegramInitData } from '~/utils/telegram-launch'
 
 export default defineNuxtPlugin({
@@ -13,6 +13,14 @@ export default defineNuxtPlugin({
       storage = window.sessionStorage
     }
     catch { /* Session coordination also works when browser storage is unavailable. */ }
+    const signedInThroughTelegram = document.cookie.split(';').some(cookie => cookie.trim() === '__Host-equo_telegram_signed_in=1')
+    if (signedInThroughTelegram) {
+      document.cookie = '__Host-equo_telegram_signed_in=; Path=/; Secure; SameSite=Lax; Max-Age=0'
+      try {
+        storage?.removeItem(SIGNED_OUT_KEY)
+      }
+      catch { /* A successful provider return can still use the session cookies. */ }
+    }
     const auth = createAuthSession({
       api: nuxtApp.$api,
       currentUser: {
