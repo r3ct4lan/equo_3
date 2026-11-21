@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Debts;
 
 use App\Debts\Adapter\Persistence\Doctrine\DoctrineDebtRepository;
+use App\Debts\Adapter\Persistence\Doctrine\DoctrineMergeExpenseRepository;
 use App\Debts\Application\CreateDebtCommand;
 use App\Debts\Application\MergeExpenses;
 use App\Debts\Application\UpdateDebtCommand;
-use App\Infrastructure\Persistence\Doctrine\DoctrineMergeExpenseRepository;
 use App\Transfers\Adapter\Persistence\Doctrine\DoctrineTransferRepository;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

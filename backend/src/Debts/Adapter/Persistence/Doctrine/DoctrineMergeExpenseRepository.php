@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Infrastructure\Persistence\Doctrine;
+namespace App\Debts\Adapter\Persistence\Doctrine;
 
 use App\Debts\Application\Port\MergeExpenseRepositoryPort;
 use App\Debts\Domain\Debt;

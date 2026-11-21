@@ -49,10 +49,11 @@ final class HttpInfrastructureController
     public function sensitiveRecords(): array
     {
         $createdAt = new DateTimeImmutable('2026-07-31T12:00:00Z');
+        $email = 'ada@example.test';
         $user = new UserRecord(
             '550e8400-e29b-41d4-a716-446655440000',
             'Ada',
-            'ada@example.test',
+            $email,
             'password-hash-must-not-leak',
             false,
             $createdAt,
@@ -76,7 +77,7 @@ final class HttpInfrastructureController
         $identity = new StoredLoginIdentity(
             $user->id(),
             $user->name(),
-            $user->email(),
+            $email,
             'login-password-hash-must-not-leak',
             $user->isActive(),
         );
@@ -91,7 +92,7 @@ final class HttpInfrastructureController
         $outbox = new EmailDeliveryOutboxRecord(
             '550e8400-e29b-41d4-a716-446655440002',
             $token->id(),
-            $user->email(),
+            $email,
             'activate-account',
             'encrypted-payload-must-not-leak',
             EmailDeliveryStatus::Pending,

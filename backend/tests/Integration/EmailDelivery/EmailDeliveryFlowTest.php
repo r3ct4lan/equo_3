@@ -475,10 +475,11 @@ final class EmailDeliveryFlowTest extends KernelTestCase
     ): EmailDeliveryOutboxRecord {
         $now = new DateTimeImmutable('now');
         $suffix = bin2hex(random_bytes(6));
+        $email = $suffix.'@example.test';
         $user = new UserRecord(
             sprintf('00000000-0000-4000-8000-%s', $suffix),
             'Delivery User',
-            $suffix.'@example.test',
+            $email,
             'password-hash',
             false,
             $now,
@@ -498,7 +499,7 @@ final class EmailDeliveryFlowTest extends KernelTestCase
         $outbox = new EmailDeliveryOutboxRecord(
             sprintf('20000000-0000-4000-8000-%s', $suffix),
             $token->id(),
-            $user->email(),
+            $email,
             $template,
             $terminal ? null : (new PayloadCipher(self::PAYLOAD_KEY))->encrypt(['token' => 'v1.public-token', ...($locale ? ['locale' => $locale] : [])]),
             $status,

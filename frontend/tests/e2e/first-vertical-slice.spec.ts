@@ -566,6 +566,8 @@ test('skip link focuses main without a container outline and controls keep focus
   await expect(main).toBeFocused()
   expect(await main.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('none')
   await page.keyboard.press('Tab')
+  await expect(page.getByRole('link', { name: 'Sign in with Telegram', exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
   const email = page.getByLabel('Email', { exact: true })
   await expect(email).toBeFocused()
   expect(await email.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none')
@@ -1628,7 +1630,7 @@ test('profile name and confirmed email change keep the active session', async ({
   const renamed = page.waitForResponse(sent => new URL(sent.url()).pathname === '/api/v1/me' && sent.request().method() === 'PATCH')
   await page.getByRole('button', { name: 'Save name', exact: true }).click()
   expect((await renamed).status()).toBe(200)
-  await expect(page.getByRole('status')).toContainText('Name saved')
+  await expect(page.getByRole('status').filter({ hasText: 'Name saved.' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Updated E2E Name' })).toBeVisible()
 
   await expect(page.getByLabel('New email', { exact: true })).toHaveCount(0)
@@ -2744,18 +2746,41 @@ async function openTelegramMiniApp(page: Page, id: number, name: string, startPa
   return profile.id
 }
 
-async function approveTelegramInBrowser(page: Page, telegramId: number): Promise<void> {
-  await page.route('https://oauth.telegram.org/auth?*', async (route) => {
-    const authorization = new URL(route.request().url())
+async function approveTelegramInBrowser(page: Page, telegramId: number, flow: 'login' | 'credential' | 'deactivation' = 'credential'): Promise<void> {
+  const path = flow === 'login'
+    ? '/api/v1/auth/telegram/oidc/start'
+    : '/api/v1/account/credentials/telegram/' + (flow === 'deactivation' ? 'deactivation/start' : 'start')
+  await page.route(new URL(path, baseUrl).href, async (route) => {
+    const attempt = await route.fetch({ maxRedirects: 0 })
+    expect(attempt.status()).toBe(flow === 'login' ? 303 : 200)
+    const providerUrl = flow === 'login'
+      ? attempt.headers().location
+      : (await attempt.json() as { url: string }).url
+    if (!providerUrl) throw new Error('The Telegram authorization URL is missing.')
+    const authorization = new URL(providerUrl)
+    expect(authorization.origin + authorization.pathname).toBe('https://oauth.telegram.org/auth')
     const state = authorization.searchParams.get('state')
     const challenge = authorization.searchParams.get('code_challenge')
-    expect(state !== null && challenge !== null).toBe(true)
+    if (!state || !challenge) throw new Error('The Telegram authorization attempt is incomplete.')
     expect(authorization.searchParams.get('code_challenge_method')).toBe('S256')
     const callback = new URL('/api/v1/auth/telegram/oidc/callback', baseUrl)
-    callback.searchParams.set('state', state!)
+    expect(authorization.searchParams.get('redirect_uri')).toBe(callback.href)
+    callback.searchParams.set('state', state)
     callback.searchParams.set('code', String(telegramId) + '.' + challenge)
-    await route.fulfill({ status: 303, headers: { location: callback.href } })
+
+    const headers = attempt.headers()
+    if (flow === 'login') {
+      await route.fulfill({ response: attempt, headers: { ...headers, location: callback.href } })
+    }
+    else {
+      delete headers['content-length']
+      await route.fulfill({ response: attempt, headers, json: { url: callback.href } })
+    }
   }, { times: 1 })
+}
+
+function waitForTelegramCallback(page: Page): Promise<Response> {
+  return page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/telegram/oidc/callback')
 }
 
 async function telegramAccess(request: APIRequestContext, id: number, name: string): Promise<string> {
@@ -2855,9 +2880,14 @@ test('Telegram invitation creates the first connection explicitly and preserves 
 
 test('Telegram OIDC opens the same account in the browser and the Mini App', async ({ page }) => {
   const telegramId = 4294967310
+  const initialRefresh = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/refresh')
   await page.goto('/login')
-  await approveTelegramInBrowser(page, telegramId)
+  await waitForNuxtHydration(page)
+  await initialRefresh
+  await approveTelegramInBrowser(page, telegramId, 'login')
+  const callback = waitForTelegramCallback(page)
   await page.getByRole('link', { name: 'Sign in with Telegram', exact: true }).click()
+  expect(await (await callback).headerValue('location')).toBe('/')
   await expect(page.getByRole('heading', { name: 'Invite a friend', exact: true })).toBeVisible()
   const me = page.waitForResponse(response => response.ok() && new URL(response.url()).pathname === '/api/v1/me')
   await page.getByRole('link', { name: 'My profile', exact: true }).click()
@@ -2910,14 +2940,16 @@ test('replacing Telegram keeps the confirming session and revokes the other brow
   const originalId = await profileId(request, first)
   const sibling = await loginViaApi(request, email)
   await approveTelegramInBrowser(page, 4294967312)
+  const linked = waitForTelegramCallback(page)
   await page.getByRole('button', { name: 'Link Telegram', exact: true }).click()
+  expect(await (await linked).headerValue('location')).toBe('/me?credentials=linked')
   await expect(page.getByText('Sign-in method updated.', { exact: true })).toBeVisible()
 
   await approveTelegramInBrowser(page, 4294967313)
-  const replacement = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/telegram/oidc/callback')
+  const replacement = waitForTelegramCallback(page)
   await page.locator('#replace-telegram-password').fill(testPassword)
   await page.getByRole('button', { name: 'Change Telegram', exact: true }).click()
-  expect((await replacement).status()).toBe(303)
+  expect(await (await replacement).headerValue('location')).toBe('/me?credentials=linked')
   await expect(page.getByText('Sign-in method updated.', { exact: true })).toBeVisible()
   await expect(page.getByText(email, { exact: true })).toBeVisible()
   expect(await profileId(request, first)).toBe(originalId)
@@ -2933,7 +2965,7 @@ test('Telegram reactivation explicitly opens the same account and continues an i
   const original = await openTelegramMiniApp(page, id, name)
   await page.getByRole('link', { name: 'My profile', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0)
-  await approveTelegramInBrowser(page, id)
+  await approveTelegramInBrowser(page, id, 'deactivation')
   await page.getByRole('button', { name: 'Confirm with Telegram', exact: true }).click()
   await page.getByRole('button', { name: 'Deactivate account', exact: true }).click()
   await expect(page.getByText('Your account is deactivated', { exact: true })).toBeVisible()

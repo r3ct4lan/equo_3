@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Persistence\Doctrine;
 
-use App\Connects\Domain\CanonicalPair;
 use App\IdentityAccess\Application\Port\AccountMergeLedgerPort;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -51,14 +50,15 @@ final readonly class DoctrineMergeLedger implements AccountMergeLedgerPort
 
     private function moveConnection(string $sourceId, string $other, string $primary, string $joined): void
     {
-        $pair = new CanonicalPair($primary, $other);
+        $first = min($primary, $other);
+        $second = max($primary, $other);
         $existing = $this->connection->fetchOne(
             'SELECT id FROM connect WHERE first_user_id = ? AND second_user_id = ? FOR UPDATE',
-            [$pair->first, $pair->second],
+            [$first, $second],
         );
         $destinationId = is_string($existing) ? $existing : $sourceId;
         if ($destinationId === $sourceId) {
-            $this->connection->update('connect', ['first_user_id' => $pair->first, 'second_user_id' => $pair->second], ['id' => $sourceId]);
+            $this->connection->update('connect', ['first_user_id' => $first, 'second_user_id' => $second], ['id' => $sourceId]);
         }
 
         $this->connection->executeStatement(<<<'SQL'

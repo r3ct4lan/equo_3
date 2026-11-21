@@ -6,9 +6,9 @@ namespace App\Tests\Debts\Adapter\Http;
 
 use App\Connects\Domain\CanonicalPair;
 use App\Debts\Adapter\Persistence\Doctrine\DoctrineDebtRepository;
+use App\Debts\Adapter\Persistence\Doctrine\DoctrineMergeExpenseRepository;
 use App\Debts\Application\MergeExpenses;
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
-use App\Infrastructure\Persistence\Doctrine\DoctrineMergeExpenseRepository;
 use App\Infrastructure\Persistence\Doctrine\DoctrineMergeLedger;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;

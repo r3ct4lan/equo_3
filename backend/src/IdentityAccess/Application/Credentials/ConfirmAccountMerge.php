@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Application\Credentials;
 
-use App\Debts\Application\MergeExpenses;
+use App\Debts\Application\Api\AccountExpenseMerge;
 use App\IdentityAccess\Application\Port\AccountMergeExecutionPort;
 use App\IdentityAccess\Application\Port\AccountMergeLedgerPort;
 use App\IdentityAccess\Application\Port\ClockPort;
@@ -16,7 +16,7 @@ final readonly class ConfirmAccountMerge
     public function __construct(
         private ReviewAccountMerge $review,
         private AccountMergeExecutionPort $storage,
-        private MergeExpenses $expenses,
+        private AccountExpenseMerge $expenses,
         private AccountMergeLedgerPort $ledger,
         private CredentialRepositoryPort $credentials,
         private ClockPort $clock,
