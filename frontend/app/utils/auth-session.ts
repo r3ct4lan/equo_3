@@ -41,6 +41,8 @@ export interface AuthSessionDependencies {
   sessionStorage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
   signedOut?: boolean
   telegramInitData?: string
+  telegramAccountId?: string
+  rememberTelegramAccount?: (id: string) => void
   continueTelegramLaunch?: (startParam: string) => Promise<void>
 }
 
@@ -168,7 +170,7 @@ export function safeRedirectPath(raw: unknown, fallback = '/me'): string {
 
 export function createAuthSession(dependencies: AuthSessionDependencies): AuthSession {
   let accessToken: string | null = null
-  let telegramUserId: string | null = null
+  let telegramUserId: string | null = dependencies.telegramAccountId ?? null
   let refreshPromise: Promise<void> | null = null
   let bootstrapPromise: Promise<void> | null = null
   let logoutPromise: Promise<void> | null = null
@@ -299,6 +301,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
           })
           if (started !== generation || signedOut) return
           telegramUserId = response.user.id
+          dependencies.rememberTelegramAccount?.(telegramUserId)
           adoptSession(response)
           if (response.startParam) {
             await dependencies.continueTelegramLaunch?.(response.startParam)

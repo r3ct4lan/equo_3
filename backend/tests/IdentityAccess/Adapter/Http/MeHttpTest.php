@@ -6,6 +6,7 @@ namespace App\Tests\IdentityAccess\Adapter\Http;
 
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
 use App\IdentityAccess\Application\Port\PasswordHashingPort;
+use App\Infrastructure\EmailDelivery\Security\PayloadCipher;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;
@@ -275,6 +276,149 @@ final class MeHttpTest extends WebTestCase
         yield 'wrong signature' => [4294967297, '123456789', true];
     }
 
+    public function testEmailLinkRequiresTheInitiatingSessionAndOpensTheSameAccount(): void
+    {
+        $initData = $this->signedTelegramData(['id' => 4294967300]);
+        $first = $this->telegramLaunch($initData);
+        $second = $this->telegramLaunch($initData);
+        $userId = $first['user']['id'];
+        $email = 'link-new@example.test';
+        $password = 'New correct password1!';
+
+        $this->credentialRequest('/email/start', $first['accessToken'], ['email' => $email, 'password' => $password]);
+        self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
+        $token = $this->emailLinkToken($email);
+
+        $this->credentialRequest('/email/confirm', $second['accessToken'], ['token' => $token]);
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        self::assertNull($this->me($first['accessToken'])['email']);
+
+        $this->credentialRequest('/email/confirm', $first['accessToken'], ['token' => $token]);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('linked', $this->jsonBody()['status']);
+        self::assertSame($userId, $this->me($this->login($email, $password)['accessToken'])['id']);
+
+        $this->credentialRequest('/email/confirm', $first['accessToken'], ['token' => $token]);
+        self::assertResponseStatusCodeSame(Response::HTTP_GONE);
+    }
+
+    public function testExpiredEmailLinkLeavesCredentialsUnchanged(): void
+    {
+        $session = $this->telegramLaunch($this->signedTelegramData(['id' => 4294967303]));
+        $email = 'link-expired@example.test';
+        $this->credentialRequest('/email/start', $session['accessToken'], ['email' => $email, 'password' => 'New correct password1!']);
+        self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
+        $token = $this->emailLinkToken($email);
+        $this->connection->executeStatement(
+            "UPDATE user_action_token SET created_at = CURRENT_TIMESTAMP - INTERVAL '31 minutes', expires_at = CURRENT_TIMESTAMP - INTERVAL '1 minute' WHERE user_id = ? AND purpose = 'LINK_EMAIL'",
+            [$session['user']['id']],
+        );
+
+        $this->credentialRequest('/email/confirm', $session['accessToken'], ['token' => $token]);
+        self::assertResponseStatusCodeSame(Response::HTTP_GONE);
+        self::assertNull($this->me($session['accessToken'])['email']);
+    }
+
+    public function testEmailLinkCanBeCancelled(): void
+    {
+        $session = $this->telegramLaunch($this->signedTelegramData(['id' => 4294967301]));
+        $email = 'link-cancel@example.test';
+        $this->credentialRequest('/email/start', $session['accessToken'], ['email' => $email, 'password' => 'New correct password1!']);
+        self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
+        $token = $this->emailLinkToken($email);
+
+        $this->credentialRequest('/cancel', $session['accessToken'], []);
+        self::assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
+
+        $this->credentialRequest('/email/confirm', $session['accessToken'], ['token' => $token]);
+        self::assertResponseStatusCodeSame(Response::HTTP_GONE);
+        self::assertNull($this->me($session['accessToken'])['email']);
+    }
+
+    public function testEmailLinkCanProveAccessToAnotherAccountWithoutMovingCredentials(): void
+    {
+        $targetId = '87000000-0000-4000-8000-000000000362';
+        $email = 'link-existing@example.test';
+        $this->insertUser($targetId, 'Email owner', $email, true, 'Correct password!');
+        $session = $this->telegramLaunch($this->signedTelegramData(['id' => 4294967302]));
+
+        $this->credentialRequest('/email/start', $session['accessToken'], ['email' => $email, 'password' => 'Wrong password']);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+
+        $this->credentialRequest('/email/start', $session['accessToken'], ['email' => $email, 'password' => 'Correct password!']);
+        self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
+        $this->credentialRequest('/email/confirm', $session['accessToken'], ['token' => $this->emailLinkToken($email)]);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('merge_required', $this->jsonBody()['status']);
+        self::assertNull($this->me($session['accessToken'])['email']);
+        self::assertSame($targetId, $this->me($this->login($email)['accessToken'])['id']);
+    }
+
+    public function testTelegramOidcCredentialChangeIsSeparateFromLogin(): void
+    {
+        $userId = '87000000-0000-4000-8000-000000000363';
+        $this->insertUser($userId, 'Web owner', 'link-web@example.test', true, 'Correct password!');
+        $session = $this->login('link-web@example.test');
+        $this->mockTelegramOidcProvider($this->telegramIdToken(4294967297));
+
+        $state = $this->startTelegramCredential($session['accessToken']);
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/callback?'.http_build_query([
+            'state' => $state,
+            'error' => 'access_denied',
+        ]));
+        self::assertResponseRedirects('/me?credentials=cancelled');
+        self::assertNull($this->connection->fetchOne('SELECT telegram_id FROM app_user WHERE id = ?', [$userId]));
+        self::assertSame(1, $this->countSessions());
+
+        $state = $this->startTelegramCredential($session['accessToken']);
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/callback?'.http_build_query([
+            'state' => $state,
+            'code' => 'valid-code',
+        ]));
+        self::assertResponseRedirects('/me?credentials=linked');
+        self::assertArrayNotHasKey('equo_refresh', $this->responseCookies());
+        self::assertSame($userId, $this->connection->fetchOne('SELECT id FROM app_user WHERE telegram_id = ?', [4294967297]));
+        self::assertSame(1, $this->countSessions());
+    }
+
+    public function testTelegramReplacementPreservesOnlyTheConfirmingSession(): void
+    {
+        $userId = '87000000-0000-4000-8000-000000000360';
+        $this->insertUser($userId, 'Alex', 'replace-telegram@example.test', true, 'Correct password!');
+        $this->connection->update('app_user', ['telegram_id' => 4294967297], ['id' => $userId]);
+        $first = $this->login('replace-telegram@example.test');
+        $second = $this->telegramLaunch($this->signedTelegramData(['id' => 4294967297]));
+        $newProof = $this->signedTelegramData(['id' => 4294967298]);
+
+        $this->credentialRequest('/telegram/proof', $first['accessToken'], ['initData' => $newProof, 'currentPassword' => 'Wrong password']);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+        self::assertSame(4294967297, (int) $this->connection->fetchOne('SELECT telegram_id FROM app_user WHERE id = ?', [$userId]));
+
+        $this->credentialRequest('/telegram/proof', $first['accessToken'], ['initData' => $newProof, 'currentPassword' => 'Correct password!']);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame($userId, $this->me($first['accessToken'])['id']);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        $this->me($second['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+        $telegram = $this->telegramLaunch($newProof);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame($userId, $telegram['user']['id']);
+    }
+
+    public function testTelegramCanBeLinkedToTheCurrentEmailAccount(): void
+    {
+        $userId = '87000000-0000-4000-8000-000000000361';
+        $this->insertUser($userId, 'Alex', 'link-telegram@example.test', true, 'Correct password!');
+        $login = $this->login('link-telegram@example.test');
+        $proof = $this->signedTelegramData(['id' => 4294967297]);
+
+        $this->credentialRequest('/telegram/proof', $login['accessToken'], ['initData' => $proof]);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        $miniApp = $this->telegramLaunch($proof);
+        self::assertSame($userId, $miniApp['user']['id']);
+        self::assertSame('link-telegram@example.test', $miniApp['user']['email']);
+    }
+
     public function testMeReadsFreshDatabaseStateAndRejectsInactiveUserWithSameJwt(): void
     {
         $userId = '87000000-0000-4000-8000-000000000302';
@@ -468,13 +612,13 @@ final class MeHttpTest extends WebTestCase
     }
 
     /** @return array<string, mixed> */
-    private function login(string $email): array
+    private function login(string $email, string $password = 'Correct password!'): array
     {
         $this->client->request(
             'POST',
             '/api/v1/auth/login',
             server: ['CONTENT_TYPE' => 'application/json', 'REMOTE_ADDR' => '192.0.2.30'],
-            content: json_encode(['email' => $email, 'password' => 'Correct password!'], JSON_THROW_ON_ERROR),
+            content: json_encode(['email' => $email, 'password' => $password], JSON_THROW_ON_ERROR),
         );
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
 
@@ -562,6 +706,42 @@ final class MeHttpTest extends WebTestCase
         ]);
     }
 
+    private function emailLinkToken(string $email): string
+    {
+        $ciphertext = $this->connection->fetchOne(
+            "SELECT encode(encrypted_payload, 'base64') FROM email_delivery_outbox WHERE recipient_email = ? AND template_key = 'link-email'",
+            [$email],
+        );
+        if (!is_string($ciphertext) || false === ($payload = base64_decode($ciphertext, true))) {
+            self::fail('The link email was not queued.');
+        }
+
+        return self::getContainer()->get(PayloadCipher::class)->decrypt($payload)['token'];
+    }
+
+    /** @param array<string, string> $payload */
+    private function credentialRequest(string $path, string $accessToken, array $payload): void
+    {
+        $this->client->request('POST', '/api/v1/account/credentials'.$path, server: [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer '.$accessToken,
+        ], content: json_encode($payload, JSON_THROW_ON_ERROR));
+    }
+
+    private function startTelegramCredential(string $accessToken): string
+    {
+        $this->client->request('POST', self::ORIGIN.'/api/v1/account/credentials/telegram/start', server: [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer '.$accessToken,
+        ], content: '{}');
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        $url = $this->jsonBody()['url'];
+        self::assertIsString($url);
+
+        return $this->telegramOidcState($url);
+    }
+
     /** @return array{state: string} */
     private function telegramOidcStart(): array
     {
@@ -569,6 +749,12 @@ final class MeHttpTest extends WebTestCase
         $location = $this->client->getResponse()->headers->get('Location');
         self::assertResponseStatusCodeSame(Response::HTTP_SEE_OTHER);
         self::assertIsString($location);
+
+        return ['state' => $this->telegramOidcState($location)];
+    }
+
+    private function telegramOidcState(string $location): string
+    {
         self::assertStringStartsWith('https://oauth.telegram.org/auth?', $location);
         parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
         self::assertSame('S256', $query['code_challenge_method']);
@@ -578,7 +764,7 @@ final class MeHttpTest extends WebTestCase
 
         $this->oidcChallenge = $query['code_challenge'];
 
-        return ['state' => $query['state']];
+        return $query['state'];
     }
 
     private function telegramIdToken(?int $telegramId, string $audience = '123456789', bool $wrongSignature = false): string
@@ -816,6 +1002,7 @@ final class MeHttpTest extends WebTestCase
         $this->setEnv('EQUO_CSRF_SIGNING_KEY_VERSION', 'v1');
         $this->setEnv('EQUO_CSRF_SIGNING_KEY_RING', self::CSRF_KEY_RING);
         $this->setEnv('EQUO_APPLICATION_ORIGIN', self::ORIGIN);
+        $this->setEnv('EMAIL_PAYLOAD_KEY', base64_encode(str_repeat('e', 32)));
         $this->setEnv('EQUO_TELEGRAM_BOT_TOKEN', self::TEST_TELEGRAM_TOKEN);
         $this->setEnv('EQUO_TELEGRAM_CLIENT_ID', '123456789');
         $this->setEnv('EQUO_TELEGRAM_CLIENT_SECRET', 'equo-test-oidc-client');

@@ -257,7 +257,7 @@ final class FirstVerticalSliceTransactionTest extends KernelTestCase
             {
             }
 
-            public function issue(string $userId): IssuedAccessToken
+            public function issue(string $userId, ?string $sessionId = null): IssuedAccessToken
             {
                 $this->entityManager->flush();
                 throw new RuntimeException('Controlled activation session failure.');

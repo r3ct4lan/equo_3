@@ -8,12 +8,19 @@ export default defineNuxtPlugin({
   setup(nuxtApp) {
     const currentUser = useCurrentUser()
     const telegramInitData = readTelegramInitData(window.location.hash)
-    useState('telegram-mini-app', () => false).value = telegramInitData !== null
     let storage: Storage | undefined
     try {
       storage = window.sessionStorage
     }
     catch { /* Session coordination also works when browser storage is unavailable. */ }
+    const miniAppStorageKey = 'equo:telegram-account'
+    let previousTelegramAccount: string | undefined
+    try {
+      previousTelegramAccount = storage?.getItem(miniAppStorageKey) ?? undefined
+      if (telegramInitData !== null) storage?.removeItem(miniAppStorageKey)
+    }
+    catch { /* Initial Telegram authentication still uses the launch data. */ }
+    useState('telegram-mini-app', () => false).value = telegramInitData !== null || previousTelegramAccount !== undefined
     const signedInThroughTelegram = document.cookie.split(';').some(cookie => cookie.trim() === '__Host-equo_telegram_signed_in=1')
     if (signedInThroughTelegram) {
       document.cookie = '__Host-equo_telegram_signed_in=; Path=/; Secure; SameSite=Lax; Max-Age=0'
@@ -35,6 +42,13 @@ export default defineNuxtPlugin({
       navigator,
       sessionStorage: storage,
       telegramInitData: telegramInitData ?? undefined,
+      telegramAccountId: telegramInitData === null ? previousTelegramAccount : undefined,
+      rememberTelegramAccount: (accountId) => {
+        try {
+          storage?.setItem(miniAppStorageKey, accountId)
+        }
+        catch { /* The current Mini App session stays pinned in memory. */ }
+      },
       continueTelegramLaunch: async (startParam) => {
         if (!isTelegramInvitation(startParam)) return
         forgetInvitation()

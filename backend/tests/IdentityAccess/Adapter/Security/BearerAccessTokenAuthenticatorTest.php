@@ -12,6 +12,7 @@ use App\IdentityAccess\Application\CurrentUser\GetCurrentUser;
 use App\IdentityAccess\Application\Port\AccessTokenVerifierPort;
 use App\IdentityAccess\Application\Port\CurrentUserState;
 use App\IdentityAccess\Application\Port\IdentityRepositoryPort;
+use App\IdentityAccess\Application\Port\SessionAccessPolicyPort;
 use App\IdentityAccess\Application\Port\StoredActivationToken;
 use App\IdentityAccess\Application\Port\StoredLoginIdentity;
 use App\IdentityAccess\Application\Port\VerifiedAccessToken;
@@ -102,10 +103,14 @@ final class BearerAccessTokenAuthenticatorTest extends TestCase
     /** @param array<string, string> $tokens */
     private function authenticator(array $tokens, ?UserView $profile): BearerAccessTokenAuthenticator
     {
+        $sessions = $this->createStub(SessionAccessPolicyPort::class);
+        $sessions->method('allows')->willReturn(true);
+
         return new BearerAccessTokenAuthenticator(
             new TokenVerifier($tokens),
             new GetCurrentUser(new AuthenticatorRepository($profile)),
             new BearerAuthenticationEntryPoint(new ApiJsonResponder(new Serializer([new DateTimeNormalizer()], [new JsonEncoder()]))),
+            $sessions,
         );
     }
 

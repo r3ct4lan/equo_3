@@ -36,6 +36,8 @@ class UserRecord
         private string $locale = 'en',
         #[ORM\Column(name: 'telegram_id', type: Types::BIGINT, nullable: true)]
         private ?int $telegramId = null,
+        #[ORM\Column(name: 'strict_session_access', type: Types::BOOLEAN, options: ['default' => false])]
+        private bool $strictSessionAccess = false,
     ) {
     }
 
@@ -124,6 +126,22 @@ class UserRecord
     public function rename(string $name): void
     {
         $this->name = $name;
+    }
+
+    public function changeTelegramId(int $telegramId): void
+    {
+        $this->telegramId = $telegramId;
+    }
+
+    public function requireActiveAccessSession(): void
+    {
+        $this->strictSessionAccess = true;
+    }
+
+    public function assignEmailCredentials(string $email, string $passwordHash): void
+    {
+        $this->email = $email;
+        $this->passwordHash = $passwordHash;
     }
 
     public function changeEmail(string $email): void

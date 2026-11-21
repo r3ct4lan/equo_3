@@ -44,6 +44,12 @@ final readonly class DoctrineEmailChangeRepository implements EmailChangeReposit
         if (UserActionTokenPurpose::ChangeEmail !== $token->purpose || $payload !== ['newEmail' => $payload['newEmail']]) {
             throw new RuntimeException('Email change persistence payload is inconsistent.');
         }
+        $this->storeToken($token, $payload, $now);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function storeToken(UserActionToken $token, array $payload, DateTimeImmutable $now): void
+    {
         $user = $this->entityManager->find(UserRecord::class, $token->userId);
         if (!$user instanceof UserRecord) {
             throw new RuntimeException('Email change owner was not found.');

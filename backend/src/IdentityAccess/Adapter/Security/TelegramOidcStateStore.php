@@ -23,10 +23,11 @@ final readonly class TelegramOidcStateStore
     ) {
     }
 
-    public function put(string $state, string $browser, #[SensitiveParameter] string $verifier): void
+    /** @param array{userId:string, sessionId:string, original:?int}|null $account */
+    public function put(string $state, string $browser, #[SensitiveParameter] string $verifier, ?array $account = null): void
     {
         try {
-            $stored = $this->connection()->setex($this->key($state, $browser), self::TTL, $verifier);
+            $stored = $this->connection()->setex($this->key($state, $browser), self::TTL, json_encode(['verifier' => $verifier, 'account' => $account], JSON_THROW_ON_ERROR));
         } catch (RedisException) {
             throw new ApplicationFailure(ApplicationFailureCode::TelegramUnavailable);
         }
@@ -36,7 +37,8 @@ final readonly class TelegramOidcStateStore
         }
     }
 
-    public function consume(string $state, string $browser): ?string
+    /** @return array{verifier:string, account:array{userId:string, sessionId:string, original:?int}|null}|null */
+    public function consume(string $state, string $browser): ?array
     {
         if (1 !== preg_match('/\A[A-Za-z0-9_-]{43}\z/D', $state) || 1 !== preg_match('/\A[A-Za-z0-9_-]{43}\z/D', $browser)) {
             return null;
@@ -48,7 +50,27 @@ final readonly class TelegramOidcStateStore
             throw new ApplicationFailure(ApplicationFailureCode::TelegramUnavailable);
         }
 
-        return is_string($verifier) ? $verifier : null;
+        if (!is_string($verifier)) {
+            return null;
+        }
+        $data = json_decode($verifier, true);
+        if (!is_array($data) || !is_string($data['verifier'] ?? null)) {
+            return null;
+        }
+        $account = $data['account'] ?? null;
+        if (null === $account) {
+            return ['verifier' => $data['verifier'], 'account' => null];
+        }
+        if (!is_array($account) || !is_string($account['userId'] ?? null) || !is_string($account['sessionId'] ?? null)) {
+            return null;
+        }
+        $original = $account['original'] ?? null;
+
+        return ['verifier' => $data['verifier'], 'account' => [
+            'userId' => $account['userId'],
+            'sessionId' => $account['sessionId'],
+            'original' => is_int($original) ? $original : null,
+        ]];
     }
 
     private function connection(): Redis

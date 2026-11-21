@@ -8,9 +8,11 @@ use App\IdentityAccess\Adapter\Security\TelegramOidcClient;
 use App\IdentityAccess\Adapter\Security\TelegramOidcStateStore;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
+use App\IdentityAccess\Application\Credentials\CredentialManagement;
 use App\IdentityAccess\Application\Login\SignInWithTelegram;
 use App\Infrastructure\Application\Api\RequestLimiter;
 use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,6 +28,7 @@ final readonly class TelegramOidcController
         private TelegramOidcClient $provider,
         private TelegramOidcStateStore $attempts,
         private SignInWithTelegram $signIn,
+        private CredentialManagement $credentials,
         private AuthCookieFactory $cookies,
         private RequestLimiter $limiter,
     ) {
@@ -40,19 +43,43 @@ final readonly class TelegramOidcController
                 return $this->failure('failed');
             }
 
-            $state = TelegramOidcClient::randomUrlToken();
-            $browser = TelegramOidcClient::randomUrlToken();
-            $verifier = TelegramOidcClient::randomUrlToken();
-            $url = $this->provider->authorizationUrl($state, $verifier);
-            $this->attempts->put($state, $browser, $verifier);
+            [$url, $cookie] = $this->issueAttempt();
         } catch (ApplicationFailure) {
             return $this->failure('failed');
         }
 
         $response = new RedirectResponse($url, Response::HTTP_SEE_OTHER, self::HEADERS);
-        $response->headers->setCookie($this->stateCookie($browser, time() + TelegramOidcStateStore::TTL));
+        $response->headers->setCookie($cookie);
 
         return $response;
+    }
+
+    public function startCredentialChange(string $userId, string $sessionId, ?int $original): JsonResponse
+    {
+        [$url, $cookie] = $this->issueAttempt(['userId' => $userId, 'sessionId' => $sessionId, 'original' => $original]);
+        $response = new JsonResponse(['url' => $url], headers: self::HEADERS);
+        $response->headers->setCookie($cookie);
+
+        return $response;
+    }
+
+    /** @param array{userId:string, sessionId:string, original:?int}|null $account
+     * @return array{string, Cookie}
+     */
+    private function issueAttempt(?array $account = null): array
+    {
+        $state = TelegramOidcClient::randomUrlToken();
+        $browser = TelegramOidcClient::randomUrlToken();
+        $verifier = TelegramOidcClient::randomUrlToken();
+        $url = $this->provider->authorizationUrl($state, $verifier);
+        $this->attempts->put($state, $browser, $verifier, $account);
+
+        return [$url, $this->stateCookie($browser, time() + TelegramOidcStateStore::TTL)];
+    }
+
+    public function clearAttempt(Response $response): void
+    {
+        $response->headers->setCookie($this->stateCookie('', 1));
     }
 
     #[Route(self::PATH.'/callback', name: 'api_v1_auth_telegram_oidc_callback', methods: ['GET'])]
@@ -64,21 +91,29 @@ final readonly class TelegramOidcController
             return $this->failure('failed');
         }
 
+        $account = null;
         try {
-            $verifier = $this->attempts->consume($state, $request->cookies->getString(self::COOKIE));
-            if (null === $verifier) {
+            $attempt = $this->attempts->consume($state, $request->cookies->getString(self::COOKIE));
+            if (null === $attempt) {
                 return $this->failure('failed');
             }
+            $account = $attempt['account'];
             if (isset($query['error'])) {
-                return $this->failure('access_denied' === $query['error'] ? 'cancelled' : 'failed');
+                return $this->failure('access_denied' === $query['error'] ? 'cancelled' : 'failed', null !== $account);
             }
             $code = $query['code'] ?? null;
             if (!is_string($code) || '' === $code || strlen($code) > 2048) {
-                return $this->failure('failed');
+                return $this->failure('failed', null !== $account);
             }
-            $result = $this->signIn->handle($this->provider->exchange($code, $verifier));
+            $identity = $this->provider->exchange($code, $attempt['verifier']);
+            if (null !== $account) {
+                $outcome = $this->credentials->applyTelegram($account['userId'], $account['sessionId'], $identity->id, $account['original']);
+
+                return $this->redirect('/me?credentials='.$outcome);
+            }
+            $result = $this->signIn->handle($identity);
         } catch (ApplicationFailure $failure) {
-            return $this->failure(ApplicationFailureCode::AccountInactive === $failure->failureCode ? 'inactive' : 'failed');
+            return $this->failure(ApplicationFailureCode::AccountInactive === $failure->failureCode ? 'inactive' : 'failed', null !== $account);
         }
 
         $response = $this->redirect('/');
@@ -88,15 +123,15 @@ final readonly class TelegramOidcController
         return $response;
     }
 
-    private function failure(string $outcome): RedirectResponse
+    private function failure(string $outcome, bool $account = false): RedirectResponse
     {
-        return $this->redirect('/login?telegram='.$outcome);
+        return $this->redirect(($account ? '/me?credentials=' : '/login?telegram=').$outcome);
     }
 
     private function redirect(string $location): RedirectResponse
     {
         $response = new RedirectResponse($location, Response::HTTP_SEE_OTHER, self::HEADERS);
-        $response->headers->setCookie($this->stateCookie('', 1));
+        $this->clearAttempt($response);
 
         return $response;
     }

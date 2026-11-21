@@ -132,6 +132,10 @@ const { t } = useTranslation()
       v-if="user"
       :user="user"
     />
+    <CredentialSettings
+      v-if="user"
+      @linked="loadProfile"
+    />
     <EmailChangeForm v-if="user?.email" />
     <AccountDeactivationForm v-if="user?.email" />
     <UiButton

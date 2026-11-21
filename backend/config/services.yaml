@@ -69,6 +69,15 @@ services:
     App\IdentityAccess\Application\Port\ActionTokenCodecPort:
         alias: App\IdentityAccess\Adapter\Security\VersionedActionTokenCodec
 
+    App\IdentityAccess\Application\Port\CredentialRepositoryPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineCredentialRepository
+
+    App\IdentityAccess\Application\Port\SessionAccessPolicyPort:
+        alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineCredentialRepository
+
+    App\IdentityAccess\Application\Port\EmailLinkOutboxPort:
+        alias: App\Infrastructure\EmailDelivery\Persistence\Doctrine\DoctrineEmailOutbox
+
     App\IdentityAccess\Application\Port\TelegramIdentityRepositoryPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineTelegramIdentityRepository
 

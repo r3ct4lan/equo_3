@@ -9,4 +9,6 @@ enum UserActionTokenPurpose: string
     case ActivateAccount = 'ACTIVATE_ACCOUNT';
     case ResetPassword = 'RESET_PASSWORD';
     case ChangeEmail = 'CHANGE_EMAIL';
+    case LinkEmail = 'LINK_EMAIL';
+    case MergeAccount = 'MERGE_ACCOUNT';
 }

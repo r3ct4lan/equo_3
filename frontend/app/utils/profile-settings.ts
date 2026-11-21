@@ -36,6 +36,16 @@ export function emailChangeErrorPresentation(error: SafeApiError): ErrorPresenta
   return { title: 'Email change could not be requested', message: 'Check your connection and try again.', retryable: true }
 }
 
+export function credentialErrorPresentation(error: SafeApiError): ErrorPresentation {
+  if (error.code === 'PASSWORD_POLICY_VIOLATION') {
+    return { title: 'Check the form', message: 'Choose a password that meets the password requirements.', retryable: false }
+  }
+  if (error.code === 'CREDENTIAL_CONFLICT') {
+    return { title: 'Could not update sign-in methods', message: 'Your sign-in methods changed. Start the request again.', retryable: true }
+  }
+  return emailChangeErrorPresentation(error)
+}
+
 export function emailConfirmationErrorPresentation(error: SafeApiError): ErrorPresentation {
   if (error.code === 'EMAIL_ALREADY_IN_USE') return { title: 'Email is already in use', message: 'Return to your profile and choose another email address.', retryable: false }
   if (['INVALID_TOKEN', 'TOKEN_EXPIRED', 'TOKEN_USED', 'TOKEN_INVALIDATED'].includes(error.code)) {
