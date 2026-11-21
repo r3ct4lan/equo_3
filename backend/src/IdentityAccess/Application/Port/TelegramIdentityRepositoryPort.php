@@ -14,5 +14,7 @@ interface TelegramIdentityRepositoryPort
 
     public function accountForUpdate(int $telegramId): ?LoginUserView;
 
+    public function activate(string $userId): void;
+
     public function add(User $user): void;
 }

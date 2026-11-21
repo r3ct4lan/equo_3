@@ -12,6 +12,7 @@ use App\IdentityAccess\Adapter\Security\TelegramMiniAppVerifier;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use App\IdentityAccess\Application\Credentials\CredentialManagement;
+use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
 use App\Infrastructure\Application\Api\RequestLimiter;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -28,6 +29,7 @@ final readonly class CredentialController
         private TelegramMiniAppVerifier $miniApp,
         private TelegramOidcController $oidc,
         private RequestLimiter $limiter,
+        private AuthCookieFactory $cookies,
     ) {
     }
 
@@ -58,6 +60,39 @@ final readonly class CredentialController
         $original = $this->credentials->authorizeTelegramChange($user, $session, $request->currentPassword ?? '');
 
         return $this->json(['status' => $this->credentials->applyTelegram($user, $session, $identity->id, $original)]);
+    }
+
+    #[Route('/telegram/deactivation/start', name: 'api_v1_account_telegram_deactivation_start', methods: ['POST'])]
+    public function startTelegramDeactivation(): JsonResponse
+    {
+        [$user, $session] = $this->actor();
+        $this->limit($user);
+        $telegramId = $this->credentials->authorizeTelegramDeactivation($user, $session);
+
+        return $this->oidc->startCredentialChange($user, $session, $telegramId, deactivate: true);
+    }
+
+    #[Route('/telegram/deactivation/confirm', name: 'api_v1_account_telegram_deactivation_confirm', methods: ['POST'])]
+    public function confirmTelegramDeactivation(): Response
+    {
+        [$user, $session] = $this->actor();
+        $this->limit($user);
+        $this->credentials->confirmTelegramDeactivation($user, $session);
+        $response = new Response(status: Response::HTTP_NO_CONTENT, headers: ['Cache-Control' => 'no-store']);
+        foreach ($this->cookies->clearSessionCookies() as $cookie) {
+            $response->headers->setCookie($cookie);
+        }
+
+        return $response;
+    }
+
+    #[Route('/telegram/deactivation/cancel', name: 'api_v1_account_telegram_deactivation_cancel', methods: ['POST'])]
+    public function cancelTelegramDeactivation(): Response
+    {
+        [$user, $session] = $this->actor();
+        $this->credentials->cancel($user, $session, UserActionTokenPurpose::DeactivateWithTelegram);
+
+        return new Response(status: Response::HTTP_NO_CONTENT, headers: ['Cache-Control' => 'no-store']);
     }
 
     #[Route('/email/start', name: 'api_v1_account_email_link_start', methods: ['POST'])]

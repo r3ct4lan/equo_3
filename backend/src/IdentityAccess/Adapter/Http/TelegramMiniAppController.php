@@ -9,6 +9,7 @@ use App\IdentityAccess\Adapter\Security\TelegramMiniAppVerifier;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use App\IdentityAccess\Application\Login\SignInWithTelegram;
+use App\IdentityAccess\Domain\User\VerifiedTelegramIdentity;
 use App\Infrastructure\Application\Api\RequestLimiter;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -32,14 +33,32 @@ final readonly class TelegramMiniAppController
         #[MapRequestPayload(acceptFormat: 'json')]
         TelegramLaunchRequest $payload,
     ): JsonResponse {
+        return $this->start($this->verifiedIdentity($request, $payload));
+    }
+
+    #[Route('/api/v1/auth/telegram/mini-app/reactivate', name: 'api_v1_auth_telegram_mini_app_reactivate', methods: ['POST'])]
+    public function reactivate(
+        Request $request,
+        #[MapRequestPayload(acceptFormat: 'json')]
+        TelegramLaunchRequest $payload,
+    ): JsonResponse {
+        return $this->start($this->verifiedIdentity($request, $payload), reactivate: true);
+    }
+
+    private function verifiedIdentity(Request $request, TelegramLaunchRequest $payload): VerifiedTelegramIdentity
+    {
         $this->guard->validateOrigin($request);
         $retry = $this->limiter->consume(['telegram-login:ip:'.($request->getClientIp() ?? 'unknown') => 30]);
         if (null !== $retry) {
             throw new ApplicationFailure(ApplicationFailureCode::RateLimitExceeded, retryAfter: $retry);
         }
 
-        $identity = $this->verifier->verify($payload->initData ?? '');
-        $result = $this->signIn->handle($identity);
+        return $this->verifier->verify($payload->initData ?? '');
+    }
+
+    private function start(VerifiedTelegramIdentity $identity, bool $reactivate = false): JsonResponse
+    {
+        $result = $reactivate ? $this->signIn->reactivate($identity->id) : $this->signIn->handle($identity);
         $body = $result->toResponseBody();
         if (null !== $identity->startParam) {
             $body['startParam'] = $identity->startParam;

@@ -11,6 +11,7 @@ use App\IdentityAccess\Domain\User\User;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
+use LogicException;
 
 final readonly class DoctrineTelegramIdentityRepository implements TelegramIdentityRepositoryPort
 {
@@ -36,6 +37,16 @@ final readonly class DoctrineTelegramIdentityRepository implements TelegramIdent
         return $record instanceof UserRecord
             ? new LoginUserView($record->id(), $record->name(), $record->email(), $record->isActive(), $record->locale())
             : null;
+    }
+
+    public function activate(string $userId): void
+    {
+        $user = $this->entityManager->find(UserRecord::class, $userId);
+        if (!$user instanceof UserRecord) {
+            throw new LogicException('Telegram account not found.');
+        }
+
+        $user->activate();
     }
 
     public function add(User $user): void

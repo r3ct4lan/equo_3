@@ -72,6 +72,11 @@ final readonly class DoctrineCredentialRepository implements CredentialRepositor
         $this->user($userId)->assignEmailCredentials($email, $passwordHash);
     }
 
+    public function deactivate(string $userId): void
+    {
+        $this->user($userId)->deactivate();
+    }
+
     public function revokeOtherSessions(string $userId, ?string $preservedSession, DateTimeImmutable $now): void
     {
         $this->user($userId)->requireActiveAccessSession();
@@ -108,11 +113,16 @@ final readonly class DoctrineCredentialRepository implements CredentialRepositor
         return is_string($hash) ? $this->actions->tokenForUpdate($hash) : null;
     }
 
-    public function cancelActions(string $userId, string $sessionId, DateTimeImmutable $now): void
+    public function cancelActions(string $userId, string $sessionId, DateTimeImmutable $now, ?UserActionTokenPurpose $purpose = null): void
     {
+        $predicate = null === $purpose ? "purpose IN ('LINK_EMAIL', 'MERGE_ACCOUNT')" : 'purpose = :purpose';
+        $parameters = ['now' => $now->format('Y-m-d H:i:s.uP'), 'user' => $userId, 'session' => $sessionId];
+        if (null !== $purpose) {
+            $parameters['purpose'] = $purpose->value;
+        }
         $this->em->getConnection()->executeStatement(
-            "UPDATE user_action_token SET invalidated_at = :now WHERE user_id = :user AND payload->>'sessionId' = :session AND purpose IN ('LINK_EMAIL', 'MERGE_ACCOUNT') AND used_at IS NULL AND invalidated_at IS NULL",
-            ['now' => $now->format('Y-m-d H:i:s.uP'), 'user' => $userId, 'session' => $sessionId],
+            "UPDATE user_action_token SET invalidated_at = :now WHERE user_id = :user AND payload->>'sessionId' = :session AND used_at IS NULL AND invalidated_at IS NULL AND ".$predicate,
+            $parameters,
         );
     }
 

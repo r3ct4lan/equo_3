@@ -11,4 +11,5 @@ enum UserActionTokenPurpose: string
     case ChangeEmail = 'CHANGE_EMAIL';
     case LinkEmail = 'LINK_EMAIL';
     case MergeAccount = 'MERGE_ACCOUNT';
+    case DeactivateWithTelegram = 'DEACTIVATE_WITH_TELEGRAM';
 }

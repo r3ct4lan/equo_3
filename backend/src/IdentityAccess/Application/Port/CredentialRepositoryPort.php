@@ -20,6 +20,8 @@ interface CredentialRepositoryPort
 
     public function setEmail(string $userId, string $email, string $passwordHash): void;
 
+    public function deactivate(string $userId): void;
+
     public function revokeOtherSessions(string $userId, ?string $preservedSession, DateTimeImmutable $now): void;
 
     /** @param array<string, mixed> $payload */
@@ -29,5 +31,5 @@ interface CredentialRepositoryPort
 
     public function currentAction(string $userId, string $sessionId, UserActionTokenPurpose $purpose): ?StoredEmailChangeToken;
 
-    public function cancelActions(string $userId, string $sessionId, DateTimeImmutable $now): void;
+    public function cancelActions(string $userId, string $sessionId, DateTimeImmutable $now, ?UserActionTokenPurpose $purpose = null): void;
 }

@@ -196,6 +196,125 @@ final class MeHttpTest extends WebTestCase
         self::assertSame(0, $this->countSessions());
     }
 
+    public function testTelegramMiniAppRequiresExplicitReactivationAndReturnsTheSameAccount(): void
+    {
+        $identity = $this->signedTelegramData(['id' => 4294967297]);
+        $login = $this->telegramLaunch($identity);
+        $userId = $login['user']['id'];
+        $this->connection->update('app_user', ['is_active' => 'false'], ['id' => $userId]);
+        $this->connection->executeStatement('UPDATE user_session SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ?', [$userId]);
+
+        $this->telegramLaunch($identity);
+        self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+        self::assertSame(1, $this->countSessions());
+
+        $activated = $this->telegramLaunch($identity, path: '/reactivate');
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame($userId, $activated['user']['id']);
+        self::assertSame(2, $this->countSessions());
+
+        $result = $this->telegramLaunch($identity, path: '/reactivate');
+        self::assertResponseStatusCodeSame(Response::HTTP_CONFLICT);
+        self::assertSame('CREDENTIAL_CONFLICT', $result['error']['code']);
+        self::assertSame(2, $this->countSessions());
+    }
+
+    public function testTelegramOidcReactivationRequiresOneConfirmationInTheSameBrowser(): void
+    {
+        $telegramId = 4294967297;
+        $this->mockTelegramOidcProvider($this->telegramIdToken($telegramId));
+        $login = $this->telegramLaunch($this->signedTelegramData(['id' => $telegramId]));
+        $userId = $login['user']['id'];
+        $this->connection->update('app_user', ['is_active' => 'false'], ['id' => $userId]);
+        $this->connection->executeStatement('UPDATE user_session SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ?', [$userId]);
+        $reactivate = self::ORIGIN.'/api/v1/auth/telegram/oidc/reactivate';
+        $query = $this->telegramOidcStart();
+
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/callback?'.http_build_query([
+            'state' => $query['state'],
+            'code' => 'valid-code',
+        ]));
+        self::assertResponseRedirects('/login?telegram=inactive');
+        self::assertArrayNotHasKey('equo_refresh', $this->responseCookies());
+        self::assertFalse((bool) $this->connection->fetchOne('SELECT is_active FROM app_user WHERE id = ?', [$userId]));
+        self::assertSame(1, $this->countSessions());
+
+        $cookieJar = $this->client->getCookieJar();
+        $cookie = $cookieJar->get('__Secure-equo_telegram_reactivate', '/api/v1/auth/telegram/oidc/reactivate', 'equo.test');
+        self::assertInstanceOf(BrowserKitCookie::class, $cookie);
+        $cookieJar->clear();
+        $this->client->request('POST', $reactivate, server: ['HTTP_ORIGIN' => self::ORIGIN]);
+        self::assertResponseRedirects('/login?telegram=failed');
+        self::assertSame(1, $this->countSessions());
+
+        $cookieJar->set($cookie);
+        $this->client->request('POST', $reactivate, server: ['HTTP_ORIGIN' => self::ORIGIN]);
+        self::assertResponseRedirects('/');
+        self::assertArrayHasKey('equo_refresh', $this->responseCookies());
+        self::assertTrue((bool) $this->connection->fetchOne('SELECT is_active FROM app_user WHERE id = ?', [$userId]));
+        self::assertSame(2, $this->countSessions());
+
+        $cookieJar->set($cookie);
+        $this->client->request('POST', $reactivate, server: ['HTTP_ORIGIN' => self::ORIGIN]);
+        self::assertResponseRedirects('/login?telegram=failed');
+        self::assertSame(2, $this->countSessions());
+    }
+
+    #[DataProvider('telegramDeactivationIdentities')]
+    public function testTelegramDeactivationRequiresTheSameIdentityAndExplicitConfirmation(int $telegramId): void
+    {
+        $this->mockTelegramOidcProvider($this->telegramIdToken($telegramId));
+        $identity = $this->signedTelegramData(['id' => 4294967297]);
+        $first = $this->telegramLaunch($identity);
+        $second = $this->telegramLaunch($identity);
+        $userId = $first['user']['id'];
+
+        $this->credentialRequest('/telegram/deactivation/confirm', $first['accessToken'], []);
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        $state = $this->startTelegramCredential($first['accessToken'], '/deactivation/start');
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/callback?'.http_build_query([
+            'state' => $state,
+            'code' => 'valid-code',
+        ]));
+        self::assertResponseRedirects(4294967297 === $telegramId ? '/me?credentials=deactivation_ready' : '/me?credentials=failed');
+        self::assertTrue((bool) $this->connection->fetchOne('SELECT is_active FROM app_user WHERE id = ?', [$userId]));
+
+        $this->credentialRequest('/telegram/deactivation/confirm', $second['accessToken'], []);
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        if (4294967297 !== $telegramId) {
+            $this->credentialRequest('/telegram/deactivation/confirm', $first['accessToken'], []);
+            self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+            self::assertTrue((bool) $this->connection->fetchOne('SELECT is_active FROM app_user WHERE id = ?', [$userId]));
+
+            return;
+        }
+        $this->credentialRequest('/telegram/deactivation/cancel', $first['accessToken'], []);
+        self::assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
+        $this->credentialRequest('/telegram/deactivation/confirm', $first['accessToken'], []);
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        self::assertTrue((bool) $this->connection->fetchOne('SELECT is_active FROM app_user WHERE id = ?', [$userId]));
+
+        $state = $this->startTelegramCredential($first['accessToken'], '/deactivation/start');
+        $this->client->request('GET', self::ORIGIN.'/api/v1/auth/telegram/oidc/callback?'.http_build_query([
+            'state' => $state,
+            'code' => 'valid-code',
+        ]));
+        self::assertResponseRedirects('/me?credentials=deactivation_ready');
+        $this->credentialRequest('/telegram/deactivation/confirm', $first['accessToken'], []);
+        self::assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
+        self::assertFalse((bool) $this->connection->fetchOne('SELECT is_active FROM app_user WHERE id = ?', [$userId]));
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM user_session WHERE user_id = ? AND revoked_at IS NULL', [$userId]));
+        $this->me($second['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+    }
+
+    /** @return iterable<string, array{int}> */
+    public static function telegramDeactivationIdentities(): iterable
+    {
+        yield 'same identity' => [4294967297];
+        yield 'another identity' => [4294967298];
+    }
+
     public function testTelegramOidcExchangesTheCodeAndUsesTheSameAccountAsMiniApp(): void
     {
         $this->mockTelegramOidcProvider($this->telegramIdToken(4294967297));
@@ -728,9 +847,9 @@ final class MeHttpTest extends WebTestCase
         ], content: json_encode($payload, JSON_THROW_ON_ERROR));
     }
 
-    private function startTelegramCredential(string $accessToken): string
+    private function startTelegramCredential(string $accessToken, string $path = '/start'): string
     {
-        $this->client->request('POST', self::ORIGIN.'/api/v1/account/credentials/telegram/start', server: [
+        $this->client->request('POST', self::ORIGIN.'/api/v1/account/credentials/telegram'.$path, server: [
             'CONTENT_TYPE' => 'application/json',
             'HTTP_AUTHORIZATION' => 'Bearer '.$accessToken,
         ], content: '{}');
@@ -840,9 +959,9 @@ final class MeHttpTest extends WebTestCase
     }
 
     /** @return array<string, mixed> */
-    private function telegramLaunch(string $initData, string $origin = self::ORIGIN): array
+    private function telegramLaunch(string $initData, string $origin = self::ORIGIN, string $path = ''): array
     {
-        $this->client->request('POST', '/api/v1/auth/telegram/mini-app', server: [
+        $this->client->request('POST', '/api/v1/auth/telegram/mini-app'.$path, server: [
             'CONTENT_TYPE' => 'application/json',
             'HTTP_ORIGIN' => $origin,
         ], content: json_encode(['initData' => $initData], JSON_THROW_ON_ERROR));

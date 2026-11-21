@@ -23,7 +23,7 @@ final readonly class TelegramOidcStateStore
     ) {
     }
 
-    /** @param array{userId:string, sessionId:string, original:?int}|null $account */
+    /** @param array{userId:string, sessionId:string, original:?int, deactivate:bool}|null $account */
     public function put(string $state, string $browser, #[SensitiveParameter] string $verifier, ?array $account = null): void
     {
         try {
@@ -37,7 +37,7 @@ final readonly class TelegramOidcStateStore
         }
     }
 
-    /** @return array{verifier:string, account:array{userId:string, sessionId:string, original:?int}|null}|null */
+    /** @return array{verifier:string, account:array{userId:string, sessionId:string, original:?int, deactivate:bool}|null}|null */
     public function consume(string $state, string $browser): ?array
     {
         if (1 !== preg_match('/\A[A-Za-z0-9_-]{43}\z/D', $state) || 1 !== preg_match('/\A[A-Za-z0-9_-]{43}\z/D', $browser)) {
@@ -70,7 +70,40 @@ final readonly class TelegramOidcStateStore
             'userId' => $account['userId'],
             'sessionId' => $account['sessionId'],
             'original' => is_int($original) ? $original : null,
+            'deactivate' => true === ($account['deactivate'] ?? false),
         ]];
+    }
+
+    public function putReactivation(#[SensitiveParameter] string $browser, int $telegramId): void
+    {
+        try {
+            $stored = $this->connection()->setex($this->reactivationKey($browser), self::TTL, (string) $telegramId);
+        } catch (RedisException) {
+            throw new ApplicationFailure(ApplicationFailureCode::TelegramUnavailable);
+        }
+        if (true !== $stored) {
+            throw new ApplicationFailure(ApplicationFailureCode::TelegramUnavailable);
+        }
+    }
+
+    public function consumeReactivation(#[SensitiveParameter] string $browser): ?int
+    {
+        if (1 !== preg_match('/\A[A-Za-z0-9_-]{43}\z/D', $browser)) {
+            return null;
+        }
+
+        try {
+            $id = $this->connection()->getDel($this->reactivationKey($browser));
+        } catch (RedisException) {
+            throw new ApplicationFailure(ApplicationFailureCode::TelegramUnavailable);
+        }
+
+        return is_string($id) && ctype_digit($id) ? (int) $id : null;
+    }
+
+    private function reactivationKey(#[SensitiveParameter] string $browser): string
+    {
+        return 'equo:telegram:reactivate:v1:'.hash('sha256', $browser);
     }
 
     private function connection(): Redis

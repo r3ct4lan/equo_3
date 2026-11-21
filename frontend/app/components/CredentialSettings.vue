@@ -8,7 +8,7 @@ const { $auth } = useNuxtApp()
 const { public: config } = useRuntimeConfig()
 const { t } = useTranslation()
 const route = useRoute()
-const settings = ref<{ hasEmail: boolean, hasTelegram: boolean, emailPending: boolean, mergePending: boolean } | null>(null)
+const settings = ref<{ hasEmail: boolean, hasTelegram: boolean, emailPending: boolean, mergePending: boolean, telegramDeactivationPending: boolean } | null>(null)
 const email = ref('')
 const password = ref('')
 const confirmationLink = ref('')
@@ -17,7 +17,8 @@ const pending = ref(false)
 const error = shallowRef<ApiClientError | null>(null)
 const feedback = ref('')
 const emailScheduled = ref(false)
-const showTelegram = computed(() => settings.value?.hasEmail === true && String(config.telegramLoginEnabled) === 'true')
+const telegramLoginEnabled = computed(() => String(config.telegramLoginEnabled) === 'true')
+const showTelegram = computed(() => settings.value?.hasEmail === true && telegramLoginEnabled.value)
 const hasPendingEmail = computed(() => emailScheduled.value || settings.value?.emailPending === true)
 const telegramLabel = computed(() => settings.value?.hasTelegram ? t('Change Telegram') : t('Link Telegram'))
 
@@ -227,5 +228,10 @@ onMounted(() => {
     >
       {{ t('Cancel request') }}
     </UiButton>
+    <TelegramDeactivationForm
+      v-if="telegramLoginEnabled && settings?.hasTelegram && !settings.hasEmail"
+      :confirmed="settings.telegramDeactivationPending === true"
+      @cancelled="load"
+    />
   </UiCard>
 </template>

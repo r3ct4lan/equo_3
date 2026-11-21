@@ -47,7 +47,7 @@ final readonly class CredentialManagement
     ) {
     }
 
-    /** @return array{hasEmail: bool, hasTelegram: bool, emailPending: bool, mergePending: bool} */
+    /** @return array{hasEmail: bool, hasTelegram: bool, emailPending: bool, mergePending: bool, telegramDeactivationPending: bool} */
     public function settings(string $userId, string $sessionId): array
     {
         return $this->transaction->run(function () use ($userId, $sessionId): array {
@@ -58,6 +58,7 @@ final readonly class CredentialManagement
                 'hasTelegram' => null !== $user->telegramId,
                 'emailPending' => null === $user->password && null !== $this->credentials->currentAction($userId, $sessionId, UserActionTokenPurpose::LinkEmail),
                 'mergePending' => null !== $this->credentials->currentAction($userId, $sessionId, UserActionTokenPurpose::MergeAccount),
+                'telegramDeactivationPending' => null === $user->password && null !== $this->credentials->currentAction($userId, $sessionId, UserActionTokenPurpose::DeactivateWithTelegram),
             ];
         });
     }
@@ -195,12 +196,59 @@ final readonly class CredentialManagement
         });
     }
 
-    public function cancel(string $userId, string $sessionId): void
+    public function authorizeTelegramDeactivation(string $userId, string $sessionId): int
+    {
+        return $this->transaction->run(function () use ($userId, $sessionId): int {
+            $user = $this->requireSession($userId, $sessionId, $this->clock->now());
+            if (null === $user->telegramId || null !== $user->password) {
+                throw new ApplicationFailure(ApplicationFailureCode::CredentialConflict);
+            }
+
+            return $user->telegramId;
+        });
+    }
+
+    public function proveTelegramDeactivation(string $userId, string $sessionId, int $telegramId): void
+    {
+        $this->transaction->run(function () use ($userId, $sessionId, $telegramId): void {
+            $now = $this->clock->now();
+            $user = $this->requireSession($userId, $sessionId, $now);
+            if ($user->telegramId !== $telegramId || null !== $user->password) {
+                throw new ApplicationFailure(ApplicationFailureCode::InvalidCredentials);
+            }
+            $proof = new UserActionToken(
+                $this->uuid->generate(),
+                $userId,
+                $this->tokens->issue()->tokenHash,
+                UserActionTokenPurpose::DeactivateWithTelegram,
+                $now,
+                $now->modify('+10 minutes'),
+            );
+            $this->credentials->replaceAction($proof, ['sessionId' => $sessionId, 'telegramId' => $telegramId], $now);
+        });
+    }
+
+    public function confirmTelegramDeactivation(string $userId, string $sessionId): void
     {
         $this->transaction->run(function () use ($userId, $sessionId): void {
             $now = $this->clock->now();
+            $user = $this->requireSession($userId, $sessionId, $now);
+            $proof = $this->credentials->currentAction($userId, $sessionId, UserActionTokenPurpose::DeactivateWithTelegram);
+            if (null === $proof || null === $user->telegramId || $user->telegramId !== ($proof->payload['telegramId'] ?? null) || null !== $user->password) {
+                throw new ApplicationFailure(ApplicationFailureCode::InvalidToken);
+            }
+            $this->credentials->useAction($proof->id, $now);
+            $this->credentials->deactivate($userId);
+            $this->credentials->revokeOtherSessions($userId, null, $now);
+        });
+    }
+
+    public function cancel(string $userId, string $sessionId, ?UserActionTokenPurpose $purpose = null): void
+    {
+        $this->transaction->run(function () use ($userId, $sessionId, $purpose): void {
+            $now = $this->clock->now();
             $this->requireSession($userId, $sessionId, $now);
-            $this->credentials->cancelActions($userId, $sessionId, $now);
+            $this->credentials->cancelActions($userId, $sessionId, $now, $purpose);
         });
     }
 

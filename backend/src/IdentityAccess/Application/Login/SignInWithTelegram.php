@@ -24,6 +24,24 @@ final readonly class SignInWithTelegram
     ) {
     }
 
+    public function reactivate(int $telegramId): LoginResult
+    {
+        return $this->transaction->run(function () use ($telegramId): LoginResult {
+            $this->accounts->lockIdentity($telegramId);
+            $account = $this->accounts->accountForUpdate($telegramId);
+            if (null === $account || $account->isActive) {
+                throw new ApplicationFailure(ApplicationFailureCode::CredentialConflict);
+            }
+
+            $this->accounts->activate($account->id);
+
+            return $this->sessions->issue(
+                new LoginUserView($account->id, $account->name, $account->email, true, $account->locale),
+                $this->clock->now(),
+            );
+        });
+    }
+
     public function handle(VerifiedTelegramIdentity $identity): LoginResult
     {
         return $this->transaction->run(function () use ($identity): LoginResult {

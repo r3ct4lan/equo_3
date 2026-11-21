@@ -16,6 +16,7 @@ mockNuxtImport('useNuxtApp', original => () => new Proxy(original(), {
 
 describe('sign-out controls', () => {
   beforeEach(() => {
+    useState('telegram-mini-app', () => false).value = false
     authMock.logout.mockReset().mockResolvedValue(undefined)
     authMock.logoutAll.mockReset().mockResolvedValue(undefined)
     authMock.bootstrap.mockReset()
@@ -60,6 +61,20 @@ describe('sign-out controls', () => {
     await confirm.trigger('click')
     await flushPromises()
     expect(authMock.logoutAll).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('shows only confirmed all-device sign-out in the Mini App', async () => {
+    useState('telegram-mini-app', () => false).value = true
+    const wrapper = await mountSuspended(LogoutActions)
+    expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Sign out on all devices'])
+
+    await wrapper.get('button').trigger('click')
+    expect(authMock.logoutAll).not.toHaveBeenCalled()
+    const confirm = wrapper.findAll('button').find(button => button.text() === 'Confirm sign out')!
+    await confirm.trigger('click')
+    expect(authMock.logoutAll).toHaveBeenCalledOnce()
+    expect(authMock.logout).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

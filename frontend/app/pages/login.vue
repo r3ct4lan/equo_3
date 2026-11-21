@@ -136,17 +136,38 @@ const { t, tError } = useTranslation()
         {{ t('Sign in') }}
       </UiText>
       <UiText variant="lede">
-        {{ t('Use your activated account to continue to your Equo profile.') }}
+        {{ miniApp ? t('Close this window and reopen Equo from Telegram to sign in.') : t('Use your activated account to continue to your Equo profile.') }}
       </UiText>
       <UiText
         v-if="route.query.signedOut === '1'"
         role="status"
       >
-        {{ (route.query.passwordReset === '1' || route.query.passwordChanged === '1') ? t('Your password has been saved. Sign in with your new password.') : t('You are signed out.') }}
+        {{ route.query.deactivated === '1'
+          ? t('Your account is deactivated')
+          : (route.query.passwordReset === '1' || route.query.passwordChanged === '1') ? t('Your password has been saved. Sign in with your new password.') : t('You are signed out.') }}
       </UiText>
     </div>
 
     <UiCard
+      v-if="telegramEnabled && route.query.telegram === 'inactive'"
+      as="form"
+      class="stack"
+      action="/api/v1/auth/telegram/oidc/reactivate"
+      method="post"
+    >
+      <UiText>{{ t('Account is not active') }}</UiText>
+      <UiButton type="submit">
+        {{ t('Activate and sign in') }}
+      </UiButton>
+      <UiButton
+        variant="secondary"
+        to="/login"
+      >
+        {{ t('Cancel') }}
+      </UiButton>
+    </UiCard>
+    <UiCard
+      v-else-if="!miniApp"
       as="form"
       class="stack"
       novalidate

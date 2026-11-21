@@ -3,6 +3,7 @@ import type { FocusTarget } from '~/types/ui'
 
 const { $auth } = useNuxtApp()
 const currentUser = useCurrentUser()
+const miniApp = useState('telegram-mini-app', () => false)
 const isSubmitting = ref(false)
 const confirming = ref(false)
 const confirmation = useTemplateRef<HTMLDivElement>('confirmation')
@@ -50,6 +51,7 @@ const { t } = useTranslation()
   >
     <div class="form-actions">
       <UiButton
+        v-if="!miniApp"
         variant="danger"
         :disabled="isSubmitting || confirming"
         @click="signOut(false)"

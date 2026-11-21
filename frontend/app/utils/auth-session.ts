@@ -2,9 +2,12 @@ import type { CurrentUser, LoginRequest, LoginResponse, RefreshResponse, ApiClie
 import type { AuthSession, LoginOptions, LoginValues } from '../types/session'
 import { ApiClientError, type FieldErrorMap } from './api-error.ts'
 import { ACTIVATE_ENDPOINT } from './auth-flow.ts'
+import { telegramLaunchId } from './telegram-launch.ts'
 
 export const LOGIN_ENDPOINT = '/v1/auth/login'
 export const TELEGRAM_MINI_APP_ENDPOINT = '/v1/auth/telegram/mini-app'
+const TELEGRAM_REACTIVATE_ENDPOINT = TELEGRAM_MINI_APP_ENDPOINT + '/reactivate'
+const TELEGRAM_DEACTIVATE_ENDPOINT = '/v1/account/credentials/telegram/deactivation/confirm'
 export const REFRESH_ENDPOINT = '/v1/auth/refresh'
 export const LOGOUT_ENDPOINT = '/v1/auth/logout'
 export const LOGOUT_ALL_ENDPOINT = '/v1/auth/logout-all'
@@ -19,6 +22,8 @@ export const AUTH_CHANNEL = 'equo:auth'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u
 const CSRF_COOKIE_NAME = '__Host-equo_csrf'
 export const SIGNED_OUT_KEY = 'equo:signed-out'
+const TELEGRAM_LAUNCH_KEY = 'equo:telegram-launch'
+const TELEGRAM_SIGNED_OUT_KEY = 'equo:telegram-ended-launch'
 
 export interface LoginErrorPresentation {
   title: string
@@ -179,8 +184,17 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   let deactivationPromise: Promise<void> | null = null
   let generation = 0
   let signedOut = dependencies.signedOut === true
+  const newTelegramLaunch = telegramLaunchId(dependencies.telegramInitData)
+  let activeTelegramLaunch = newTelegramLaunch
   try {
-    signedOut ||= dependencies.sessionStorage?.getItem(SIGNED_OUT_KEY) === 'true'
+    const storage = dependencies.sessionStorage
+    signedOut ||= storage?.getItem(SIGNED_OUT_KEY) === 'true'
+    if (signedOut && newTelegramLaunch !== null && storage?.getItem(TELEGRAM_SIGNED_OUT_KEY) !== newTelegramLaunch) {
+      signedOut = false
+    }
+    if (activeTelegramLaunch === null && dependencies.telegramAccountId !== undefined) {
+      activeTelegramLaunch = storage?.getItem(TELEGRAM_LAUNCH_KEY) ?? null
+    }
   }
   catch { /* Storage can be unavailable; the in-memory guard still applies. */ }
   const channel = dependencies.createBroadcastChannel?.(AUTH_CHANNEL)
@@ -289,27 +303,44 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     return bootstrap()
   }
 
+  async function runTelegramLaunch(endpoint: string, started: number): Promise<void> {
+    const data = dependencies.telegramInitData
+    if (data === undefined) throw authenticationRequired()
+    const signIn = async (): Promise<void> => {
+      if (started !== generation || signedOut) return
+      const response = await dependencies.api<LoginResponse & { startParam?: string }>(endpoint, {
+        method: 'POST',
+        body: { initData: data }
+      })
+      if (started !== generation || signedOut) return
+      telegramUserId = response.user.id
+      dependencies.rememberTelegramAccount?.(telegramUserId)
+      if (activeTelegramLaunch !== null) {
+        try {
+          dependencies.sessionStorage?.setItem(TELEGRAM_LAUNCH_KEY, activeTelegramLaunch)
+        }
+        catch { /* The launch remains known for the lifetime of this page. */ }
+      }
+      adoptSession(response)
+      if (response.startParam) {
+        await dependencies.continueTelegramLaunch?.(response.startParam)
+      }
+    }
+    const locks = dependencies.navigator?.locks
+    if (locks) await locks.request(AUTH_REFRESH_LOCK, signIn)
+    else await signIn()
+  }
+
+  async function reactivateTelegram(): Promise<void> {
+    if (signedOut) throw authenticationRequired()
+    await runTelegramLaunch(TELEGRAM_REACTIVATE_ENDPOINT, generation)
+  }
+
   async function runBootstrap(): Promise<void> {
     const started = generation
     try {
       if (dependencies.telegramInitData !== undefined) {
-        const signIn = async (): Promise<void> => {
-          if (started !== generation || signedOut) return
-          const response = await dependencies.api<LoginResponse & { startParam?: string }>(TELEGRAM_MINI_APP_ENDPOINT, {
-            method: 'POST',
-            body: { initData: dependencies.telegramInitData }
-          })
-          if (started !== generation || signedOut) return
-          telegramUserId = response.user.id
-          dependencies.rememberTelegramAccount?.(telegramUserId)
-          adoptSession(response)
-          if (response.startParam) {
-            await dependencies.continueTelegramLaunch?.(response.startParam)
-          }
-        }
-        const locks = dependencies.navigator?.locks
-        if (locks) await locks.request(AUTH_REFRESH_LOCK, signIn)
-        else await signIn()
+        await runTelegramLaunch(TELEGRAM_MINI_APP_ENDPOINT, started)
         return
       }
 
@@ -370,7 +401,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     }
     catch (error: unknown) {
       const normalized = error instanceof ApiClientError ? error : null
-      if (normalized?.status !== 401) {
+      if (normalized?.status !== 401 || normalized.code === 'INVALID_CREDENTIALS') {
         throw error
       }
     }
@@ -400,7 +431,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     }
     catch (error: unknown) {
       const normalized = error instanceof ApiClientError ? error : null
-      if (normalized?.status === 401) {
+      if (normalized?.status === 401 && normalized.code !== 'INVALID_CREDENTIALS') {
         endSession()
       }
       throw error
@@ -465,27 +496,31 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
             }
           : {})
       })
-      if (telegramUserId !== null) {
-        const profile = await dependencies.api<CurrentUser>(ME_ENDPOINT, {
-          method: 'GET',
-          accessToken: response.accessToken
-        })
-        if (profile.id !== telegramUserId) {
-          const error = new ApiClientError({
-            kind: 'api',
-            status: 401,
-            code: 'TELEGRAM_AUTHENTICATION_FAILED',
-            message: 'The Telegram session could not be verified.'
-          })
-          clearToken()
-          dependencies.currentUser.setError(error)
-          throw error
-        }
+      if (!await matchesTelegramAccount(response.accessToken)) {
+        const error = telegramAuthenticationFailed()
+        clearToken()
+        dependencies.currentUser.setError(error)
+        throw error
       }
       if (started !== generation || signedOut) {
         throw authenticationRequired()
       }
       accessToken = response.accessToken
+    })
+  }
+
+  async function matchesTelegramAccount(token: string): Promise<boolean> {
+    if (telegramUserId === null) return true
+    const profile = await dependencies.api<CurrentUser>(ME_ENDPOINT, { method: 'GET', accessToken: token })
+    return profile.id === telegramUserId
+  }
+
+  function telegramAuthenticationFailed(): ApiClientError {
+    return new ApiClientError({
+      kind: 'api',
+      status: 401,
+      code: 'TELEGRAM_AUTHENTICATION_FAILED',
+      message: 'The Telegram session could not be verified.'
     })
   }
 
@@ -585,6 +620,14 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
   }
 
   function deactivateAccount(currentPassword: string): Promise<void> {
+    return performDeactivation(ACCOUNT_DEACTIVATE_ENDPOINT, '/activate?deactivated=1', { currentPassword })
+  }
+
+  function deactivateWithTelegram(): Promise<void> {
+    return performDeactivation(TELEGRAM_DEACTIVATE_ENDPOINT, '/login?signedOut=1&deactivated=1')
+  }
+
+  function performDeactivation(endpoint: string, destination: string, body?: { currentPassword: string }): Promise<void> {
     if (deactivationPromise) return deactivationPromise
     const apply = async (): Promise<void> => {
       if (signedOut || logoutPromise || resetPromise || changePromise) throw authenticationRequired()
@@ -597,10 +640,10 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
       await locks.request(AUTH_REFRESH_LOCK, async () => {
         if (started !== generation || signedOut || !accessToken) throw authenticationRequired()
         const send = async (): Promise<void> => {
-          await dependencies.api<undefined>(ACCOUNT_DEACTIVATE_ENDPOINT, {
+          await dependencies.api<undefined>(endpoint, {
             method: 'POST',
             accessToken,
-            body: { currentPassword },
+            ...(body ? { body } : {}),
             onResponse: ({ response }) => {
               if (response.status >= 200 && response.status < 300 && response.status !== 204) {
                 throw new ApiClientError({ kind: 'unknown', code: 'ACCOUNT_DEACTIVATION_UNCONFIRMED', message: 'Account deactivation was not confirmed.' })
@@ -629,7 +672,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
         }
         endLocalSession()
         channel?.postMessage({ type: SESSION_ENDED_EVENT })
-        await dependencies.navigateTo?.('/activate?deactivated=1')
+        await dependencies.navigateTo?.(destination)
       })
     }
     deactivationPromise = apply().finally(() => {
@@ -716,6 +759,7 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
       method: 'POST',
       ...(csrfToken ? { headers: { 'X-CSRF-Token': csrfToken } } : {})
     })
+    if (!await matchesTelegramAccount(response.accessToken)) throw telegramAuthenticationFailed()
     return response.accessToken
   }
 
@@ -737,6 +781,9 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     dependencies.currentUser.setAnonymous()
     try {
       dependencies.sessionStorage?.setItem(SIGNED_OUT_KEY, 'true')
+      if (activeTelegramLaunch !== null) {
+        dependencies.sessionStorage?.setItem(TELEGRAM_SIGNED_OUT_KEY, activeTelegramLaunch)
+      }
     }
     catch { /* This marker contains no token or user data. */ }
   }
@@ -759,7 +806,9 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
     logoutAll,
     resetPassword,
     changePassword,
-    deactivateAccount
+    deactivateAccount,
+    deactivateWithTelegram,
+    reactivateTelegram
   }
 }
 
