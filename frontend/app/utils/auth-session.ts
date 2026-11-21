@@ -41,6 +41,7 @@ export interface AuthSessionDependencies {
   sessionStorage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
   signedOut?: boolean
   telegramInitData?: string
+  continueTelegramLaunch?: (startParam: string) => Promise<void>
 }
 
 export function validateLogin(values: Readonly<LoginValues>): FieldErrorMap {
@@ -292,13 +293,16 @@ export function createAuthSession(dependencies: AuthSessionDependencies): AuthSe
       if (dependencies.telegramInitData !== undefined) {
         const signIn = async (): Promise<void> => {
           if (started !== generation || signedOut) return
-          const response = await dependencies.api<LoginResponse>(TELEGRAM_MINI_APP_ENDPOINT, {
+          const response = await dependencies.api<LoginResponse & { startParam?: string }>(TELEGRAM_MINI_APP_ENDPOINT, {
             method: 'POST',
             body: { initData: dependencies.telegramInitData }
           })
           if (started !== generation || signedOut) return
           telegramUserId = response.user.id
           adoptSession(response)
+          if (response.startParam) {
+            await dependencies.continueTelegramLaunch?.(response.startParam)
+          }
         }
         const locks = dependencies.navigator?.locks
         if (locks) await locks.request(AUTH_REFRESH_LOCK, signIn)

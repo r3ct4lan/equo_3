@@ -51,6 +51,7 @@ const russian: Record<string, string> = {
   'Your details are safe. Try the request again when you are ready.': 'Попробуйте выполнить запрос снова.',
   'Email or password is incorrect': 'Неверный адрес или пароль',
   'Check your details and try again.': 'Проверьте данные и попробуйте снова.',
+  'Accept invitation': 'Принять приглашение',
   'Account is not active': 'Аккаунт не активирован',
   'Activate your account before signing in.': 'Активируйте аккаунт перед входом.',
   'Too many sign-in attempts': 'Слишком много попыток входа',

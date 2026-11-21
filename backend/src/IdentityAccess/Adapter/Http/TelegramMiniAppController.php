@@ -40,7 +40,11 @@ final readonly class TelegramMiniAppController
 
         $identity = $this->verifier->verify($payload->initData ?? '');
         $result = $this->signIn->handle($identity);
-        $response = new JsonResponse($result->toResponseBody(), headers: ['Cache-Control' => 'no-store']);
+        $body = $result->toResponseBody();
+        if (null !== $identity->startParam) {
+            $body['startParam'] = $identity->startParam;
+        }
+        $response = new JsonResponse($body, headers: ['Cache-Control' => 'no-store']);
         $this->cookies->addLoginCookies($response, $result);
 
         return $response;

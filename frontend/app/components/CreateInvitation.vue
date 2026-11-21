@@ -3,11 +3,19 @@ import { formatDate } from '~/utils/locale'
 import type { InvitationLink } from '~/types/connects'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 import { invitationErrorPresentation } from '~/utils/connect-invitations'
+import { telegramInvitationUrl } from '~/utils/telegram-launch'
 
 defineProps<{ home?: boolean }>()
 
 const { $auth } = useNuxtApp()
 const link = ref<InvitationLink | null>(null)
+const miniApp = useState('telegram-mini-app', () => false)
+const { public: config } = useRuntimeConfig()
+const shareUrl = computed(() => {
+  if (!link.value) return null
+  const miniAppUrl = miniApp.value ? telegramInvitationUrl(link.value.token, config.telegramBotUsername) : null
+  return miniAppUrl ?? link.value.url
+})
 const pending = ref(false)
 const error = ref<ApiClientError | null>(null)
 const feedback = ref('')
@@ -33,9 +41,9 @@ async function create(): Promise<void> {
   }
 }
 async function copy(): Promise<void> {
-  if (!link.value) return
+  if (!shareUrl.value) return
   try {
-    await navigator.clipboard.writeText(link.value.url)
+    await navigator.clipboard.writeText(shareUrl.value)
     feedback.value = 'Invitation copied.'
   }
   catch {
@@ -43,9 +51,9 @@ async function copy(): Promise<void> {
   }
 }
 async function share(): Promise<void> {
-  if (!link.value || !canShare.value) return
+  if (!shareUrl.value || !canShare.value) return
   try {
-    await navigator.share({ title: t('Connect on Equo'), url: link.value.url })
+    await navigator.share({ title: t('Connect on Equo'), url: shareUrl.value })
     feedback.value = 'Invitation shared.'
   }
   catch {

@@ -136,6 +136,7 @@ services:
       CHOKIDAR_USEPOLLING: 'false'
       WATCHPACK_POLLING: 'false'
       NUXT_PUBLIC_API_BASE: /api
+      NUXT_PUBLIC_TELEGRAM_BOT_USERNAME: EquoE2eBot
       NUXT_API_INTERNAL_BASE: http://nginx/api
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]

@@ -1,5 +1,6 @@
 import { createAuthSession, SIGNED_OUT_KEY } from '~/utils/auth-session'
-import { readTelegramInitData } from '~/utils/telegram-launch'
+import { forgetInvitation, rememberInvitation } from '~/utils/connect-invitations'
+import { isTelegramInvitation, readTelegramInitData, readTelegramInvitation } from '~/utils/telegram-launch'
 
 export default defineNuxtPlugin({
   name: 'auth',
@@ -34,6 +35,13 @@ export default defineNuxtPlugin({
       navigator,
       sessionStorage: storage,
       telegramInitData: telegramInitData ?? undefined,
+      continueTelegramLaunch: async (startParam) => {
+        if (!isTelegramInvitation(startParam)) return
+        forgetInvitation()
+        const token = readTelegramInvitation(startParam)
+        if (token) rememberInvitation(token)
+        await navigateTo('/connect-invitations/mini-app')
+      },
       signedOut: new URL(window.location.href).searchParams.get('signedOut') === '1'
         || window.location.pathname === '/logout',
       createBroadcastChannel: typeof BroadcastChannel === 'undefined'

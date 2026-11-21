@@ -139,6 +139,20 @@ final class MeHttpTest extends WebTestCase
         self::assertSame(2, $this->countSessions());
     }
 
+    public function testTelegramLaunchReturnsOnlyAVerifiedStartParameter(): void
+    {
+        $fixture = ['id' => 4294967297, 'first_name' => 'Invite Recipient'];
+        $data = $this->signedTelegramData($fixture, startParam: 'invite_abc123');
+        $result = $this->telegramLaunch($data);
+
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('invite_abc123', $result['startParam']);
+
+        $result = $this->telegramLaunch($this->signedTelegramData($fixture).'&start_param=invite_unsigned');
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+        self::assertArrayNotHasKey('startParam', $result);
+    }
+
     public function testTelegramLaunchRejectsInvalidExpiredAndIncompleteProofs(): void
     {
         $valid = $this->signedTelegramData(['id' => 4294967297, 'first_name' => 'Telegram']);
@@ -619,14 +633,22 @@ final class MeHttpTest extends WebTestCase
     }
 
     /** @param array<string, int|string> $user */
-    private function signedTelegramData(array $user, int $timeOffset = 0): string
+    private function signedTelegramData(array $user, int $timeOffset = 0, ?string $startParam = null): string
     {
         $values = [
             'auth_date' => (string) (time() + $timeOffset),
             'user' => json_encode($user, JSON_THROW_ON_ERROR),
         ];
+        if (null !== $startParam) {
+            $values['start_param'] = $startParam;
+        }
+        ksort($values, SORT_STRING);
+        $rows = [];
+        foreach ($values as $k => $value) {
+            $rows[] = $k.'='.$value;
+        }
         $key = hash_hmac('sha256', self::TEST_TELEGRAM_TOKEN, 'WebAppData', true);
-        $values['hash'] = hash_hmac('sha256', 'auth_date='.$values['auth_date']."\n".'user='.$values['user'], $key);
+        $values['hash'] = hash_hmac('sha256', implode("\n", $rows), $key);
 
         return http_build_query($values, encoding_type: PHP_QUERY_RFC3986);
     }

@@ -2712,36 +2712,83 @@ test('manual payment correction updates balance, rejects a stale editor and pres
   await staleEditor.close()
 })
 
+async function openTelegramMiniApp(page: Page, id: number, name: string, startParam?: string): Promise<string> {
+  const botToken = process.env.E2E_TELEGRAM_BOT_TOKEN ?? 'equo-e2e-mini-app-key'
+  const key = createHmac('sha256', 'WebAppData').update(botToken).digest()
+  const fields = new URLSearchParams({
+    auth_date: String(Math.floor(Date.now() / 1000)),
+    user: JSON.stringify({ id, first_name: name, language_code: 'en' })
+  })
+  if (startParam) fields.set('start_param', startParam)
+  fields.sort()
+  const check = Array.from(fields, ([key, value]) => key + '=' + value).join('\n')
+  fields.set('hash', createHmac('sha256', key).update(check).digest('hex'))
+  const fragment = new URLSearchParams({ tgWebAppData: fields.toString(), tgWebAppPlatform: 'tdesktop' })
+  const response = page.waitForResponse(result => new URL(result.url()).pathname === '/api/v1/auth/telegram/mini-app')
+  await followSecretUrl(page, baseUrl + '/#' + fragment)
+  const result = await response
+  expect(result.status()).toBe(200)
+  const { user: profile } = await result.json() as { user: { id: string, name: string, email: string | null } }
+  expect(profile.email).toBeNull()
+  expect(profile.name).toBe(name)
+  return profile.id
+}
+
 test('Telegram Mini App replaces a stored browser login and reopens the same profile', async ({ page, request }) => {
   const email = await createActiveUser(request, uniqueEmail('mini-app-browser'))
   const browserAccess = await login(page, email)
   const browserProfile = await request.get(baseUrl + '/api/v1/me', { headers: { Authorization: 'Bearer ' + browserAccess } })
   const browserId = (await browserProfile.json() as { id: string }).id
 
-  const botToken = process.env.E2E_TELEGRAM_BOT_TOKEN ?? 'equo-e2e-mini-app-key'
-  const key = createHmac('sha256', 'WebAppData').update(botToken).digest()
-  const user = JSON.stringify({ id: 4294967297, first_name: 'Telegram', last_name: 'Fixture', language_code: 'en' })
-  const openMiniApp = async () => {
-    const authDate = String(Math.floor(Date.now() / 1000))
-    const hash = createHmac('sha256', key).update(`auth_date=${authDate}\nuser=${user}`).digest('hex')
-    const initData = new URLSearchParams({ auth_date: authDate, user, hash })
-    const fragment = new URLSearchParams({ tgWebAppData: initData.toString(), tgWebAppPlatform: 'tdesktop' })
-    const response = page.waitForResponse(result => new URL(result.url()).pathname === '/api/v1/auth/telegram/mini-app')
-    await followSecretUrl(page, baseUrl + '/#' + fragment)
-    const result = await response
-    expect(result.status()).toBe(200)
-    const { user: profile } = await result.json() as { user: { id: string, name: string, email: string | null } }
-    expect(profile.email).toBeNull()
-    expect(profile.name).toBe('Telegram Fixture')
-    return profile.id
-  }
-
-  const telegramId = await openMiniApp()
+  const telegramId = await openTelegramMiniApp(page, 4294967297, 'Telegram Fixture')
   expect(telegramId === browserId).toBe(false)
   await expect(page.getByRole('heading', { name: 'Invite a friend', exact: true })).toBeVisible()
   await page.getByRole('link', { name: 'My profile', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Telegram Fixture', exact: true })).toBeVisible()
-  expect(await openMiniApp()).toBe(telegramId)
+  expect(await openTelegramMiniApp(page, 4294967297, 'Telegram Fixture')).toBe(telegramId)
+})
+
+test('Telegram invitation creates the first connection explicitly and preserves expenses after relaunch', async ({ page, browser }) => {
+  const account = await openTelegramMiniApp(page, 4294967298, 'Telegram Sender')
+  await expect(page.getByRole('heading', { name: 'Invite a friend', exact: true })).toBeVisible()
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.getByRole('button', { name: 'Get invitation', exact: true }).click()
+  await page.getByRole('button', { name: 'Copy invitation', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('Invitation copied')
+  const link = new URL(await page.evaluate(() => navigator.clipboard.readText()))
+  expect(link.origin + link.pathname).toBe('https://t.me/EquoE2eBot')
+  const startParam = link.searchParams.get('startapp') ?? ''
+  expect(startParam.startsWith('invite_')).toBe(true)
+
+  const receiverContext = await browser.newContext({ ignoreHTTPSErrors: true })
+  try {
+    const receiver = await receiverContext.newPage()
+    let acceptCalls = 0
+    receiver.on('request', (sent) => {
+      if (sent.method() === 'POST' && new URL(sent.url()).pathname.endsWith('/accept')) ++acceptCalls
+    })
+    const receiverId = await openTelegramMiniApp(receiver, 4294967299, 'Telegram Recipient', startParam)
+    await expect(receiver.getByText('Telegram Sender invited you to connect.', { exact: true })).toBeVisible()
+    expect(acceptCalls).toBe(0)
+    await receiver.getByRole('button', { name: 'Accept invitation', exact: true }).click()
+    await expect(receiver).toHaveURL(/\/connects$/u)
+    expect(acceptCalls).toBe(1)
+
+    await page.getByRole('link', { name: 'Expenses', exact: true }).click()
+    await page.getByRole('link', { name: 'New expense', exact: true }).click()
+    await page.getByLabel('Title', { exact: true }).fill('Telegram dinner')
+    await page.getByLabel('Amount in EUR', { exact: true }).fill('20.00')
+    await setPerson(page.locator('.people-picker').first(), receiverId, true)
+    const created = page.waitForResponse(sent => sent.request().method() === 'POST' && new URL(sent.url()).pathname === '/api/v1/debts')
+    await page.getByRole('button', { name: 'Create expense', exact: true }).click()
+    expect((await created).status()).toBe(201)
+
+    expect(await openTelegramMiniApp(page, 4294967298, 'Telegram Sender')).toBe(account)
+    await expect(page.getByRole('link', { name: 'Telegram dinner', exact: true })).toBeVisible()
+  }
+  finally {
+    await receiverContext.close()
+  }
 })
 
 test('home dashboard separates debts, shows five recent expenses and clears on logout', async ({ page, request }, testInfo) => {
