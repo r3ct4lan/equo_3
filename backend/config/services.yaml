@@ -72,6 +72,9 @@ services:
     App\IdentityAccess\Application\Port\ActionTokenCodecPort:
         alias: App\IdentityAccess\Adapter\Security\VersionedActionTokenCodec
 
+    App\IdentityAccess\Application\Port\AccountMergeLedgerPort:
+        alias: App\Infrastructure\Persistence\Doctrine\DoctrineMergeLedger
+
     App\IdentityAccess\Application\Port\AccountMergeSnapshotPort:
         alias: App\IdentityAccess\Adapter\Persistence\Doctrine\DoctrineAccountMergeSnapshot
 

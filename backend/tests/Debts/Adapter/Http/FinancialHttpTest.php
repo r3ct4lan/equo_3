@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Debts\Adapter\Http;
 
+use App\Connects\Domain\CanonicalPair;
 use App\Debts\Adapter\Persistence\Doctrine\DoctrineDebtRepository;
 use App\Debts\Application\MergeExpenses;
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
 use App\Infrastructure\Persistence\Doctrine\DoctrineMergeExpenseRepository;
+use App\Infrastructure\Persistence\Doctrine\DoctrineMergeLedger;
+use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -112,6 +115,90 @@ final class FinancialHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
 
         return $this->body();
+    }
+
+    public function testMergedConnectionsKeepExternalLedgerAndHideInternalOperations(): void
+    {
+        [$primary, $joined, $friend, $other] = $this->users;
+        $keptPair = new CanonicalPair($primary, $friend);
+        $kept = $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id = ? AND second_user_id = ?', [$keptPair->first, $keptPair->second]);
+        $innerPair = new CanonicalPair($primary, $joined);
+        $inner = $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id = ? AND second_user_id = ?', [$innerPair->first, $innerPair->second]);
+        self::assertIsString($kept);
+        self::assertIsString($inner);
+        $mergedPair = $this->addConnection($joined, $friend);
+        $unrelated = $this->addConnection($friend, $other);
+        $firstTransfer = $this->addManualTransfer($kept, $friend, $primary, 2000);
+        $secondTransfer = $this->addManualTransfer($mergedPair, $joined, $friend, 5000);
+        $innerTransfer = $this->addManualTransfer($inner, $primary, $joined, 1500);
+        $otherTransfer = $this->addManualTransfer($unrelated, $friend, $other, 900);
+
+        (new DoctrineMergeLedger($this->db))->apply($primary, $joined, new DateTimeImmutable());
+
+        $this->request('GET', '/api/v1/connects/'.$kept);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(3000, $this->body()['balanceAmount']);
+        $this->request('GET', '/api/v1/connects/'.$kept, 2);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(-3000, $this->body()['balanceAmount']);
+        $this->request('GET', '/api/v1/connects/'.$kept.'/transfers', 2);
+        self::assertResponseStatusCodeSame(200);
+        $history = array_column($this->body()['items'], null, 'id');
+        self::assertCount(2, $history);
+        self::assertSame($friend, $history[$firstTransfer]['sender']['id']);
+        self::assertSame($primary, $history[$secondTransfer]['sender']['id']);
+        $this->request('GET', '/api/v1/connects/'.$mergedPair, 2);
+        self::assertResponseStatusCodeSame(404);
+        $this->request('GET', '/api/v1/connects/'.$inner);
+        self::assertResponseStatusCodeSame(404);
+        $this->request('GET', '/api/v1/transfers/'.$innerTransfer);
+        self::assertResponseStatusCodeSame(404);
+        $this->request('GET', '/api/v1/transfers/'.$otherTransfer, 3);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(900, $this->body()['amount']);
+    }
+
+    public function testManualReferenceFollowsTheCombinedShare(): void
+    {
+        [$primary, $joined, $payer] = $this->users;
+        $source = $this->addConnection($joined, $payer);
+        $this->request('POST', '/api/v1/debts', 2, [
+            'title' => 'Shared meal', 'description' => null, 'totalAmount' => 6000, 'payerId' => $payer,
+            'participantIds' => [$primary, $joined], 'includePayerInSplit' => true,
+        ], Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body()['id'];
+        $shares = array_column($this->db->fetchAllAssociative('SELECT receiver_id, id FROM transfer WHERE debt_id = ?', [$debt]), 'id', 'receiver_id');
+        $manual = $this->addManualTransfer($source, $joined, $payer, 500);
+        $this->db->update('transfer', ['related_transfer_id' => $shares[$joined]], ['id' => $manual]);
+
+        (new MergeExpenses(new DoctrineDebtRepository($this->db), new DoctrineMergeExpenseRepository($this->db)))->apply($primary, $joined);
+        (new DoctrineMergeLedger($this->db))->apply($primary, $joined, new DateTimeImmutable());
+
+        $this->request('GET', '/api/v1/transfers/'.$manual, 2);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($shares[$primary], $this->body()['relatedTransferId']);
+        self::assertSame($primary, $this->body()['sender']['id']);
+    }
+
+    private function addConnection(string $left, string $right): string
+    {
+        $pair = new CanonicalPair($left, $right);
+        $id = Uuid::v4()->toRfc4122();
+        $this->db->insert('connect', ['id' => $id, 'first_user_id' => $pair->first, 'second_user_id' => $pair->second, 'created_at' => '2026-10-01 00:00:00+00']);
+
+        return $id;
+    }
+
+    private function addManualTransfer(string $connect, string $sender, string $receiver, int $amount): string
+    {
+        $id = Uuid::v4()->toRfc4122();
+        $this->db->insert('transfer', [
+            'id' => $id, 'connect_id' => $connect, 'sender_id' => $sender, 'receiver_id' => $receiver,
+            'amount' => $amount, 'type' => 'MANUAL', 'created_by_id' => $sender, 'created_at' => '2026-10-01 00:00:00+00',
+        ]);
+
+        return $id;
     }
 
     public function testMergedSharesAgreeInExpenseDetailsHistoryAndBalance(): void

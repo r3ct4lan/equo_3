@@ -19,11 +19,11 @@ final readonly class DoctrineDebtPeopleSearch implements DebtPeopleSearchPort
         $sql = <<<'SQL'
             WITH candidates AS (
               SELECT u.id, u.name, u.is_active,
-                EXISTS (SELECT 1 FROM connect c WHERE (c.first_user_id=:viewer AND c.second_user_id=u.id) OR (c.second_user_id=:viewer AND c.first_user_id=u.id)) AS connected,
+                EXISTS (SELECT 1 FROM connect c WHERE NOT c.hidden_by_merge AND ((c.first_user_id=:viewer AND c.second_user_id=u.id) OR (c.second_user_id=:viewer AND c.first_user_id=u.id))) AS connected,
                 u.email
               FROM app_user u
               WHERE u.id=:viewer OR (u.is_active=true AND (
-                EXISTS (SELECT 1 FROM connect c WHERE (c.first_user_id=:viewer AND c.second_user_id=u.id) OR (c.second_user_id=:viewer AND c.first_user_id=u.id)) OR
+                EXISTS (SELECT 1 FROM connect c WHERE NOT c.hidden_by_merge AND ((c.first_user_id=:viewer AND c.second_user_id=u.id) OR (c.second_user_id=:viewer AND c.first_user_id=u.id))) OR
                 EXISTS (SELECT 1 FROM debt d JOIN debt_participant p ON p.debt_id=d.id AND p.user_id=u.id AND p.is_deleted=false
                   WHERE NOT d.hidden_by_merge AND d.is_deleted=false AND (d.created_by_id=:viewer OR d.payer_id=:viewer OR EXISTS
                     (SELECT 1 FROM debt_participant own WHERE own.debt_id=d.id AND own.user_id=:viewer AND own.is_deleted=false)))

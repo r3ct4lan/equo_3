@@ -70,8 +70,8 @@ final readonly class DoctrineAccountMergeSnapshot implements AccountMergeSnapsho
                       WHERE participant.debt_id IN (SELECT id FROM affected_debts)),
                     (SELECT jsonb_agg(to_jsonb(transfer) ORDER BY transfer.id) FROM affected_transfers transfer),
                     (SELECT jsonb_agg(to_jsonb(connect) ORDER BY connect.id) FROM connect CROSS JOIN pair
-                      WHERE connect.first_user_id IN (pair.primary_id, pair.joined_id)
-                         OR connect.second_user_id IN (pair.primary_id, pair.joined_id)),
+                      WHERE NOT connect.hidden_by_merge AND (connect.first_user_id IN (pair.primary_id, pair.joined_id)
+                         OR connect.second_user_id IN (pair.primary_id, pair.joined_id))),
                     (SELECT jsonb_agg(jsonb_build_array(invite.id, invite.created_by_id, invite.accepted_by_id, invite.expires_at, invite.used_at) ORDER BY invite.id)
                      FROM connect_invitation invite CROSS JOIN pair
                      WHERE invite.created_by_id IN (pair.primary_id, pair.joined_id)
