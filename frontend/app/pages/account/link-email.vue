@@ -27,7 +27,7 @@ async function confirm(): Promise<void> {
       method: 'POST', body: { token: token.value }
     })
     token.value = null
-    await navigateTo({ path: '/me', query: { credentials: result.status } })
+    await navigateTo(result.status === 'merge_required' ? '/account/merge' : '/me?credentials=linked')
   }
   catch (failure) {
     error.value = toApiClientError(failure)

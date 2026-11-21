@@ -90,7 +90,7 @@ final readonly class CredentialManagement
 
             $other = $this->credentials->telegramOwner($telegramId);
             if (null !== $other) {
-                $this->replaceMergeProof($userId, $sessionId, $other, null === $expected ? 'link_telegram' : 'replace_telegram', $now, $telegramId);
+                $this->replaceMergeProof($userId, $sessionId, $other, null === $expected ? 'link_telegram' : 'replace_telegram', $now, $telegramId, $expected);
 
                 return 'merge_required';
             }
@@ -181,7 +181,7 @@ final readonly class CredentialManagement
 
             $owner = $this->identity->loginIdentityByEmail($email);
             if (is_string($targetId) && $targetId === $owner?->id) {
-                $this->replaceMergeProof($userId, $sessionId, $targetId, 'link_email', $now);
+                $this->replaceMergeProof($userId, $sessionId, $targetId, 'link_email', $now, email: $email);
                 $this->credentials->useAction($token->id, $now);
 
                 return 'merge_required';
@@ -262,7 +262,7 @@ final readonly class CredentialManagement
         return $user;
     }
 
-    private function replaceMergeProof(string $userId, string $sessionId, string $targetId, string $mode, DateTimeImmutable $now, ?int $telegramId = null): void
+    private function replaceMergeProof(string $userId, string $sessionId, string $targetId, string $mode, DateTimeImmutable $now, ?int $telegramId = null, ?int $originalTelegramId = null, ?string $email = null): void
     {
         $proof = new UserActionToken($this->uuid->generate(), $userId, $this->tokens->issue()->tokenHash, UserActionTokenPurpose::MergeAccount, $now, $now->modify('+10 minutes'));
         $this->credentials->replaceAction($proof, [
@@ -270,6 +270,8 @@ final readonly class CredentialManagement
             'targetId' => $targetId,
             'mode' => $mode,
             'telegramId' => $telegramId,
+            'originalTelegramId' => $originalTelegramId,
+            'email' => $email,
         ], $now);
     }
 }

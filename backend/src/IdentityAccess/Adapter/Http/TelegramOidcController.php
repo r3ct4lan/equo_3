@@ -119,7 +119,7 @@ final readonly class TelegramOidcController
 
                 $outcome = $this->credentials->applyTelegram($account['userId'], $account['sessionId'], $identity->id, $account['original']);
 
-                return $this->redirect('/me?credentials='.$outcome);
+                return $this->redirect('merge_required' === $outcome ? '/account/merge' : '/me?credentials='.$outcome);
             }
             $result = $this->signIn->handle($identity);
         } catch (ApplicationFailure $failure) {

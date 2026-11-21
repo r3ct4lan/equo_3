@@ -67,8 +67,11 @@ async function submit(kind: 'email' | 'confirm-email' | 'telegram' | 'cancel'): 
       if (result.status === 'linked') {
         feedback.value = 'Sign-in method updated.'
         emit('linked')
+        await load()
       }
-      await load()
+      else {
+        await navigateTo('/account/merge')
+      }
     }
     else if (kind === 'telegram') {
       const { url } = await $auth.protectedRequest<{ url: string }>(endpoint + '/telegram/start', {
@@ -137,6 +140,13 @@ onMounted(() => {
     >
       {{ t('Access to both accounts confirmed.') }}
     </UiNotice>
+    <UiButton
+      v-if="settings?.mergePending"
+      variant="secondary"
+      to="/account/merge"
+    >
+      {{ t('Review account merge') }}
+    </UiButton>
     <form
       v-if="settings && !settings.hasEmail"
       class="stack"

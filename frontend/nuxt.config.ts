@@ -17,6 +17,7 @@ export default defineNuxtConfig({
   },
   routeRules: {
     '/account/link-email': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
+    '/account/merge': { headers: { 'cache-control': 'no-store' } },
     '/connect-invitations/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } }
   },
   compatibilityDate: '2026-07-26',

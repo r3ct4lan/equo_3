@@ -12,6 +12,7 @@ use App\IdentityAccess\Adapter\Security\TelegramMiniAppVerifier;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 use App\IdentityAccess\Application\Credentials\CredentialManagement;
+use App\IdentityAccess\Application\Credentials\ReviewAccountMerge;
 use App\IdentityAccess\Domain\Access\UserActionTokenPurpose;
 use App\Infrastructure\Application\Api\RequestLimiter;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -30,6 +31,7 @@ final readonly class CredentialController
         private TelegramOidcController $oidc,
         private RequestLimiter $limiter,
         private AuthCookieFactory $cookies,
+        private ReviewAccountMerge $merge,
     ) {
     }
 
@@ -39,6 +41,15 @@ final readonly class CredentialController
         [$user, $session] = $this->actor();
 
         return $this->json($this->credentials->settings($user, $session));
+    }
+
+    #[Route('/merge', name: 'api_v1_account_merge_preview', methods: ['GET'])]
+    public function mergePreview(): JsonResponse
+    {
+        [$user, $session] = $this->actor();
+        $this->limit($user);
+
+        return $this->json($this->merge->preview($user, $session)->toArray());
     }
 
     #[Route('/telegram/start', name: 'api_v1_account_telegram_start', methods: ['POST'])]

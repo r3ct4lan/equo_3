@@ -500,6 +500,67 @@ final class MeHttpTest extends WebTestCase
         self::assertSame(1, $this->countSessions());
     }
 
+    public function testMergePreviewRequiresBothAccountsAndTheInitiatingSession(): void
+    {
+        $primary = '87000000-0000-4000-8000-000000000367';
+        $joined = '87000000-0000-4000-8000-000000000368';
+        $this->insertUser($primary, 'Primary', 'primary-merge@example.test', true, 'Correct password!');
+        $this->insertUser($joined, 'Joined', 'joined-merge@example.test', true, 'Correct password!');
+        $this->connection->update('app_user', ['telegram_id' => 4294967297], ['id' => $primary]);
+        $this->connection->update('app_user', ['telegram_id' => 4294967298], ['id' => $joined]);
+        $transferId = $this->insertInternalMergeHistory($primary, $joined);
+        $first = $this->login('primary-merge@example.test');
+        $second = $this->login('primary-merge@example.test');
+
+        $this->mergePreview($first['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $this->credentialRequest('/telegram/proof', $first['accessToken'], [
+            'initData' => $this->signedTelegramData(['id' => 4294967298]),
+            'currentPassword' => 'Correct password!',
+        ]);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('merge_required', $this->jsonBody()['status']);
+
+        $this->mergePreview($second['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        $preview = $this->mergePreview($first['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('replace_telegram', $preview['mode']);
+        self::assertSame('primary-merge@example.test', $preview['email']);
+        self::assertSame('joined-merge@example.test', $preview['discardedEmail']);
+        self::assertTrue($preview['replacesTelegram']);
+        self::assertSame($transferId, $preview['disappearingTransfers'][0]['id']);
+        self::assertSame(1450, $preview['disappearingTransfers'][0]['amount']);
+        self::assertSame('Shared meal', $preview['disappearingExpenses'][0]['title']);
+        self::assertSame(6000, $preview['disappearingExpenses'][0]['amount']);
+        self::assertSame($preview['version'], $this->mergePreview($first['accessToken'])['version']);
+
+        $this->connection->update('transfer', ['amount' => 1550, 'version' => 2], ['id' => $transferId]);
+        $changed = $this->mergePreview($first['accessToken']);
+        self::assertNotSame($preview['version'], $changed['version']);
+        self::assertSame(1550, $changed['disappearingTransfers'][0]['amount']);
+        self::assertSame($primary, $this->me($second['accessToken'])['id']);
+
+        $this->credentialRequest('/cancel', $first['accessToken'], []);
+        self::assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
+        $this->mergePreview($first['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        self::assertSame($joined, $this->connection->fetchOne('SELECT id FROM app_user WHERE telegram_id = ?', [4294967298]));
+
+        $this->credentialRequest('/telegram/proof', $first['accessToken'], [
+            'initData' => $this->signedTelegramData(['id' => 4294967298]),
+            'currentPassword' => 'Correct password!',
+        ]);
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        $this->connection->executeStatement(
+            "UPDATE user_action_token SET created_at = CURRENT_TIMESTAMP - INTERVAL '11 minutes', expires_at = CURRENT_TIMESTAMP - INTERVAL '1 minute' WHERE user_id = ? AND purpose = 'MERGE_ACCOUNT' AND invalidated_at IS NULL",
+            [$primary],
+        );
+        $this->mergePreview($first['accessToken']);
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+    }
+
     public function testTelegramReplacementPreservesOnlyTheConfirmingSession(): void
     {
         $userId = '87000000-0000-4000-8000-000000000360';
@@ -823,6 +884,41 @@ final class MeHttpTest extends WebTestCase
             'is_active' => $active ? 1 : 0,
             'created_at' => $createdAt,
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function mergePreview(string $accessToken): array
+    {
+        $this->client->request('GET', '/api/v1/account/credentials/merge', server: [
+            'HTTP_AUTHORIZATION' => 'Bearer '.$accessToken,
+        ]);
+
+        return $this->jsonBody();
+    }
+
+    private function insertInternalMergeHistory(string $first, string $second): string
+    {
+        $connect = '87000000-0000-4000-8000-000000000371';
+        $transfer = '87000000-0000-4000-8000-000000000372';
+        $debt = '87000000-0000-4000-8000-000000000373';
+        $participant = '87000000-0000-4000-8000-000000000374';
+        $date = '2026-10-01 08:30:00+00';
+        $this->connection->insert('connect', [
+            'id' => $connect, 'first_user_id' => $first, 'second_user_id' => $second, 'created_at' => $date,
+        ]);
+        $this->connection->insert('transfer', [
+            'id' => $transfer, 'connect_id' => $connect, 'sender_id' => $first, 'receiver_id' => $second,
+            'amount' => 1450, 'type' => 'MANUAL', 'created_by_id' => $first, 'created_at' => $date,
+        ]);
+        $this->connection->insert('debt', [
+            'id' => $debt, 'title' => 'Shared meal', 'total_amount' => 6000,
+            'payer_id' => $first, 'created_by_id' => $first, 'created_at' => $date,
+        ]);
+        $this->connection->insert('debt_participant', [
+            'id' => $participant, 'debt_id' => $debt, 'user_id' => $second, 'created_at' => $date,
+        ]);
+
+        return $transfer;
     }
 
     private function emailLinkToken(string $email): string
