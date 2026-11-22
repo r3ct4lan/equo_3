@@ -70,7 +70,7 @@ final readonly class Debt
             }
         }
         sort($oldCurrent, SORT_STRING);
-        $splitChanged = $this->totalAmount->cents !== $update->totalAmount->cents || $oldCurrent !== $ids;
+        $splitChanged = $this->totalAmount->minorUnits !== $update->totalAmount->minorUnits || $oldCurrent !== $ids;
         if (!$splitChanged) {
             if ($this->title === $update->title && $this->description === $update->description) {
                 return $this;
@@ -153,7 +153,7 @@ final readonly class Debt
         sort($before, SORT_STRING);
         sort($after, SORT_STRING);
 
-        return $this->totalAmount->cents === $other->totalAmount->cents && $before === $after;
+        return $this->totalAmount->minorUnits === $other->totalAmount->minorUnits && $before === $after;
     }
 
     public function mergeAccounts(string $primary, string $joined): ?self

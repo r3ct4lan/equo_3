@@ -80,7 +80,7 @@ final class FinancialModelTest extends TestCase
     public function testMergingRoundedSharesKeepsTheCentAboveTheOriginalStorageLimit(): void
     {
         $now = new DateTimeImmutable('2026-10-11T12:00:00Z');
-        $debt = new Debt('debt', 'Dinner', null, new Money(Money::MAX_CENTS), 'payer', 'payer', $now, [
+        $debt = new Debt('debt', 'Dinner', null, new Money(Money::MAX_MINOR_UNITS), 'payer', 'payer', $now, [
             new DebtParticipant('primary-part', 'debt', 'primary', $now),
             new DebtParticipant('joined-part', 'debt', 'joined', $now),
         ]);

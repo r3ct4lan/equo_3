@@ -18,7 +18,7 @@ final readonly class CreateDebtCommand
     /** @param list<string> $participantIds */
     public function __construct(string $title, public ?string $description, public int $totalAmount, string $payerId, array $participantIds, public bool $includePayerInSplit, string $idempotencyKey)
     {
-        if ('' === trim($title) || $totalAmount < 1 || $totalAmount > Money::MAX_CENTS || !self::isUuid($payerId) || !self::isUuid($idempotencyKey) || [] === $participantIds) {
+        if ('' === trim($title) || $totalAmount < 1 || $totalAmount > Money::MAX_MINOR_UNITS || !self::isUuid($payerId) || !self::isUuid($idempotencyKey) || [] === $participantIds) {
             throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
         }
         foreach ($participantIds as $id) {

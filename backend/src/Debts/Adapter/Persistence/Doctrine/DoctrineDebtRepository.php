@@ -40,7 +40,7 @@ final readonly class DoctrineDebtRepository implements DebtRepositoryPort
 
     public function save(Debt $debt): void
     {
-        $this->db->insert('debt', ['id' => $debt->id, 'title' => $debt->title, 'description' => $debt->description, 'total_amount' => $debt->totalAmount->cents, 'payer_id' => $debt->payerId, 'created_by_id' => $debt->createdById, 'created_at' => $debt->createdAt->format('Y-m-d H:i:sP'), 'is_deleted' => $debt->isDeleted, 'version' => $debt->version], ['is_deleted' => 'boolean']);
+        $this->db->insert('debt', ['id' => $debt->id, 'title' => $debt->title, 'description' => $debt->description, 'total_amount' => $debt->totalAmount->minorUnits, 'payer_id' => $debt->payerId, 'created_by_id' => $debt->createdById, 'created_at' => $debt->createdAt->format('Y-m-d H:i:sP'), 'is_deleted' => $debt->isDeleted, 'version' => $debt->version], ['is_deleted' => 'boolean']);
         foreach ($debt->participants as $p) {
             $this->db->insert('debt_participant', ['id' => $p->id, 'debt_id' => $debt->id, 'user_id' => $p->userId, 'created_at' => $p->createdAt->format('Y-m-d H:i:sP'), 'is_deleted' => $p->isDeleted], ['is_deleted' => 'boolean']);
         }
@@ -61,7 +61,7 @@ final readonly class DoctrineDebtRepository implements DebtRepositoryPort
 
     public function update(Debt $debt): void
     {
-        $this->db->update('debt', ['title' => $debt->title, 'description' => $debt->description, 'total_amount' => $debt->totalAmount->cents, 'is_deleted' => $debt->isDeleted, 'version' => $debt->version], ['id' => $debt->id], ['is_deleted' => 'boolean']);
+        $this->db->update('debt', ['title' => $debt->title, 'description' => $debt->description, 'total_amount' => $debt->totalAmount->minorUnits, 'is_deleted' => $debt->isDeleted, 'version' => $debt->version], ['id' => $debt->id], ['is_deleted' => 'boolean']);
         $known = array_column($this->db->fetchAllAssociative('SELECT id, is_deleted, actual_share_amount FROM debt_participant WHERE debt_id=?', [$debt->id]), null, 'id');
         foreach ($debt->participants as $p) {
             if (array_key_exists($p->id, $known)) {

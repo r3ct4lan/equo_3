@@ -16,7 +16,7 @@ final readonly class CreateDebtRequest
         public ?string $description = null,
         #[Assert\NotNull]
         #[Assert\Type('integer')]
-        #[Assert\Range(min: 1, max: Money::MAX_CENTS)]
+        #[Assert\Range(min: 1, max: Money::MAX_MINOR_UNITS)]
         public mixed $totalAmount = null,
         #[Assert\NotBlank]
         #[Assert\Uuid]

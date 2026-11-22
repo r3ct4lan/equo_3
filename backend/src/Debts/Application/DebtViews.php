@@ -45,7 +45,7 @@ final readonly class DebtViews
             $participants[] = ['debtParticipantId' => $p->id, 'user' => $this->user($p->userId), 'isPayer' => $p->userId === $debt->payerId, 'isAuthor' => $p->userId === $debt->createdById, 'shareAmount' => $debt->shareFor($p), 'transferId' => $shares[$p->id] ?? null, 'connectId' => $includeParticipantConnects ? $this->connects->findPairId($viewerId, $p->userId) : null];
         }
 
-        return ['id' => $debt->id, 'title' => $debt->title, 'description' => $debt->description, 'totalAmount' => $debt->totalAmount->cents, 'payer' => $payer, 'createdBy' => $author, 'includePayerInSplit' => $debt->includePayerInSplit(), 'participantCount' => count($participants), 'shareAmount' => $debt->uniformShare(), 'participants' => $participants, 'isDeleted' => $debt->isDeleted, 'canEdit' => $canEdit, 'canDelete' => $canEdit, 'version' => $debt->version, 'createdAt' => self::date($debt->createdAt)];
+        return ['id' => $debt->id, 'title' => $debt->title, 'description' => $debt->description, 'totalAmount' => $debt->totalAmount->minorUnits, 'payer' => $payer, 'createdBy' => $author, 'includePayerInSplit' => $debt->includePayerInSplit(), 'participantCount' => count($participants), 'shareAmount' => $debt->uniformShare(), 'participants' => $participants, 'isDeleted' => $debt->isDeleted, 'canEdit' => $canEdit, 'canDelete' => $canEdit, 'version' => $debt->version, 'createdAt' => self::date($debt->createdAt)];
     }
 
     public static function date(DateTimeImmutable $date): string
