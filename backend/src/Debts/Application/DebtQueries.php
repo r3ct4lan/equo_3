@@ -62,7 +62,7 @@ final readonly class DebtQueries implements DebtAccess
         $items = [];
         foreach ($rows as $d) {
             $v = $this->views->detail($d, $viewerId, false);
-            $items[] = ['id' => $v['id'], 'title' => $v['title'], 'currency' => $v['currency'], 'totalAmount' => $v['totalAmount'], 'payer' => $v['payer'], 'participantCount' => $v['participantCount'], 'shareAmount' => $v['shareAmount'], 'canEdit' => $v['canEdit'], 'isDeleted' => $v['isDeleted'], 'version' => $v['version'], 'createdAt' => $v['createdAt']];
+            $items[] = ['id' => $v['id'], 'title' => $v['title'], 'currency' => $v['currency'], 'viewerCurrency' => $v['viewerCurrency'], 'equivalentAmount' => $v['equivalentAmount'], 'totalAmount' => $v['totalAmount'], 'payer' => $v['payer'], 'participantCount' => $v['participantCount'], 'shareAmount' => $v['shareAmount'], 'canEdit' => $v['canEdit'], 'isDeleted' => $v['isDeleted'], 'version' => $v['version'], 'createdAt' => $v['createdAt']];
         }
 
         return ['items' => $items, 'pagination' => ['nextCursor' => $hasMore && null !== $last ? $this->cursor->encode($last->createdAt, $last->id) : null, 'hasMore' => $hasMore]];

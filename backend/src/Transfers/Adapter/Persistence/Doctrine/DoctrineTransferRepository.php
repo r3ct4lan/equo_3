@@ -21,47 +21,34 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
     {
     }
 
-    public function balance(string $connectId, string $viewerId): int
+    public function openAmounts(string $viewerId, ?string $connectId): iterable
     {
-        $value = $this->db->fetchOne('SELECT COALESCE(SUM(CASE WHEN sender_id=:user THEN amount::bigint ELSE -amount::bigint END),0) FROM transfer WHERE connect_id=:connect AND is_deleted=false AND NOT hidden_by_merge', ['user' => $viewerId, 'connect' => $connectId]);
-        $amount = filter_var($value, FILTER_VALIDATE_INT);
-        if (false === $amount) {
-            throw new RuntimeException('Ledger balance exceeds the supported integer range.');
+        $sql = <<<'SQL'
+            SELECT t.connect_id, t.sender_id, t.currency,
+                   CASE WHEN t.type='DEBT_SHARE' THEN t.amount-t.credited_amount ELSE COALESCE(t.excess_amount, t.amount) END AS exposure,
+                   CASE WHEN d.id IS NULL THEN t.manual_rate ELSE d.manual_rate END AS manual_rate,
+                   CASE WHEN d.id IS NULL THEN t.rate_currency ELSE d.rate_currency END AS rate_currency
+            FROM transfer t LEFT JOIN debt d ON d.id=t.debt_id
+            WHERE NOT t.is_deleted AND NOT t.hidden_by_merge AND (t.sender_id=:viewer OR t.receiver_id=:viewer)
+            SQL;
+        $parameters = ['viewer' => $viewerId];
+        if (null !== $connectId) {
+            $sql .= ' AND t.connect_id=:connect';
+            $parameters['connect'] = $connectId;
         }
-
-        return $amount;
+        foreach ($this->db->iterateAssociative($sql, $parameters) as $row) {
+            yield ['connectId' => $row['connect_id'], 'senderId' => $row['sender_id'], 'amount' => (int) $row['exposure'], 'currency' => $row['currency'], 'manualRate' => $row['manual_rate'], 'rateCurrency' => $row['rate_currency']];
+        }
     }
 
-    public function balanceSummary(string $viewerId): array
+    public function shareBalances(string $debtId): array
     {
-        $row = $this->db->fetchAssociative(<<<'SQL'
-            SELECT COALESCE(SUM(CASE WHEN balance < 0 THEN -balance ELSE 0 END), 0) AS owed,
-                   COALESCE(SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END), 0) AS receivable
-            FROM (
-                SELECT connect_id, SUM(CASE WHEN sender_id = :viewer THEN amount::bigint ELSE -amount::bigint END) AS balance
-                FROM transfer
-                WHERE is_deleted = false AND NOT hidden_by_merge AND (sender_id = :viewer OR receiver_id = :viewer)
-                GROUP BY connect_id
-            ) AS balances
-            SQL, ['viewer' => $viewerId]);
-        if (false === $row) {
-            throw new RuntimeException('Ledger summary is unavailable.');
+        $result = [];
+        foreach ($this->db->fetchAllAssociative('SELECT id, debt_participant_id, amount-credited_amount AS remaining FROM transfer WHERE debt_id=? AND NOT hidden_by_merge', [$debtId]) as $row) {
+            $result[$row['debt_participant_id']] = ['id' => $row['id'], 'remaining' => (int) $row['remaining']];
         }
 
-        return [
-            'totalOwedAmount' => $this->exactSummaryAmount($row['owed']),
-            'totalReceivableAmount' => $this->exactSummaryAmount($row['receivable']),
-        ];
-    }
-
-    private function exactSummaryAmount(mixed $value): int
-    {
-        $amount = filter_var($value, FILTER_VALIDATE_INT);
-        if (false === $amount || $amount < 0 || $amount > 9007199254740991) {
-            throw new RuntimeException('Ledger summary exceeds the supported exact integer range.');
-        }
-
-        return $amount;
+        return $result;
     }
 
     public function find(string $id, bool $forUpdate = false): ?Transfer

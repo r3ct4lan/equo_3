@@ -15,6 +15,6 @@ interface AutomaticShares
 
     public function removeForDebt(string $debtId): void;
 
-    /** @return array<string,string> Participant ID to Transfer ID */
+    /** @return array<string,array{id:string,remaining:int}> Participant ID to share */
     public function forDebt(string $debtId): array;
 }

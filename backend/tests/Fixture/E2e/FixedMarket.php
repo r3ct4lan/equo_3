@@ -16,6 +16,6 @@ final class FixedMarket implements MarketSource
             $rates[$code] = ['value' => $value, 'date' => '2026-11-20'];
         }
 
-        return ['currencies' => ['EUR' => 2, 'USD' => 2, 'RSD' => 2, 'HUF' => 2, 'JPY' => 0, 'KWD' => 3], 'rates' => $rates];
+        return ['currencies' => ['EUR' => 2, 'CAD' => 2, 'USD' => 2, 'RSD' => 2, 'HUF' => 2, 'JPY' => 0, 'KWD' => 3], 'rates' => $rates];
     }
 }

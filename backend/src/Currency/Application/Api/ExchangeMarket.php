@@ -42,6 +42,25 @@ final readonly class ExchangeMarket
         }
     }
 
+    public function equivalent(int $amount, string $from, string $to, ?string $manual, ?string $rateCurrency): int
+    {
+        if (0 === $amount || $from === $to) {
+            return $amount;
+        }
+        $quote = $to === $rateCurrency && null !== $manual ? $manual : $this->quote($from, $to);
+
+        return $this->arithmetic->convert($amount, $from, $to, $quote);
+    }
+
+    public function cardEquivalent(int $amount, string $from, string $to, ?string $manual, ?string $rateCurrency): ?int
+    {
+        try {
+            return $this->equivalent($amount, $from, $to, $manual, $rateCurrency);
+        } catch (MarketUnavailable) {
+            return null;
+        }
+    }
+
     public function quote(string $from, string $to): string
     {
         if ($from === $to) {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Transfers\Application;
 
 use App\Connects\Application\Api\ConnectAccess;
+use App\Currency\Application\Api\ExchangeMarket;
 use App\Debts\Application\Api\DebtAccess;
 use App\IdentityAccess\Application\Api\AccountAccess;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
@@ -16,7 +17,7 @@ use DateTimeZone;
 
 final readonly class TransferQueries
 {
-    public function __construct(private TransferRepositoryPort $repository, private ConnectAccess $connects, private AccountAccess $accounts, private DebtAccess $debts, private CursorPort $cursor)
+    public function __construct(private TransferRepositoryPort $repository, private ConnectAccess $connects, private AccountAccess $accounts, private DebtAccess $debts, private CursorPort $cursor, private ExchangeMarket $market)
     {
     }
 
@@ -82,7 +83,11 @@ final readonly class TransferQueries
         $receiver = $this->user($t->receiverId);
         $canEdit = 'MANUAL' === $t->type && !$t->isDeleted && $t->createdById === $viewerId && $sender['isActive'] && $receiver['isActive'];
 
-        return ['id' => $t->id, 'connectId' => $t->connectId, 'sender' => $sender, 'receiver' => $receiver, 'currency' => $t->currency, 'manualRate' => $t->manualRate, 'rateCurrency' => $t->rateCurrency, 'creditedAmount' => $t->creditedAmount, 'excessAmount' => $t->excessAmount, 'remainingAmount' => 'DEBT_SHARE' === $t->type ? $t->amount - $t->creditedAmount : null, 'amount' => $t->amount, 'type' => $t->type, 'createdBy' => null === $t->createdById ? null : $this->user($t->createdById), 'debtReference' => null === $t->debtId ? null : $this->debts->reference($t->debtId, $viewerId), 'relatedTransferId' => $t->relatedTransferId, 'isDeleted' => $t->isDeleted, 'canEdit' => $canEdit, 'canDelete' => $canEdit, 'version' => $t->version, 'createdAt' => $t->createdAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z')];
+        $viewerCurrency = $this->accounts->find($viewerId)?->currency ?? 'EUR';
+        $share = null === $t->relatedTransferId ? null : $this->repository->find($t->relatedTransferId);
+        $applied = $this->market->cardEquivalent($t->amount, $t->currency, $viewerCurrency, $t->manualRate, $t->rateCurrency);
+
+        return ['viewerCurrency' => $viewerCurrency, 'equivalentAmount' => $applied, 'shareCurrency' => $share?->currency, 'shareRemainingAmount' => null === $share || $share->isDeleted ? null : $share->amount - $share->creditedAmount, 'settlementRate' => $t->settlementRate, 'id' => $t->id, 'connectId' => $t->connectId, 'sender' => $sender, 'receiver' => $receiver, 'currency' => $t->currency, 'manualRate' => $t->manualRate, 'rateCurrency' => $t->rateCurrency, 'creditedAmount' => $t->creditedAmount, 'excessAmount' => $t->excessAmount, 'remainingAmount' => 'DEBT_SHARE' === $t->type ? $t->amount - $t->creditedAmount : null, 'amount' => $t->amount, 'type' => $t->type, 'createdBy' => null === $t->createdById ? null : $this->user($t->createdById), 'debtReference' => null === $t->debtId ? null : $this->debts->reference($t->debtId, $viewerId), 'relatedTransferId' => $t->relatedTransferId, 'isDeleted' => $t->isDeleted, 'canEdit' => $canEdit, 'canDelete' => $canEdit, 'version' => $t->version, 'createdAt' => $t->createdAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z')];
     }
 
     private static function isUuid(string $id): bool

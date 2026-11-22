@@ -71,6 +71,6 @@ final readonly class ShareService implements AutomaticShares
 
     public function forDebt(string $debtId): array
     {
-        return $this->repository->sharesForDebt($debtId);
+        return $this->repository->shareBalances($debtId);
     }
 }

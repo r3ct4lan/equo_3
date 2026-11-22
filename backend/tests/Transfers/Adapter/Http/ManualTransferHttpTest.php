@@ -338,6 +338,46 @@ final class ManualTransferHttpTest extends WebTestCase
         self::assertFalse((bool) $this->db->fetchOne('SELECT is_deleted FROM transfer WHERE id=?', [$manual['id']]));
     }
 
+    public function testMissingQuoteFailsSummaryAndRollsBackLinkedPayment(): void
+    {
+        $key = static fn (): string => Uuid::v4()->toRfc4122();
+        $expense = ['title' => 'Offline currency', 'totalAmount' => 2000, 'payerId' => $this->users[0], 'participantIds' => [$this->users[1]], 'includePayerInSplit' => false];
+        $this->request('POST', '/api/v1/debts', 0, $expense, $key());
+        self::assertResponseStatusCodeSame(201);
+        $this->request('POST', '/api/v1/debts', 0, $expense + ['currency' => 'CAD'], $key());
+        self::assertResponseStatusCodeSame(201);
+        $share = $this->body()['participants'][0]['transferId'];
+        $this->request('GET', '/api/v1/transfers/balance-summary', 1);
+        $this->failure(503, 'EXCHANGE_RATE_UNAVAILABLE');
+        self::assertArrayNotHasKey('totalOwedAmount', $this->body());
+        $this->request('POST', '/api/v1/connects/'.$this->connect().'/transfers', 1, $this->command() + ['relatedTransferId' => $share], $key());
+        $this->failure(503, 'EXCHANGE_RATE_UNAVAILABLE');
+        self::assertSame(0, (int) $this->db->fetchOne('SELECT COUNT(*) FROM transfer WHERE related_transfer_id=?', [$share]));
+    }
+
+    public function testViewerBalanceFollowsOnlyOpenExposureAndUsesPairSpecificRates(): void
+    {
+        $key = static fn (): string => Uuid::v4()->toRfc4122();
+        $expense = ['title' => 'Dinar meal', 'totalAmount' => 240000, 'currency' => 'RSD', 'payerId' => $this->users[0], 'participantIds' => [$this->users[1]], 'includePayerInSplit' => true];
+        $this->request('POST', '/api/v1/debts', 0, $expense, $key());
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body();
+        $share = $debt['participants'][0]['transferId'] ?? $debt['participants'][1]['transferId'];
+        $balance = '/api/v1/connects/'.$this->connect();
+        $this->request('GET', $balance, 1);
+        self::assertSame(-960, $this->body()['balanceAmount']);
+        $this->db->executeStatement("UPDATE currency_market SET rates = jsonb_set(rates, '{RSD,value}', to_jsonb('120'::text))");
+        $this->request('GET', $balance, 1);
+        self::assertSame(-1000, $this->body()['balanceAmount']);
+        $this->request('POST', $balance.'/transfers', 1, [...$this->command(), 'amount' => 1040, 'relatedTransferId' => $share], $key());
+        self::assertResponseStatusCodeSame(201);
+        $this->db->update('app_user', ['currency' => 'RSD'], ['id' => $this->users[0]]);
+        $this->request('GET', $balance, 0);
+        self::assertSame(-4800, $this->body()['balanceAmount']);
+        $this->request('GET', $balance, 1);
+        self::assertSame(40, $this->body()['balanceAmount']);
+    }
+
     public function testPartialCrossCurrencyPaymentsAndCorrections(): void
     {
         $key = static fn (): string => Uuid::v4()->toRfc4122();
