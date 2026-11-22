@@ -3085,3 +3085,48 @@ test('home dashboard separates debts, shows five recent expenses and clears on l
     await expectNoPersistentSecrets(page, [ownerAccess, ...peers.map(peer => peer.access), testPassword])
   }
 })
+
+for (const correctRate of [false, true]) {
+  test(correctRate ? 'correct a repayment rate and remove the overpayment' : 'repay a dinar expense in two currencies', async ({ page, request }) => {
+    const payerEmail = await createActiveUser(request, uniqueEmail('currency-payer'))
+    const peerEmail = await createActiveUser(request, uniqueEmail('currency-peer'))
+    const payer = await loginViaApi(request, payerEmail)
+    const peer = await loginViaApi(request, peerEmail)
+    const payerId = await profileId(request, payer)
+    const peerId = await profileId(request, peer)
+    const connect = await connectForTelegramScenario(request, payer, peer)
+    const created = await request.post(baseUrl + '/api/v1/debts', {
+      headers: { 'Authorization': 'Bearer ' + payer, 'Idempotency-Key': randomUUID() },
+      data: { title: 'Dinar dinner', totalAmount: 240000, currency: 'RSD', payerId, participantIds: [peerId], includePayerInSplit: true }
+    })
+    expect(created.status()).toBe(201)
+    const debt = await created.json()
+    expect(debt.shareAmount).toBe(120000)
+    const relatedTransferId = debt.participants.find((p: { user: { id: string } }) => p.user.id === peerId).transferId
+    const payment = { receiverId: payerId, senderId: peerId, relatedTransferId, currency: 'EUR', amount: correctRate ? 1000 : 480 }
+    const path = baseUrl + '/api/v1/connects/' + connect + '/transfers'
+    const first = await request.post(path, {
+      headers: { 'Authorization': 'Bearer ' + peer, 'Idempotency-Key': randomUUID() }, data: payment
+    })
+    expect(first.status()).toBe(201)
+    if (correctRate) {
+      const transfer = await first.json()
+      expect(transfer.excessAmount).toBe(40)
+      const changed = await request.put(baseUrl + '/api/v1/transfers/' + transfer.id, {
+        headers: { 'Authorization': 'Bearer ' + peer, 'If-Match': '"1"' }, data: { ...payment, manualRate: '120' }
+      })
+      expect(changed.status()).toBe(200)
+      expect((await changed.json()).excessAmount).toBe(0)
+    }
+    else {
+      const second = await request.post(path, {
+        headers: { 'Authorization': 'Bearer ' + peer, 'Idempotency-Key': randomUUID() },
+        data: { ...payment, currency: 'RSD', amount: 60000 }
+      })
+      expect(second.status()).toBe(201)
+    }
+    await login(page, peerEmail)
+    await page.goto('/connects/' + connect)
+    await expect(page.locator('.connect-balance__amount')).toHaveText('€0.00')
+  })
+}

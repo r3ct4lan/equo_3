@@ -8,10 +8,10 @@ use DateTimeImmutable;
 
 interface AutomaticShares
 {
-    public function create(string $connectId, string $payerId, string $receiverId, int $amount, string $debtId, string $participantId, DateTimeImmutable $createdAt): string;
+    public function create(string $connectId, string $payerId, string $receiverId, int $amount, string $debtId, string $participantId, DateTimeImmutable $createdAt, string $currency = 'EUR'): string;
 
     /** @param list<array{participantId:string,userId:string,isDeleted:bool}> $participants */
-    public function recalculate(string $debtId, string $payerId, array $participants, int $amount, DateTimeImmutable $now): void;
+    public function recalculate(string $debtId, string $payerId, array $participants, int $amount, DateTimeImmutable $now, string $currency = 'EUR'): void;
 
     public function removeForDebt(string $debtId): void;
 

@@ -14,7 +14,7 @@ final readonly class CreateManualTransferCommand
     public string $receiverId;
     public string $idempotencyKey;
 
-    public function __construct(string $connectId, string $senderId, string $receiverId, public int $amount, string $idempotencyKey, public ?string $relatedTransferId = null)
+    public function __construct(string $connectId, string $senderId, string $receiverId, public int $amount, string $idempotencyKey, public ?string $relatedTransferId = null, public ?string $currency = null, public ?string $manualRate = null)
     {
         foreach ([$connectId, $senderId, $receiverId, $idempotencyKey] as $id) {
             if (!self::isUuid($id)) {
@@ -40,6 +40,13 @@ final readonly class CreateManualTransferCommand
         $data = ['connectId' => $this->connectId, 'senderId' => $this->senderId, 'receiverId' => $this->receiverId, 'amount' => $this->amount];
         if (null !== $this->relatedTransferId) {
             $data['relatedTransferId'] = strtolower($this->relatedTransferId);
+        }
+
+        if (null !== $this->currency) {
+            $data['currency'] = $this->currency;
+        }
+        if (null !== $this->manualRate) {
+            $data['manualRate'] = $this->manualRate;
         }
 
         return json_encode($data, JSON_THROW_ON_ERROR);

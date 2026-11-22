@@ -119,6 +119,22 @@ final class ManualTransferHttpTest extends WebTestCase
         return $this->body();
     }
 
+    public function testManualCurrencyAndRateRemainAttachedToOriginalPayment(): void
+    {
+        $body = $this->command() + ['currency' => 'USD', 'manualRate' => '0.9'];
+        $this->request('POST', '/api/v1/connects/'.$this->connect().'/transfers', 0, $body, Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $path = '/api/v1/transfers/'.$this->body()['id'];
+        $this->request('GET', $path);
+        self::assertSame('USD', $this->body()['currency']);
+        self::assertSame('EUR', $this->body()['rateCurrency']);
+        $this->request('PUT', $path, 0, array_replace($body, ['manualRate' => '0.95']), etag: '"1"');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('0.95', $this->body()['manualRate']);
+        $this->request('PUT', $path, 0, array_replace($body, ['currency' => 'RSD']), etag: '"2"');
+        $this->failure(422, 'VALIDATION_ERROR');
+    }
+
     public function testBothDirectionsAuthorsReplayAndOverpayment(): void
     {
         $connect = $this->connect();

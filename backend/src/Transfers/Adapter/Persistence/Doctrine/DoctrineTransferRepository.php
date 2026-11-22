@@ -13,6 +13,9 @@ use RuntimeException;
 
 final readonly class DoctrineTransferRepository implements TransferRepositoryPort
 {
+    // Automatic shares use the expense's current manual quote, including rate-only edits.
+    private const string PROJECTION = 'SELECT t.*, CASE WHEN d.id IS NULL THEN t.manual_rate ELSE d.manual_rate END AS applied_manual_rate, CASE WHEN d.id IS NULL THEN t.rate_currency ELSE d.rate_currency END AS applied_rate_currency FROM transfer t LEFT JOIN debt d ON d.id=t.debt_id';
+
     public function __construct(private Connection $db)
     {
     }
@@ -62,21 +65,21 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
 
     public function find(string $id, bool $forUpdate = false): ?Transfer
     {
-        $row = $this->db->fetchAssociative('SELECT * FROM transfer WHERE id=? AND NOT hidden_by_merge'.($forUpdate ? ' FOR UPDATE' : ''), [$id]);
+        $row = $this->db->fetchAssociative(self::PROJECTION.' WHERE t.id=? AND NOT t.hidden_by_merge'.($forUpdate ? ' FOR UPDATE OF t' : ''), [$id]);
 
         return false === $row ? null : $this->map($row);
     }
 
     public function page(string $connectId, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array
     {
-        $sql = 'SELECT * FROM transfer WHERE connect_id=:connect AND NOT hidden_by_merge';
+        $sql = self::PROJECTION.' WHERE t.connect_id=:connect AND NOT t.hidden_by_merge';
         $params = ['connect' => $connectId];
         if (null !== $before) {
-            $sql .= ' AND (created_at,id) < (:before,:id)';
+            $sql .= ' AND (t.created_at,t.id) < (:before,:id)';
             $params['before'] = $before->format('Y-m-d H:i:sP');
             $params['id'] = $beforeId;
         }
-        $sql .= ' ORDER BY created_at DESC,id DESC LIMIT '.(int) $limit;
+        $sql .= ' ORDER BY t.created_at DESC,t.id DESC LIMIT '.(int) $limit;
 
         return array_map($this->map(...), $this->db->fetchAllAssociative($sql, $params));
     }
@@ -87,7 +90,7 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
             throw new InvalidArgumentException('Invalid transfer direction.');
         }
         $side = 'incoming' === $direction ? 'receiver_id' : 'sender_id';
-        $sql = 'SELECT t.* FROM transfer t INNER JOIN connect c ON c.id=t.connect_id WHERE NOT t.hidden_by_merge AND t.'.$side.'=:viewer AND (c.first_user_id=:viewer OR c.second_user_id=:viewer)';
+        $sql = self::PROJECTION.' INNER JOIN connect c ON c.id=t.connect_id WHERE NOT t.hidden_by_merge AND t.'.$side.'=:viewer AND (c.first_user_id=:viewer OR c.second_user_id=:viewer)';
         $params = ['viewer' => $userId];
         if (null !== $before) {
             $sql .= ' AND (t.created_at,t.id) < (:before,:id)';
@@ -102,12 +105,12 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
     /** @param array<string,mixed> $row */
     private function map(array $row): Transfer
     {
-        return new Transfer((string) $row['id'], (string) $row['connect_id'], (string) $row['sender_id'], (string) $row['receiver_id'], (int) $row['amount'], (string) $row['type'], null === $row['created_by_id'] ? null : (string) $row['created_by_id'], new DateTimeImmutable((string) $row['created_at']), null === $row['debt_id'] ? null : (string) $row['debt_id'], null === $row['debt_participant_id'] ? null : (string) $row['debt_participant_id'], null === $row['related_transfer_id'] ? null : (string) $row['related_transfer_id'], (bool) $row['is_deleted'], (int) $row['version']);
+        return new Transfer((string) $row['id'], (string) $row['connect_id'], (string) $row['sender_id'], (string) $row['receiver_id'], (int) $row['amount'], (string) $row['type'], null === $row['created_by_id'] ? null : (string) $row['created_by_id'], new DateTimeImmutable((string) $row['created_at']), null === $row['debt_id'] ? null : (string) $row['debt_id'], null === $row['debt_participant_id'] ? null : (string) $row['debt_participant_id'], null === $row['related_transfer_id'] ? null : (string) $row['related_transfer_id'], (bool) $row['is_deleted'], (int) $row['version'], $row['currency'], $row['applied_manual_rate'], $row['applied_rate_currency']);
     }
 
     public function save(Transfer $t): void
     {
-        $this->db->insert('transfer', ['id' => $t->id, 'connect_id' => $t->connectId, 'sender_id' => $t->senderId, 'receiver_id' => $t->receiverId, 'amount' => $t->amount, 'type' => $t->type, 'created_by_id' => $t->createdById, 'created_at' => $t->createdAt->format('Y-m-d H:i:sP'), 'debt_id' => $t->debtId, 'debt_participant_id' => $t->debtParticipantId, 'related_transfer_id' => $t->relatedTransferId, 'is_deleted' => $t->isDeleted, 'version' => $t->version], ['is_deleted' => 'boolean']);
+        $this->db->insert('transfer', ['id' => $t->id, 'connect_id' => $t->connectId, 'sender_id' => $t->senderId, 'receiver_id' => $t->receiverId, 'amount' => $t->amount, 'type' => $t->type, 'created_by_id' => $t->createdById, 'created_at' => $t->createdAt->format('Y-m-d H:i:sP'), 'debt_id' => $t->debtId, 'debt_participant_id' => $t->debtParticipantId, 'currency' => $t->currency, 'manual_rate' => $t->manualRate, 'rate_currency' => $t->rateCurrency, 'related_transfer_id' => $t->relatedTransferId, 'is_deleted' => $t->isDeleted, 'version' => $t->version], ['is_deleted' => 'boolean']);
     }
 
     public function updateShare(Transfer $transfer): void
@@ -123,7 +126,7 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
         if ('MANUAL' !== $transfer->type) {
             throw new InvalidArgumentException('Only manual transfers can be persisted by this command.');
         }
-        $this->db->update('transfer', ['sender_id' => $transfer->senderId, 'receiver_id' => $transfer->receiverId, 'amount' => $transfer->amount, 'related_transfer_id' => $transfer->relatedTransferId, 'is_deleted' => $transfer->isDeleted, 'version' => $transfer->version], ['id' => $transfer->id, 'type' => 'MANUAL'], ['is_deleted' => 'boolean']);
+        $this->db->update('transfer', ['sender_id' => $transfer->senderId, 'receiver_id' => $transfer->receiverId, 'amount' => $transfer->amount, 'currency' => $transfer->currency, 'manual_rate' => $transfer->manualRate, 'rate_currency' => $transfer->rateCurrency, 'related_transfer_id' => $transfer->relatedTransferId, 'is_deleted' => $transfer->isDeleted, 'version' => $transfer->version], ['id' => $transfer->id, 'type' => 'MANUAL'], ['is_deleted' => 'boolean']);
     }
 
     public function sharesForDebt(string $debtId): array

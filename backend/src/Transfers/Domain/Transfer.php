@@ -9,7 +9,7 @@ use InvalidArgumentException;
 
 final readonly class Transfer
 {
-    public function __construct(public string $id, public string $connectId, public string $senderId, public string $receiverId, public int $amount, public string $type, public ?string $createdById, public DateTimeImmutable $createdAt, public ?string $debtId = null, public ?string $debtParticipantId = null, public ?string $relatedTransferId = null, public bool $isDeleted = false, public int $version = 1)
+    public function __construct(public string $id, public string $connectId, public string $senderId, public string $receiverId, public int $amount, public string $type, public ?string $createdById, public DateTimeImmutable $createdAt, public ?string $debtId = null, public ?string $debtParticipantId = null, public ?string $relatedTransferId = null, public bool $isDeleted = false, public int $version = 1, public string $currency = 'EUR', public ?string $manualRate = null, public ?string $rateCurrency = null)
     {
         if ($amount < 1 || $amount > 9007199254740991 || $senderId === $receiverId || $version < 1) {
             throw new InvalidArgumentException('Transfer fields are invalid.');
@@ -27,9 +27,9 @@ final readonly class Transfer
         }
     }
 
-    public static function manual(string $id, string $connectId, string $senderId, string $receiverId, int $amount, string $authorId, DateTimeImmutable $createdAt, ?string $relatedTransferId = null): self
+    public static function manual(string $id, string $connectId, string $senderId, string $receiverId, int $amount, string $authorId, DateTimeImmutable $createdAt, ?string $relatedTransferId = null, string $currency = 'EUR', ?string $manualRate = null, ?string $rateCurrency = null): self
     {
-        return new self($id, $connectId, $senderId, $receiverId, $amount, 'MANUAL', $authorId, $createdAt, relatedTransferId: $relatedTransferId);
+        return new self($id, $connectId, $senderId, $receiverId, $amount, 'MANUAL', $authorId, $createdAt, relatedTransferId: $relatedTransferId, currency: $currency, manualRate: $manualRate, rateCurrency: $rateCurrency);
     }
 
     public function recalculateShare(int $amount, bool $isDeleted): self
@@ -41,10 +41,10 @@ final readonly class Transfer
             return $this;
         }
 
-        return new self($this->id, $this->connectId, $this->senderId, $this->receiverId, $amount, $this->type, null, $this->createdAt, $this->debtId, $this->debtParticipantId, null, $isDeleted, $this->version + 1);
+        return new self($this->id, $this->connectId, $this->senderId, $this->receiverId, $amount, $this->type, null, $this->createdAt, $this->debtId, $this->debtParticipantId, null, $isDeleted, $this->version + 1, $this->currency, $this->manualRate, $this->rateCurrency);
     }
 
-    public function reviseManual(string $senderId, string $receiverId, int $amount, string $actorId, int $expectedVersion, bool $sidesActive, bool $relatedSpecified = false, ?string $relatedTransferId = null): self
+    public function reviseManual(string $senderId, string $receiverId, int $amount, string $actorId, int $expectedVersion, bool $sidesActive, bool $relatedSpecified = false, ?string $relatedTransferId = null, ?string $manualRate = null, ?string $rateCurrency = null, bool $changeRate = false): self
     {
         $this->assertManualChangeAllowed($actorId, $expectedVersion, $sidesActive);
         $oldSides = [$this->senderId, $this->receiverId];
@@ -55,18 +55,22 @@ final readonly class Transfer
             throw new ManualTransferRejected(ManualTransferFailure::InvalidSides);
         }
         $related = $relatedSpecified ? $relatedTransferId : $this->relatedTransferId;
-        if ($this->senderId === $senderId && $this->receiverId === $receiverId && $this->amount === $amount && $related === $this->relatedTransferId) {
+        if (!$changeRate) {
+            $manualRate = $this->manualRate;
+            $rateCurrency = $this->rateCurrency;
+        }
+        if ($manualRate === $this->manualRate && $rateCurrency === $this->rateCurrency && $this->senderId === $senderId && $this->receiverId === $receiverId && $this->amount === $amount && $related === $this->relatedTransferId) {
             return $this;
         }
 
-        return new self($this->id, $this->connectId, $senderId, $receiverId, $amount, $this->type, $this->createdById, $this->createdAt, null, null, $related, false, $this->version + 1);
+        return new self($this->id, $this->connectId, $senderId, $receiverId, $amount, $this->type, $this->createdById, $this->createdAt, null, null, $related, false, $this->version + 1, $this->currency, $manualRate, $rateCurrency);
     }
 
     public function removeManual(string $actorId, int $expectedVersion, bool $sidesActive): self
     {
         $this->assertManualChangeAllowed($actorId, $expectedVersion, $sidesActive);
 
-        return new self($this->id, $this->connectId, $this->senderId, $this->receiverId, $this->amount, $this->type, $this->createdById, $this->createdAt, null, null, $this->relatedTransferId, true, $this->version + 1);
+        return new self($this->id, $this->connectId, $this->senderId, $this->receiverId, $this->amount, $this->type, $this->createdById, $this->createdAt, null, null, $this->relatedTransferId, true, $this->version + 1, $this->currency, $this->manualRate, $this->rateCurrency);
     }
 
     private function assertManualChangeAllowed(string $actorId, int $expectedVersion, bool $sidesActive): void

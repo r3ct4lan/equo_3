@@ -10,7 +10,7 @@ final readonly class Money
 {
     public const int MAX_MINOR_UNITS = 2147483647;
 
-    public function __construct(public int $minorUnits, public string $currency = 'EUR')
+    public function __construct(public int $minorUnits, public string $currency = 'EUR', public ?string $manualRate = null, public ?string $rateCurrency = null)
     {
         if (1 !== preg_match('/^[A-Z]{3}$/D', $currency)) {
             throw new InvalidArgumentException('Invalid currency code.');

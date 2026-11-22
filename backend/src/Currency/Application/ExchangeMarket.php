@@ -34,6 +34,13 @@ final readonly class ExchangeMarket
         }
     }
 
+    public function validateManualRate(string $currency, string $target, ?string $rate): void
+    {
+        if (null !== $rate && ($currency === $target || 1 !== preg_match('/^\d{1,12}(?:\.\d{1,18})?$/D', $rate) || '' === trim($rate, '0.'))) {
+            throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
+        }
+    }
+
     public function quote(string $from, string $to): string
     {
         if ($from === $to) {

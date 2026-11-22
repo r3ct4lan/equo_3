@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Transfers\Application;
 
 use App\Connects\Application\Api\ConnectAccess;
+use App\Currency\Application\ExchangeMarket;
 use App\IdentityAccess\Application\Api\AccountAccess;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
@@ -14,7 +15,7 @@ use App\Transfers\Domain\ManualTransferRejected;
 
 final readonly class UpdateManualTransfer
 {
-    public function __construct(private TransferRepositoryPort $repository, private TransferRuntimePort $runtime, private AccountAccess $accounts, private ConnectAccess $connects, private TransferQueries $queries)
+    public function __construct(private TransferRepositoryPort $repository, private TransferRuntimePort $runtime, private AccountAccess $accounts, private ConnectAccess $connects, private TransferQueries $queries, private ExchangeMarket $market)
     {
     }
 
@@ -35,7 +36,14 @@ final readonly class UpdateManualTransfer
             }
             try {
                 $relatedId = null === $command->relatedTransferId ? null : strtolower($command->relatedTransferId);
-                $next = $transfer->reviseManual($command->senderId, $command->receiverId, $command->amount, $actorId, $command->expectedVersion, $sidesActive, $command->relatedSpecified, $relatedId);
+                $targetId = $command->relatedSpecified ? $relatedId : $transfer->relatedTransferId;
+                $target = null === $targetId ? null : $this->repository->find($targetId, true);
+                if (null !== $command->currency && $transfer->currency !== $command->currency) {
+                    throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
+                }
+                $targetCurrency = $target->currency ?? $transfer->rateCurrency ?? $this->accounts->find($actorId)?->currency ?? 'EUR';
+                $this->market->validateManualRate($transfer->currency, $targetCurrency, $command->manualRate);
+                $next = $transfer->reviseManual($command->senderId, $command->receiverId, $command->amount, $actorId, $command->expectedVersion, $sidesActive, $command->relatedSpecified, $relatedId, $command->manualRate, null === $command->manualRate ? null : $targetCurrency, $command->rateSpecified);
             } catch (ManualTransferRejected $e) {
                 throw ManualTransferFailureMapper::map($e, $command->expectedVersion, $transfer->version);
             }

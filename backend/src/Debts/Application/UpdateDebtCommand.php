@@ -15,7 +15,7 @@ final readonly class UpdateDebtCommand
     public DebtUpdate $changes;
 
     /** @param list<string> $participantIds */
-    public function __construct(string $debtId, string $title, ?string $description, int $amount, array $participantIds, bool $includePayerInSplit, public int $expectedVersion)
+    public function __construct(string $debtId, string $title, ?string $description, int $amount, array $participantIds, bool $includePayerInSplit, public int $expectedVersion, public ?string $currency = null, public ?string $manualRate = null, public bool $rateSpecified = false)
     {
         if (!CreateDebtCommand::isUuid($debtId) || '' === trim($title) || $amount < 1 || $amount > Money::MAX_MINOR_UNITS || $expectedVersion < 1 || $expectedVersion > 2147483647) {
             throw new ApplicationFailure(ApplicationFailureCode::ValidationError);

@@ -25,6 +25,10 @@ final readonly class UpdateDebtRequest
         #[Assert\NotNull]
         #[Assert\Type('bool')]
         public mixed $includePayerInSplit = null,
+        #[Assert\Regex('/^[A-Z]{3}$/D')]
+        public ?string $currency = null,
+        #[Assert\Regex('/^\d{1,12}(?:\.\d{1,18})?$/D')]
+        public ?string $manualRate = null,
     ) {
     }
 }
