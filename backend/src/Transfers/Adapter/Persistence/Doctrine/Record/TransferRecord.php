@@ -29,7 +29,7 @@ class TransferRecord
         #[ORM\Column(name: 'connect_id', type: Types::GUID)] private string $connectId,
         #[ORM\Column(name: 'sender_id', type: Types::GUID)] private string $senderId,
         #[ORM\Column(name: 'receiver_id', type: Types::GUID)] private string $receiverId,
-        #[ORM\Column(name: 'amount', type: Types::INTEGER)] private int $amount,
+        #[ORM\Column(name: 'amount', type: Types::BIGINT)] private int $amount,
         #[ORM\Column(name: 'type', type: Types::TEXT)] private string $type,
         #[ORM\Column(name: 'created_by_id', type: Types::GUID, nullable: true)] private ?string $createdById,
         #[ORM\Column(name: 'created_at', type: Types::DATETIMETZ_IMMUTABLE)] private DateTimeImmutable $createdAt,
@@ -38,6 +38,7 @@ class TransferRecord
         #[ORM\Column(name: 'related_transfer_id', type: Types::GUID, nullable: true)] private ?string $relatedTransferId,
         #[ORM\Column(name: 'is_deleted', type: Types::BOOLEAN, options: ['default' => false])] private bool $isDeleted = false,
         #[ORM\Column(name: 'version', type: Types::INTEGER, options: ['default' => 1])] private int $version = 1,
+        #[ORM\Column(name: 'hidden_by_merge', type: Types::BOOLEAN, options: ['default' => false])] private bool $hiddenByMerge = false,
     ) {
     }
 

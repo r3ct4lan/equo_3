@@ -1,13 +1,3 @@
 {
-  "acceptedOn": "2026-10-13",
-  "acceptedBy": "Product Owner",
-  "reviewCondition": "Reassess when npm publishes a patched version for either advisory; no periodic polling is required.",
-  "advisories": [
-    {
-      "id": "GHSA-86w9-cpqp-85rv",
-      "package": "node-forge",
-      "affectedVersions": "<=1.4.0",
-      "reason": "The latest published version is affected and the advisory has no patched version."
-    }
-  ]
+  "advisories": []
 }

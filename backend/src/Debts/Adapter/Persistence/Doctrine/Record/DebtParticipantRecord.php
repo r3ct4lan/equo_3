@@ -22,11 +22,12 @@ class DebtParticipantRecord
         #[ORM\Column(name: 'user_id', type: Types::GUID)] private string $userId,
         #[ORM\Column(name: 'created_at', type: Types::DATETIMETZ_IMMUTABLE)] private DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'is_deleted', type: Types::BOOLEAN, options: ['default' => false])] private bool $isDeleted = false,
+        #[ORM\Column(name: 'actual_share_amount', type: Types::BIGINT, nullable: true)] private ?int $actualShareAmount = null,
     ) {
     }
 
     public function toDomain(): DebtParticipant
     {
-        return new DebtParticipant($this->id, $this->debtId, $this->userId, $this->createdAt, $this->isDeleted);
+        return new DebtParticipant($this->id, $this->debtId, $this->userId, $this->createdAt, $this->isDeleted, $this->actualShareAmount);
     }
 }

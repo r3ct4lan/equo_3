@@ -26,9 +26,7 @@ final readonly class DoctrineAccountDeactivationRepository implements AccountDea
             ->getQuery()->setHint(Query::HINT_REFRESH, true)
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)->getOneOrNullResult();
 
-        return $user instanceof UserRecord
-            ? new StoredLoginIdentity($user->id(), $user->name(), $user->email(), $user->passwordHash(), $user->isActive())
-            : null;
+        return $user instanceof UserRecord ? $user->passwordIdentity() : null;
     }
 
     public function deactivate(string $userId): void

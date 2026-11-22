@@ -26,9 +26,7 @@ final readonly class DoctrinePasswordChangeRepository implements PasswordChangeR
             ->getQuery()->setHint(Query::HINT_REFRESH, true)
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)->getOneOrNullResult();
 
-        return $user instanceof UserRecord
-            ? new StoredLoginIdentity($user->id(), $user->name(), $user->email(), $user->passwordHash(), $user->isActive())
-            : null;
+        return $user instanceof UserRecord ? $user->passwordIdentity() : null;
     }
 
     public function replacePasswordHash(string $userId, string $passwordHash): void

@@ -127,6 +127,31 @@ docker compose exec frontend npm run typecheck
 docker compose exec frontend npm run build
 ```
 
+## Telegram Mini App and website sign-in
+
+Register a separate Telegram bot for each deployment. In BotFather, set its
+Main Mini App and chat menu button to the deployment's HTTPS application origin.
+Enable Telegram Login and register the exact callback URL
+`<origin>/api/v1/auth/telegram/oidc/callback`.
+[Mini App setup](https://core.telegram.org/bots/webapps#launching-mini-apps-from-the-menu-button) · [Telegram Login setup](https://core.telegram.org/bots/telegram-login#registering-your-allowed-urls)
+
+Set `EQUO_APPLICATION_ORIGIN` and `FRONTEND_BASE_URL` to the HTTPS origin with
+no trailing slash. Supply `EQUO_TELEGRAM_BOT_TOKEN`,
+`EQUO_TELEGRAM_CLIENT_ID` and `EQUO_TELEGRAM_CLIENT_SECRET` through the server
+environment. Set `NUXT_PUBLIC_TELEGRAM_BOT_USERNAME` to the bot username
+without the at sign and set `NUXT_PUBLIC_TELEGRAM_LOGIN_ENABLED=true`.
+
+Validate these settings before enabling the deployment.
+
+```bash
+docker compose run --rm --no-deps backend php bin/console app:telegram:check-configuration
+```
+
+Use `scripts/staging-compose.sh` in place of `docker compose` on the staging host.
+Browser CI uses a local OIDC transport fixture and synthetic Mini App launch
+data. After deployment, verify the profile button, chat menu button, invitation
+deep link and website login in real Telegram clients.
+
 ## Quality gate and CI
 
 `make check` is the complete local quality gate command. It covers backend style,

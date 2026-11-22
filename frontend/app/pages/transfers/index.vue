@@ -80,7 +80,7 @@ const { t } = useTranslation()
           v-if="transfer.isDeleted"
           tone="warning"
         >
-          {{ t('Removed · does not affect the balance') }}
+          {{ t('Removed') }}
         </UiNotice>
         <time :datetime="transfer.createdAt">{{ formatDateTime(new Date(transfer.createdAt), locale) }}</time>
       </UiCard>

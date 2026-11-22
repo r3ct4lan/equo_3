@@ -4,11 +4,22 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Adapter\Http;
 
+use App\IdentityAccess\Application\Login\LoginResult;
 use DateTimeImmutable;
 use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\HttpFoundation\Response;
 
 final readonly class AuthCookieFactory
 {
+    public function addLoginCookies(Response $response, LoginResult $result): void
+    {
+        $result->withCookieSecrets(function (string $refreshToken, string $csrfToken, DateTimeImmutable $expiresAt) use ($response): void {
+            foreach ($this->loginCookies($refreshToken, $csrfToken, $expiresAt) as $cookie) {
+                $response->headers->setCookie($cookie);
+            }
+        });
+    }
+
     /** @return list<Cookie> */
     public function loginCookies(string $refreshToken, string $csrfToken, DateTimeImmutable $expiresAt): array
     {

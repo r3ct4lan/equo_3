@@ -112,7 +112,7 @@ const { t } = useTranslation()
       <UiDescriptionList>
         <div>
           <dt>{{ t('Email') }}</dt>
-          <dd>{{ user.email }}</dd>
+          <dd>{{ user.email ?? t('No email added') }}</dd>
         </div>
         <div>
           <dt>{{ t('Account') }}</dt>
@@ -132,10 +132,14 @@ const { t } = useTranslation()
       v-if="user"
       :user="user"
     />
-    <EmailChangeForm v-if="user" />
-    <AccountDeactivationForm v-if="user" />
-    <UiButton
+    <CredentialSettings
       v-if="user"
+      @linked="loadProfile"
+    />
+    <EmailChangeForm v-if="user?.email" />
+    <AccountDeactivationForm v-if="user?.email" />
+    <UiButton
+      v-if="user?.email"
       compact
       variant="secondary"
       to="/account/security"

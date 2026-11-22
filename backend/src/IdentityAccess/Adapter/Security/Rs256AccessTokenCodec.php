@@ -85,7 +85,7 @@ final readonly class Rs256AccessTokenCodec implements AccessTokenIssuerPort, Acc
         }
     }
 
-    public function issue(string $userId): IssuedAccessToken
+    public function issue(string $userId, ?string $sessionId = null): IssuedAccessToken
     {
         if (!Uuid::isValid($userId)) {
             throw new InvalidArgumentException('The JWT subject is invalid.');
@@ -106,7 +106,7 @@ final readonly class Rs256AccessTokenCodec implements AccessTokenIssuerPort, Acc
         $issuedAt = $this->clock->now();
         $expiresAt = $issuedAt->modify('+'.$this->accessTtlSeconds.' seconds');
 
-        $token = $this->configuration->builder()
+        $builder = $this->configuration->builder()
             ->withHeader('typ', 'at+jwt')
             ->withHeader('kid', $this->activeKeyVersion)
             ->issuedBy($issuer)
@@ -114,8 +114,14 @@ final readonly class Rs256AccessTokenCodec implements AccessTokenIssuerPort, Acc
             ->relatedTo($userId)
             ->issuedAt($issuedAt)
             ->expiresAt($expiresAt)
-            ->identifiedBy($jwtId)
-            ->getToken($this->signer, $this->signingKey);
+            ->identifiedBy($jwtId);
+        if (null !== $sessionId) {
+            if (!Uuid::isValid($sessionId)) {
+                throw new InvalidArgumentException('The JWT session ID is invalid.');
+            }
+            $builder = $builder->withClaim('sid', $sessionId);
+        }
+        $token = $builder->getToken($this->signer, $this->signingKey);
 
         return new IssuedAccessToken($token->toString(), $this->accessTtlSeconds);
     }
@@ -163,6 +169,10 @@ final readonly class Rs256AccessTokenCodec implements AccessTokenIssuerPort, Acc
             }
         }
 
+        $sessionId = $claims->get('sid');
+        if ($claims->has('sid') && (!is_string($sessionId) || !Uuid::isValid($sessionId))) {
+            return null;
+        }
         $subject = $claims->get(RegisteredClaims::SUBJECT);
         $jwtId = $claims->get(RegisteredClaims::ID);
         $issuedAt = $claims->get(RegisteredClaims::ISSUED_AT);
@@ -193,7 +203,7 @@ final readonly class Rs256AccessTokenCodec implements AccessTokenIssuerPort, Acc
             return null;
         }
 
-        return new VerifiedAccessToken($subject, $issuedAt, $expiresAt, $jwtId);
+        return new VerifiedAccessToken($subject, $issuedAt, $expiresAt, $jwtId, is_string($sessionId) ? $sessionId : null);
     }
 
     /**

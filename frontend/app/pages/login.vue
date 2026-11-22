@@ -9,6 +9,17 @@ useHead({
 const route = useRoute()
 const { $auth } = useNuxtApp()
 const currentUser = useCurrentUser()
+const miniApp = useState('telegram-mini-app', () => false)
+const { public: config } = useRuntimeConfig()
+const telegramEnabled = computed(() => String(config.telegramLoginEnabled) === 'true' && !miniApp.value)
+const telegramMessage = computed(() => {
+  switch (route.query.telegram) {
+    case 'cancelled': return 'Telegram sign-in was cancelled'
+    case 'failed': return 'Telegram sign-in could not be completed'
+    case 'inactive': return 'Account is not active'
+    default: return null
+  }
+})
 const {
   values,
   fieldErrors,
@@ -125,17 +136,38 @@ const { t, tError } = useTranslation()
         {{ t('Sign in') }}
       </UiText>
       <UiText variant="lede">
-        {{ t('Use your activated account to continue to your Equo profile.') }}
+        {{ miniApp ? t('Close this window and reopen Equo from Telegram to sign in.') : t('Use your activated account to continue to your Equo profile.') }}
       </UiText>
       <UiText
         v-if="route.query.signedOut === '1'"
         role="status"
       >
-        {{ (route.query.passwordReset === '1' || route.query.passwordChanged === '1') ? t('Your password has been saved. Sign in with your new password.') : t('You are signed out.') }}
+        {{ route.query.deactivated === '1'
+          ? t('Your account is deactivated')
+          : (route.query.passwordReset === '1' || route.query.passwordChanged === '1') ? t('Your password has been saved. Sign in with your new password.') : t('You are signed out.') }}
       </UiText>
     </div>
 
     <UiCard
+      v-if="telegramEnabled && route.query.telegram === 'inactive'"
+      as="form"
+      class="stack"
+      action="/api/v1/auth/telegram/oidc/reactivate"
+      method="post"
+    >
+      <UiText>{{ t('Account is not active') }}</UiText>
+      <UiButton type="submit">
+        {{ t('Activate and sign in') }}
+      </UiButton>
+      <UiButton
+        variant="secondary"
+        to="/login"
+      >
+        {{ t('Cancel') }}
+      </UiButton>
+    </UiCard>
+    <UiCard
+      v-else-if="!miniApp"
       as="form"
       class="stack"
       novalidate
@@ -153,6 +185,22 @@ const { t, tError } = useTranslation()
           {{ t('Both fields are required.') }}
         </UiText>
       </div>
+
+      <template v-if="telegramEnabled">
+        <UiNotice
+          v-if="telegramMessage"
+          tone="info"
+        >
+          {{ t(telegramMessage) }}
+        </UiNotice>
+        <UiButton
+          variant="secondary"
+          to="/api/v1/auth/telegram/oidc/start"
+          external
+        >
+          {{ t('Sign in with Telegram') }}
+        </UiButton>
+      </template>
 
       <FormErrorSummary
         :title="summaryTitle"

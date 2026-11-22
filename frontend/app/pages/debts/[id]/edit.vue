@@ -65,6 +65,7 @@ const { t } = useTranslation()
     </UiButton>
     <UiButton
       variant="secondary"
+      icon="back"
       :to="'/debts/' + encodeURIComponent(String(route.params.id))"
     >
       {{ t('Back to expense') }}

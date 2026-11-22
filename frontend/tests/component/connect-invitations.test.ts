@@ -36,6 +36,8 @@ describe('Connect invitation journey', () => {
     navigation.mockReset().mockResolvedValue(undefined)
     forgetInvitation()
     takeInvitationFeedback()
+    useState('telegram-mini-app', () => false).value = false
+    Object.assign(useRuntimeConfig().public, { telegramBotUsername: '' })
     useCurrentUser().setAnonymous()
   })
 
@@ -77,6 +79,48 @@ describe('Connect invitation journey', () => {
     await flushPromises()
     expect(navigation).toHaveBeenCalledWith('/connects')
     expect(takeInvitationFeedback()).toEqual({ kind: 'success', message: 'Connection created successfully.' })
+    wrapper.unmount()
+  })
+
+  it('previews a Telegram invitation and accepts only after an explicit click', async () => {
+    signedIn()
+    const wrapper = await mountSuspended(InvitationPreview, { props: { token: 'private-invitation', explicit: true } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Alex invited you')
+    expect(auth.protectedRequest).not.toHaveBeenCalled()
+    await wrapper.findAll('button').find(button => button.text() === 'Accept invitation')!.trigger('click')
+    await flushPromises()
+
+    expect(auth.protectedRequest).toHaveBeenCalledExactlyOnceWith('/v1/connect-invitations/private-invitation/accept', { method: 'POST' })
+    expect(navigation).toHaveBeenCalledWith('/connects')
+    wrapper.unmount()
+  })
+
+  it('copies a Telegram launch link for the same invitation', async () => {
+    signedIn()
+    useState('telegram-mini-app', () => false).value = true
+    Object.assign(useRuntimeConfig().public, { telegramBotUsername: 'EquoDemoBot' })
+    const token = '00000000-0000-4000-8000-000000000001.' + 'a'.repeat(43)
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    auth.protectedRequest.mockResolvedValue({
+      token,
+      url: 'https://equo.test/connect-invitations/' + token,
+      expiresAt: preview.expiresAt,
+      created: true
+    })
+    const wrapper = await mountSuspended(CreateInvitation)
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text() === 'Copy invitation')!.trigger('click')
+    await flushPromises()
+
+    const copied = new URL(String(writeText.mock.calls[0]?.[0]))
+    expect(copied.origin + copied.pathname).toBe('https://t.me/EquoDemoBot')
+    const startParam = copied.searchParams.get('startapp') ?? ''
+    expect(startParam).toMatch(/^invite_[A-Za-z0-9_-]+$/)
+    expect(atob(startParam.slice(7).replaceAll('-', '+').replaceAll('_', '/'))).toBe(token)
     wrapper.unmount()
   })
 

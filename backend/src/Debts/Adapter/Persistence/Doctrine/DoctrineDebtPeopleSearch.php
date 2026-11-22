@@ -19,15 +19,15 @@ final readonly class DoctrineDebtPeopleSearch implements DebtPeopleSearchPort
         $sql = <<<'SQL'
             WITH candidates AS (
               SELECT u.id, u.name, u.is_active,
-                EXISTS (SELECT 1 FROM connect c WHERE (c.first_user_id=:viewer AND c.second_user_id=u.id) OR (c.second_user_id=:viewer AND c.first_user_id=u.id)) AS connected,
+                EXISTS (SELECT 1 FROM connect c WHERE NOT c.hidden_by_merge AND ((c.first_user_id=:viewer AND c.second_user_id=u.id) OR (c.second_user_id=:viewer AND c.first_user_id=u.id))) AS connected,
                 u.email
               FROM app_user u
               WHERE u.id=:viewer OR (u.is_active=true AND (
-                EXISTS (SELECT 1 FROM connect c WHERE (c.first_user_id=:viewer AND c.second_user_id=u.id) OR (c.second_user_id=:viewer AND c.first_user_id=u.id)) OR
+                EXISTS (SELECT 1 FROM connect c WHERE NOT c.hidden_by_merge AND ((c.first_user_id=:viewer AND c.second_user_id=u.id) OR (c.second_user_id=:viewer AND c.first_user_id=u.id))) OR
                 EXISTS (SELECT 1 FROM debt d JOIN debt_participant p ON p.debt_id=d.id AND p.user_id=u.id AND p.is_deleted=false
-                  WHERE d.is_deleted=false AND (d.created_by_id=:viewer OR d.payer_id=:viewer OR EXISTS
+                  WHERE NOT d.hidden_by_merge AND d.is_deleted=false AND (d.created_by_id=:viewer OR d.payer_id=:viewer OR EXISTS
                     (SELECT 1 FROM debt_participant own WHERE own.debt_id=d.id AND own.user_id=:viewer AND own.is_deleted=false)))
-              )) OR (CAST(:debt AS uuid) IS NOT NULL AND EXISTS (SELECT 1 FROM debt_participant current_part WHERE current_part.debt_id=CAST(:debt AS uuid) AND current_part.user_id=u.id AND current_part.is_deleted=false))
+              )) OR (CAST(:debt AS uuid) IS NOT NULL AND EXISTS (SELECT 1 FROM debt_participant current_part JOIN debt opened ON opened.id = current_part.debt_id AND NOT opened.hidden_by_merge WHERE current_part.debt_id=CAST(:debt AS uuid) AND current_part.user_id=u.id AND current_part.is_deleted=false))
             )
             SELECT id, name, is_active, CASE WHEN connected THEN email ELSE NULL END AS visible_email, lower(name) AS sort_name
             FROM candidates

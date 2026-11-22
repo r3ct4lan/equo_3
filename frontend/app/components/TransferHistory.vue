@@ -50,7 +50,7 @@ const { t } = useTranslation()
           v-if="transfer.isDeleted"
           tone="warning"
         >
-          {{ t('Removed · does not affect the balance') }}
+          {{ t('Removed') }}
         </UiNotice>
         <UiLink
           v-if="transfer.debtReference?.isAccessible"

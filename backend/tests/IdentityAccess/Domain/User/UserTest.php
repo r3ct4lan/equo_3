@@ -34,6 +34,23 @@ final class UserTest extends TestCase
         }
     }
 
+    public function testVerifiedTelegramAccountStartsActiveWithoutEmailOrPassword(): void
+    {
+        $user = User::registerWithTelegram(
+            '00000000-0000-4000-8000-000000000002',
+            'Ada',
+            4294967297,
+            new DateTimeImmutable('2026-11-21T10:00:00Z'),
+            'ru',
+        );
+
+        self::assertTrue($user->isActive());
+        self::assertSame(4294967297, $user->telegramId);
+        self::assertNull($user->email);
+        self::assertNull($user->passwordHash);
+        self::assertSame('ru', $user->locale);
+    }
+
     public function testBlankNameIsRejected(): void
     {
         $this->expectException(DomainException::class);

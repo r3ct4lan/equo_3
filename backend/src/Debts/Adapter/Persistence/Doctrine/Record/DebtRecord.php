@@ -28,6 +28,7 @@ class DebtRecord
         #[ORM\Column(name: 'created_at', type: Types::DATETIMETZ_IMMUTABLE)] private DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'is_deleted', type: Types::BOOLEAN, options: ['default' => false])] private bool $isDeleted = false,
         #[ORM\Column(name: 'version', type: Types::INTEGER, options: ['default' => 1])] private int $version = 1,
+        #[ORM\Column(name: 'hidden_by_merge', type: Types::BOOLEAN, options: ['default' => false])] private bool $hiddenByMerge = false,
     ) {
     }
 

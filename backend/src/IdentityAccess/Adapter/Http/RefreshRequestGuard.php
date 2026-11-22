@@ -38,7 +38,7 @@ final readonly class RefreshRequestGuard
         return $this->validateCredentials($request, $request->cookies->getString('equo_refresh'));
     }
 
-    private function validateCredentials(Request $request, string $refreshToken): RefreshRequestCredentials
+    public function validateOrigin(Request $request): void
     {
         if ($request->headers->get('Origin') !== $this->applicationOrigin) {
             throw new ApplicationFailure(ApplicationFailureCode::Forbidden);
@@ -48,6 +48,11 @@ final readonly class RefreshRequestGuard
         if (null !== $fetchSite && !in_array($fetchSite, ['same-origin', 'none'], true)) {
             throw new ApplicationFailure(ApplicationFailureCode::Forbidden);
         }
+    }
+
+    private function validateCredentials(Request $request, string $refreshToken): RefreshRequestCredentials
+    {
+        $this->validateOrigin($request);
 
         $csrfCookie = $request->cookies->getString('__Host-equo_csrf');
         $csrfHeader = $request->headers->get('X-CSRF-Token', '');

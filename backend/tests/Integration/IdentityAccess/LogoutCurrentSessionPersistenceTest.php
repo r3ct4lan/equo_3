@@ -207,7 +207,7 @@ final class LogoutCurrentSessionPersistenceTest extends KernelTestCase
             $this->refreshTokenCodec,
             $this->csrfTokenCodec,
             new class implements AccessTokenIssuerPort {
-                public function issue(string $userId): IssuedAccessToken
+                public function issue(string $userId, ?string $sessionId = null): IssuedAccessToken
                 {
                     return new IssuedAccessToken('access-for-'.$userId, 900);
                 }

@@ -10,7 +10,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 final readonly class AuthenticatedUser implements UserInterface
 {
-    public function __construct(private UserView $profile)
+    public function __construct(private UserView $profile, public ?string $sessionId = null)
     {
     }
 

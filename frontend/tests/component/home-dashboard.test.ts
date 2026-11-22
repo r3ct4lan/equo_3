@@ -41,6 +41,7 @@ describe('home dashboard', () => {
     auth.retryBootstrap.mockReset().mockResolvedValue(undefined)
     api.mockReset()
     signedIn()
+    useState('telegram-mini-app', () => false).value = false
   })
 
   it('shows guest actions without a health panel or any financial requests', async () => {
@@ -69,6 +70,26 @@ describe('home dashboard', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Your session could not be checked')
     expect(wrapper.text()).not.toContain('private details')
+    await wrapper.get('button').trigger('click')
+    expect(auth.retryBootstrap).toHaveBeenCalledOnce()
+    expect(auth.protectedRequest).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('offers a Telegram retry without displaying another account during a failed launch', async () => {
+    useState('telegram-mini-app', () => false).value = true
+    const wrapper = await mountSuspended(HomePage)
+    useCurrentUser().setError(new ApiClientError({
+      kind: 'api',
+      status: 401,
+      code: 'TELEGRAM_AUTHENTICATION_FAILED',
+      message: 'private launch details'
+    }))
+    await flushPromises()
+    auth.protectedRequest.mockClear()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('Telegram sign-in could not be completed')
+    expect(wrapper.text()).not.toMatch(/Your overview|private launch details/)
     await wrapper.get('button').trigger('click')
     expect(auth.retryBootstrap).toHaveBeenCalledOnce()
     expect(auth.protectedRequest).not.toHaveBeenCalled()
@@ -136,7 +157,7 @@ describe('home dashboard', () => {
     expect(wrapper.get('a[href="/debts"]').text()).toBe('View all')
     expect(wrapper.get('a[href="/debts/expense-0"]').text()).toBe('Dinner 0')
     expect(wrapper.get('time').attributes('datetime')).toBe('2026-10-18T12:00:00Z')
-    expect(wrapper.text()).toContain('18 Oct 2026')
+    expect(wrapper.get('time').text()).toBe(new Date().getUTCFullYear() === 2026 ? '18 Oct' : '18 Oct 2026')
     expect(wrapper.text()).toContain('Paid by Boris')
     expect(wrapper.text()).toContain('€10.01')
     expect(wrapper.text()).not.toMatch(/Sign in|Create an account|API connection/)

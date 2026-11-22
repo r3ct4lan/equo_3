@@ -86,6 +86,19 @@ describe('debt editing and actual response ETag', () => {
     expect(wrapper.emitted('saved')).toHaveLength(1)
     wrapper.unmount()
   })
+  it('preserves unequal merged shares for a rename and previews an equal split for an amount change', async () => {
+    const merged = { ...debt, totalAmount: 6000, shareAmount: null }
+    const wrapper = await mountSuspended(EditDebtForm, { props: { debt: merged, etag: '"7"' } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('Current shares will stay the same.')
+    expect(wrapper.text()).not.toContain('Each share:')
+    await wrapper.get('#edit-title').setValue('Renamed')
+    expect(wrapper.text()).toContain('Current shares will stay the same.')
+    await wrapper.get('#edit-amount').setValue('90.00')
+    expect(wrapper.text()).toContain('Each share: €30.00')
+    expect(wrapper.text()).not.toContain('Current shares will stay the same.')
+    wrapper.unmount()
+  })
   it.each([
     [409, 'VERSION_CONFLICT', 'Someone changed this expense'],
     [null, 'NETWORK_ERROR', 'The result is not confirmed'],

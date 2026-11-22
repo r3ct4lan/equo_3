@@ -129,7 +129,7 @@ final class LoginUserPersistenceTest extends KernelTestCase
 
         try {
             $this->login(accessTokenIssuer: new class implements AccessTokenIssuerPort {
-                public function issue(string $userId): IssuedAccessToken
+                public function issue(string $userId, ?string $sessionId = null): IssuedAccessToken
                 {
                     throw new RuntimeException('Controlled access token failure.');
                 }
@@ -149,7 +149,7 @@ final class LoginUserPersistenceTest extends KernelTestCase
             new IssueUserSession(
                 new DoctrineUserSessionRepository($this->entityManager),
                 $accessTokenIssuer ?? new class implements AccessTokenIssuerPort {
-                    public function issue(string $userId): IssuedAccessToken
+                    public function issue(string $userId, ?string $sessionId = null): IssuedAccessToken
                     {
                         return new IssuedAccessToken('access-for-'.$userId, 900);
                     }

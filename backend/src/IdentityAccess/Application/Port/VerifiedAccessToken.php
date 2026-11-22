@@ -13,6 +13,7 @@ final readonly class VerifiedAccessToken
         public DateTimeImmutable $issuedAt,
         public DateTimeImmutable $expiresAt,
         public string $jwtId,
+        public ?string $sessionId = null,
     ) {
     }
 }

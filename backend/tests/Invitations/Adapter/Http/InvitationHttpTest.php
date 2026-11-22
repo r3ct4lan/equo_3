@@ -7,6 +7,8 @@ namespace App\Tests\Invitations\Adapter\Http;
 use App\IdentityAccess\Application\Port\AccessTokenIssuerPort;
 use App\Infrastructure\EmailDelivery\Persistence\Doctrine\Record\EmailDeliveryOutboxRecord;
 use App\Infrastructure\EmailDelivery\Security\PayloadCipher;
+use App\Infrastructure\Persistence\Doctrine\DoctrineMergeLedger;
+use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -234,6 +236,51 @@ final class InvitationHttpTest extends WebTestCase
     {
         $this->client->request('POST', '/api/v1/connect-invitations', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$this->access[0], 'CONTENT_TYPE' => 'application/json'], content: '{}');
         $this->failure(400, 'INVALID_REQUEST');
+    }
+
+    public function testBothInvitationsSurviveMergeAndPendingRegistrationContinues(): void
+    {
+        $this->request('POST', '/api/v1/connect-invitations', $this->access[0]);
+        self::assertResponseStatusCodeSame(200);
+        $primary = $this->body();
+        $this->request('POST', '/api/v1/connect-invitations', $this->access[1]);
+        self::assertResponseStatusCodeSame(200);
+        $joined = $this->body();
+        self::assertIsString($primary['token']);
+        self::assertIsString($joined['token']);
+        $this->registerInvited($joined['token'], Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $userId = $this->body()['user']['id'];
+        self::assertIsString($userId);
+
+        (new DoctrineMergeLedger($this->db))->apply($this->users[0], $this->users[1], new DateTimeImmutable());
+
+        foreach ([$primary, $joined] as $invite) {
+            $this->request('GET', '/api/v1/connect-invitations/'.$invite['token']);
+            self::assertResponseStatusCodeSame(200);
+            self::assertSame($this->users[0], $this->body()['inviter']['id']);
+            self::assertSame($invite['expiresAt'], $this->body()['expiresAt']);
+        }
+        $this->request('POST', '/api/v1/connect-invitations', $this->access[0]);
+        self::assertFalse($this->body()['created']);
+        $reused = $this->body()['token'];
+        self::assertTrue($reused === $primary['token'] || $reused === $joined['token']);
+        $this->request('POST', '/api/v1/connect-invitations', $this->access[0]);
+        self::assertTrue($reused === $this->body()['token']);
+
+        $access = $this->activateInvited($userId);
+        $this->request('POST', '/api/v1/connect-invitations/pending/accept', $access);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($this->users[0], $this->body()['otherUser']['id']);
+        $this->request('POST', '/api/v1/connect-invitations/'.$joined['token'].'/accept', $access);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('confirmed', $this->body()['invitationOutcome']);
+
+        $this->request('POST', '/api/v1/connect-invitations/'.$primary['token'].'/accept', $this->access[2]);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($this->users[0], $this->body()['otherUser']['id']);
+        $this->request('POST', '/api/v1/connect-invitations/'.$primary['token'].'/accept', $access);
+        $this->failure(410, 'TOKEN_USED');
     }
 
     public function testRegistrationBindsInvitationWithoutConsumingItAndActivatedUserAcceptsExactlyOnce(): void

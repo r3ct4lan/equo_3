@@ -7,7 +7,7 @@ export interface DebtSummary {
   totalAmount: number
   payer: BriefUser
   participantCount: number
-  shareAmount: number
+  shareAmount: number | null
   canEdit: boolean
   isDeleted: boolean
   version: number

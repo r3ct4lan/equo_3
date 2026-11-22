@@ -152,6 +152,7 @@ const { t } = useTranslation()
     </UiButton>
     <UiButton
       variant="secondary"
+      icon="back"
       to="/connects"
     >
       {{ t('Your connections') }}

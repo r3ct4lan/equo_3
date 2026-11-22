@@ -38,7 +38,7 @@ final class RegisterUserTest extends TestCase
         $repository->expects(self::once())->method('addRegistration')->willReturnCallback(
             static function (User $user, UserActionToken $token, ?string $pendingInvitationId) use ($now): void {
                 self::assertSame('00000000-0000-4000-8000-000000000001', $user->id);
-                self::assertSame('user.one+e1@example.test', $user->email->value);
+                self::assertSame('user.one+e1@example.test', $user->email?->value);
                 self::assertFalse($user->isActive());
                 self::assertSame($user->id, $token->userId);
                 self::assertEquals($now->modify('+24 hours'), $token->expiresAt);

@@ -30,7 +30,7 @@ final readonly class IssueUserSession
         $issuedRefreshToken = $this->refreshTokenCodec->issueForSession($sessionId);
         $session = UserSession::create($sessionId, $user->id, $issuedRefreshToken->tokenHash, $now);
         $this->sessionRepository->add($session);
-        $issuedAccessToken = $this->accessTokenIssuer->issue($user->id);
+        $issuedAccessToken = $this->accessTokenIssuer->issue($user->id, $sessionId);
         $csrfToken = $this->csrfTokenCodec->issue($sessionId);
 
         return new LoginResult(

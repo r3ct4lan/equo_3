@@ -33,5 +33,7 @@ export interface AuthSession {
   logoutAll: () => Promise<void>
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
   deactivateAccount: (currentPassword: string) => Promise<void>
+  deactivateWithTelegram: () => Promise<void>
+  reactivateTelegram: () => Promise<void>
   resetPassword: (token: string, newPassword: string) => Promise<void>
 }

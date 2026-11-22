@@ -9,13 +9,13 @@ final readonly class LoginUserView
     public function __construct(
         public string $id,
         public string $name,
-        public string $email,
+        public ?string $email,
         public bool $isActive,
         public string $locale = 'en',
     ) {
     }
 
-    /** @return array{id: string, name: string, email: string, isActive: bool, locale: string} */
+    /** @return array{id: string, name: string, email: ?string, isActive: bool, locale: string} */
     public function toArray(): array
     {
         return [

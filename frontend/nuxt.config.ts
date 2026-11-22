@@ -3,16 +3,21 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineNuxtConfig({
 
   modules: ['shadcn-nuxt'],
+  components: [{ path: '~/components', ignore: ['ui/**'] }],
   devtools: { enabled: true }, app: { head: { script: [{ src: '/theme-init.js' }] } },
   css: ['~/assets/css/tailwind.css', '~/assets/css/vars.css', '~/assets/css/main.css', '~/assets/css/multiselect.css'],
   vue: { optionsApi: true },
   runtimeConfig: {
     apiInternalBase: '',
     public: {
-      apiBase: '/api'
+      apiBase: '/api',
+      telegramLoginEnabled: false,
+      telegramBotUsername: ''
     }
   },
   routeRules: {
+    '/account/link-email': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
+    '/account/merge': { headers: { 'cache-control': 'no-store' } },
     '/connect-invitations/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } }
   },
   compatibilityDate: '2026-07-26',

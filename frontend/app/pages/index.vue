@@ -3,10 +3,30 @@ import type { ConnectView } from '~/types/connects'
 
 useHead({ title: 'Equo' })
 const { state } = useCurrentUser()
+const isTelegramMiniApp = useState('telegram-mini-app', () => false)
 const { $auth } = useNuxtApp()
 const { items, pending, loaded, error, load } = useFinancialList<ConnectView>(
   () => '/v1/connects', () => ({ limit: '1' })
 )
+
+const telegramInactive = computed(() => isTelegramMiniApp.value && state.value.error?.code === 'ACCOUNT_INACTIVE')
+const reactivating = ref(false)
+const reactivationFailed = ref(false)
+
+async function reactivate(): Promise<void> {
+  if (reactivating.value) return
+  reactivating.value = true
+  reactivationFailed.value = false
+  try {
+    await $auth.reactivateTelegram()
+  }
+  catch {
+    reactivationFailed.value = true
+  }
+  finally {
+    reactivating.value = false
+  }
+}
 
 const { t } = useTranslation()
 </script>
@@ -80,10 +100,28 @@ const { t } = useTranslation()
       v-if="state.status === 'unknown'"
       :message="t('Checking your session…')"
     />
+    <div
+      v-else-if="telegramInactive"
+      class="stack"
+    >
+      <UiText>{{ t('Account is not active') }}</UiText>
+      <UiNotice
+        v-if="reactivationFailed"
+        tone="error"
+      >
+        {{ t('Could not activate the account. Reopen Equo from Telegram and try again.') }}
+      </UiNotice>
+      <UiButton
+        :pending="reactivating"
+        @click="reactivate"
+      >
+        {{ t('Activate and sign in') }}
+      </UiButton>
+    </div>
     <AppErrorState
       v-else
-      :title="t('Your session could not be checked')"
-      :message="t('Try again to load your home page.')"
+      :title="isTelegramMiniApp ? t('Telegram sign-in could not be completed') : t('Your session could not be checked')"
+      :message="isTelegramMiniApp ? t('Try again or reopen Equo from Telegram.') : t('Try again to load your home page.')"
       :retry-label="t('Try again')"
       @retry="$auth.retryBootstrap()"
     />

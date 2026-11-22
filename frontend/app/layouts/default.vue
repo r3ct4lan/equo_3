@@ -151,7 +151,7 @@ function onViewportChange(event: MediaQueryListEvent): void {
   if (event.matches) closeMenu(false)
 }
 onMounted(() => {
-  desktopMedia = window.matchMedia('(min-width: 36.001rem)')
+  desktopMedia = window.matchMedia('(min-width: 40rem)')
   desktopMedia.addEventListener('change', onViewportChange)
 })
 onBeforeUnmount(() => desktopMedia?.removeEventListener('change', onViewportChange))

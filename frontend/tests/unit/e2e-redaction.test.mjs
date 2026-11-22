@@ -45,3 +45,15 @@ test('redacts database errors, SQL statements, stack frames, and filesystem path
     assert.equal(output.includes(secret), false, `diagnostic leaked ${secret}`)
   }
 })
+
+test('keeps Telegram launch and OIDC proof material out of diagnostics', () => {
+  const input = [
+    'initData="opaque-signed-launch"',
+    '/api/v1/auth/telegram/oidc/callback?state=opaque-oidc-state&code=opaque-provider-code',
+    'code_verifier="opaque-verifier"',
+    '__Secure-equo_telegram_reactivate=opaque-reactivation',
+    '/account/link-email#token=opaque-confirmation'
+  ].join('\n')
+  const output = redact(input)
+  assert.equal(output.includes('opaque-'), false)
+})

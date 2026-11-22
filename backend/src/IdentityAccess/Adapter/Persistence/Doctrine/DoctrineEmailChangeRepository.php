@@ -31,9 +31,7 @@ final readonly class DoctrineEmailChangeRepository implements EmailChangeReposit
             ->getQuery()->setHint(Query::HINT_REFRESH, true)
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)->getOneOrNullResult();
 
-        return $user instanceof UserRecord
-            ? new StoredLoginIdentity($user->id(), $user->name(), $user->email(), $user->passwordHash(), $user->isActive(), $user->locale())
-            : null;
+        return $user instanceof UserRecord ? $user->passwordIdentity() : null;
     }
 
     public function emailExists(string $normalizedEmail): bool
@@ -46,6 +44,12 @@ final readonly class DoctrineEmailChangeRepository implements EmailChangeReposit
         if (UserActionTokenPurpose::ChangeEmail !== $token->purpose || $payload !== ['newEmail' => $payload['newEmail']]) {
             throw new RuntimeException('Email change persistence payload is inconsistent.');
         }
+        $this->storeToken($token, $payload, $now);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function storeToken(UserActionToken $token, array $payload, DateTimeImmutable $now): void
+    {
         $user = $this->entityManager->find(UserRecord::class, $token->userId);
         if (!$user instanceof UserRecord) {
             throw new RuntimeException('Email change owner was not found.');

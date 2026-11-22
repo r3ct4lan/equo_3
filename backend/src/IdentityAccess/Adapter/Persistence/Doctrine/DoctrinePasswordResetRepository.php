@@ -30,7 +30,11 @@ final readonly class DoctrinePasswordResetRepository implements PasswordResetRep
             ->where('user.email = :email')->setParameter('email', $normalizedEmail)
             ->getQuery()->setHint(Query::HINT_REFRESH, true)->setLockMode(LockMode::PESSIMISTIC_WRITE)->getOneOrNullResult();
 
-        return $user instanceof UserRecord ? new PasswordResetAccount($user->id(), $user->email(), $user->locale()) : null;
+        $email = $user instanceof UserRecord ? $user->email() : null;
+
+        return $user instanceof UserRecord && null !== $email
+            ? new PasswordResetAccount($user->id(), $email, $user->locale())
+            : null;
     }
 
     public function replaceToken(UserActionToken $token, DateTimeImmutable $now): void

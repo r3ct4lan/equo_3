@@ -49,7 +49,7 @@ const { t } = useTranslation()
         <div><dt>{{ t('Total') }}</dt><dd>{{ formatEuro(debt.totalAmount) }}</dd></div>
         <div><dt>{{ t('Paid by') }}</dt><dd>{{ debt.payer.name }}{{ debt.payer.isActive ? '' : t(' (inactive)') }}</dd></div>
         <div><dt>{{ t('Recorded by') }}</dt><dd>{{ debt.createdBy.name }}{{ debt.createdBy.isActive ? '' : t(' (inactive)') }}</dd></div>
-        <div><dt>{{ t('Split') }}</dt><dd>{{ formatPeople(debt.participantCount, locale) }} · {{ formatEuro(debt.shareAmount) }} {{ t('each') }}</dd></div>
+        <div><dt>{{ t('Split') }}</dt><dd>{{ formatPeople(debt.participantCount, locale) }} · {{ debt.shareAmount === null ? t('Different share amounts') : formatEuro(debt.shareAmount) + ' ' + t('each') }}</dd></div>
       </UiDescriptionList>
       <UiButton
         v-if="debt.canEdit && !debt.isDeleted && debt.createdBy.id === state.user?.id"
@@ -113,6 +113,7 @@ const { t } = useTranslation()
     </UiButton>
     <UiButton
       variant="secondary"
+      icon="back"
       to="/debts"
     >
       {{ t('Your expenses') }}

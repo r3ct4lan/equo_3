@@ -67,7 +67,7 @@ final readonly class RefreshSession
             $issuedRefreshToken = $this->refreshTokenCodec->issueForSession($session->id);
             $session->rotate($issuedRefreshToken->tokenHash, $now);
             $this->sessionRepository->save($session);
-            $issuedAccessToken = $this->accessTokenIssuer->issue($session->userId);
+            $issuedAccessToken = $this->accessTokenIssuer->issue($session->userId, $session->id);
             $csrfToken = $this->csrfTokenCodec->issue($session->id);
 
             return new RefreshResult(

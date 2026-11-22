@@ -14,7 +14,6 @@ use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
-use Doctrine\DBAL\Exception\NotNullConstraintViolationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -79,7 +78,7 @@ final class InitialSchemaTest extends KernelTestCase
         $outbox = new EmailDeliveryOutboxRecord(
             '00000000-0000-4000-8000-000000000004',
             $token->id(),
-            $user->email(),
+            'ada@example.test',
             'activate-account',
             'encrypted-payload',
             EmailDeliveryStatus::Pending,
@@ -118,11 +117,40 @@ final class InitialSchemaTest extends KernelTestCase
         self::assertSame('encrypted-payload', $storedOutbox->encryptedPayload());
     }
 
-    public function testUserEmailIsRequired(): void
+    public function testUserRequiresALoginMethod(): void
     {
-        $this->expectException(NotNullConstraintViolationException::class);
+        $this->expectException(DriverException::class);
 
-        $this->insertUser('00000000-0000-4000-8000-000000000011', null);
+        $this->insertUser('00000000-0000-4000-8000-000000000011', null, null);
+    }
+
+    public function testTelegramAccountsCanShareANullEmail(): void
+    {
+        $id = '00000000-0000-4000-8000-000000000012';
+        $this->insertUser($id, null, null, 4294967297);
+        $this->insertUser('00000000-0000-4000-8000-000000000013', null, null, 4294967298);
+
+        $user = $this->entityManager->find(UserRecord::class, $id);
+        self::assertInstanceOf(UserRecord::class, $user);
+        self::assertSame(4294967297, $user->telegramId());
+        self::assertNull($user->email());
+        self::assertNull($user->passwordHash());
+    }
+
+    public function testTelegramIdentityIsUnique(): void
+    {
+        $this->insertUser('00000000-0000-4000-8000-000000000014', null, null, 4294967297);
+
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        $this->insertUser('00000000-0000-4000-8000-000000000015', null, null, 4294967297);
+    }
+
+    public function testEmailAndPasswordMustBeSetTogether(): void
+    {
+        $this->expectException(DriverException::class);
+
+        $this->insertUser('00000000-0000-4000-8000-000000000016', 'incomplete@example.test', null, 4294967297);
     }
 
     public function testUserEmailIsUnique(): void
@@ -321,16 +349,21 @@ final class InitialSchemaTest extends KernelTestCase
         ]);
     }
 
-    private function insertUser(string $id, ?string $email): void
+    private function insertUser(string $id, ?string $email, ?string $passwordHash = 'password-hash', ?int $telegramId = null): void
     {
-        $this->connection->insert('app_user', [
+        $values = [
             'id' => $id,
             'name' => 'Test User',
             'email' => $email,
-            'password_hash' => 'password-hash',
+            'password_hash' => $passwordHash,
             'is_active' => 'false',
             'created_at' => '2026-07-31 12:00:00+00',
-        ]);
+        ];
+        if (null !== $telegramId) {
+            $values['telegram_id'] = $telegramId;
+        }
+
+        $this->connection->insert('app_user', $values);
     }
 
     private function insertToken(

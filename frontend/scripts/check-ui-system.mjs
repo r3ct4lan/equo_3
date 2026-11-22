@@ -19,8 +19,8 @@ export function auditStyles(source, tokens) {
     if (!tokens.has(name)) errors.push(`Undefined token ${name}`)
   }
   for (const [, condition] of stripped.matchAll(/@media\s*\(([^)]+)\)/g)) {
-    if (/\d/.test(condition) && !/^(?:max-width|width <=):?\s*(?:36|52)rem$/.test(condition)) {
-      errors.push(`Unregistered breakpoint ${condition}`)
+    if (/\d/.test(condition)) {
+      errors.push(`Use a Tailwind responsive variant instead of breakpoint ${condition}`)
     }
   }
   return errors
