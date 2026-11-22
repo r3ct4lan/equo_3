@@ -42,6 +42,8 @@ class UserRecord
         #[ORM\ManyToOne(targetEntity: self::class)]
         #[ORM\JoinColumn(name: 'merged_into_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
         private ?self $mergedInto = null,
+        #[ORM\Column(type: Types::STRING, length: 3, options: ['default' => 'EUR'])]
+        private string $currency = 'EUR',
     ) {
     }
 
@@ -55,9 +57,19 @@ class UserRecord
         return $this->name;
     }
 
+    public function currency(): string
+    {
+        return $this->currency;
+    }
+
     public function locale(): string
     {
         return $this->locale;
+    }
+
+    public function changeCurrency(string $currency): void
+    {
+        $this->currency = $currency;
     }
 
     public function changeLocale(string $locale): void
@@ -83,7 +95,7 @@ class UserRecord
             return null;
         }
 
-        return new StoredLoginIdentity($this->id, $this->name, $this->email, $this->passwordHash, $this->isActive, $this->locale);
+        return new StoredLoginIdentity($this->id, $this->name, $this->email, $this->passwordHash, $this->isActive, $this->locale, $this->currency);
     }
 
     #[Ignore]

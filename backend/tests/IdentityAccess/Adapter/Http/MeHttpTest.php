@@ -78,7 +78,7 @@ final class MeHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
         self::assertResponseHeaderSame('Content-Type', 'application/json');
         self::assertResponseHasHeader('X-Request-Id');
-        self::assertSame(['createdAt', 'email', 'id', 'isActive', 'locale', 'name'], $this->sortedKeys($body));
+        self::assertSame(['createdAt', 'currency', 'email', 'id', 'isActive', 'locale', 'name'], $this->sortedKeys($body));
         self::assertSame($userId, $body['id']);
         self::assertSame('Me User', $body['name']);
         self::assertSame('me@example.test', $body['email']);
@@ -109,6 +109,7 @@ final class MeHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
         self::assertSame($userId, $profile['id']);
         self::assertSame('Telegram User', $profile['name']);
+        self::assertSame('EUR', $profile['currency']);
         self::assertArrayHasKey('email', $profile);
         self::assertNull($profile['email']);
         self::assertArrayNotHasKey('telegramId', $profile);
@@ -798,6 +799,27 @@ final class MeHttpTest extends WebTestCase
         self::assertSame('  New Name 😀  ', $this->connection->fetchOne('SELECT name FROM app_user WHERE id = ?', [$userId]));
         self::assertSame($sessionCount, $this->countSessions());
         self::assertSame([], $this->client->getResponse()->headers->getCookies());
+    }
+
+    public function testCurrencyIsValidatedAndPersistedForAuthenticatedUser(): void
+    {
+        $userId = '87000000-0000-4000-8000-000000000308';
+        $this->insertUser($userId, 'Currency User', 'currency@example.test', true, 'Correct password!');
+        $login = $this->login('currency@example.test');
+        $server = ['CONTENT_TYPE' => 'application/json', 'HTTP_AUTHORIZATION' => 'Bearer '.$login['accessToken']];
+
+        $this->client->request('PATCH', '/api/v1/me/currency', server: $server, content: '{"currency":"RSD"}');
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertSame('RSD', $this->jsonBody()['currency']);
+        self::assertSame('RSD', $this->me($login['accessToken'])['currency']);
+        self::assertSame('RSD', $this->login('currency@example.test')['user']['currency']);
+
+        $this->client->request('PATCH', '/api/v1/me/currency', server: $server, content: '{"currency":"BTC"}');
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+        self::assertSame('RSD', $this->connection->fetchOne('SELECT currency FROM app_user WHERE id = ?', [$userId]));
+
+        $this->client->request('PATCH', '/api/v1/me/currency', server: ['CONTENT_TYPE' => 'application/json'], content: '{"currency":"EUR"}');
+        self::assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
     }
 
     public function testLocaleIsValidatedAndPersistedForAuthenticatedUser(): void

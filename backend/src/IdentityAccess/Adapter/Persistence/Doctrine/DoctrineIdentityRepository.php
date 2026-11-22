@@ -115,6 +115,7 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
             $record->isActive(),
             $record->createdAt(),
             $record->locale(),
+            $record->currency(),
         );
     }
 
@@ -126,6 +127,15 @@ final readonly class DoctrineIdentityRepository implements IdentityRepositoryPor
         }
 
         $record->rename($name);
+    }
+
+    public function changeCurrency(string $userId, string $currency): void
+    {
+        $record = $this->entityManager->find(UserRecord::class, $userId);
+        if (!$record instanceof UserRecord) {
+            throw new RuntimeException('Current user was not found.');
+        }
+        $record->changeCurrency($currency);
     }
 
     public function changeLocale(string $userId, string $locale): void

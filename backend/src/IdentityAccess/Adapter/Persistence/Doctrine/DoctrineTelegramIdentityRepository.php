@@ -35,7 +35,7 @@ final readonly class DoctrineTelegramIdentityRepository implements TelegramIdent
             ->getQuery()->setHint(Query::HINT_REFRESH, true)->setLockMode(LockMode::PESSIMISTIC_WRITE)->getOneOrNullResult();
 
         return $record instanceof UserRecord
-            ? new LoginUserView($record->id(), $record->name(), $record->email(), $record->isActive(), $record->locale())
+            ? new LoginUserView($record->id(), $record->name(), $record->email(), $record->isActive(), $record->locale(), $record->currency())
             : null;
     }
 

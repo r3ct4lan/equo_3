@@ -2861,15 +2861,22 @@ test('Telegram invitation creates the first connection explicitly and preserves 
     await expect(receiver).toHaveURL(/\/connects$/u)
     expect(acceptCalls).toBe(1)
 
+    await page.goto('/me')
+    const currency = page.getByRole('combobox', { name: 'Profile currency', exact: true })
+    await expect(currency).toContainText('EUR')
+    await selectOption(currency, 'RSD')
+    await page.getByRole('button', { name: 'Save currency', exact: true }).click()
+    await expect(page.getByText('Currency saved.', { exact: true })).toBeVisible()
     await page.getByRole('link', { name: 'Expenses', exact: true }).click()
     await page.getByRole('link', { name: 'New expense', exact: true }).click()
     await page.getByLabel('Title', { exact: true }).fill('Telegram dinner')
-    await page.getByLabel('Amount in EUR', { exact: true }).fill('20.00')
+    await page.getByLabel('Amount in RSD', { exact: true }).fill('20.00')
     await setPerson(page.locator('.people-picker').first(), receiverId, true)
     const created = page.waitForResponse(sent => sent.request().method() === 'POST' && new URL(sent.url()).pathname === '/api/v1/debts')
     await page.getByRole('button', { name: 'Create expense', exact: true }).click()
     expect((await created).status()).toBe(201)
 
+    await expect(page.locator('main')).toContainText('RSD')
     expect(await openTelegramMiniApp(page, 4294967298, 'Telegram Sender')).toBe(account)
     await expect(page.getByRole('link', { name: 'Telegram dinner', exact: true })).toBeVisible()
   }

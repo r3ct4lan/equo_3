@@ -29,11 +29,12 @@ security:
         - { path: ^/api/v1/account/email-change-requests$, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/account/deactivate$, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/me$, roles: IS_AUTHENTICATED_FULLY }
-        - { path: ^/api/v1/me/locale$, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api/v1/me/(?:locale|currency)$, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/connects(?:/|$), roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/connect-invitations$, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/connect-invitations/[^/]+/accept$, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/connect-invitations/[^/]+$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/v1/currencies(?:/|$), roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/debts(?:/|$), roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/debt-people$, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/transfers(?:/|$), roles: IS_AUTHENTICATED_FULLY }

@@ -36,7 +36,7 @@ final readonly class SignInWithTelegram
             $this->accounts->activate($account->id);
 
             return $this->sessions->issue(
-                new LoginUserView($account->id, $account->name, $account->email, true, $account->locale),
+                new LoginUserView($account->id, $account->name, $account->email, true, $account->locale, $account->currency),
                 $this->clock->now(),
             );
         });
