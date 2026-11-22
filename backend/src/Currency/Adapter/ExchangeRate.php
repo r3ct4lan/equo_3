@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Currency\Domain;
+namespace App\Currency\Adapter;
 
 use Brick\Math\BigRational;
 use Brick\Math\RoundingMode;

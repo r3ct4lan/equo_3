@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Currency\Adapter;
 
-use App\Currency\Application\ExchangeMarket;
+use App\Currency\Application\Api\ExchangeMarket;
 use Brick\Math\BigRational;
 use Brick\Math\RoundingMode;
 use Symfony\Component\HttpFoundation\JsonResponse;

@@ -6,11 +6,12 @@ namespace App\Debts\Adapter\Persistence\Doctrine;
 
 use App\Debts\Application\Port\MergeExpenseRepositoryPort;
 use App\Debts\Domain\Debt;
+use App\Transfers\Application\Api\ReconcileShare;
 use Doctrine\DBAL\Connection;
 
 final readonly class DoctrineMergeExpenseRepository implements MergeExpenseRepositoryPort
 {
-    public function __construct(private Connection $connection)
+    public function __construct(private Connection $connection, private ReconcileShare $settlements)
     {
     }
 
@@ -91,6 +92,7 @@ final readonly class DoctrineMergeExpenseRepository implements MergeExpenseRepos
                     [(string) $share['id'], (string) $combined['id']],
                 );
             }
+            $this->settlements->reconcile((string) $kept['id']);
         }
     }
 
@@ -100,5 +102,6 @@ final readonly class DoctrineMergeExpenseRepository implements MergeExpenseRepos
             'UPDATE transfer SET hidden_by_merge = true, is_deleted = true, version = version + 1 WHERE id = ?',
             [$id],
         );
+        $this->settlements->reconcile($id);
     }
 }

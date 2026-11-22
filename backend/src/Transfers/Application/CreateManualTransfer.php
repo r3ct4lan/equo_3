@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Transfers\Application;
 
 use App\Connects\Application\Api\ConnectAccess;
-use App\Currency\Application\ExchangeMarket;
+use App\Currency\Application\Api\ExchangeMarket;
 use App\IdentityAccess\Application\Api\AccountAccess;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
@@ -57,7 +57,7 @@ final readonly class CreateManualTransfer
             $relatedId = null === $command->relatedTransferId ? null : strtolower($command->relatedTransferId);
             if (null !== $relatedId) {
                 $target = $this->repository->find($relatedId, true);
-                if (null === $target || 'DEBT_SHARE' !== $target->type || $target->isDeleted || $target->connectId !== $command->connectId) {
+                if (null === $target || 'DEBT_SHARE' !== $target->type || $target->isDeleted || $target->connectId !== $command->connectId || $target->senderId !== $command->receiverId || $target->receiverId !== $command->senderId) {
                     throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
                 }
             }
@@ -66,7 +66,8 @@ final readonly class CreateManualTransfer
             $targetCurrency = $target->currency ?? $profileCurrency;
             $this->market->validateManualRate($currency, $targetCurrency, $command->manualRate);
             $rateCurrency = null === $command->manualRate ? null : $targetCurrency;
-            $transfer = Transfer::manual($this->runtime->newId(), $command->connectId, $command->senderId, $command->receiverId, $command->amount, $authorId, $this->runtime->now(), $relatedId, $currency, $command->manualRate, $rateCurrency);
+            $settlementRate = null === $relatedId ? null : ($command->manualRate ?? $this->market->quote($currency, $targetCurrency));
+            $transfer = Transfer::manual($this->runtime->newId(), $command->connectId, $command->senderId, $command->receiverId, $command->amount, $authorId, $this->runtime->now(), $relatedId, $currency, $command->manualRate, $rateCurrency, $settlementRate);
             $this->repository->save($transfer);
             $body = $this->queries->detail($transfer->id, $authorId);
             $this->idempotency->complete($scope, $operation, $command->idempotencyKey, 201, $body, $authorId);

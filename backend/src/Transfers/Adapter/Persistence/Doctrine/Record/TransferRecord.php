@@ -42,11 +42,14 @@ class TransferRecord
         #[ORM\Column(length: 3, options: ['default' => 'EUR'])] private string $currency = 'EUR',
         #[ORM\Column(name: 'manual_rate', type: Types::TEXT, nullable: true)] private ?string $manualRate = null,
         #[ORM\Column(name: 'rate_currency', length: 3, nullable: true)] private ?string $rateCurrency = null,
+        #[ORM\Column(name: 'settlement_rate', type: Types::TEXT, nullable: true)] private ?string $settlementRate = null,
+        #[ORM\Column(name: 'credited_amount', type: Types::BIGINT, options: ['default' => 0])] private int $creditedAmount = 0,
+        #[ORM\Column(name: 'excess_amount', type: Types::BIGINT, nullable: true)] private ?int $excessAmount = null,
     ) {
     }
 
     public function toDomain(): Transfer
     {
-        return new Transfer($this->id, $this->connectId, $this->senderId, $this->receiverId, $this->amount, $this->type, $this->createdById, $this->createdAt, $this->debtId, $this->debtParticipantId, $this->relatedTransferId, $this->isDeleted, $this->version, $this->currency, $this->manualRate, $this->rateCurrency);
+        return new Transfer($this->id, $this->connectId, $this->senderId, $this->receiverId, $this->amount, $this->type, $this->createdById, $this->createdAt, $this->debtId, $this->debtParticipantId, $this->relatedTransferId, $this->isDeleted, $this->version, $this->currency, $this->manualRate, $this->rateCurrency, $this->settlementRate, $this->creditedAmount, $this->excessAmount);
     }
 }

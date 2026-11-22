@@ -172,7 +172,7 @@ final class FinancialHttpTest extends WebTestCase
         $manual = $this->addManualTransfer($source, $joined, $payer, 500);
         $this->db->update('transfer', ['related_transfer_id' => $shares[$joined]], ['id' => $manual]);
 
-        (new MergeExpenses(new DoctrineDebtRepository($this->db), new DoctrineMergeExpenseRepository($this->db)))->apply($primary, $joined);
+        (new MergeExpenses(new DoctrineDebtRepository($this->db), new DoctrineMergeExpenseRepository($this->db, self::getContainer()->get(\App\Transfers\Application\Api\ReconcileShare::class))))->apply($primary, $joined);
         (new DoctrineMergeLedger($this->db))->apply($primary, $joined, new DateTimeImmutable());
 
         $this->request('GET', '/api/v1/transfers/'.$manual, 2);
@@ -206,7 +206,7 @@ final class FinancialHttpTest extends WebTestCase
         $debt = $this->create();
         $id = $debt['id'];
         self::assertIsString($id);
-        $merge = new MergeExpenses(new DoctrineDebtRepository($this->db), new DoctrineMergeExpenseRepository($this->db));
+        $merge = new MergeExpenses(new DoctrineDebtRepository($this->db), new DoctrineMergeExpenseRepository($this->db, self::getContainer()->get(\App\Transfers\Application\Api\ReconcileShare::class)));
         $merge->apply($this->users[1], $this->users[2]);
 
         $this->request('GET', '/api/v1/debts/'.$id);

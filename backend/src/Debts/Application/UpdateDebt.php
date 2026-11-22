@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Debts\Application;
 
 use App\Connects\Application\Api\ConnectAccess;
-use App\Currency\Application\ExchangeMarket;
+use App\Currency\Application\Api\ExchangeMarket;
 use App\Debts\Application\Port\DebtRepositoryPort;
 use App\Debts\Application\Port\DebtRuntimePort;
 use App\Debts\Domain\DebtParticipant;

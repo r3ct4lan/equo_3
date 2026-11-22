@@ -338,7 +338,41 @@ final class ManualTransferHttpTest extends WebTestCase
         self::assertFalse((bool) $this->db->fetchOne('SELECT is_deleted FROM transfer WHERE id=?', [$manual['id']]));
     }
 
-    public function testRelatedShareIsInformationalAndSupportsHistoricalRetentionAndClear(): void
+    public function testPartialCrossCurrencyPaymentsAndCorrections(): void
+    {
+        $key = static fn (): string => Uuid::v4()->toRfc4122();
+        $this->request('POST', '/api/v1/debts', 0, ['title' => 'RSD dinner', 'totalAmount' => 240000, 'currency' => 'RSD', 'payerId' => $this->users[0], 'participantIds' => [$this->users[1]], 'includePayerInSplit' => true], $key());
+        self::assertResponseStatusCodeSame(201);
+        $share = $this->body()['participants'][0]['transferId'] ?? $this->body()['participants'][1]['transferId'];
+        $path = '/api/v1/connects/'.$this->connect().'/transfers';
+        $payment = [...$this->command(), 'relatedTransferId' => $share, 'currency' => 'EUR', 'amount' => 480];
+        $this->request('POST', $path, 1, $payment, $key());
+        self::assertResponseStatusCodeSame(201);
+        $first = '/api/v1/transfers/'.$this->body()['id'];
+        self::assertSame(60000, $this->body()['creditedAmount']);
+        $this->request('POST', $path, 0, [...$payment, 'currency' => 'RSD', 'amount' => 60000], $key());
+        self::assertResponseStatusCodeSame(201);
+        $second = '/api/v1/transfers/'.$this->body()['id'];
+        $this->request('GET', '/api/v1/transfers/'.$share);
+        self::assertSame(0, $this->body()['remainingAmount']);
+        $this->request('DELETE', $second, 0, etag: '"1"');
+        self::assertResponseStatusCodeSame(204);
+        $this->request('PUT', $first, 1, [...$payment, 'amount' => 1000], etag: '"1"');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(40, $this->body()['excessAmount']);
+        $this->request('PUT', $first, 1, [...$payment, 'amount' => 1000, 'manualRate' => '120'], etag: '"2"');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(0, $this->body()['excessAmount']);
+        $this->request('PUT', $first, 1, [...$payment, 'amount' => 800], etag: '"3"');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(96000, $this->body()['creditedAmount']);
+        $this->request('GET', '/api/v1/transfers/'.$share);
+        self::assertSame(24000, $this->body()['remainingAmount']);
+        $this->request('POST', $path, 0, [...$payment, 'senderId' => $this->users[0], 'receiverId' => $this->users[1]], $key());
+        $this->failure(422, 'VALIDATION_ERROR');
+    }
+
+    public function testRelatedShareSupportsHistoricalRetentionAndClear(): void
     {
         $debtBody = ['title' => 'Shared dinner', 'description' => null, 'totalAmount' => 1000, 'payerId' => $this->users[0], 'participantIds' => [$this->users[1]], 'includePayerInSplit' => false];
         $this->request('POST', '/api/v1/debts', 0, $debtBody, Uuid::v4()->toRfc4122());

@@ -23,16 +23,16 @@ final class ManualTransferCommandRunner
         if (!is_array($input) || !is_string($input['author'] ?? null) || !is_string($input['connect'] ?? null) || !is_string($input['other'] ?? null) || !is_string($input['key'] ?? null) || !is_int($input['amount'] ?? null)) {
             exit(1);
         }
-        fwrite(STDOUT, self::perform($c, ['author' => $input['author'], 'connect' => $input['connect'], 'other' => $input['other'], 'key' => $input['key'], 'amount' => $input['amount']])."\n");
+        fwrite(STDOUT, self::perform($c, ['author' => $input['author'], 'connect' => $input['connect'], 'other' => $input['other'], 'key' => $input['key'], 'amount' => $input['amount'], 'share' => $input['share'] ?? null])."\n");
         fflush(STDOUT);
         $kernel->shutdown();
     }
 
-    /** @param array{author:string,connect:string,other:string,key:string,amount:int} $input */
+    /** @param array{author:string,connect:string,other:string,key:string,amount:int,share?:?string} $input */
     public static function perform(TestContainer $c, array $input): string
     {
         try {
-            $r = $c->get('test.create_manual_transfer')->handle(new CreateManualTransferCommand($input['connect'], $input['author'], $input['other'], $input['amount'], $input['key']), $input['author']);
+            $r = $c->get('test.create_manual_transfer')->handle(new CreateManualTransferCommand($input['connect'], $input['author'], $input['other'], $input['amount'], $input['key'], $input['share'] ?? null), $input['author']);
 
             return (string) $r['body']['id'];
         } catch (ApplicationFailure $e) {

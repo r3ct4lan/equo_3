@@ -12,7 +12,7 @@ use App\IdentityAccess\Application\Port\TransactionPort;
 
 final readonly class ChangeCurrency
 {
-    public function __construct(private CurrentUserProfileRepositoryPort $repository, private TransactionPort $transaction, private \App\Currency\Application\ExchangeMarket $market)
+    public function __construct(private CurrentUserProfileRepositoryPort $repository, private TransactionPort $transaction, private \App\Currency\Application\Api\ExchangeMarket $market)
     {
     }
 

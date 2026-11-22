@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Currency\Application;
+namespace App\Currency\Application\Api;
 
 use RuntimeException;
 

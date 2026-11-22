@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Currency;
 
 use App\Currency\Adapter\DoctrineMarketStore;
-use App\Currency\Application\ExchangeMarket;
+use App\Currency\Application\Api\ExchangeMarket;
 use App\Currency\Application\MarketSource;
-use App\Currency\Application\MarketUnavailable;
+use App\Currency\Application\Api\MarketUnavailable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -25,7 +25,7 @@ final class ExchangeMarketTest extends KernelTestCase
             $source->method('fetch')->willReturnCallback(static function () use (&$data) {
                 return $data ?? throw new MarketUnavailable();
             });
-            $market = new ExchangeMarket($source, new DoctrineMarketStore($db));
+            $market = new ExchangeMarket($source, new DoctrineMarketStore($db), new \App\Currency\Adapter\ExactCurrencyArithmetic());
             $market->refresh();
             $market->refresh();
             $data['rates'] = [];

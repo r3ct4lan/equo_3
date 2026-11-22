@@ -2,15 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Currency\Application;
+namespace App\Currency\Application\Api;
 
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
-use Brick\Math\BigRational;
+use App\Currency\Application\MarketStore;
+use App\Currency\Application\MarketSource;
 
 final readonly class ExchangeMarket
 {
-    public function __construct(private MarketSource $source, private MarketStore $store)
+    public function __construct(private MarketSource $source, private MarketStore $store, private CurrencyArithmetic $arithmetic)
     {
     }
 
@@ -50,7 +51,7 @@ final readonly class ExchangeMarket
         $base = 'EUR' === $from ? '1' : ($rates[$from]['value'] ?? throw new MarketUnavailable());
         $target = 'EUR' === $to ? '1' : ($rates[$to]['value'] ?? throw new MarketUnavailable());
 
-        return BigRational::of($target)->dividedBy($base)->toString();
+        return $this->arithmetic->ratio($target, $base);
     }
 
     /** @param list<string> $required

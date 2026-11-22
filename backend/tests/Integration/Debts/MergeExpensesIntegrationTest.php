@@ -48,13 +48,17 @@ final class MergeExpensesIntegrationTest extends KernelTestCase
         self::assertIsString($primaryShare);
         self::assertIsString($joinedShare);
 
+        $connectId = (string) $this->db->fetchOne('SELECT connect_id FROM transfer WHERE id=?', [$joinedShare]);
+        $payment = self::getContainer()->get('test.create_manual_transfer')->handle(new \App\Transfers\Application\CreateManualTransferCommand($connectId, $joined, $payer, 700, Uuid::v4()->toRfc4122(), $joinedShare), $joined)['body'];
         $debtRepository = new DoctrineDebtRepository($this->db);
-        $transfers = new DoctrineTransferRepository($this->db);
-        $merge = new MergeExpenses($debtRepository, new DoctrineMergeExpenseRepository($this->db));
+        $transfers = new DoctrineTransferRepository($this->db, self::getContainer()->get(\App\Transfers\Application\Api\ReconcileShare::class));
+        $merge = new MergeExpenses($debtRepository, new DoctrineMergeExpenseRepository($this->db, self::getContainer()->get(\App\Transfers\Application\Api\ReconcileShare::class)));
         $merge->apply($primary, $joined);
 
         self::assertSame(4000, $transfers->find($primaryShare)?->amount);
         self::assertNull($transfers->find($joinedShare));
+        self::assertSame(700, $transfers->find($primaryShare)?->creditedAmount);
+        self::assertSame($primaryShare, $transfers->find($payment['id'])?->relatedTransferId);
         self::assertNull($debtRepository->find($internalId));
         self::assertSame(0, count($transfers->sharesForDebt($internalId)));
 

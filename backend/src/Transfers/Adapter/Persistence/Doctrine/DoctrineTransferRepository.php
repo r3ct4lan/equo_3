@@ -7,6 +7,7 @@ namespace App\Transfers\Adapter\Persistence\Doctrine;
 use App\Transfers\Application\Port\TransferRepositoryPort;
 use App\Transfers\Domain\Transfer;
 use DateTimeImmutable;
+use App\Transfers\Application\Api\ReconcileShare;
 use Doctrine\DBAL\Connection;
 use InvalidArgumentException;
 use RuntimeException;
@@ -16,7 +17,7 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
     // Automatic shares use the expense's current manual quote, including rate-only edits.
     private const string PROJECTION = 'SELECT t.*, CASE WHEN d.id IS NULL THEN t.manual_rate ELSE d.manual_rate END AS applied_manual_rate, CASE WHEN d.id IS NULL THEN t.rate_currency ELSE d.rate_currency END AS applied_rate_currency FROM transfer t LEFT JOIN debt d ON d.id=t.debt_id';
 
-    public function __construct(private Connection $db)
+    public function __construct(private Connection $db, private ReconcileShare $settlements)
     {
     }
 
@@ -105,12 +106,15 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
     /** @param array<string,mixed> $row */
     private function map(array $row): Transfer
     {
-        return new Transfer((string) $row['id'], (string) $row['connect_id'], (string) $row['sender_id'], (string) $row['receiver_id'], (int) $row['amount'], (string) $row['type'], null === $row['created_by_id'] ? null : (string) $row['created_by_id'], new DateTimeImmutable((string) $row['created_at']), null === $row['debt_id'] ? null : (string) $row['debt_id'], null === $row['debt_participant_id'] ? null : (string) $row['debt_participant_id'], null === $row['related_transfer_id'] ? null : (string) $row['related_transfer_id'], (bool) $row['is_deleted'], (int) $row['version'], $row['currency'], $row['applied_manual_rate'], $row['applied_rate_currency']);
+        return new Transfer((string) $row['id'], (string) $row['connect_id'], (string) $row['sender_id'], (string) $row['receiver_id'], (int) $row['amount'], (string) $row['type'], null === $row['created_by_id'] ? null : (string) $row['created_by_id'], new DateTimeImmutable((string) $row['created_at']), null === $row['debt_id'] ? null : (string) $row['debt_id'], null === $row['debt_participant_id'] ? null : (string) $row['debt_participant_id'], null === $row['related_transfer_id'] ? null : (string) $row['related_transfer_id'], (bool) $row['is_deleted'], (int) $row['version'], $row['currency'], $row['applied_manual_rate'], $row['applied_rate_currency'], $row['settlement_rate'], (int) $row['credited_amount'], null === $row['excess_amount'] ? null : (int) $row['excess_amount']);
     }
 
     public function save(Transfer $t): void
     {
-        $this->db->insert('transfer', ['id' => $t->id, 'connect_id' => $t->connectId, 'sender_id' => $t->senderId, 'receiver_id' => $t->receiverId, 'amount' => $t->amount, 'type' => $t->type, 'created_by_id' => $t->createdById, 'created_at' => $t->createdAt->format('Y-m-d H:i:sP'), 'debt_id' => $t->debtId, 'debt_participant_id' => $t->debtParticipantId, 'currency' => $t->currency, 'manual_rate' => $t->manualRate, 'rate_currency' => $t->rateCurrency, 'related_transfer_id' => $t->relatedTransferId, 'is_deleted' => $t->isDeleted, 'version' => $t->version], ['is_deleted' => 'boolean']);
+        $this->db->insert('transfer', ['id' => $t->id, 'connect_id' => $t->connectId, 'sender_id' => $t->senderId, 'receiver_id' => $t->receiverId, 'amount' => $t->amount, 'type' => $t->type, 'created_by_id' => $t->createdById, 'created_at' => $t->createdAt->format('Y-m-d H:i:sP'), 'debt_id' => $t->debtId, 'debt_participant_id' => $t->debtParticipantId, 'currency' => $t->currency, 'manual_rate' => $t->manualRate, 'rate_currency' => $t->rateCurrency, 'settlement_rate' => $t->settlementRate, 'related_transfer_id' => $t->relatedTransferId, 'is_deleted' => $t->isDeleted, 'version' => $t->version], ['is_deleted' => 'boolean']);
+        if (null !== $t->relatedTransferId) {
+            $this->settlements->reconcile($t->relatedTransferId);
+        }
     }
 
     public function updateShare(Transfer $transfer): void
@@ -119,6 +123,7 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
             throw new InvalidArgumentException('Only automatic shares can be persisted by recalculation.');
         }
         $this->db->update('transfer', ['amount' => $transfer->amount, 'is_deleted' => $transfer->isDeleted, 'version' => $transfer->version], ['id' => $transfer->id, 'type' => 'DEBT_SHARE'], ['is_deleted' => 'boolean']);
+        $this->settlements->reconcile($transfer->id);
     }
 
     public function updateManual(Transfer $transfer): void
@@ -126,7 +131,13 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
         if ('MANUAL' !== $transfer->type) {
             throw new InvalidArgumentException('Only manual transfers can be persisted by this command.');
         }
-        $this->db->update('transfer', ['sender_id' => $transfer->senderId, 'receiver_id' => $transfer->receiverId, 'amount' => $transfer->amount, 'currency' => $transfer->currency, 'manual_rate' => $transfer->manualRate, 'rate_currency' => $transfer->rateCurrency, 'related_transfer_id' => $transfer->relatedTransferId, 'is_deleted' => $transfer->isDeleted, 'version' => $transfer->version], ['id' => $transfer->id, 'type' => 'MANUAL'], ['is_deleted' => 'boolean']);
+        $previous = $this->db->fetchOne('SELECT related_transfer_id FROM transfer WHERE id = ?', [$transfer->id]);
+        $this->db->update('transfer', ['sender_id' => $transfer->senderId, 'receiver_id' => $transfer->receiverId, 'amount' => $transfer->amount, 'currency' => $transfer->currency, 'manual_rate' => $transfer->manualRate, 'rate_currency' => $transfer->rateCurrency, 'settlement_rate' => $transfer->settlementRate, 'credited_amount' => 0, 'excess_amount' => null, 'related_transfer_id' => $transfer->relatedTransferId, 'is_deleted' => $transfer->isDeleted, 'version' => $transfer->version], ['id' => $transfer->id, 'type' => 'MANUAL'], ['is_deleted' => 'boolean']);
+        $targets = array_unique(array_filter([$previous, $transfer->relatedTransferId], 'is_string'));
+        sort($targets, SORT_STRING);
+        foreach ($targets as $target) {
+            $this->settlements->reconcile($target);
+        }
     }
 
     public function sharesForDebt(string $debtId): array

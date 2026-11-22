@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Debts\Domain;
 
-use App\Currency\Domain\ExchangeRate;
+use App\Currency\Adapter\ExchangeRate;
 use App\Debts\Domain\Money;
 use PHPUnit\Framework\TestCase;
 
