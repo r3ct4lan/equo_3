@@ -1,7 +1,14 @@
 export interface BriefUser { id: string, name: string, isActive: boolean }
 export interface Pagination { nextCursor: string | null, hasMore: boolean }
 export interface Page<T> { items: T[], pagination: Pagination }
-export interface DebtSummary {
+interface CurrencyView {
+  currency?: string
+  viewerCurrency?: string
+  equivalentAmount?: number | null
+  rateCurrency?: string | null
+  manualRate?: string | null
+}
+export interface DebtSummary extends CurrencyView {
   id: string
   title: string
   totalAmount: number
@@ -17,10 +24,12 @@ export interface DebtView extends DebtSummary {
   description: string | null
   createdBy: BriefUser
   includePayerInSplit: boolean
-  participants: { debtParticipantId: string, user: BriefUser, isPayer: boolean, isAuthor: boolean, shareAmount: number, transferId: string | null, connectId: string | null }[]
+  participants: { debtParticipantId: string, user: BriefUser, remainingAmount?: number | null, equivalentAmount?: number | null, isPayer: boolean, isAuthor: boolean, shareAmount: number, transferId: string | null, connectId: string | null }[]
   canDelete: boolean
 }
 export interface CreateDebtBody extends Record<string, unknown> {
+  currency?: string
+  manualRate?: string | null
   title: string
   description: string | null
   totalAmount: number
@@ -28,7 +37,14 @@ export interface CreateDebtBody extends Record<string, unknown> {
   participantIds: string[]
   includePayerInSplit: boolean
 }
-export interface TransferView {
+export interface TransferView extends CurrencyView {
+  creditedAmount?: number
+  remainingAmount?: number | null
+  excessAmount?: number | null
+  shareCurrency?: string | null
+  availableBeforePayment?: number | null
+  shareRemainingAmount?: number | null
+  settlementRate?: string | null
   id: string
   connectId: string
   sender: BriefUser
@@ -46,6 +62,8 @@ export interface TransferView {
 }
 
 export interface CreateManualTransferBody {
+  currency?: string
+  manualRate?: string | null
   senderId: string
   receiverId: string
   amount: number
@@ -53,6 +71,8 @@ export interface CreateManualTransferBody {
 }
 
 export interface UpdateDebtBody extends Record<string, unknown> {
+  currency?: string
+  manualRate?: string | null
   title: string
   description: string | null
   totalAmount: number

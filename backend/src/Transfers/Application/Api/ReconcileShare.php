@@ -8,4 +8,3 @@ interface ReconcileShare
 {
     public function reconcile(string $shareId): void;
 }
-

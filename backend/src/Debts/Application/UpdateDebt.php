@@ -50,7 +50,7 @@ final readonly class UpdateDebt
                 throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
             }
             $manual = $command->rateSpecified ? $command->manualRate : $old->manualRate;
-            $target = $old->rateCurrency ?? $this->accounts->find($actorId)?->currency ?? 'EUR';
+            $target = $old->rateCurrency ?? $this->accounts->find($actorId)->currency ?? 'EUR';
             $this->market->validateManualRate($old->currency, $target, $manual);
             $change = $command->changes;
             $money = new Money($change->totalAmount->minorUnits, $old->currency, $manual, null === $manual ? null : $target);

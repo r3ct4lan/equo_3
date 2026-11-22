@@ -17,11 +17,13 @@ interface TransferRepositoryPort
     /** @return list<Transfer> */
     public function pageForUser(string $userId, string $direction, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array;
 
-    /** @return iterable<array{connectId:string,senderId:string,amount:int,currency:string,manualRate:?string,rateCurrency:?string}> */
+    /** @return iterable<array{isShare:bool,connectId:string,senderId:string,amount:int,currency:string,manualRate:?string,rateCurrency:?string}> */
     public function openAmounts(string $viewerId, ?string $connectId): iterable;
 
     /** @return array<string,array{id:string,remaining:int}> */
     public function shareBalances(string $debtId): array;
+
+    public function availableBefore(string $paymentId, string $shareId): int;
 
     public function save(Transfer $transfer): void;
 

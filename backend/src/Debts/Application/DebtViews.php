@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Debts\Application;
 
 use App\Connects\Application\Api\ConnectAccess;
-use App\Debts\Domain\Debt;
 use App\Currency\Application\Api\ExchangeMarket;
+use App\Debts\Domain\Debt;
 use App\IdentityAccess\Application\Api\AccountAccess;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
@@ -42,8 +42,8 @@ final readonly class DebtViews
         $canEdit = $viewerId === $debt->createdById && !$debt->isDeleted && $payer['isActive'] && $author['isActive'];
         $shares = $this->shares->forDebt($debt->id);
         $money = $debt->totalAmount;
-        $viewerCurrency = $this->accounts->find($viewerId)?->currency ?? 'EUR';
-        $convert = fn (int $amount): ?int => $this->market->cardEquivalent($amount, $money->currency, $viewerCurrency, $money->manualRate, $money->rateCurrency);
+        $viewerCurrency = $this->accounts->find($viewerId)->currency ?? 'EUR';
+        $convert = fn (int $amount): ?int => $this->market->cardEquivalent($amount, $money->currency, $viewerCurrency, $money->manualRate, $money->rateCurrency, true);
         $participants = [];
         foreach ($debt->currentParticipants() as $p) {
             $participants[] = ['debtParticipantId' => $p->id, 'user' => $this->user($p->userId), 'isPayer' => $p->userId === $debt->payerId, 'isAuthor' => $p->userId === $debt->createdById, 'shareAmount' => $debt->shareFor($p), 'remainingAmount' => $shares[$p->id]['remaining'] ?? null, 'equivalentAmount' => $convert($debt->shareFor($p)), 'transferId' => $shares[$p->id]['id'] ?? null, 'connectId' => $includeParticipantConnects ? $this->connects->findPairId($viewerId, $p->userId) : null];

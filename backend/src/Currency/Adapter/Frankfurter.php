@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Currency\Adapter;
 
-use App\Currency\Application\MarketSource;
 use App\Currency\Application\Api\MarketUnavailable;
+use App\Currency\Application\MarketSource;
 use App\Currency\Domain\CurrencyPrecision;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;

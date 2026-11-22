@@ -109,7 +109,7 @@ final class ManualTransferConcurrencyTest extends KernelTestCase
             } proc_terminate($process);
             proc_close($process);
         }
-        if ('linked' === $race) {
+        if (isset($first['share'])) {
             self::assertSame(1500, (int) $this->db->fetchOne('SELECT SUM(credited_amount) FROM transfer WHERE related_transfer_id=?', [$first['share']]));
             self::assertSame(502, (int) $this->db->fetchOne('SELECT SUM(excess_amount) FROM transfer WHERE related_transfer_id=?', [$first['share']]));
         }

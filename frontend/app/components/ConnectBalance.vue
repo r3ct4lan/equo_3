@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { formatEuro as formatEuroBase } from '~/utils/money'
+import { formatMoney } from '~/utils/money'
 
 const { locale } = useLocale()
-const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
-defineProps<{ amount: number }>()
+defineProps<{ amount: number, currency?: string }>()
 
 const { t } = useTranslation()
 </script>
@@ -15,7 +14,7 @@ const { t } = useTranslation()
       <strong
         class="connect-balance__value"
         :class="{ 'connect-balance__value--positive': amount > 0, 'connect-balance__value--negative': amount < 0 }"
-      >{{ formatEuro(amount) }}</strong>
+      >{{ formatMoney(amount, currency, locale) }}</strong>
     </UiText>
     <UiText v-if="amount > 0">
       {{ t('They owe you') }}

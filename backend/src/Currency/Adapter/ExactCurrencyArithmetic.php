@@ -25,4 +25,3 @@ final class ExactCurrencyArithmetic implements CurrencyArithmetic
         return ExchangeRate::fromDecimal($quote, CurrencyPrecision::DIGITS[$from], CurrencyPrecision::DIGITS[$to])->settle($amount, $remaining);
     }
 }
-

@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { formatDateTime, formatPeople } from '~/utils/locale'
 import type { DebtView } from '~/types/finance'
-import { formatEuro as formatEuroBase } from '~/utils/money'
+import { formatMoney } from '~/utils/money'
 import { validDebtEtag } from '~/utils/debt-update'
 
 const { locale } = useLocale()
-const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Expense · Equo' })
@@ -45,11 +44,14 @@ const { t } = useTranslation()
       <UiText v-if="debt.description">
         {{ debt.description }}
       </UiText>
+      <UiText v-if="debt.viewerCurrency !== debt.currency && debt.equivalentAmount != null">
+        ≈ {{ formatMoney(debt.equivalentAmount, debt.viewerCurrency, locale) }}
+      </UiText>
       <UiDescriptionList>
-        <div><dt>{{ t('Total') }}</dt><dd>{{ formatEuro(debt.totalAmount) }}</dd></div>
+        <div><dt>{{ t('Total') }}</dt><dd>{{ formatMoney(debt.totalAmount, debt.currency, locale) }}</dd></div>
         <div><dt>{{ t('Paid by') }}</dt><dd>{{ debt.payer.name }}{{ debt.payer.isActive ? '' : t(' (inactive)') }}</dd></div>
         <div><dt>{{ t('Recorded by') }}</dt><dd>{{ debt.createdBy.name }}{{ debt.createdBy.isActive ? '' : t(' (inactive)') }}</dd></div>
-        <div><dt>{{ t('Split') }}</dt><dd>{{ formatPeople(debt.participantCount, locale) }} · {{ debt.shareAmount === null ? t('Different share amounts') : formatEuro(debt.shareAmount) + ' ' + t('each') }}</dd></div>
+        <div><dt>{{ t('Split') }}</dt><dd>{{ formatPeople(debt.participantCount, locale) }} · {{ debt.shareAmount === null ? t('Different share amounts') : formatMoney(debt.shareAmount, debt.currency, locale) + ' ' + t('each') }}</dd></div>
       </UiDescriptionList>
       <UiButton
         v-if="debt.canEdit && !debt.isDeleted && debt.createdBy.id === state.user?.id"
@@ -78,7 +80,9 @@ const { t } = useTranslation()
           >
             {{ participant.user.name }}
           </UiLink>
-          <span v-else>{{ participant.user.name }}</span>{{ participant.user.id === state.user?.id ? t(' (you)') : '' }} · {{ formatEuro(participant.shareAmount) }}
+          <span v-else>{{ participant.user.name }}</span>{{ participant.user.id === state.user?.id ? t(' (you)') : '' }} · {{ formatMoney(participant.shareAmount, debt.currency, locale) }}
+          <span v-if="debt.viewerCurrency !== debt.currency && participant.equivalentAmount != null"> · ≈ {{ formatMoney(participant.equivalentAmount, debt.viewerCurrency, locale) }}</span>
+          <span v-if="participant.remainingAmount != null && !debt.isDeleted"> · {{ t('Remaining share') }} {{ formatMoney(participant.remainingAmount, debt.currency, locale) }}</span>
           <span v-if="participant.isPayer"> · {{ t('payer') }}</span><span v-if="participant.isAuthor"> · {{ t('author') }}</span><span v-if="!participant.user.isActive"> · {{ t('inactive') }}</span>
           <UiLink
             v-if="participant.transferId && (participant.user.id === state.user?.id || debt.payer.id === state.user?.id)"
@@ -92,7 +96,7 @@ const { t } = useTranslation()
         {{ t('The payer is excluded from the split.') }}
       </UiText>
       <UiText variant="help">
-        {{ t('Shares round up to the next cent.') }}
+        {{ t('Shares round up to the smallest currency unit.') }}
       </UiText>
       <time :datetime="debt.createdAt">{{ formatDateTime(new Date(debt.createdAt), locale) }}</time>
     </UiCard>

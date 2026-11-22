@@ -14,8 +14,8 @@ final class FrankfurterTest extends TestCase
     public function testCatalogFiltersAssetsAndReadsExactDatedQuotes(): void
     {
         $client = new MockHttpClient([
-            new MockResponse(file_get_contents(__DIR__.'/catalog.json')),
-            new MockResponse(file_get_contents(__DIR__.'/rates.csv')),
+            new MockResponse((string) file_get_contents(__DIR__.'/catalog.json')),
+            new MockResponse((string) file_get_contents(__DIR__.'/rates.csv')),
         ]);
         $snapshot = (new Frankfurter($client))->fetch();
         self::assertEqualsCanonicalizing(['EUR', 'USD', 'RSD', 'HUF'], array_keys($snapshot['currencies']));

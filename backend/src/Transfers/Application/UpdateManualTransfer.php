@@ -51,7 +51,7 @@ final readonly class UpdateManualTransfer
                     || ($relinked && $target->isDeleted) || (!$target->isDeleted && ($target->senderId !== $command->receiverId || $target->receiverId !== $command->senderId)))) {
                     throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
                 }
-                $profileCurrency = $this->accounts->find($actorId)?->currency ?? 'EUR';
+                $profileCurrency = $this->accounts->find($actorId)->currency ?? 'EUR';
                 $targetCurrency = $target->currency ?? ($relinked ? $profileCurrency : ($transfer->rateCurrency ?? $profileCurrency));
                 $manualRate = $command->rateSpecified ? $command->manualRate : ($targetCurrency === $transfer->rateCurrency ? $transfer->manualRate : null);
                 $this->market->validateManualRate($transfer->currency, $targetCurrency, $manualRate);

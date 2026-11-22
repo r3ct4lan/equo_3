@@ -57,7 +57,7 @@ final class MergeExpensesIntegrationTest extends KernelTestCase
 
         self::assertSame(4000, $transfers->find($primaryShare)?->amount);
         self::assertNull($transfers->find($joinedShare));
-        self::assertSame(700, $transfers->find($primaryShare)?->creditedAmount);
+        self::assertSame(700, $transfers->find($primaryShare)->creditedAmount);
         self::assertSame($primaryShare, $transfers->find($payment['id'])?->relatedTransferId);
         self::assertNull($debtRepository->find($internalId));
         self::assertSame(0, count($transfers->sharesForDebt($internalId)));

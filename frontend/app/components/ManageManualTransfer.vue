@@ -2,7 +2,7 @@
 import type { DialogTarget, FocusTarget } from '~/types/ui'
 import type { CreateManualTransferBody, TransferView } from '~/types/finance'
 import { ApiClientError, toApiClientError, type ApiClientError as ApiError } from '~/utils/api-error'
-import { euroInput } from '~/utils/debt-update'
+import { moneyInput, currencyDigits, parseMinorUnits, settlementPreview, formatMoney } from '~/utils/money'
 import { manualTransferUpdateCommand, validTransferEtag } from '~/utils/manual-transfer'
 
 const props = defineProps<{ transfer: TransferView, etag: string }>()
@@ -11,7 +11,7 @@ const { $auth } = useNuxtApp()
 const { state } = useCurrentUser()
 const mode = ref<'idle' | 'edit' | 'delete'>('idle')
 const senderId = ref(props.transfer.sender.id)
-const amount = ref(euroInput(props.transfer.amount))
+const amount = ref(moneyInput(props.transfer.amount, props.transfer.currency))
 const relatedShare = ref(props.transfer.relatedTransferId ?? '')
 const relatedSelectorOpen = ref(false)
 const pending = ref(false)
@@ -25,12 +25,39 @@ const deleteConfirm = ref<FocusTarget | null>(null)
 const dialog = useTemplateRef<DialogTarget>('dialog')
 let generation = 0
 const sides = computed(() => [props.transfer.sender, props.transfer.receiver])
+const { locale } = useLocale()
+const currency = computed(() => props.transfer.currency ?? 'EUR')
+const manualRate = ref(props.transfer.manualRate ?? null)
+const quote = ref<string | null>(null)
+const selectedShare = ref<TransferView | null>(null)
+const existingShare = computed(() => !!relatedShare.value && relatedShare.value === props.transfer.relatedTransferId)
+const target = computed(() => selectedShare.value?.currency ?? (existingShare.value ? props.transfer.shareCurrency : null) ?? props.transfer.rateCurrency ?? state.value.user?.currency ?? 'EUR')
+const available = computed(() => selectedShare.value?.remainingAmount ?? (existingShare.value && props.transfer.shareRemainingAmount != null ? props.transfer.availableBeforePayment ?? props.transfer.shareRemainingAmount + (props.transfer.creditedAmount ?? 0) : null))
+const allocation = computed(() => {
+  const paid = parseMinorUnits(amount.value, currency.value)
+  return available.value != null && paid != null && quote.value ? settlementPreview(paid, available.value, currency.value, target.value, quote.value) : null
+})
+function selectShare(share: TransferView): void {
+  selectedShare.value = share
+  if ((share.currency ?? 'EUR') === currency.value) amount.value = moneyInput(share.remainingAmount ?? share.amount, currency.value)
+}
+watch(senderId, () => {
+  relatedShare.value = ''
+  selectedShare.value = null
+})
+watch(relatedShare, (id) => {
+  if (!id) selectedShare.value = null
+})
+watch(target, () => {
+  manualRate.value = null
+})
 const updateBody = computed(() => manualTransferUpdateCommand(props.transfer, state.value.user?.id ?? '', senderId.value, amount.value))
 const message = computed(() => {
+  if (error.value?.code === 'EXCHANGE_RATE_UNAVAILABLE') return 'The exchange rate is unavailable. Enter a rate or try again later.'
   if (error.value?.code === 'VERSION_CONFLICT') return 'Someone changed this payment. Reload it and review the current values before trying again.'
   if (error.value && (error.value.status === null || error.value.status >= 500)) return 'The result is not confirmed. Reload the payment before trying anything else.'
   if (['TRANSFER_FROZEN', 'TRANSFER_DELETED', 'TRANSFER_NOT_AVAILABLE', 'FORBIDDEN', 'PRECONDITION_REQUIRED', 'AUTOMATIC_TRANSFER_IMMUTABLE'].includes(error.value?.code ?? '')) return 'This payment can no longer be changed. Reload it to check its current state.'
-  if (invalid.value || error.value?.code === 'VALIDATION_ERROR') return 'Choose one of the original directions and enter a positive EUR amount with up to two decimal places.'
+  if (invalid.value || error.value?.code === 'VALIDATION_ERROR') return 'Choose a payment direction and enter a positive amount in the original currency.'
   return error.value ? 'The payment could not be changed. Check your session and try again.' : null
 })
 
@@ -58,9 +85,11 @@ async function cancel(target: 'edit' | 'delete'): Promise<void> {
   error.value = null
   invalid.value = false
   senderId.value = props.transfer.sender.id
-  amount.value = euroInput(props.transfer.amount)
+  amount.value = moneyInput(props.transfer.amount, props.transfer.currency)
   relatedShare.value = props.transfer.relatedTransferId ?? ''
   relatedSelectorOpen.value = false
+  selectedShare.value = null
+  manualRate.value = props.transfer.manualRate ?? null
   await nextTick()
   const targetButton = target === 'edit' ? editTrigger.value : deleteTrigger.value
   targetButton?.focus()
@@ -72,7 +101,8 @@ async function save(): Promise<void> {
   invalid.value = !updateBody.value
   if (!updateBody.value) return
   const relation = relatedShare.value === (props.transfer.relatedTransferId ?? '') ? {} : { relatedTransferId: relatedShare.value || null }
-  await command('PUT', { ...updateBody.value, ...relation }, 200, viewer)
+  const rate = manualRate.value !== (props.transfer.manualRate ?? null) ? { manualRate: manualRate.value } : {}
+  await command('PUT', { ...updateBody.value, ...relation, ...rate }, 200, viewer)
 }
 
 async function remove(): Promise<void> {
@@ -107,7 +137,7 @@ async function command(method: 'PUT' | 'DELETE', body: CreateManualTransferBody 
   catch (failure) {
     if (requestGeneration !== generation) return
     error.value = toApiClientError(failure)
-    blocked.value = error.value.status === null || error.value.status >= 500 || ['VERSION_CONFLICT', 'PRECONDITION_REQUIRED', 'TRANSFER_FROZEN', 'TRANSFER_DELETED', 'TRANSFER_NOT_AVAILABLE', 'FORBIDDEN', 'AUTOMATIC_TRANSFER_IMMUTABLE', 'TRANSFER_CHANGE_UNCONFIRMED'].includes(error.value.code)
+    blocked.value = (error.value.code !== 'EXCHANGE_RATE_UNAVAILABLE' && (error.value.status === null || error.value.status >= 500)) || ['VERSION_CONFLICT', 'PRECONDITION_REQUIRED', 'TRANSFER_FROZEN', 'TRANSFER_DELETED', 'TRANSFER_NOT_AVAILABLE', 'FORBIDDEN', 'AUTOMATIC_TRANSFER_IMMUTABLE', 'TRANSFER_CHANGE_UNCONFIRMED'].includes(error.value.code)
   }
   finally {
     if (requestGeneration === generation) pending.value = false
@@ -118,9 +148,11 @@ function reset(): void {
   ++generation
   mode.value = 'idle'
   senderId.value = props.transfer.sender.id
-  amount.value = euroInput(props.transfer.amount)
+  amount.value = moneyInput(props.transfer.amount, props.transfer.currency)
   relatedShare.value = props.transfer.relatedTransferId ?? ''
   relatedSelectorOpen.value = false
+  selectedShare.value = null
+  manualRate.value = props.transfer.manualRate ?? null
   pending.value = false
   blocked.value = false
   invalid.value = false
@@ -209,14 +241,27 @@ const { t } = useTranslation()
             v-else
             v-model="relatedShare"
             :connect-id="transfer.connectId"
-            @selected="amount = euroInput($event.amount)"
+            :sender-id="senderId"
+            @selected="selectShare"
           />
+          <OperationRateField
+            v-model="manualRate"
+            :currency="currency"
+            :target="target"
+            :saved-rate="existingShare && !transfer.manualRate ? transfer.settlementRate : null"
+            @rate="quote = $event"
+          />
+          <UiText v-if="allocation">
+            {{ t('Remaining share') }} · {{ formatMoney(allocation.remaining, target, locale) }}.
+            {{ t('Overpayment') }} · {{ formatMoney(allocation.excess, currency, locale) }}.
+          </UiText>
           <UiField>
-            <label for="edit-payment-amount">{{ t('Payment amount in EUR') }}</label>
+            <label for="edit-payment-amount">{{ currency === 'EUR' ? t('Payment amount in EUR') : t('Payment amount in') + ' ' + currency }}</label>
             <UiInput
               id="edit-payment-amount"
               v-model="amount"
               money
+              :digits="currencyDigits(currency)"
               type="text"
               inputmode="decimal"
               required

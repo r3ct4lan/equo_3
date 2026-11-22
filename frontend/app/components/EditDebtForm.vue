@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import type { BriefUser, DebtView } from '~/types/finance'
-import { euroInput, updateDebtCommand, validDebtEtag } from '~/utils/debt-update'
-import { formatEuro as formatEuroBase, parseEuroCents, splitShare } from '~/utils/money'
+import { updateDebtCommand, validDebtEtag } from '~/utils/debt-update'
+import { formatMoney, moneyInput, currencyDigits, parseMinorUnits, splitShare } from '~/utils/money'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 
 const { locale } = useLocale()
-const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 const props = defineProps<{ debt: DebtView, etag: string }>()
 const emit = defineEmits<{ saved: [debt: DebtView], reload: [], cancel: [] }>()
 const { $auth } = useNuxtApp()
 const { state } = useCurrentUser()
 const values = reactive({
-  title: props.debt.title, description: props.debt.description ?? '', amount: euroInput(props.debt.totalAmount),
+  title: props.debt.title, description: props.debt.description ?? '', amount: moneyInput(props.debt.totalAmount, props.debt.currency),
   participantIds: props.debt.participants.filter(p => !p.isPayer).map(p => p.user.id), includePayerInSplit: props.debt.includePayerInSplit
 })
+const currency = computed(() => props.debt.currency ?? 'EUR')
+const manualRate = ref(props.debt.manualRate ?? null)
 const people = ref<BriefUser[]>([])
 const pending = ref(false)
 const blocked = ref(false)
@@ -26,20 +27,21 @@ watch(people, (selected) => {
 })
 const splitChanged = computed(() => {
   const original = props.debt.participants.filter(participant => !participant.isPayer).map(participant => participant.user.id)
-  return parseEuroCents(values.amount) !== props.debt.totalAmount
+  return parseMinorUnits(values.amount, currency.value) !== props.debt.totalAmount
     || values.includePayerInSplit !== props.debt.includePayerInSplit
     || values.participantIds.length !== original.length
     || values.participantIds.some(id => !original.includes(id))
 })
 const share = computed(() => splitChanged.value
-  ? splitShare(parseEuroCents(values.amount) ?? 0, values.participantIds.length + (values.includePayerInSplit ? 1 : 0))
+  ? splitShare(parseMinorUnits(values.amount, currency.value) ?? 0, values.participantIds.length + (values.includePayerInSplit ? 1 : 0))
   : props.debt.shareAmount)
 const message = computed(() => {
+  if (error.value?.code === 'EXCHANGE_RATE_UNAVAILABLE') return 'The exchange rate is unavailable. Enter a rate or try again later.'
   if (error.value?.code === 'VERSION_CONFLICT') return 'Someone changed this expense. Reload it and review the current values before saving again. Your draft has not been applied.'
   if (error.value && (error.value.status === null || error.value.status >= 500)) return 'The result is not confirmed. Reload the expense and review its current values before saving again.'
   if (['DEBT_FROZEN', 'DEBT_DELETED', 'DEBT_NOT_AVAILABLE', 'FORBIDDEN'].includes(error.value?.code ?? '')) return 'This expense can no longer be edited. Reload it to check its current state.'
   if (error.value?.code === 'INACTIVE_USER' || error.value?.code === 'INVALID_PARTICIPANT') return 'A selected person is unavailable. Remove them and review your selections.'
-  if (invalid.value || error.value?.code === 'VALIDATION_ERROR') return 'Enter a title, a positive EUR amount and at least one participant other than the payer. The author must remain in the split when someone else paid.'
+  if (invalid.value || error.value?.code === 'VALIDATION_ERROR') return 'Enter a title, a positive amount and the people sharing the expense.'
   return error.value ? 'The changes could not be saved. Check your session and try again.' : null
 })
 async function submit(): Promise<void> {
@@ -48,6 +50,7 @@ async function submit(): Promise<void> {
   const command = updateDebtCommand(props.debt, values, viewer)
   invalid.value = !command
   if (!command) return
+  if (manualRate.value !== (props.debt.manualRate ?? null)) command.manualRate = manualRate.value
   const requestGeneration = generation
   pending.value = true
   error.value = null
@@ -60,7 +63,7 @@ async function submit(): Promise<void> {
   catch (failure) {
     if (requestGeneration !== generation) return
     error.value = toApiClientError(failure)
-    blocked.value = error.value.status === null || error.value.status >= 500 || ['VERSION_CONFLICT', 'PRECONDITION_REQUIRED', 'DEBT_FROZEN', 'DEBT_DELETED', 'DEBT_NOT_AVAILABLE', 'FORBIDDEN'].includes(error.value.code)
+    blocked.value = (error.value.code !== 'EXCHANGE_RATE_UNAVAILABLE' && (error.value.status === null || error.value.status >= 500)) || ['VERSION_CONFLICT', 'PRECONDITION_REQUIRED', 'DEBT_FROZEN', 'DEBT_DELETED', 'DEBT_NOT_AVAILABLE', 'FORBIDDEN'].includes(error.value.code)
   }
   finally {
     if (requestGeneration === generation) pending.value = false
@@ -81,9 +84,10 @@ function clear(): void {
 function reset(): void {
   clear()
   if (state.value.status !== 'authenticated' || state.value.user?.id !== props.debt.createdBy.id || !props.debt.canEdit || props.debt.isDeleted) return
+  manualRate.value = props.debt.manualRate ?? null
   values.title = props.debt.title
   values.description = props.debt.description ?? ''
-  values.amount = euroInput(props.debt.totalAmount)
+  values.amount = moneyInput(props.debt.totalAmount, props.debt.currency)
   values.participantIds = props.debt.participants.filter(p => !p.isPayer).map(p => p.user.id)
   values.includePayerInSplit = props.debt.includePayerInSplit
   blocked.value = false
@@ -136,12 +140,19 @@ const { t } = useTranslation()
           rows="3"
         />
       </UiField>
+      <OperationRateField
+        v-model="manualRate"
+        inverse
+        :currency="currency"
+        :target="debt.rateCurrency ?? state.user?.currency ?? 'EUR'"
+      />
       <UiField>
-        <label for="edit-amount">{{ t('Amount in EUR') }}</label>
+        <label for="edit-amount">{{ currency === 'EUR' ? t('Amount in EUR') : t('Amount in') + ' ' + currency }}</label>
         <UiInput
           id="edit-amount"
           v-model="values.amount"
           money
+          :digits="currencyDigits(currency)"
           type="text"
           inputmode="decimal"
           required
@@ -151,7 +162,7 @@ const { t } = useTranslation()
           id="edit-amount-help"
           variant="help"
         >
-          {{ t('Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.') }}
+          {{ t('Maximum amount') }} · {{ formatMoney(2147483647, currency, locale) }}
         </UiText>
       </UiField>
       <DebtPeoplePicker
@@ -166,7 +177,7 @@ const { t } = useTranslation()
         v-model="values.includePayerInSplit"
       /> {{ t('Include the payer in the split') }}</label>
       <UiText v-if="share">
-        {{ t('Each share:') }} {{ formatEuro(share) }}.
+        {{ t('Each share:') }} {{ formatMoney(share, currency, locale) }}.
         {{ splitChanged ? t('Every current share will be recalculated.') : '' }}
       </UiText>
       <UiText v-else-if="!splitChanged">

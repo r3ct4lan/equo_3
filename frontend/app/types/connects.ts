@@ -1,6 +1,7 @@
 export interface ConnectView {
   id: string
   otherUser: { id: string, name: string, isActive: boolean }
+  currency?: string
   balanceAmount: number
   canCreateDebt: boolean
   canCreateTransfer: boolean

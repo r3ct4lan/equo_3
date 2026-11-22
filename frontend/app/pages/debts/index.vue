@@ -46,6 +46,7 @@ const { t } = useTranslation()
           :to="'/debts/' + debt.id"
           :title="debt.title"
           :amount="debt.totalAmount"
+          :currency="debt.currency"
           :payer-name="debt.payer.name"
           :created-at="debt.createdAt"
           :is-deleted="debt.isDeleted"

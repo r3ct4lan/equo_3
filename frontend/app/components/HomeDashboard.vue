@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { state } = useCurrentUser()
 const { data, pending, error, load } = useDashboard()
 
 const { t } = useTranslation()
@@ -40,6 +41,7 @@ const { t } = useTranslation()
         <UiSummaryCard
           title-id="owed-title"
           :title="t('You owe')"
+          :currency="data.balances.currency ?? state.user?.currency"
           :amount="data.balances.totalOwedAmount"
           to="/connects"
           :link-label="t('Across all your connections')"
@@ -47,6 +49,7 @@ const { t } = useTranslation()
         <UiSummaryCard
           title-id="receivable-title"
           :title="t('You are owed')"
+          :currency="data.balances.currency ?? state.user?.currency"
           :amount="data.balances.totalReceivableAmount"
           to="/connects"
           :link-label="t('Across all your connections')"
@@ -86,7 +89,8 @@ const { t } = useTranslation()
             :key="expense.id"
             :to="'/debts/' + expense.id"
             :title="expense.title"
-            :amount="expense.totalAmount"
+            :amount="expense.equivalentAmount ?? expense.totalAmount"
+            :currency="expense.equivalentAmount != null ? expense.viewerCurrency : expense.currency"
             :payer-name="expense.payer.name"
             :created-at="expense.createdAt"
           />

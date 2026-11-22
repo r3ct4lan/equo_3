@@ -11,19 +11,20 @@ import {
   toApiClientError
 } from './api-error.ts'
 import {
-  parseEuroCents
+  parseMinorUnits
 } from './money.ts'
 
 export interface DebtFormValues {
   title: string
   description: string
+  currency?: string
   amount: string
   payerId: string
   participantIds: string[]
   includePayerInSplit: boolean
 }
 export function debtCommand(values: DebtFormValues, viewerId: string): CreateDebtBody | null {
-  const totalAmount = parseEuroCents(values.amount)
+  const totalAmount = parseMinorUnits(values.amount, values.currency)
   const ids = [...new Set(values.participantIds)].filter(id => id !== values.payerId).sort()
   if (!values.title.trim() || totalAmount === null || !values.payerId || ids.length === 0 || (viewerId !== values.payerId && !ids.includes(viewerId))) return null
   return {
@@ -32,7 +33,7 @@ export function debtCommand(values: DebtFormValues, viewerId: string): CreateDeb
 }
 export function uncertainDebtResult(failure: unknown): boolean {
   const error = toApiClientError(failure)
-  return error.status === null || error.status >= 500
+  return error.code !== 'EXCHANGE_RATE_UNAVAILABLE' && (error.status === null || error.status >= 500)
 }
 export async function eligibleDebtUsers(auth: Pick<AuthSession, 'protectedRequest'>, self: BriefUser, current: () => boolean): Promise<BriefUser[]> {
   const users = new Map<string, BriefUser>([[self.id, self]])

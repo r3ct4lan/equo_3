@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { formatDateTime } from '~/utils/locale'
 import type { TransferView } from '~/types/finance'
-import { formatEuro as formatEuroBase } from '~/utils/money'
+import { formatMoney } from '~/utils/money'
 import { validTransferEtag } from '~/utils/manual-transfer'
 
 const { locale } = useLocale()
-const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Operation · Equo' })
@@ -37,7 +36,17 @@ const { t } = useTranslation()
       class="stack"
     >
       <UiText variant="heading2">
-        {{ transfer.type === 'DEBT_SHARE' ? t('Expense share') : t('Payment') }} · {{ formatEuro(transfer.amount) }}
+        {{ transfer.type === 'DEBT_SHARE' ? t('Expense share') : t('Payment') }} · {{ formatMoney(transfer.amount, transfer.currency, locale) }}
+      </UiText>
+      <UiText v-if="transfer.viewerCurrency !== transfer.currency && transfer.equivalentAmount != null">
+        ≈ {{ formatMoney(transfer.equivalentAmount, transfer.viewerCurrency, locale) }}
+      </UiText>
+      <UiText v-if="transfer.remainingAmount != null && !transfer.isDeleted">
+        {{ t('Remaining share') }} · {{ formatMoney(transfer.remainingAmount, transfer.currency, locale) }}
+      </UiText>
+      <UiText v-if="transfer.excessAmount != null && transfer.shareCurrency">
+        {{ t('Credited') }} · {{ formatMoney(transfer.creditedAmount ?? 0, transfer.shareCurrency, locale) }}.
+        {{ t('Overpayment') }} · {{ formatMoney(transfer.excessAmount, transfer.currency, locale) }}.
       </UiText>
       <UiText>{{ transfer.sender.name }} → {{ transfer.receiver.name }}</UiText>
       <UiText v-if="!transfer.sender.isActive || !transfer.receiver.isActive">

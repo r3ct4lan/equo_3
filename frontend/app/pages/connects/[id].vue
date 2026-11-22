@@ -94,7 +94,10 @@ const { t } = useTranslation()
       <UiText variant="heading2">
         {{ connect.otherUser.name }}
       </UiText>
-      <ConnectBalance :amount="connect.balanceAmount" />
+      <ConnectBalance
+        :amount="connect.balanceAmount"
+        :currency="connect.currency"
+      />
       <UiText v-if="!connect.otherUser.isActive">
         {{ t('This account is inactive. New expenses and transfers are unavailable until it is reactivated.') }}
       </UiText>

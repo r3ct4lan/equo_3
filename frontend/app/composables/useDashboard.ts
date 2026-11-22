@@ -2,6 +2,7 @@ import type { DebtSummary, Page } from '~/types/finance'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 
 export interface BalanceSummary {
+  currency?: string
   totalOwedAmount: number
   totalReceivableAmount: number
 }

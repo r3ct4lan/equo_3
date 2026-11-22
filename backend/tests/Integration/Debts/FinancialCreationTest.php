@@ -70,10 +70,11 @@ final class FinancialCreationTest extends KernelTestCase
 
     public function testExpenseRetainsSourceCurrencyAndPairOnReplay(): void
     {
-        $command = new CreateDebtCommand('Dinner', null, 240000, $this->users[0], [$this->users[1]], true, Uuid::v4()->toRfc4122(), 'RSD', '0.008');
+        $command = new CreateDebtCommand('Dinner', null, 240000, $this->users[0], [$this->users[1]], true, Uuid::v4()->toRfc4122(), 'RSD', '120');
         $result = $this->service->handle($command, $this->users[0]);
         self::assertSame('RSD', $result['body']['currency']);
         self::assertSame('EUR', $result['body']['rateCurrency']);
+        self::assertSame(2000, $result['body']['equivalentAmount']);
         self::assertSame(120000, $result['body']['shareAmount']);
         self::assertSame($result, $this->service->handle($command, $this->users[0]));
     }

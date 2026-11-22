@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import type { TransferView } from '~/types/finance'
-import { formatEuro as formatEuroBase } from '~/utils/money'
+import { formatMoney } from '~/utils/money'
 
 const { locale } = useLocale()
-const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 const props = defineProps<{ shares: TransferView[] }>()
 const emit = defineEmits<{ selected: [share: TransferView] }>()
@@ -12,7 +11,7 @@ const missingSelected = computed(() => !!model.value && !props.shares.some(item 
 const options = computed(() => [
   { value: '', label: t('No related expense') },
   ...(missingSelected.value ? [{ value: model.value, label: t('Previously linked expense share') }] : []),
-  ...props.shares.map(share => ({ value: share.id, label: `${share.debtReference?.isAccessible ? share.debtReference.title : t('Expense unavailable')} · ${formatEuro(share.amount)}` }))
+  ...props.shares.map(share => ({ value: share.id, label: `${share.debtReference?.isAccessible ? share.debtReference.title : t('Expense unavailable')} · ${formatMoney(share.amount, share.currency, locale.value)}` }))
 ])
 function onSelection(value: string): void {
   const selected = props.shares.find(share => share.id === value)

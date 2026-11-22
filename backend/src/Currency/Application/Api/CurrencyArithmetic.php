@@ -13,4 +13,3 @@ interface CurrencyArithmetic
     /** @return array{credited:int,excess:int} */
     public function settle(int $amount, int $remaining, string $from, string $to, string $quote): array;
 }
-

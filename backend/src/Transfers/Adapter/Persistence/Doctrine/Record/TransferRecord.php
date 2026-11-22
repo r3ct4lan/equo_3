@@ -45,6 +45,7 @@ class TransferRecord
         #[ORM\Column(name: 'settlement_rate', type: Types::TEXT, nullable: true)] private ?string $settlementRate = null,
         #[ORM\Column(name: 'credited_amount', type: Types::BIGINT, options: ['default' => 0])] private int $creditedAmount = 0,
         #[ORM\Column(name: 'excess_amount', type: Types::BIGINT, nullable: true)] private ?int $excessAmount = null,
+        #[ORM\Column(name: 'settlement_position', type: Types::BIGINT, nullable: true)] private ?int $settlementPosition = null,
     ) {
     }
 

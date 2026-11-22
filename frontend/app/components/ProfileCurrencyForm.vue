@@ -9,17 +9,6 @@ const selection = ref(props.user.currency ?? 'EUR')
 const pending = ref(false)
 const saved = ref(false)
 const error = ref(false)
-const options = ref([{ label: selection.value, value: selection.value }])
-onMounted(async () => {
-  try {
-    const catalog = await $auth.protectedRequest<Record<string, number>>('/v1/currencies')
-    options.value = Object.keys(catalog).map(value => ({ label: value, value }))
-  }
-  catch {
-    error.value = true
-  }
-})
-
 async function save(): Promise<void> {
   pending.value = true
   error.value = false
@@ -47,11 +36,9 @@ async function save(): Promise<void> {
     <UiText variant="heading2">
       {{ locale === 'ru' ? 'Валюта профиля' : 'Profile currency' }}
     </UiText>
-    <UiSelect
-      id="profile-currency"
+    <CurrencySelect
       v-model="selection"
       :label="locale === 'ru' ? 'Валюта профиля' : 'Profile currency'"
-      :options="options"
     />
     <UiText
       v-if="saved"

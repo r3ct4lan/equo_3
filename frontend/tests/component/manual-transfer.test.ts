@@ -56,7 +56,7 @@ describe('manual payment components', () => {
     expect(wrapper.text()).not.toContain('hidden')
     await selectValue(wrapper, 'related-share', 'share')
     expect(wrapper.get('#payment-amount').element).toHaveProperty('value', '5.01')
-    await fill(wrapper)
+    await wrapper.get('#payment-amount').setValue('7.00')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/connects/connect/transfers', expect.objectContaining({
@@ -79,7 +79,7 @@ describe('manual payment components', () => {
     await wrapper.get('form').trigger('submit')
     expect(auth.protectedRequest).toHaveBeenCalledTimes(1)
     expect(wrapper.emitted('created')).toBeUndefined()
-    expect(auth.protectedRequest.mock.calls[0]![1].body).toEqual({ senderId: 'other', receiverId: 'self', amount: 700 })
+    expect(auth.protectedRequest.mock.calls[0]![1].body).toEqual({ senderId: 'other', receiverId: 'self', amount: 700, currency: 'EUR' })
     resolve(transfer)
     await flushPromises()
     expect(wrapper.emitted('created')).toEqual([[transfer]])
@@ -114,7 +114,7 @@ describe('manual payment components', () => {
     await flushPromises()
     const [first, second] = auth.protectedRequest.mock.calls
     expect(first![1].headers['Idempotency-Key']).not.toEqual(second![1].headers['Idempotency-Key'])
-    expect(second![1].body).toEqual({ senderId: 'self', receiverId: 'other', amount: 800 })
+    expect(second![1].body).toEqual({ senderId: 'self', receiverId: 'other', amount: 800, currency: 'EUR' })
     wrapper.unmount()
   })
   it.each(['session', 'connect', 'unmount'])('discards late success after %s changes', async (change) => {
@@ -249,7 +249,7 @@ describe('manual payment correction components', () => {
 
   it('prefills the selected share when editing and leaves the amount editable', async () => {
     config.global.stubs.RelatedShareSelector = false
-    const share = { ...transfer, id: 'share', type: 'DEBT_SHARE', amount: 501 }
+    const share = { ...transfer, id: 'share', sender: self, receiver: other, type: 'DEBT_SHARE', amount: 501 }
     auth.protectedRequest.mockImplementation(async (_path, options) => options?.method === 'PUT'
       ? transfer
       : { items: [share], pagination: { nextCursor: null, hasMore: false } })

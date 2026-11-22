@@ -16,12 +16,13 @@ final readonly class BalanceService implements BalanceQuery
     {
     }
 
-    /** @return array{totalOwedAmount:int,totalReceivableAmount:int} */
+    /** @return array{currency:string,totalOwedAmount:int,totalReceivableAmount:int} */
     public function summary(string $viewerId): array
     {
+        $currency = $this->accounts->find($viewerId)->currency ?? 'EUR';
         $owed = 0;
         $receivable = 0;
-        foreach ($this->balances($viewerId, null) as $balance) {
+        foreach ($this->balances($viewerId, null, $currency) as $balance) {
             $owed += max(0, -$balance);
             $receivable += max(0, $balance);
         }
@@ -29,18 +30,17 @@ final readonly class BalanceService implements BalanceQuery
             throw new RuntimeException('Ledger summary exceeds the exact integer range.');
         }
 
-        return ['totalOwedAmount' => $owed, 'totalReceivableAmount' => $receivable];
+        return ['currency' => $currency, 'totalOwedAmount' => $owed, 'totalReceivableAmount' => $receivable];
     }
 
     public function balance(string $connectId, string $viewerId): int
     {
-        return $this->balances($viewerId, $connectId)[$connectId] ?? 0;
+        return $this->balances($viewerId, $connectId, $this->accounts->find($viewerId)->currency ?? 'EUR')[$connectId] ?? 0;
     }
 
     /** @return array<string,int> */
-    private function balances(string $viewerId, ?string $connectId): array
+    private function balances(string $viewerId, ?string $connectId, string $currency): array
     {
-        $currency = $this->accounts->find($viewerId)?->currency ?? 'EUR';
         $balances = [];
         $rates = [];
         foreach ($this->repository->openAmounts($viewerId, $connectId) as $entry) {
@@ -48,8 +48,9 @@ final readonly class BalanceService implements BalanceQuery
             $from = $entry['currency'];
             if (0 !== $amount && $currency !== $from) {
                 $quote = $entry['rateCurrency'] === $currency ? $entry['manualRate'] : null;
+                $inverse = null !== $quote && $entry['isShare'];
                 $quote ??= $rates[$from] ??= $this->market->quote($from, $currency);
-                $amount = $this->market->equivalent($amount, $from, $currency, $quote, $currency);
+                $amount = $this->market->equivalent($amount, $from, $currency, $quote, $currency, $inverse);
             }
             $id = $entry['connectId'];
             $value = ($balances[$id] ?? 0) + ($entry['senderId'] === $viewerId ? $amount : -$amount);
@@ -62,4 +63,3 @@ final readonly class BalanceService implements BalanceQuery
         return $balances;
     }
 }
-

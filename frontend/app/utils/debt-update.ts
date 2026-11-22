@@ -1,5 +1,5 @@
 import type { DebtView, UpdateDebtBody } from '../types/finance'
-import { parseEuroCents } from './money.ts'
+import { parseMinorUnits } from './money.ts'
 
 export interface DebtEditValues {
   title: string
@@ -13,7 +13,7 @@ export function euroInput(cents: number): string {
   return String(value / 100n) + '.' + String(value % 100n).padStart(2, '0')
 }
 export function updateDebtCommand(debt: DebtView, values: DebtEditValues, viewerId: string): UpdateDebtBody | null {
-  const totalAmount = parseEuroCents(values.amount)
+  const totalAmount = parseMinorUnits(values.amount, debt.currency)
   const ids = [...new Set(values.participantIds)].sort()
   if (!debt.canEdit || debt.isDeleted || viewerId !== debt.createdBy.id || !values.title.trim() || totalAmount === null || !ids.length || ids.includes(debt.payer.id) || (viewerId !== debt.payer.id && !ids.includes(viewerId))) return null
   return { title: values.title.trim(), description: values.description || null, totalAmount, participantIds: ids, includePayerInSplit: values.includePayerInSplit }

@@ -23,7 +23,7 @@ final readonly class ShareSettlements implements ReconcileShare
         }
         $active = !$share['is_deleted'] && !$share['hidden_by_merge'];
         $remaining = (int) $share['amount'];
-        $payments = $this->db->fetchAllAssociative('SELECT id, amount, currency, settlement_rate, is_deleted, hidden_by_merge FROM transfer WHERE related_transfer_id = ? AND settlement_rate IS NOT NULL ORDER BY created_at, id FOR UPDATE', [$shareId]);
+        $payments = $this->db->fetchAllAssociative('SELECT id, amount, currency, settlement_rate, is_deleted, hidden_by_merge FROM transfer WHERE related_transfer_id = ? AND settlement_rate IS NOT NULL ORDER BY settlement_position NULLS FIRST, created_at, id FOR UPDATE', [$shareId]);
         foreach ($payments as $payment) {
             $credit = 0;
             $excess = null;
@@ -38,4 +38,3 @@ final readonly class ShareSettlements implements ReconcileShare
         $this->db->update('transfer', ['credited_amount' => (int) $share['amount'] - $remaining], ['id' => $shareId]);
     }
 }
-

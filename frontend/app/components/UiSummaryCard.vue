@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { LinkTo } from '~/types/ui'
-import { formatEuro as formatEuroBase } from '~/utils/money'
+import { formatMoney } from '~/utils/money'
 
 const { locale } = useLocale()
-const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
-defineProps<{ titleId: string, title: string, amount: number, to: LinkTo, linkLabel: string }>()
+defineProps<{ titleId: string, title: string, amount: number, currency?: string, to: LinkTo, linkLabel: string }>()
 </script>
 
 <template>
@@ -20,7 +19,7 @@ defineProps<{ titleId: string, title: string, amount: number, to: LinkTo, linkLa
       {{ title }}
     </UiText>
     <UiText variant="amount">
-      {{ formatEuro(amount) }}
+      {{ formatMoney(amount, currency, locale) }}
     </UiText>
     <UiLink
       class="ui-caption dashboard-summary-link"

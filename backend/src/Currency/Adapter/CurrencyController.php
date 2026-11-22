@@ -32,4 +32,3 @@ final readonly class CurrencyController
         return new JsonResponse(['rate' => (string) $quote->strippedOfTrailingZeros()]);
     }
 }
-

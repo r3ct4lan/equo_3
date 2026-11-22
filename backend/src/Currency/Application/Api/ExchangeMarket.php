@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Currency\Application\Api;
 
+use App\Currency\Application\MarketSource;
+use App\Currency\Application\MarketStore;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
-use App\Currency\Application\MarketStore;
-use App\Currency\Application\MarketSource;
 
 final readonly class ExchangeMarket
 {
@@ -42,20 +42,22 @@ final readonly class ExchangeMarket
         }
     }
 
-    public function equivalent(int $amount, string $from, string $to, ?string $manual, ?string $rateCurrency): int
+    public function equivalent(int $amount, string $from, string $to, ?string $manual, ?string $rateCurrency, bool $inverseManual = false): int
     {
         if (0 === $amount || $from === $to) {
             return $amount;
         }
-        $quote = $to === $rateCurrency && null !== $manual ? $manual : $this->quote($from, $to);
+        $quote = $to === $rateCurrency && null !== $manual
+            ? ($inverseManual ? $this->arithmetic->ratio('1', $manual) : $manual)
+            : $this->quote($from, $to);
 
         return $this->arithmetic->convert($amount, $from, $to, $quote);
     }
 
-    public function cardEquivalent(int $amount, string $from, string $to, ?string $manual, ?string $rateCurrency): ?int
+    public function cardEquivalent(int $amount, string $from, string $to, ?string $manual, ?string $rateCurrency, bool $inverseManual = false): ?int
     {
         try {
-            return $this->equivalent($amount, $from, $to, $manual, $rateCurrency);
+            return $this->equivalent($amount, $from, $to, $manual, $rateCurrency, $inverseManual);
         } catch (MarketUnavailable) {
             return null;
         }

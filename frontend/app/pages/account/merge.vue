@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 import { formatDateTime } from '~/utils/locale'
-import { formatEuro } from '~/utils/money'
+import { formatMoney } from '~/utils/money'
 
 definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Review account merge · Equo' })
@@ -10,6 +10,7 @@ type MergeOperation = {
   id: string
   createdAt: string
   amount: number
+  currency?: string
 }
 
 type MergePreview = {
@@ -190,7 +191,7 @@ onMounted(() => {
             :key="transfer.id"
           >
             <time :datetime="transfer.createdAt">{{ formatDateTime(new Date(transfer.createdAt), locale) }}</time>
-            · {{ formatEuro(transfer.amount, locale) }}
+            · {{ formatMoney(transfer.amount, transfer.currency, locale) }}
           </li>
         </ul>
         <UiText
@@ -207,7 +208,7 @@ onMounted(() => {
             v-for="expense in preview.disappearingExpenses"
             :key="expense.id"
           >
-            {{ expense.title }} · {{ formatEuro(expense.amount, locale) }}
+            {{ expense.title }} · {{ formatMoney(expense.amount, expense.currency, locale) }}
             · <time :datetime="expense.createdAt">{{ formatDateTime(new Date(expense.createdAt), locale) }}</time>
           </li>
         </ul>
