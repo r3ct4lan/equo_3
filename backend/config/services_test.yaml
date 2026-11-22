@@ -107,3 +107,6 @@ services:
     test.delete_debt:
         alias: App\Debts\Application\DeleteDebt
         public: true
+
+    App\Currency\Application\MarketSource:
+        class: App\Tests\Fixture\E2e\FixedMarket

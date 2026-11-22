@@ -21,6 +21,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/IdentityAccess/Adapter/Persistence/Doctrine/Record'
                 prefix: 'App\IdentityAccess\Adapter\Persistence\Doctrine\Record'
                 alias: IdentityAccess
+            Currency:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Currency/Adapter/Persistence/Doctrine/Record'
+                prefix: 'App\Currency\Adapter\Persistence\Doctrine\Record'
+                alias: Currency
             Connects:
                 type: attribute
                 is_bundle: false

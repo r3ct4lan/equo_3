@@ -84,6 +84,10 @@ final readonly class ApiExceptionSubscriber implements EventSubscriberInterface
     /** @return array{status: int, code: string, message: string, details: array<string, mixed>|null} */
     private function classify(Throwable $exception): array
     {
+        if ($exception instanceof \App\Currency\Application\MarketUnavailable) {
+            return $this->definition(503, 'EXCHANGE_RATE_UNAVAILABLE', 'Currency data is temporarily unavailable.');
+        }
+
         if ($exception instanceof ApplicationFailure) {
             return match ($exception->failureCode) {
                 ApplicationFailureCode::InvalidRequest => $this->definition(Response::HTTP_BAD_REQUEST, 'INVALID_REQUEST', 'Request is invalid.'),
