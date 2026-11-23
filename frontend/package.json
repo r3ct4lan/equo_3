@@ -57,7 +57,8 @@
     "js-beautify": {
       "editorconfig": "4.0.1",
       "glob": "14.0.6"
-    }
+    },
+    "oxc-parser@>=0.140.0": "0.159.0"
   },
   "engines": {
     "node": ">=22 <23"
