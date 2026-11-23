@@ -56,7 +56,10 @@ const { t } = useTranslation()
           <UiLink :to="'/connects/' + connect.id">
             {{ connect.otherUser.name }}
           </UiLink>
-          <ConnectBalance :amount="connect.balanceAmount" />
+          <ConnectBalance
+            :amount="connect.balanceAmount"
+            :currency="connect.currency"
+          />
           <UiText v-if="!connect.otherUser.isActive">
             {{ t('This account is inactive.') }}
           </UiText>

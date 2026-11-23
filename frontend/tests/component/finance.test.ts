@@ -75,7 +75,7 @@ function options(path: string) {
 async function fill(wrapper: Awaited<ReturnType<typeof mountSuspended>>): Promise<void> {
   await wrapper.get('#debt-title').setValue('Dinner')
   await wrapper.get('#debt-amount').setValue('10.01')
-  await wrapper.findAll('input[role="combobox"]')[0]!.trigger('focus')
+  await wrapper.findAll('.people-picker input[role="combobox"]')[0]!.trigger('focus')
   await flushPromises()
   await wrapper.get('[data-value="other"]').trigger('click')
 }
@@ -85,6 +85,37 @@ describe('financial journey components', () => {
     auth.bootstrap.mockReset().mockResolvedValue(undefined)
     navigation.mockReset().mockResolvedValue(undefined)
     signedIn()
+  })
+  it.each(['en', 'ru'] as const)('keeps a one-off HUF expense separate from the %s profile', async (locale) => {
+    auth.protectedRequest.mockImplementation(async (path, request) => {
+      if (path === '/v1/currencies') return { EUR: 2, HUF: 2 }
+      if (path === '/v1/currencies/EUR/HUF') return { rate: '400' }
+      if (request?.method === 'POST') return debt
+      return options(path)
+    })
+    const wrapper = await mountSuspended(CreateDebtForm)
+    signedIn()
+    useLocale().setLocale(locale)
+    await flushPromises()
+    const field = wrapper.getComponent({ name: 'CurrencySelect' })
+    expect(field.props('modelValue')).toBe('EUR')
+    await field.get('input').trigger('focusin')
+    await flushPromises()
+    await field.get('input').trigger('focus')
+    await field.get('[data-value="HUF"]').trigger('click')
+    await flushPromises()
+    const rate = wrapper.getComponent({ name: 'OperationRateField' })
+    await rate.get('button').trigger('click')
+    expect(rate.get('input').element.value).toBe('400')
+    await rate.get('input').setValue('399')
+    await fill(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    const command = auth.protectedRequest.mock.calls.find(call => call[1]?.method === 'POST')![1]
+    expect(command.body).toMatchObject({ currency: 'HUF', manualRate: '399' })
+    expect(auth.protectedRequest.mock.calls.some(call => call[0] === '/v1/me/currency')).toBe(false)
+    wrapper.unmount()
+    useLocale().setLocale('en')
   })
   it('creates once, previews rounding and waits for confirmation before navigation', async () => {
     let resolve: (value: typeof debt) => void = () => undefined
@@ -173,7 +204,7 @@ describe('financial journey components', () => {
     await wrapper.get('form').trigger('submit')
     expect(wrapper.text()).toContain('Enter a title')
     await fill(wrapper)
-    await wrapper.findAll('input[role="combobox"]')[1]!.trigger('focus')
+    await wrapper.findAll('.people-picker input[role="combobox"]')[1]!.trigger('focus')
     await wrapper.findAll('.people-picker')[1]!.get('[data-value="other"]').trigger('click')
     await wrapper.findAll('.people-picker')[0]!.get('[data-value="self"]').trigger('click')
     await wrapper.get('form').trigger('submit')
@@ -189,9 +220,9 @@ describe('financial journey components', () => {
     await flushPromises()
     expect(wrapper.findAll('.people-picker')[1]!.get('.multiselect__single').text()).toBe('You')
     expect(wrapper.text()).toContain('Each share: €10.01')
-    await wrapper.findAll('input[role="combobox"]')[1]!.trigger('focus')
+    await wrapper.findAll('.people-picker input[role="combobox"]')[1]!.trigger('focus')
     await wrapper.findAll('.people-picker')[1]!.get('[data-value="other"]').trigger('click')
-    await wrapper.findAll('input[role="combobox"]')[1]!.trigger('focus')
+    await wrapper.findAll('.people-picker input[role="combobox"]')[1]!.trigger('focus')
     await wrapper.findAll('.people-picker')[1]!.get('[data-value="self"]').trigger('click')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -232,7 +263,7 @@ describe('financial journey components', () => {
     signedIn()
     await flushPromises()
     await fill(wrapper)
-    await wrapper.findAll('input[role="combobox"]')[1]!.trigger('focus')
+    await wrapper.findAll('.people-picker input[role="combobox"]')[1]!.trigger('focus')
     await wrapper.findAll('.people-picker')[1]!.get('[data-value="other"]').trigger('click')
     await wrapper.findAll('.people-picker')[0]!.get('[data-value="other"]').trigger('click')
     await flushPromises()

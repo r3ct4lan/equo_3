@@ -19,19 +19,19 @@ final readonly class ShareService implements AutomaticShares
     {
     }
 
-    public function create(string $connectId, string $payerId, string $receiverId, int $amount, string $debtId, string $participantId, DateTimeImmutable $createdAt): string
+    public function create(string $connectId, string $payerId, string $receiverId, int $amount, string $debtId, string $participantId, DateTimeImmutable $createdAt, string $currency = 'EUR'): string
     {
         if (!$this->connects->isPair($connectId, $payerId, $receiverId)) {
             throw new InvalidArgumentException('Share Connect does not match its sides.');
         }
-        $t = new Transfer($this->runtime->newId(), $connectId, $payerId, $receiverId, $amount, 'DEBT_SHARE', null, $createdAt, $debtId, $participantId);
+        $t = new Transfer($this->runtime->newId(), $connectId, $payerId, $receiverId, $amount, 'DEBT_SHARE', null, $createdAt, $debtId, $participantId, currency: $currency);
         $t->assertConnectSides($payerId, $receiverId);
         $this->repository->save($t);
 
         return $t->id;
     }
 
-    public function recalculate(string $debtId, string $payerId, array $participants, int $amount, DateTimeImmutable $now): void
+    public function recalculate(string $debtId, string $payerId, array $participants, int $amount, DateTimeImmutable $now, string $currency = 'EUR'): void
     {
         $existing = $this->repository->sharesForDebt($debtId);
         foreach ($participants as $p) {
@@ -50,7 +50,7 @@ final readonly class ShareService implements AutomaticShares
                 }
             } elseif (!$p['isDeleted']) {
                 $connect = $this->connects->ensurePair($payerId, $p['userId']);
-                $this->create($connect, $payerId, $p['userId'], $amount, $debtId, $p['participantId'], $now);
+                $this->create($connect, $payerId, $p['userId'], $amount, $debtId, $p['participantId'], $now, $currency);
             }
         }
     }
@@ -71,6 +71,6 @@ final readonly class ShareService implements AutomaticShares
 
     public function forDebt(string $debtId): array
     {
-        return $this->repository->sharesForDebt($debtId);
+        return $this->repository->shareBalances($debtId);
     }
 }

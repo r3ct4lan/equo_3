@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { formatDateTime } from '~/utils/locale'
 import type { TransferView } from '~/types/finance'
-import { formatEuro as formatEuroBase } from '~/utils/money'
+import { formatMoney } from '~/utils/money'
 
 const { locale } = useLocale()
-const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 const props = defineProps<{ connectId: string }>()
 const { items, pending, loaded, cursor, error, load } = useFinancialList<TransferView>(() => '/v1/connects/' + encodeURIComponent(props.connectId) + '/transfers')
@@ -43,7 +42,7 @@ const { t } = useTranslation()
         class="stack"
       >
         <UiLink :to="'/transfers/' + transfer.id">
-          {{ transfer.type === 'DEBT_SHARE' ? t('Expense share') : t('Payment') }} · {{ formatEuro(transfer.amount) }}
+          {{ transfer.type === 'DEBT_SHARE' ? t('Expense share') : t('Payment') }} · {{ formatMoney(transfer.amount, transfer.currency, locale) }}
         </UiLink>
         <UiText>{{ transfer.sender.name }} → {{ transfer.receiver.name }}</UiText>
         <UiNotice

@@ -21,7 +21,7 @@ final readonly class DeleteManualTransfer
     public function handle(string $transferId, int $expectedVersion, string $actorId): void
     {
         $this->runtime->run(function () use ($transferId, $expectedVersion, $actorId): void {
-            $transfer = $this->repository->find($transferId, true);
+            $transfer = $this->repository->find($transferId);
             if (null === $transfer || !$this->connects->isSide($transfer->connectId, $actorId)) {
                 throw new ApplicationFailure(ApplicationFailureCode::TransferNotAvailable);
             }
@@ -31,6 +31,10 @@ final readonly class DeleteManualTransfer
             foreach ($ids as $id) {
                 $account = $this->accounts->find($id, true);
                 $sidesActive = $sidesActive && null !== $account && $account->isActive;
+            }
+            $transfer = $this->repository->find($transferId, true);
+            if (null === $transfer || !$this->connects->isSide($transfer->connectId, $actorId)) {
+                throw new ApplicationFailure(ApplicationFailureCode::TransferNotAvailable);
             }
             try {
                 $removed = $transfer->removeManual($actorId, $expectedVersion, $sidesActive);

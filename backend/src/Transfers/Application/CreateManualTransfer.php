@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Transfers\Application;
 
 use App\Connects\Application\Api\ConnectAccess;
+use App\Currency\Application\Api\ExchangeMarket;
 use App\IdentityAccess\Application\Api\AccountAccess;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
@@ -15,7 +16,7 @@ use App\Transfers\Domain\Transfer;
 
 final readonly class CreateManualTransfer
 {
-    public function __construct(private TransferRepositoryPort $repository, private TransferRuntimePort $runtime, private TransferIdempotencyPort $idempotency, private AccountAccess $accounts, private ConnectAccess $connects, private TransferQueries $queries)
+    public function __construct(private TransferRepositoryPort $repository, private TransferRuntimePort $runtime, private TransferIdempotencyPort $idempotency, private AccountAccess $accounts, private ConnectAccess $connects, private TransferQueries $queries, private ExchangeMarket $market)
     {
     }
 
@@ -43,8 +44,12 @@ final readonly class CreateManualTransfer
             }
             $ids = [$command->senderId, $command->receiverId];
             sort($ids, SORT_STRING);
+            $profileCurrency = 'EUR';
             foreach ($ids as $id) {
                 $account = $this->accounts->find($id, true);
+                if ($id === $authorId && null !== $account) {
+                    $profileCurrency = $account->currency;
+                }
                 if (null === $account || !$account->isActive) {
                     throw new ApplicationFailure(ApplicationFailureCode::InactiveUser);
                 }
@@ -52,11 +57,17 @@ final readonly class CreateManualTransfer
             $relatedId = null === $command->relatedTransferId ? null : strtolower($command->relatedTransferId);
             if (null !== $relatedId) {
                 $target = $this->repository->find($relatedId, true);
-                if (null === $target || 'DEBT_SHARE' !== $target->type || $target->isDeleted || $target->connectId !== $command->connectId) {
+                if (null === $target || 'DEBT_SHARE' !== $target->type || $target->isDeleted || $target->connectId !== $command->connectId || $target->senderId !== $command->receiverId || $target->receiverId !== $command->senderId) {
                     throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
                 }
             }
-            $transfer = Transfer::manual($this->runtime->newId(), $command->connectId, $command->senderId, $command->receiverId, $command->amount, $authorId, $this->runtime->now(), $relatedId);
+            $currency = $command->currency ?? $profileCurrency;
+            $this->market->requireCurrency($currency);
+            $targetCurrency = $target->currency ?? $profileCurrency;
+            $this->market->validateManualRate($currency, $targetCurrency, $command->manualRate);
+            $rateCurrency = null === $command->manualRate ? null : $targetCurrency;
+            $settlementRate = null === $relatedId ? null : ($command->manualRate ?? $this->market->quote($currency, $targetCurrency));
+            $transfer = Transfer::manual($this->runtime->newId(), $command->connectId, $command->senderId, $command->receiverId, $command->amount, $authorId, $this->runtime->now(), $relatedId, $currency, $command->manualRate, $rateCurrency, $settlementRate);
             $this->repository->save($transfer);
             $body = $this->queries->detail($transfer->id, $authorId);
             $this->idempotency->complete($scope, $operation, $command->idempotencyKey, 201, $body, $authorId);

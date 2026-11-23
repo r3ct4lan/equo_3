@@ -2096,7 +2096,7 @@ test('financial expense survives a lost create response, updates both balances a
     await page.getByLabel('Description (optional)', { exact: true }).fill('Shared restaurant bill')
     await page.getByLabel('Amount in EUR', { exact: true }).fill('10.01')
     await setPerson(page.locator('.people-picker').first(), recipientId, true)
-    await expect(page.getByText('Each share: €5.01. Shares round up to the next cent.', { exact: true })).toBeVisible()
+    await expect(page.getByText('Each share: €5.01. Shares round up to the smallest currency unit.', { exact: true })).toBeVisible()
     let debtId = ''
     let firstCommand = ''
     let firstKey = ''
@@ -2270,10 +2270,10 @@ test('manual payment survives a lost response and refreshes both histories after
       }
     }
     await page.setViewportSize({ width: 1280, height: 720 })
+    await selectOption(page.getByRole('combobox', { name: 'Who transferred money?', exact: true }), 'other')
     await page.getByRole('combobox', { name: 'Related expense share (optional)', exact: true }).focus()
     await expect(page.getByRole('option').filter({ hasText: title })).toBeVisible()
     await selectOption(page.getByRole('combobox', { name: 'Related expense share (optional)', exact: true }), relatedShareId!)
-    await selectOption(page.getByRole('combobox', { name: 'Who transferred money?', exact: true }), 'other')
     await page.getByLabel('Payment amount in EUR', { exact: true }).fill('7.00')
     await expect(page.getByText(/Expected balance: -€1.99/u)).toBeVisible()
     const path = '/api/v1/connects/' + connectId + '/transfers'
@@ -2861,15 +2861,22 @@ test('Telegram invitation creates the first connection explicitly and preserves 
     await expect(receiver).toHaveURL(/\/connects$/u)
     expect(acceptCalls).toBe(1)
 
+    await page.goto('/me')
+    const currency = page.getByRole('combobox', { name: 'Profile currency', exact: true })
+    await expect(page.locator('.multiselect').filter({ has: currency })).toContainText('EUR')
+    await selectOption(currency, 'RSD')
+    await page.getByRole('button', { name: 'Save currency', exact: true }).click()
+    await expect(page.getByText('Currency saved.', { exact: true })).toBeVisible()
     await page.getByRole('link', { name: 'Expenses', exact: true }).click()
     await page.getByRole('link', { name: 'New expense', exact: true }).click()
     await page.getByLabel('Title', { exact: true }).fill('Telegram dinner')
-    await page.getByLabel('Amount in EUR', { exact: true }).fill('20.00')
+    await page.getByLabel('Amount in RSD', { exact: true }).fill('20.00')
     await setPerson(page.locator('.people-picker').first(), receiverId, true)
     const created = page.waitForResponse(sent => sent.request().method() === 'POST' && new URL(sent.url()).pathname === '/api/v1/debts')
     await page.getByRole('button', { name: 'Create expense', exact: true }).click()
     expect((await created).status()).toBe(201)
 
+    await expect(page.locator('main')).toContainText('RSD')
     expect(await openTelegramMiniApp(page, 4294967298, 'Telegram Sender')).toBe(account)
     await expect(page.getByRole('link', { name: 'Telegram dinner', exact: true })).toBeVisible()
   }
@@ -3078,3 +3085,69 @@ test('home dashboard separates debts, shows five recent expenses and clears on l
     await expectNoPersistentSecrets(page, [ownerAccess, ...peers.map(peer => peer.access), testPassword])
   }
 })
+
+for (const correctRate of [false, true]) {
+  test(correctRate ? 'correct a repayment rate and remove the overpayment' : 'repay a dinar expense in two currencies', async ({ page, request }) => {
+    const payerEmail = await createActiveUser(request, uniqueEmail('currency-payer'))
+    const peerEmail = await createActiveUser(request, uniqueEmail('currency-peer'))
+    test.setTimeout(150_000)
+    const payer = await login(page, payerEmail)
+    const peer = await loginViaApi(request, peerEmail)
+    const peerId = await profileId(request, peer)
+    const connect = await connectForTelegramScenario(request, payer, peer)
+    await page.goto('/debts/new')
+    await waitForNuxtHydration(page)
+    await page.getByLabel('Title', { exact: true }).fill('Dinar dinner')
+    await selectOption(page.getByRole('combobox', { name: 'Expense currency' }), 'RSD')
+    await page.getByLabel('Amount in RSD').fill('2400.00')
+    await setPerson(page.locator('.people-picker').first(), peerId, true)
+    const expense = page.waitForResponse(response => response.url().endsWith('/api/v1/debts') && response.request().method() === 'POST')
+    await page.getByRole('button', { name: 'Create expense', exact: true }).click()
+    const created = await expense
+    expect(created.status()).toBe(201)
+    const debt = await created.json()
+    expect(debt.shareAmount).toBe(120000)
+    const share = debt.participants.find((p: { user: { id: string } }) => p.user.id === peerId).transferId
+    await expect(page).toHaveURL(/\/debts\/[0-9a-f-]{36}$/u)
+    await page.goto('/me')
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+    await expect(page).toHaveURL(/signedOut=1/u)
+    const connectionPath = '/connects/' + connect
+    await login(page, peerEmail, connectionPath, false)
+    await expect(page.locator('.connect-balance__amount')).toHaveText('-€9.60')
+    async function pay(currency: string, amount: string) {
+      await page.getByRole('button', { name: 'Make a payment', exact: true }).click()
+      await selectOption(page.getByRole('combobox', { name: 'Related expense share (optional)' }), share)
+      if (currency !== 'RSD') await selectOption(page.getByRole('combobox', { name: 'Payment currency' }), currency)
+      await page.getByLabel('Payment amount in ' + currency, { exact: true }).fill(amount)
+      const saved = page.waitForResponse(response => response.url().endsWith(connectionPath + '/transfers') && response.request().method() === 'POST')
+      await page.getByRole('button', { name: 'Record payment', exact: true }).click()
+      const result = await saved
+      expect(result.status()).toBe(201)
+      await expect(page.getByRole('dialog')).not.toBeVisible()
+      return result.json()
+    }
+    const first = await pay('EUR', correctRate ? '10.00' : '4.80')
+    if (correctRate) {
+      expect(first.excessAmount).toBe(40)
+      await page.goto('/transfers/' + first.id)
+      await page.getByRole('button', { name: 'Edit payment', exact: true }).click()
+      await page.getByRole('button', { name: 'Change exchange rate' }).click()
+      await page.getByRole('textbox', { name: /Exchange rate/u }).fill('120')
+      const saved = page.waitForResponse(response => response.url().endsWith('/transfers/' + first.id) && response.request().method() === 'PUT')
+      await page.getByRole('button', { name: 'Save payment changes' }).click()
+      const result = await saved
+      expect(result.status()).toBe(200)
+      expect((await result.json()).excessAmount).toBe(0)
+    }
+    else {
+      await expect(page.locator('.connect-balance__amount')).toHaveText('-€4.80')
+      await pay('RSD', '600.00')
+    }
+    await page.goto('/me')
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+    await expect(page).toHaveURL(/signedOut=1/u)
+    await login(page, peerEmail, connectionPath, false)
+    await expect(page.locator('.connect-balance__amount')).toHaveText('€0.00')
+  })
+}

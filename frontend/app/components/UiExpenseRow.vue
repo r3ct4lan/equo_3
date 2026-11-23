@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { formatDate, formatPeople } from '~/utils/locale'
 import type { LinkTo } from '~/types/ui'
-import { formatEuro as formatEuroBase } from '~/utils/money'
+import { formatMoney } from '~/utils/money'
 
 const { locale } = useLocale()
 const { t } = useTranslation()
-const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 defineProps<{
   to: LinkTo
   title: string
   amount: number
+  currency?: string
   payerName: string
   createdAt: string
   isDeleted?: boolean
@@ -27,7 +27,7 @@ defineProps<{
   >
     <div class="dashboard-expense-head">
       <div class="dashboard-expense-cost">
-        <strong>{{ formatEuro(amount) }}</strong>
+        <strong>{{ formatMoney(amount, currency, locale) }}</strong>
       </div>
       <time
         class="ui-caption"
@@ -52,7 +52,7 @@ defineProps<{
       variant="caption"
     >
       {{ formatPeople(split.participantCount, locale) }} ·
-      {{ split.shareAmount === null ? t('Different share amounts') : formatEuro(split.shareAmount) + ' ' + t('each') }}
+      {{ split.shareAmount === null ? t('Different share amounts') : formatMoney(split.shareAmount, currency, locale) + ' ' + t('each') }}
     </UiText>
     <UiText
       v-if="isDeleted"

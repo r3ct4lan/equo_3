@@ -54,7 +54,7 @@ final class FirstVerticalSliceHttpTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
         self::assertSame(['activationRequired', 'user'], $this->sortedKeys($body));
-        self::assertSame(['createdAt', 'email', 'id', 'isActive', 'locale', 'name'], $this->sortedKeys($body['user']));
+        self::assertSame(['createdAt', 'currency', 'email', 'id', 'isActive', 'locale', 'name'], $this->sortedKeys($body['user']));
         self::assertSame('flow@example.test', $body['user']['email']);
         self::assertFalse($body['user']['isActive']);
         self::assertTrue($body['activationRequired']);

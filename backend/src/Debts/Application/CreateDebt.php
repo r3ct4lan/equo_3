@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Debts\Application;
 
 use App\Connects\Application\Api\ConnectAccess;
+use App\Currency\Application\Api\ExchangeMarket;
 use App\Debts\Application\Port\DebtIdempotencyPort;
 use App\Debts\Application\Port\DebtRepositoryPort;
 use App\Debts\Application\Port\DebtRuntimePort;
@@ -18,7 +19,7 @@ use App\Transfers\Application\Api\AutomaticShares;
 
 final readonly class CreateDebt
 {
-    public function __construct(private DebtRepositoryPort $repository, private DebtRuntimePort $runtime, private DebtIdempotencyPort $idempotency, private AccountAccess $accounts, private ConnectAccess $connects, private AutomaticShares $shares, private DebtViews $views)
+    public function __construct(private DebtRepositoryPort $repository, private DebtRuntimePort $runtime, private DebtIdempotencyPort $idempotency, private AccountAccess $accounts, private ConnectAccess $connects, private AutomaticShares $shares, private DebtViews $views, private ExchangeMarket $market)
     {
     }
 
@@ -43,8 +44,12 @@ final readonly class CreateDebt
             }
             $ids = array_values(array_unique([$authorId, $command->payerId, ...$command->participantIds]));
             sort($ids, SORT_STRING);
+            $profileCurrency = 'EUR';
             foreach ($ids as $id) {
                 $account = $this->accounts->find($id, true);
+                if ($id === $authorId && null !== $account) {
+                    $profileCurrency = $account->currency;
+                }
                 $eligible = $id === $authorId || $this->connects->exists($authorId, $id) || $this->repository->isCoParticipant($authorId, $id);
                 if (!$eligible || null === $account) {
                     throw new ApplicationFailure(ApplicationFailureCode::InvalidParticipant);
@@ -63,7 +68,12 @@ final readonly class CreateDebt
             foreach ($users as $id) {
                 $participants[] = new DebtParticipant($this->runtime->newId(), $debtId, $id, $now);
             }
-            $debt = new Debt($debtId, $command->title, $command->description, new Money($command->totalAmount), $command->payerId, $authorId, $now, $participants);
+            $currency = $command->currency ?? $profileCurrency;
+            $this->market->requireCurrency($currency);
+            $targetCurrency = $profileCurrency;
+            $this->market->validateManualRate($currency, $targetCurrency, $command->manualRate);
+            $rateCurrency = null === $command->manualRate ? null : $targetCurrency;
+            $debt = new Debt($debtId, $command->title, $command->description, new Money($command->totalAmount, $currency, $command->manualRate, $rateCurrency), $command->payerId, $authorId, $now, $participants);
             $this->repository->save($debt);
             $participantIds = array_map(static fn (DebtParticipant $p): string => $p->userId, $participants);
             sort($participantIds, SORT_STRING);
@@ -77,7 +87,7 @@ final readonly class CreateDebt
                     continue;
                 }
                 $connectId = $this->connects->ensurePair($debt->payerId, $p->userId);
-                $this->shares->create($connectId, $debt->payerId, $p->userId, $debt->shareAmount(), $debtId, $p->id, $now);
+                $this->shares->create($connectId, $debt->payerId, $p->userId, $debt->shareAmount(), $debtId, $p->id, $now, $currency);
             }
             $body = $this->views->detail($debt, $authorId);
             $this->idempotency->complete($scope, $operation, $command->idempotencyKey, 201, $body, $authorId);

@@ -25,6 +25,7 @@ services:
     App\:
         resource: '../src/'
         exclude:
+            - '../src/Currency/Adapter/ExchangeRate.php'
             - '../src/Kernel.php'
             - '../src/*/Domain/'
             - '../src/*/Adapter/Persistence/Doctrine/Record/'

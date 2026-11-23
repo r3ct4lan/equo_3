@@ -38,7 +38,7 @@ final readonly class DoctrineAccountMergeSnapshot implements AccountMergeSnapsho
                 )
             ),
             internal_expenses AS (
-                SELECT debt.id, debt.created_at, debt.total_amount, debt.title
+                SELECT debt.id, debt.created_at, debt.total_amount, debt.currency, debt.title
                 FROM affected_debts debt CROSS JOIN pair
                 WHERE debt.payer_id IN (pair.primary_id, pair.joined_id)
                   AND NOT EXISTS (
@@ -57,7 +57,7 @@ final readonly class DoctrineAccountMergeSnapshot implements AccountMergeSnapsho
                 )
             ),
             internal_transfers AS (
-                SELECT transfer.id, transfer.created_at, transfer.amount
+                SELECT transfer.id, transfer.created_at, transfer.amount, transfer.currency
                 FROM affected_transfers transfer CROSS JOIN pair
                 WHERE transfer.type = 'MANUAL'
                   AND transfer.sender_id IN (pair.primary_id, pair.joined_id)
@@ -83,11 +83,11 @@ final readonly class DoctrineAccountMergeSnapshot implements AccountMergeSnapsho
                 'joined', jsonb_build_object('email', joined_user.email, 'telegramId', joined_user.telegram_id, 'active', joined_user.is_active),
                 'financeVersion', encode(sha256(convert_to(finance_fingerprint.elements::text, 'UTF8')), 'hex'),
                 'transfers', COALESCE(
-                    (SELECT jsonb_agg(jsonb_build_object('id', id, 'amount', amount,
+                    (SELECT jsonb_agg(jsonb_build_object('id', id, 'currency', currency, 'amount', amount,
                         'createdAt', to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')) ORDER BY created_at DESC, id)
                      FROM internal_transfers), '[]'::jsonb),
                 'expenses', COALESCE(
-                    (SELECT jsonb_agg(jsonb_build_object('id', id, 'amount', total_amount, 'title', title,
+                    (SELECT jsonb_agg(jsonb_build_object('id', id, 'currency', currency, 'amount', total_amount, 'title', title,
                         'createdAt', to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')) ORDER BY created_at DESC, id)
                      FROM internal_expenses), '[]'::jsonb)
             )::text

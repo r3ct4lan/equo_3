@@ -128,6 +128,10 @@ const { t } = useTranslation()
       v-if="user"
       :user="user"
     />
+    <ProfileCurrencyForm
+      v-if="user"
+      :user="user"
+    />
     <ProfileLanguageForm
       v-if="user"
       :user="user"

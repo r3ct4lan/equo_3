@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { TransferView } from '~/types/finance'
 
-const props = defineProps<{ connectId: string }>()
+const props = defineProps<{ connectId: string, senderId: string }>()
 const emit = defineEmits<{ selected: [share: TransferView] }>()
 const model = defineModel<string>({ default: '' })
 const { items, pending, loaded, cursor, error, load } = useFinancialList<TransferView>(
   () => '/v1/connects/' + encodeURIComponent(props.connectId) + '/transfers'
 )
-const shares = computed(() => items.value.filter(item => item.type === 'DEBT_SHARE' && !item.isDeleted))
+const shares = computed(() => items.value.filter(item => item.type === 'DEBT_SHARE' && !item.isDeleted && item.receiver.id === props.senderId))
 
 const { t } = useTranslation()
 </script>
@@ -19,7 +19,7 @@ const { t } = useTranslation()
       id="related-share-help"
       variant="help"
     >
-      {{ t('This link is informational. It does not settle an expense or limit the payment amount.') }}
+      {{ t('The payment reduces the remaining share. Any overpayment stays in the payment currency.') }}
     </UiText>
     <UiRelatedShareSelect
       v-model="model"

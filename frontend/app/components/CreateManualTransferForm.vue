@@ -2,17 +2,20 @@
 import type { ConnectView } from '~/types/connects'
 import type { CreateManualTransferBody, TransferView } from '~/types/finance'
 import { manualTransferCommand, manualTransferPreview } from '~/utils/manual-transfer'
-import { formatEuro as formatEuroBase } from '~/utils/money'
-import { euroInput } from '~/utils/debt-update'
+import { formatMoney, currencyDigits, moneyInput, settlementPreview } from '~/utils/money'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 
 const { locale } = useLocale()
-const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 const props = defineProps<{ connect: ConnectView }>()
 const emit = defineEmits<{ created: [transfer: TransferView], reload: [] }>()
 const { $auth } = useNuxtApp()
 const { state } = useCurrentUser()
+const profileCurrency = computed(() => props.connect.currency ?? state.value.user?.currency ?? 'EUR')
+const currency = ref(profileCurrency.value)
+const manualRate = ref<string | null>(null)
+const quote = ref<string | null>(null)
+const selectedShare = ref<TransferView | null>(null)
 const direction = ref('you')
 const amount = ref('')
 const relatedShare = ref('')
@@ -22,11 +25,32 @@ const invalid = ref(false)
 const error = ref<ApiClientError | null>(null)
 let generation = 0
 let attempt: { body: CreateManualTransferBody, key: string } | null = null
-const command = computed(() => manualTransferCommand(props.connect, state.value.user?.id ?? '', direction.value, amount.value))
-const preview = computed(() => manualTransferPreview(props.connect.balanceAmount, command.value, state.value.user?.id ?? ''))
+const command = computed(() => manualTransferCommand(props.connect, state.value.user?.id ?? '', direction.value, amount.value, currency.value))
+const senderId = computed(() => direction.value === 'you' ? state.value.user?.id ?? '' : props.connect.otherUser.id)
+const target = computed(() => selectedShare.value?.currency ?? profileCurrency.value)
+const allocation = computed(() => selectedShare.value && command.value && quote.value
+  ? settlementPreview(command.value.amount, selectedShare.value.remainingAmount ?? selectedShare.value.amount, currency.value, target.value, quote.value)
+  : null)
+function selectShare(share: TransferView): void {
+  selectedShare.value = share
+  currency.value = share.currency ?? 'EUR'
+  amount.value = moneyInput(share.remainingAmount ?? share.amount, currency.value)
+}
+watch(direction, () => {
+  relatedShare.value = ''
+  selectedShare.value = null
+})
+watch(relatedShare, (id) => {
+  if (!id) selectedShare.value = null
+})
+watch([currency, target], () => {
+  manualRate.value = null
+})
+const preview = computed(() => currency.value !== profileCurrency.value || (selectedShare.value && currency.value !== target.value) ? null : manualTransferPreview(props.connect.balanceAmount, command.value, state.value.user?.id ?? ''))
 const message = computed(() => {
+  if (error.value?.code === 'EXCHANGE_RATE_UNAVAILABLE') return 'The exchange rate is unavailable. Enter a rate or try again later.'
   if (uncertain.value) return 'The result is not confirmed. Keep this page open and retry the same payment to check it safely.'
-  if (invalid.value || error.value?.code === 'VALIDATION_ERROR') return 'Choose who transferred money and enter a positive EUR amount with up to two decimal places.'
+  if (invalid.value || error.value?.code === 'VALIDATION_ERROR') return 'Choose who transferred money and enter a positive amount in the payment currency.'
   if (error.value?.code === 'INACTIVE_USER') return 'This payment is unavailable because an account is inactive. Reload the connection to check it.'
   if (error.value?.code === 'RESOURCE_NOT_FOUND') return 'This connection is no longer available.'
   if (error.value?.code === 'IDEMPOTENCY_KEY_REUSED') return 'This payment could not be confirmed. Check your operations before starting another.'
@@ -38,7 +62,7 @@ async function submit(): Promise<void> {
   if (!attempt) {
     invalid.value = !command.value
     if (!command.value) return
-    attempt = { body: { ...command.value, ...(relatedShare.value ? { relatedTransferId: relatedShare.value } : {}) }, key: crypto.randomUUID() }
+    attempt = { body: { ...command.value, currency: currency.value, ...(manualRate.value ? { manualRate: manualRate.value } : {}), ...(relatedShare.value ? { relatedTransferId: relatedShare.value } : {}) }, key: crypto.randomUUID() }
   }
   const requestGeneration = generation
   const connectId = props.connect.id
@@ -53,12 +77,14 @@ async function submit(): Promise<void> {
     uncertain.value = false
     amount.value = ''
     relatedShare.value = ''
+    currency.value = profileCurrency.value
+    manualRate.value = null
     emit('created', result)
   }
   catch (failure) {
     if (requestGeneration !== generation) return
     error.value = toApiClientError(failure)
-    uncertain.value = error.value.status === null || error.value.status >= 500
+    uncertain.value = error.value.code !== 'EXCHANGE_RATE_UNAVAILABLE' && (error.value.status === null || error.value.status >= 500)
     if (!uncertain.value) attempt = null
   }
   finally {
@@ -73,6 +99,8 @@ function clear(): void {
   invalid.value = false
   error.value = null
   amount.value = ''
+  currency.value = profileCurrency.value
+  manualRate.value = null
   direction.value = 'you'
   relatedShare.value = ''
 }
@@ -121,14 +149,30 @@ const { t } = useTranslation()
       <RelatedShareSelector
         v-model="relatedShare"
         :connect-id="connect.id"
-        @selected="amount = euroInput($event.amount)"
+        :sender-id="senderId"
+        @selected="selectShare"
       />
+      <CurrencySelect
+        v-model="currency"
+        :label="t('Payment currency')"
+      />
+      <OperationRateField
+        v-model="manualRate"
+        :currency="currency"
+        :target="target"
+        @rate="quote = $event"
+      />
+      <UiText v-if="allocation">
+        {{ t('Remaining share') }} · {{ formatMoney(allocation.remaining, target, locale) }}.
+        {{ t('Overpayment') }} · {{ formatMoney(allocation.excess, currency, locale) }}.
+      </UiText>
       <UiField>
-        <label for="payment-amount">{{ t('Payment amount in EUR') }}</label>
+        <label for="payment-amount">{{ currency === 'EUR' ? t('Payment amount in EUR') : t('Payment amount in') + ' ' + currency }}</label>
         <UiInput
           id="payment-amount"
           v-model="amount"
           money
+          :digits="currencyDigits(currency)"
           type="text"
           inputmode="decimal"
           required
@@ -140,14 +184,14 @@ const { t } = useTranslation()
           id="payment-amount-help"
           variant="help"
         >
-          {{ t('Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.') }}
+          {{ t('Maximum amount') }} · {{ formatMoney(2147483647, currency, locale) }}
         </UiText>
       </UiField>
       <UiText
         v-if="preview !== null"
         variant="help"
       >
-        {{ t('Expected balance:') }} {{ formatEuro(preview) }}.
+        {{ t('Expected balance:') }} {{ formatMoney(preview, profileCurrency, locale) }}.
         {{ preview > 0 ? t('They would owe you.') : preview < 0 ? t('You would owe them.') : t('You would be settled up.') }}
         {{ t('Your balance and operations will be refreshed after the payment is confirmed.') }}
       </UiText>

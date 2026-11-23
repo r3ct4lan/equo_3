@@ -172,7 +172,7 @@ final class FinancialHttpTest extends WebTestCase
         $manual = $this->addManualTransfer($source, $joined, $payer, 500);
         $this->db->update('transfer', ['related_transfer_id' => $shares[$joined]], ['id' => $manual]);
 
-        (new MergeExpenses(new DoctrineDebtRepository($this->db), new DoctrineMergeExpenseRepository($this->db)))->apply($primary, $joined);
+        (new MergeExpenses(new DoctrineDebtRepository($this->db), new DoctrineMergeExpenseRepository($this->db, self::getContainer()->get(\App\Transfers\Application\Api\ReconcileShare::class))))->apply($primary, $joined);
         (new DoctrineMergeLedger($this->db))->apply($primary, $joined, new DateTimeImmutable());
 
         $this->request('GET', '/api/v1/transfers/'.$manual, 2);
@@ -206,7 +206,7 @@ final class FinancialHttpTest extends WebTestCase
         $debt = $this->create();
         $id = $debt['id'];
         self::assertIsString($id);
-        $merge = new MergeExpenses(new DoctrineDebtRepository($this->db), new DoctrineMergeExpenseRepository($this->db));
+        $merge = new MergeExpenses(new DoctrineDebtRepository($this->db), new DoctrineMergeExpenseRepository($this->db, self::getContainer()->get(\App\Transfers\Application\Api\ReconcileShare::class)));
         $merge->apply($this->users[1], $this->users[2]);
 
         $this->request('GET', '/api/v1/debts/'.$id);
@@ -223,7 +223,7 @@ final class FinancialHttpTest extends WebTestCase
         self::assertSame([668], array_column($this->body()['items'], 'amount'));
         $this->request('GET', '/api/v1/transfers/balance-summary');
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['totalOwedAmount' => 0, 'totalReceivableAmount' => 668], $this->body());
+        self::assertSame(['currency' => 'EUR', 'totalOwedAmount' => 0, 'totalReceivableAmount' => 668], $this->body());
 
         $this->request('GET', '/api/v1/debts/'.$id, 2);
         self::assertResponseStatusCodeSame(404);
@@ -234,7 +234,7 @@ final class FinancialHttpTest extends WebTestCase
         $this->request('GET', '/api/v1/transfers/balance-summary');
         self::assertResponseStatusCodeSame(200);
         self::assertTrue($this->client->getResponse()->headers->hasCacheControlDirective('no-store'));
-        self::assertSame(['totalOwedAmount' => 0, 'totalReceivableAmount' => 0], $this->body());
+        self::assertSame(['currency' => 'EUR', 'totalOwedAmount' => 0, 'totalReceivableAmount' => 0], $this->body());
         $this->request('GET', '/api/v1/transfers/balance-summary?userId='.$this->users[1]);
         $this->failure(400, 'INVALID_REQUEST');
         $this->request('GET', '/api/v1/transfers/balance-summary', null);
@@ -349,14 +349,14 @@ final class FinancialHttpTest extends WebTestCase
         $this->db->executeStatement('UPDATE app_user SET is_active=false WHERE id=?', [$this->users[2]]);
         $this->request('GET', '/api/v1/transfers/balance-summary');
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['totalOwedAmount' => 300, 'totalReceivableAmount' => 334], $this->body());
+        self::assertSame(['currency' => 'EUR', 'totalOwedAmount' => 300, 'totalReceivableAmount' => 334], $this->body());
         $this->assertNoForeignEmails($this->body(), 0);
         $this->request('GET', '/api/v1/transfers/balance-summary', 1);
-        self::assertSame(['totalOwedAmount' => 0, 'totalReceivableAmount' => 300], $this->body());
+        self::assertSame(['currency' => 'EUR', 'totalOwedAmount' => 0, 'totalReceivableAmount' => 300], $this->body());
         $this->manual($this->users[0], $this->users[1], 300); // Exactly settled pair contributes neither side.
         $this->db->executeStatement('UPDATE transfer SET is_deleted=true WHERE receiver_id=? AND type=?', [$this->users[2], 'DEBT_SHARE']);
         $this->request('GET', '/api/v1/transfers/balance-summary');
-        self::assertSame(['totalOwedAmount' => 0, 'totalReceivableAmount' => 0], $this->body());
+        self::assertSame(['currency' => 'EUR', 'totalOwedAmount' => 0, 'totalReceivableAmount' => 0], $this->body());
     }
 
     public function testBalanceSummaryKeepsOppositeConnectionsSeparate(): void
@@ -366,7 +366,7 @@ final class FinancialHttpTest extends WebTestCase
 
         $this->request('GET', '/api/v1/transfers/balance-summary');
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['totalOwedAmount' => 1000, 'totalReceivableAmount' => 700], $this->body());
+        self::assertSame(['currency' => 'EUR', 'totalOwedAmount' => 1000, 'totalReceivableAmount' => 700], $this->body());
     }
 
     public function testBalanceSummaryIncludesEveryConnectionAndUsesWideIntegerTotals(): void
@@ -378,7 +378,7 @@ final class FinancialHttpTest extends WebTestCase
         }
         $this->request('GET', '/api/v1/transfers/balance-summary');
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['totalOwedAmount' => 0, 'totalReceivableAmount' => 25 * 2147483647], $this->body());
+        self::assertSame(['currency' => 'EUR', 'totalOwedAmount' => 0, 'totalReceivableAmount' => 25 * 2147483647], $this->body());
     }
 
     public function testHomeExpenseLimitOrdersByCreationAndIncludesPayerOutsideSplit(): void

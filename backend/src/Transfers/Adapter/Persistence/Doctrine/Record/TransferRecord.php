@@ -39,11 +39,18 @@ class TransferRecord
         #[ORM\Column(name: 'is_deleted', type: Types::BOOLEAN, options: ['default' => false])] private bool $isDeleted = false,
         #[ORM\Column(name: 'version', type: Types::INTEGER, options: ['default' => 1])] private int $version = 1,
         #[ORM\Column(name: 'hidden_by_merge', type: Types::BOOLEAN, options: ['default' => false])] private bool $hiddenByMerge = false,
+        #[ORM\Column(length: 3, options: ['default' => 'EUR'])] private string $currency = 'EUR',
+        #[ORM\Column(name: 'manual_rate', type: Types::TEXT, nullable: true)] private ?string $manualRate = null,
+        #[ORM\Column(name: 'rate_currency', length: 3, nullable: true)] private ?string $rateCurrency = null,
+        #[ORM\Column(name: 'settlement_rate', type: Types::TEXT, nullable: true)] private ?string $settlementRate = null,
+        #[ORM\Column(name: 'credited_amount', type: Types::BIGINT, options: ['default' => 0])] private int $creditedAmount = 0,
+        #[ORM\Column(name: 'excess_amount', type: Types::BIGINT, nullable: true)] private ?int $excessAmount = null,
+        #[ORM\Column(name: 'settlement_position', type: Types::BIGINT, nullable: true)] private ?int $settlementPosition = null,
     ) {
     }
 
     public function toDomain(): Transfer
     {
-        return new Transfer($this->id, $this->connectId, $this->senderId, $this->receiverId, $this->amount, $this->type, $this->createdById, $this->createdAt, $this->debtId, $this->debtParticipantId, $this->relatedTransferId, $this->isDeleted, $this->version);
+        return new Transfer($this->id, $this->connectId, $this->senderId, $this->receiverId, $this->amount, $this->type, $this->createdById, $this->createdAt, $this->debtId, $this->debtParticipantId, $this->relatedTransferId, $this->isDeleted, $this->version, $this->currency, $this->manualRate, $this->rateCurrency, $this->settlementRate, $this->creditedAmount, $this->excessAmount);
     }
 }

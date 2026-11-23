@@ -16,9 +16,9 @@ final readonly class CreateDebtCommand
     public string $idempotencyKey;
 
     /** @param list<string> $participantIds */
-    public function __construct(string $title, public ?string $description, public int $totalAmount, string $payerId, array $participantIds, public bool $includePayerInSplit, string $idempotencyKey)
+    public function __construct(string $title, public ?string $description, public int $totalAmount, string $payerId, array $participantIds, public bool $includePayerInSplit, string $idempotencyKey, public ?string $currency = null, public ?string $manualRate = null)
     {
-        if ('' === trim($title) || $totalAmount < 1 || $totalAmount > Money::MAX_CENTS || !self::isUuid($payerId) || !self::isUuid($idempotencyKey) || [] === $participantIds) {
+        if ('' === trim($title) || $totalAmount < 1 || $totalAmount > Money::MAX_MINOR_UNITS || !self::isUuid($payerId) || !self::isUuid($idempotencyKey) || [] === $participantIds) {
             throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
         }
         foreach ($participantIds as $id) {
@@ -45,6 +45,15 @@ final readonly class CreateDebtCommand
 
     public function canonical(): string
     {
-        return json_encode(['title' => $this->title, 'description' => $this->description, 'totalAmount' => $this->totalAmount, 'payerId' => $this->payerId, 'participantIds' => $this->participantIds, 'includePayerInSplit' => $this->includePayerInSplit], JSON_THROW_ON_ERROR);
+        $data = ['title' => $this->title, 'description' => $this->description, 'totalAmount' => $this->totalAmount, 'payerId' => $this->payerId, 'participantIds' => $this->participantIds, 'includePayerInSplit' => $this->includePayerInSplit];
+
+        if (null !== $this->currency) {
+            $data['currency'] = $this->currency;
+        }
+        if (null !== $this->manualRate) {
+            $data['manualRate'] = $this->manualRate;
+        }
+
+        return json_encode($data, JSON_THROW_ON_ERROR);
     }
 }

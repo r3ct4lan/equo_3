@@ -1,9 +1,9 @@
 import type { ConnectView } from '../types/connects'
 import type { CreateManualTransferBody, TransferView } from '../types/finance'
-import { parseEuroCents } from './money.ts'
+import { parseMinorUnits } from './money.ts'
 
-export function manualTransferCommand(connect: ConnectView, viewerId: string, direction: string, amountText: string): CreateManualTransferBody | null {
-  const amount = parseEuroCents(amountText)
+export function manualTransferCommand(connect: ConnectView, viewerId: string, direction: string, amountText: string, currency = 'EUR'): CreateManualTransferBody | null {
+  const amount = parseMinorUnits(amountText, currency)
   if (!connect.canCreateTransfer || !connect.otherUser.isActive || !viewerId || viewerId === connect.otherUser.id || amount === null || !['you', 'other'].includes(direction)) return null
   return {
     senderId: direction === 'you' ? viewerId : connect.otherUser.id,
@@ -18,7 +18,7 @@ export function manualTransferPreview(balance: number, command: CreateManualTran
 }
 
 export function manualTransferUpdateCommand(transfer: TransferView, viewerId: string, senderId: string, amountText: string): CreateManualTransferBody | null {
-  const amount = parseEuroCents(amountText)
+  const amount = parseMinorUnits(amountText, transfer.currency)
   const sides = [transfer.sender.id, transfer.receiver.id]
   if (transfer.type !== 'MANUAL' || transfer.isDeleted || !transfer.canEdit || transfer.createdBy?.id !== viewerId || !transfer.sender.isActive || !transfer.receiver.isActive || amount === null || !sides.includes(senderId)) return null
   const receiverId = sides.find(id => id !== senderId)

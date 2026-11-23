@@ -13,7 +13,7 @@ final readonly class UpdateManualTransferCommand
     public string $senderId;
     public string $receiverId;
 
-    public function __construct(string $transferId, string $senderId, string $receiverId, public int $amount, public int $expectedVersion, public bool $relatedSpecified = false, public ?string $relatedTransferId = null)
+    public function __construct(string $transferId, string $senderId, string $receiverId, public int $amount, public int $expectedVersion, public bool $relatedSpecified = false, public ?string $relatedTransferId = null, public ?string $currency = null, public ?string $manualRate = null, public bool $rateSpecified = false)
     {
         foreach ([$transferId, $senderId, $receiverId] as $id) {
             if (!CreateManualTransferCommand::isUuid($id)) {

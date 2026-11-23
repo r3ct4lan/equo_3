@@ -13,6 +13,7 @@ final readonly class StoredLoginIdentity
         private string $passwordHash,
         public bool $isActive,
         public string $locale = 'en',
+        public string $currency = 'EUR',
     ) {
     }
 

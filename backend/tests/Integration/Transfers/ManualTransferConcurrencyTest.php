@@ -39,7 +39,7 @@ final class ManualTransferConcurrencyTest extends KernelTestCase
         if ($this->db->isTransactionActive()) {
             $this->db->rollBack();
         }
-        foreach (['transfer' => 'sender_id', 'idempotency_record' => 'user_id', 'connect' => 'first_user_id'] as $table => $column) {
+        foreach (['transfer' => 'sender_id', 'debt_participant' => 'user_id', 'debt' => 'payer_id', 'idempotency_record' => 'user_id', 'connect' => 'first_user_id'] as $table => $column) {
             $this->db->executeStatement('DELETE FROM '.$table.' WHERE '.$column.' IN (?,?,?)', $this->users);
             if ('connect' === $table) {
                 $this->db->executeStatement('DELETE FROM connect WHERE second_user_id IN (?,?,?)', $this->users);
@@ -58,8 +58,12 @@ final class ManualTransferConcurrencyTest extends KernelTestCase
         self::assertInstanceOf(TestContainer::class, $c);
         [$a,$payer,$other] = $this->users;
         $first = ['author' => $a, 'connect' => (string) $this->db->fetchOne('SELECT id FROM connect WHERE (first_user_id=? AND second_user_id=?) OR (first_user_id=? AND second_user_id=?)', [$a, $other, $other, $a]), 'other' => $other, 'key' => Uuid::v4()->toRfc4122(), 'amount' => 1001];
+        if ('linked' === $race) {
+            $debt = $c->get('test.create_debt')->handle(new \App\Debts\Application\CreateDebtCommand('Concurrent settlement', null, 1500, $other, [$a], false, Uuid::v4()->toRfc4122()), $other)['body'];
+            $first['share'] = $debt['participants'][0]['transferId'];
+        }
         $second = $first;
-        if ('different key' === $race || 'deactivation' === $race) {
+        if (in_array($race, ['different key', 'linked'], true) || 'deactivation' === $race) {
             $second['key'] = Uuid::v4()->toRfc4122();
         }
         if ('changed body' === $race) {
@@ -105,7 +109,11 @@ final class ManualTransferConcurrencyTest extends KernelTestCase
             } proc_terminate($process);
             proc_close($process);
         }
-        $transfers = 'different key' === $race ? 2 : 1;
+        if (isset($first['share'])) {
+            self::assertSame(1500, (int) $this->db->fetchOne('SELECT SUM(credited_amount) FROM transfer WHERE related_transfer_id=?', [$first['share']]));
+            self::assertSame(502, (int) $this->db->fetchOne('SELECT SUM(excess_amount) FROM transfer WHERE related_transfer_id=?', [$first['share']]));
+        }
+        $transfers = in_array($race, ['different key', 'linked'], true) ? 2 : 1;
         self::assertSame($transfers, (int) $this->db->fetchOne('SELECT COUNT(*) FROM transfer WHERE created_by_id=?', [$a]));
         self::assertSame($transfers, (int) $this->db->fetchOne('SELECT COUNT(*) FROM idempotency_record WHERE user_id=?', [$a]));
         self::assertSame(2, (int) $this->db->fetchOne('SELECT COUNT(*) FROM connect WHERE first_user_id IN (?,?,?) OR second_user_id IN (?,?,?)', [...$this->users, ...$this->users]));
@@ -114,7 +122,7 @@ final class ManualTransferConcurrencyTest extends KernelTestCase
     /** @return iterable<string,array{string}> */
     public static function races(): iterable
     {
-        foreach (['same', 'changed body', 'different key', 'rollback', 'deactivation'] as $race) {
+        foreach (['same', 'changed body', 'different key', 'rollback', 'deactivation', 'linked'] as $race) {
             yield $race => [$race];
         }
     }

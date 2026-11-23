@@ -37,7 +37,7 @@ final readonly class DebtController
         if (!CreateDebtCommand::isUuid($key)) {
             throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
         }
-        $result = $this->createDebt->handle(new CreateDebtCommand($payload->title ?? '', $payload->description, is_int($payload->totalAmount) ? $payload->totalAmount : 0, $payload->payerId ?? '', $payload->participantIds ?? [], is_bool($payload->includePayerInSplit) ? $payload->includePayerInSplit : false, $key), $this->userId());
+        $result = $this->createDebt->handle(new CreateDebtCommand($payload->title ?? '', $payload->description, is_int($payload->totalAmount) ? $payload->totalAmount : 0, $payload->payerId ?? '', $payload->participantIds ?? [], is_bool($payload->includePayerInSplit) ? $payload->includePayerInSplit : false, $key, $payload->currency, $payload->manualRate), $this->userId());
         $body = $result['body'];
 
         return new JsonResponse($body, $result['status'], ['Cache-Control' => 'no-store', 'Location' => '/api/v1/debts/'.$body['id'], 'ETag' => '"'.$body['version'].'"']);
@@ -56,7 +56,7 @@ final readonly class DebtController
         if (!CreateDebtCommand::isUuid($debtId)) {
             throw new ApplicationFailure(ApplicationFailureCode::DebtNotAvailable);
         }
-        $body = $this->updateDebt->handle(new UpdateDebtCommand($debtId, $payload->title ?? '', $payload->description, is_int($payload->totalAmount) ? $payload->totalAmount : 0, $payload->participantIds ?? [], is_bool($payload->includePayerInSplit) ? $payload->includePayerInSplit : false, (int) $match[1]), $this->userId());
+        $body = $this->updateDebt->handle(new UpdateDebtCommand($debtId, $payload->title ?? '', $payload->description, is_int($payload->totalAmount) ? $payload->totalAmount : 0, $payload->participantIds ?? [], is_bool($payload->includePayerInSplit) ? $payload->includePayerInSplit : false, (int) $match[1], $payload->currency, $payload->manualRate, array_key_exists('manualRate', $request->toArray())), $this->userId());
 
         return new JsonResponse($body, 200, ['Cache-Control' => 'no-store', 'ETag' => '"'.$body['version'].'"']);
     }

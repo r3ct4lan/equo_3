@@ -14,3 +14,6 @@ services:
         autowire: true
         arguments:
             $http: '@equo.e2e.telegram_http'
+
+    App\Currency\Application\MarketSource:
+        class: App\Tests\Fixture\E2e\FixedMarket

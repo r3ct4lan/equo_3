@@ -8,12 +8,15 @@ use InvalidArgumentException;
 
 final readonly class Money
 {
-    public const int MAX_CENTS = 2147483647;
+    public const int MAX_MINOR_UNITS = 2147483647;
 
-    public function __construct(public int $cents)
+    public function __construct(public int $minorUnits, public string $currency = 'EUR', public ?string $manualRate = null, public ?string $rateCurrency = null)
     {
-        if ($cents < 1 || $cents > self::MAX_CENTS) {
-            throw new InvalidArgumentException('Amount must be positive integer eurocents within storage range.');
+        if (1 !== preg_match('/^[A-Z]{3}$/D', $currency)) {
+            throw new InvalidArgumentException('Invalid currency code.');
+        }
+        if ($minorUnits < 1 || $minorUnits > self::MAX_MINOR_UNITS) {
+            throw new InvalidArgumentException('Amount must be positive integer minor units within storage range.');
         }
     }
 
@@ -23,6 +26,6 @@ final readonly class Money
             throw new InvalidArgumentException('A split needs participants.');
         }
 
-        return intdiv($this->cents, $count) + (0 === $this->cents % $count ? 0 : 1);
+        return intdiv($this->minorUnits, $count) + (0 === $this->minorUnits % $count ? 0 : 1);
     }
 }

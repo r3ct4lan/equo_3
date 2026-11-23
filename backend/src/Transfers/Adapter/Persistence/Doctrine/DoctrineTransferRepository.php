@@ -4,79 +4,69 @@ declare(strict_types=1);
 
 namespace App\Transfers\Adapter\Persistence\Doctrine;
 
+use App\Transfers\Application\Api\ReconcileShare;
 use App\Transfers\Application\Port\TransferRepositoryPort;
 use App\Transfers\Domain\Transfer;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use InvalidArgumentException;
-use RuntimeException;
 
 final readonly class DoctrineTransferRepository implements TransferRepositoryPort
 {
-    public function __construct(private Connection $db)
+    // Automatic shares use the expense's current manual quote, including rate-only edits.
+    private const string PROJECTION = 'SELECT t.*, CASE WHEN d.id IS NULL THEN t.manual_rate ELSE d.manual_rate END AS applied_manual_rate, CASE WHEN d.id IS NULL THEN t.rate_currency ELSE d.rate_currency END AS applied_rate_currency FROM transfer t LEFT JOIN debt d ON d.id=t.debt_id';
+
+    public function __construct(private Connection $db, private ReconcileShare $settlements)
     {
     }
 
-    public function balance(string $connectId, string $viewerId): int
+    public function openAmounts(string $viewerId, ?string $connectId): iterable
     {
-        $value = $this->db->fetchOne('SELECT COALESCE(SUM(CASE WHEN sender_id=:user THEN amount::bigint ELSE -amount::bigint END),0) FROM transfer WHERE connect_id=:connect AND is_deleted=false AND NOT hidden_by_merge', ['user' => $viewerId, 'connect' => $connectId]);
-        $amount = filter_var($value, FILTER_VALIDATE_INT);
-        if (false === $amount) {
-            throw new RuntimeException('Ledger balance exceeds the supported integer range.');
+        $sql = <<<'SQL'
+            SELECT t.connect_id, t.sender_id, t.currency, t.type,
+                   CASE WHEN t.type='DEBT_SHARE' THEN t.amount-t.credited_amount ELSE COALESCE(t.excess_amount, t.amount) END AS exposure,
+                   CASE WHEN d.id IS NULL THEN CASE WHEN t.excess_amount IS NULL THEN t.manual_rate END ELSE d.manual_rate END AS manual_rate,
+                   CASE WHEN d.id IS NULL THEN t.rate_currency ELSE d.rate_currency END AS rate_currency
+            FROM transfer t LEFT JOIN debt d ON d.id=t.debt_id
+            WHERE NOT t.is_deleted AND NOT t.hidden_by_merge AND (t.sender_id=:viewer OR t.receiver_id=:viewer)
+            SQL;
+        $parameters = ['viewer' => $viewerId];
+        if (null !== $connectId) {
+            $sql .= ' AND t.connect_id=:connect';
+            $parameters['connect'] = $connectId;
         }
-
-        return $amount;
+        foreach ($this->db->iterateAssociative($sql, $parameters) as $row) {
+            yield ['isShare' => 'DEBT_SHARE' === $row['type'], 'connectId' => $row['connect_id'], 'senderId' => $row['sender_id'], 'amount' => (int) $row['exposure'], 'currency' => $row['currency'], 'manualRate' => $row['manual_rate'], 'rateCurrency' => $row['rate_currency']];
+        }
     }
 
-    public function balanceSummary(string $viewerId): array
+    public function shareBalances(string $debtId): array
     {
-        $row = $this->db->fetchAssociative(<<<'SQL'
-            SELECT COALESCE(SUM(CASE WHEN balance < 0 THEN -balance ELSE 0 END), 0) AS owed,
-                   COALESCE(SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END), 0) AS receivable
-            FROM (
-                SELECT connect_id, SUM(CASE WHEN sender_id = :viewer THEN amount::bigint ELSE -amount::bigint END) AS balance
-                FROM transfer
-                WHERE is_deleted = false AND NOT hidden_by_merge AND (sender_id = :viewer OR receiver_id = :viewer)
-                GROUP BY connect_id
-            ) AS balances
-            SQL, ['viewer' => $viewerId]);
-        if (false === $row) {
-            throw new RuntimeException('Ledger summary is unavailable.');
+        $result = [];
+        foreach ($this->db->fetchAllAssociative('SELECT id, debt_participant_id, amount-credited_amount AS remaining FROM transfer WHERE debt_id=? AND NOT hidden_by_merge', [$debtId]) as $row) {
+            $result[$row['debt_participant_id']] = ['id' => $row['id'], 'remaining' => (int) $row['remaining']];
         }
 
-        return [
-            'totalOwedAmount' => $this->exactSummaryAmount($row['owed']),
-            'totalReceivableAmount' => $this->exactSummaryAmount($row['receivable']),
-        ];
-    }
-
-    private function exactSummaryAmount(mixed $value): int
-    {
-        $amount = filter_var($value, FILTER_VALIDATE_INT);
-        if (false === $amount || $amount < 0 || $amount > 9007199254740991) {
-            throw new RuntimeException('Ledger summary exceeds the supported exact integer range.');
-        }
-
-        return $amount;
+        return $result;
     }
 
     public function find(string $id, bool $forUpdate = false): ?Transfer
     {
-        $row = $this->db->fetchAssociative('SELECT * FROM transfer WHERE id=? AND NOT hidden_by_merge'.($forUpdate ? ' FOR UPDATE' : ''), [$id]);
+        $row = $this->db->fetchAssociative(self::PROJECTION.' WHERE t.id=? AND NOT t.hidden_by_merge'.($forUpdate ? ' FOR UPDATE OF t' : ''), [$id]);
 
         return false === $row ? null : $this->map($row);
     }
 
     public function page(string $connectId, int $limit, ?DateTimeImmutable $before, ?string $beforeId): array
     {
-        $sql = 'SELECT * FROM transfer WHERE connect_id=:connect AND NOT hidden_by_merge';
+        $sql = self::PROJECTION.' WHERE t.connect_id=:connect AND NOT t.hidden_by_merge';
         $params = ['connect' => $connectId];
         if (null !== $before) {
-            $sql .= ' AND (created_at,id) < (:before,:id)';
+            $sql .= ' AND (t.created_at,t.id) < (:before,:id)';
             $params['before'] = $before->format('Y-m-d H:i:sP');
             $params['id'] = $beforeId;
         }
-        $sql .= ' ORDER BY created_at DESC,id DESC LIMIT '.(int) $limit;
+        $sql .= ' ORDER BY t.created_at DESC,t.id DESC LIMIT '.(int) $limit;
 
         return array_map($this->map(...), $this->db->fetchAllAssociative($sql, $params));
     }
@@ -87,7 +77,7 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
             throw new InvalidArgumentException('Invalid transfer direction.');
         }
         $side = 'incoming' === $direction ? 'receiver_id' : 'sender_id';
-        $sql = 'SELECT t.* FROM transfer t INNER JOIN connect c ON c.id=t.connect_id WHERE NOT t.hidden_by_merge AND t.'.$side.'=:viewer AND (c.first_user_id=:viewer OR c.second_user_id=:viewer)';
+        $sql = self::PROJECTION.' INNER JOIN connect c ON c.id=t.connect_id WHERE NOT t.hidden_by_merge AND t.'.$side.'=:viewer AND (c.first_user_id=:viewer OR c.second_user_id=:viewer)';
         $params = ['viewer' => $userId];
         if (null !== $before) {
             $sql .= ' AND (t.created_at,t.id) < (:before,:id)';
@@ -102,12 +92,16 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
     /** @param array<string,mixed> $row */
     private function map(array $row): Transfer
     {
-        return new Transfer((string) $row['id'], (string) $row['connect_id'], (string) $row['sender_id'], (string) $row['receiver_id'], (int) $row['amount'], (string) $row['type'], null === $row['created_by_id'] ? null : (string) $row['created_by_id'], new DateTimeImmutable((string) $row['created_at']), null === $row['debt_id'] ? null : (string) $row['debt_id'], null === $row['debt_participant_id'] ? null : (string) $row['debt_participant_id'], null === $row['related_transfer_id'] ? null : (string) $row['related_transfer_id'], (bool) $row['is_deleted'], (int) $row['version']);
+        return new Transfer((string) $row['id'], (string) $row['connect_id'], (string) $row['sender_id'], (string) $row['receiver_id'], (int) $row['amount'], (string) $row['type'], null === $row['created_by_id'] ? null : (string) $row['created_by_id'], new DateTimeImmutable((string) $row['created_at']), null === $row['debt_id'] ? null : (string) $row['debt_id'], null === $row['debt_participant_id'] ? null : (string) $row['debt_participant_id'], null === $row['related_transfer_id'] ? null : (string) $row['related_transfer_id'], (bool) $row['is_deleted'], (int) $row['version'], $row['currency'], $row['applied_manual_rate'], $row['applied_rate_currency'], $row['settlement_rate'], (int) $row['credited_amount'], null === $row['excess_amount'] ? null : (int) $row['excess_amount']);
     }
 
     public function save(Transfer $t): void
     {
-        $this->db->insert('transfer', ['id' => $t->id, 'connect_id' => $t->connectId, 'sender_id' => $t->senderId, 'receiver_id' => $t->receiverId, 'amount' => $t->amount, 'type' => $t->type, 'created_by_id' => $t->createdById, 'created_at' => $t->createdAt->format('Y-m-d H:i:sP'), 'debt_id' => $t->debtId, 'debt_participant_id' => $t->debtParticipantId, 'related_transfer_id' => $t->relatedTransferId, 'is_deleted' => $t->isDeleted, 'version' => $t->version], ['is_deleted' => 'boolean']);
+        $this->db->insert('transfer', ['id' => $t->id, 'connect_id' => $t->connectId, 'sender_id' => $t->senderId, 'receiver_id' => $t->receiverId, 'amount' => $t->amount, 'type' => $t->type, 'created_by_id' => $t->createdById, 'created_at' => $t->createdAt->format('Y-m-d H:i:sP'), 'debt_id' => $t->debtId, 'debt_participant_id' => $t->debtParticipantId, 'currency' => $t->currency, 'manual_rate' => $t->manualRate, 'rate_currency' => $t->rateCurrency, 'settlement_rate' => $t->settlementRate, 'related_transfer_id' => $t->relatedTransferId, 'is_deleted' => $t->isDeleted, 'version' => $t->version], ['is_deleted' => 'boolean']);
+        if (null !== $t->relatedTransferId) {
+            $this->appendPayment($t->id, $t->relatedTransferId);
+            $this->settlements->reconcile($t->relatedTransferId);
+        }
     }
 
     public function updateShare(Transfer $transfer): void
@@ -116,6 +110,7 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
             throw new InvalidArgumentException('Only automatic shares can be persisted by recalculation.');
         }
         $this->db->update('transfer', ['amount' => $transfer->amount, 'is_deleted' => $transfer->isDeleted, 'version' => $transfer->version], ['id' => $transfer->id, 'type' => 'DEBT_SHARE'], ['is_deleted' => 'boolean']);
+        $this->settlements->reconcile($transfer->id);
     }
 
     public function updateManual(Transfer $transfer): void
@@ -123,7 +118,32 @@ final readonly class DoctrineTransferRepository implements TransferRepositoryPor
         if ('MANUAL' !== $transfer->type) {
             throw new InvalidArgumentException('Only manual transfers can be persisted by this command.');
         }
-        $this->db->update('transfer', ['sender_id' => $transfer->senderId, 'receiver_id' => $transfer->receiverId, 'amount' => $transfer->amount, 'related_transfer_id' => $transfer->relatedTransferId, 'is_deleted' => $transfer->isDeleted, 'version' => $transfer->version], ['id' => $transfer->id, 'type' => 'MANUAL'], ['is_deleted' => 'boolean']);
+        $previous = $this->db->fetchOne('SELECT related_transfer_id FROM transfer WHERE id = ?', [$transfer->id]);
+        $this->db->update('transfer', ['sender_id' => $transfer->senderId, 'receiver_id' => $transfer->receiverId, 'amount' => $transfer->amount, 'currency' => $transfer->currency, 'manual_rate' => $transfer->manualRate, 'rate_currency' => $transfer->rateCurrency, 'settlement_rate' => $transfer->settlementRate, 'credited_amount' => 0, 'excess_amount' => null, 'related_transfer_id' => $transfer->relatedTransferId, 'is_deleted' => $transfer->isDeleted, 'version' => $transfer->version], ['id' => $transfer->id, 'type' => 'MANUAL'], ['is_deleted' => 'boolean']);
+        if (null !== $transfer->relatedTransferId && $previous !== $transfer->relatedTransferId) {
+            $this->appendPayment($transfer->id, $transfer->relatedTransferId);
+        }
+        $targets = array_unique(array_filter([$previous, $transfer->relatedTransferId], 'is_string'));
+        sort($targets, SORT_STRING);
+        foreach ($targets as $target) {
+            $this->settlements->reconcile($target);
+        }
+    }
+
+    private function appendPayment(string $paymentId, string $shareId): void
+    {
+        // The command already holds the share lock. Changing an amount keeps its original position.
+        $this->db->executeStatement('UPDATE transfer SET settlement_position=(SELECT COALESCE(MAX(settlement_position),0)+1 FROM transfer WHERE related_transfer_id=?) WHERE id=?', [$shareId, $paymentId]);
+    }
+
+    public function availableBefore(string $paymentId, string $shareId): int
+    {
+        return (int) $this->db->fetchOne(<<<'SQL'
+            SELECT share.amount - COALESCE((
+                SELECT SUM(p.credited_amount) FROM transfer p WHERE p.related_transfer_id=share.id AND NOT p.is_deleted AND NOT p.hidden_by_merge
+                  AND (COALESCE(p.settlement_position,0),p.created_at,p.id) < (COALESCE(payment.settlement_position,0),payment.created_at,payment.id)
+            ),0) FROM transfer share JOIN transfer payment ON payment.id=? WHERE share.id=?
+            SQL, [$paymentId, $shareId]);
     }
 
     public function sharesForDebt(string $debtId): array

@@ -32,6 +32,7 @@ export interface CurrentUser {
   isActive: boolean
   createdAt: UtcDateTime
   locale: 'en' | 'ru'
+  currency?: string
 }
 
 export interface HealthResponse {
@@ -54,6 +55,7 @@ export interface RegisteredUser {
   isActive: false
   createdAt: UtcDateTime
   locale: 'en' | 'ru'
+  currency?: string
 }
 
 export interface RegisterResponse {
@@ -88,6 +90,7 @@ export interface LoginResponse {
     email: string | null
     isActive: true
     locale: 'en' | 'ru'
+    currency?: string
   }
 }
 

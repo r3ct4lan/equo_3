@@ -6,7 +6,7 @@ import {
   debtCommand, uncertainDebtResult
 } from '~/utils/debts'
 import {
-  formatEuro as formatEuroBase, parseEuroCents, splitShare
+  formatMoney, currencyDigits, parseMinorUnits, splitShare
 } from '~/utils/money'
 import {
   toApiClientError, type ApiClientError
@@ -14,7 +14,6 @@ import {
 
 const props = defineProps<{ initialPerson?: BriefUser }>()
 const { locale } = useLocale()
-const formatEuro = (cents: number) => formatEuroBase(cents, locale.value)
 
 const {
   $auth
@@ -22,6 +21,12 @@ const {
 const {
   state
 } = useCurrentUser()
+const profileCurrency = computed(() => state.value.user?.currency ?? 'EUR')
+const currency = ref(profileCurrency.value)
+const manualRate = ref<string | null>(null)
+watch(currency, () => {
+  manualRate.value = null
+})
 const values = reactive({
   title: '', description: '', amount: '', payerId: '', participantIds: [] as string[], includePayerInSplit: true
 })
@@ -42,8 +47,9 @@ const payerOptions = computed(() => {
     ? [{ id: self.id, name: self.name, isActive: self.isActive }, ...selectedPeople.value]
     : selectedPeople.value
 })
-const share = computed(() => splitShare(parseEuroCents(values.amount) ?? 0, selectedPeople.value.length))
+const share = computed(() => splitShare(parseMinorUnits(values.amount, currency.value) ?? 0, selectedPeople.value.length))
 const errorMessage = computed(() => {
+  if (error.value?.code === 'EXCHANGE_RATE_UNAVAILABLE') return 'The exchange rate is unavailable. Enter a rate or try again later.'
   if (uncertain.value) return 'The result is not confirmed. Keep this page open and retry the same expense to check it safely.'
   if (error.value?.code === 'INACTIVE_USER' || error.value?.code === 'INVALID_PARTICIPANT') return 'Someone selected is no longer available. Remove them and check the expense.'
   if (error.value?.code === 'VALIDATION_ERROR') return 'Check the title, amount and selected people.'
@@ -55,12 +61,12 @@ async function submit(): Promise<void> {
   if (!viewer || state.value.status !== 'authenticated' || pending.value) return
   if (!attempt) {
     const body = payerOptions.value.some(person => person.id === values.payerId)
-      ? debtCommand({ ...values, participantIds: selectedPeople.value.map(person => person.id).filter(id => id !== values.payerId), includePayerInSplit: selectedPeople.value.some(person => person.id === values.payerId) }, viewer)
+      ? debtCommand({ ...values, currency: currency.value, participantIds: selectedPeople.value.map(person => person.id).filter(id => id !== values.payerId), includePayerInSplit: selectedPeople.value.some(person => person.id === values.payerId) }, viewer)
       : null
     invalid.value = body === null
     if (!body) return
     attempt = {
-      body, key: crypto.randomUUID()
+      body: { ...body, currency: currency.value, ...(manualRate.value ? { manualRate: manualRate.value } : {}) }, key: crypto.randomUUID()
     }
   }
   const requestGeneration = generation
@@ -108,6 +114,8 @@ watch(() => [state.value.status, state.value.user?.id], () => {
   uncertain.value = false
   pending.value = false
   error.value = null
+  currency.value = profileCurrency.value
+  manualRate.value = null
   values.title = ''
   values.description = ''
   values.amount = ''
@@ -165,24 +173,35 @@ const { t } = useTranslation()
             rows="3"
           />
         </UiField>
+        <CurrencySelect
+          v-model="currency"
+          :label="t('Expense currency')"
+        />
+        <OperationRateField
+          v-model="manualRate"
+          inverse
+          :currency="currency"
+          :target="profileCurrency"
+        />
         <UiField>
-          <label for="debt-amount">{{ t('Amount in EUR') }}</label>
+          <label for="debt-amount">{{ currency === 'EUR' ? t('Amount in EUR') : t('Amount in') + ' ' + currency }}</label>
           <UiInput
             id="debt-amount"
             v-model="values.amount"
             money
+            :digits="currencyDigits(currency)"
             type="text"
             inputmode="decimal"
             placeholder="10.01"
             required
-            :aria-invalid="invalid && parseEuroCents(values.amount) === null"
+            :aria-invalid="invalid && parseMinorUnits(values.amount, currency) === null"
             aria-describedby="amount-help amount-errors"
           />
           <UiText
             id="amount-help"
             variant="help"
           >
-            {{ t('Use up to two decimal places, with a dot or comma. Maximum €21,474,836.47.') }}
+            {{ t('Maximum amount') }} · {{ formatMoney(2147483647, currency, locale) }}
           </UiText>
           <FormFieldError
             id="amount-errors"
@@ -205,7 +224,7 @@ const { t } = useTranslation()
           {{ t('Choose yourself or a selected participant as the payer. You must be the payer or a participant.') }}
         </UiText>
         <UiText v-if="share">
-          {{ t('Each share:') }} {{ formatEuro(share) }}. {{ t('Shares round up to the next cent.') }}
+          {{ t('Each share:') }} {{ formatMoney(share, currency, locale) }}. {{ t('Shares round up to the smallest currency unit.') }}
         </UiText>
       </fieldset>
       <UiButton

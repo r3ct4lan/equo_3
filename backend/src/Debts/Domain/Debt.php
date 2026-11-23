@@ -70,13 +70,13 @@ final readonly class Debt
             }
         }
         sort($oldCurrent, SORT_STRING);
-        $splitChanged = $this->totalAmount->cents !== $update->totalAmount->cents || $oldCurrent !== $ids;
+        $splitChanged = $this->totalAmount->minorUnits !== $update->totalAmount->minorUnits || $oldCurrent !== $ids;
         if (!$splitChanged) {
-            if ($this->title === $update->title && $this->description === $update->description) {
+            if ($this->title === $update->title && $this->description === $update->description && $this->totalAmount == $update->totalAmount) {
                 return $this;
             }
 
-            return new self($this->id, $update->title, $update->description, $this->totalAmount, $this->payerId, $this->createdById, $this->createdAt, $this->participants, false, $this->version + 1);
+            return new self($this->id, $update->title, $update->description, $update->totalAmount, $this->payerId, $this->createdById, $this->createdAt, $this->participants, false, $this->version + 1);
         }
         $participants = [];
         $known = [];
@@ -153,7 +153,7 @@ final readonly class Debt
         sort($before, SORT_STRING);
         sort($after, SORT_STRING);
 
-        return $this->totalAmount->cents === $other->totalAmount->cents && $before === $after;
+        return $this->totalAmount->minorUnits === $other->totalAmount->minorUnits && $before === $after;
     }
 
     public function mergeAccounts(string $primary, string $joined): ?self

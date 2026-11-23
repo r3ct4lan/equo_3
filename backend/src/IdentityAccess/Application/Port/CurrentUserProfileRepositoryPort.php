@@ -15,5 +15,7 @@ interface CurrentUserProfileRepositoryPort
 
     public function renameCurrentUser(string $userId, string $name): void;
 
+    public function changeCurrency(string $userId, string $currency): void;
+
     public function changeLocale(string $userId, string $locale): void;
 }

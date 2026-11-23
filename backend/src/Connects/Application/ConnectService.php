@@ -121,7 +121,7 @@ final readonly class ConnectService implements ConnectAccess
         if (null === $other || null === $viewer) {
             throw new ApplicationFailure(ApplicationFailureCode::ResourceNotFound);
         }
-        $view = ['id' => $connect->id, 'otherUser' => ['id' => $other->id, 'name' => $other->name, 'isActive' => $other->isActive], 'balanceAmount' => $this->balances->balance($connect->id, $viewerId), 'canCreateDebt' => $viewer->isActive && $other->isActive, 'canCreateTransfer' => $viewer->isActive && $other->isActive, 'createdAt' => self::date($connect->createdAt)];
+        $view = ['id' => $connect->id, 'otherUser' => ['id' => $other->id, 'name' => $other->name, 'isActive' => $other->isActive], 'currency' => $viewer->currency, 'balanceAmount' => $this->balances->balance($connect->id, $viewerId), 'canCreateDebt' => $viewer->isActive && $other->isActive, 'canCreateTransfer' => $viewer->isActive && $other->isActive, 'createdAt' => self::date($connect->createdAt)];
         if (!$other->isActive) {
             $view['restriction'] = ['code' => 'OTHER_USER_INACTIVE', 'message' => 'New financial operations are unavailable until the user reactivates the account.'];
         }
