@@ -65,6 +65,21 @@ export function formatMoney(amount: number, currency = 'EUR', locale: 'ru' | 'en
   return (amount < 0 ? '-' : '') + formatter.formatToParts(BigInt(whole!)).map(part => part.type === 'fraction' ? fraction : part.value).join('')
 }
 
+// Only the editable label is rounded. Settlement previews keep the original ratio.
+export function displayExchangeRate(value: string | null, locale: 'en' | 'ru'): string {
+  if (value === null) return ''
+  let decimal = value
+  if (value.includes('/')) {
+    const [base, divisor] = value.split('/')
+    const denominator = BigInt(divisor!)
+    const precision = 10n ** 18n
+    const rounded = (BigInt(base!) * precision + denominator / 2n) / denominator
+    const fraction = String(rounded % precision).padStart(18, '0').replace(/0+$/u, '')
+    decimal = String(rounded / precision) + (fraction ? '.' + fraction : '')
+  }
+  return locale === 'ru' ? decimal.replace('.', ',') : decimal
+}
+
 export function settlementPreview(paid: number, remaining: number, from: string, to: string, quote: string) {
   if (!/^(?:\d{1,32}(?:\.\d{1,18})?|\d{1,32}\/\d{1,32})$/u.test(quote)) return null
   const [base, divisor] = quote.split('/')

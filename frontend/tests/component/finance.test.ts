@@ -287,7 +287,7 @@ describe('financial journey components', () => {
     wrapper.unmount()
   })
   it('loads debt pages and clears old data on an account switch', async () => {
-    auth.protectedRequest.mockResolvedValueOnce(page([debt], 'next')).mockResolvedValueOnce(page([{
+    auth.protectedRequest.mockResolvedValueOnce(page([{ ...debt, totalAmount: 120050, equivalentAmount: 1001, currency: 'RSD', viewerCurrency: 'EUR' }], 'next')).mockResolvedValueOnce(page([{
       ...debt, id: 'second', title: 'Lunch'
     }])).mockResolvedValue(page([]))
     const wrapper = await mountSuspended(DebtsPage)
@@ -295,7 +295,8 @@ describe('financial journey components', () => {
     expect(wrapper.text()).toContain('Dinner')
     expect(wrapper.get('.dashboard-expense a').attributes('href')).toBe('/debts/debt')
     expect(wrapper.get('.dashboard-expense time').attributes('datetime')).toBe(debt.createdAt)
-    expect(wrapper.get('.dashboard-expense').text()).toContain('€10.01')
+    expect(wrapper.get('.dashboard-expense-cost strong').text()).toBe('€10.01')
+    expect(wrapper.get('.dashboard-expense-cost small').text()).toMatch(/RSD.*1,200\.50/u)
     await wrapper.get('button').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Lunch')

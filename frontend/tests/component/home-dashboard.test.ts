@@ -18,7 +18,7 @@ mockNuxtImport('useNuxtApp', original => () => new Proxy(original(), {
   }
 }))
 const expenses = Array.from({ length: 5 }, (_, i) => ({
-  id: `expense-${i}`, title: `Dinner ${i}`, totalAmount: 1001,
+  id: `expense-${i}`, title: `Dinner ${i}`, totalAmount: 120050, equivalentAmount: 1001, currency: 'RSD', viewerCurrency: 'EUR',
   payer: { id: 'other', name: 'Boris', isActive: true },
   participantCount: 2, shareAmount: 501, canEdit: false, version: 1,
   createdAt: '2026-10-18T12:00:00Z'
@@ -159,7 +159,8 @@ describe('home dashboard', () => {
     expect(wrapper.get('time').attributes('datetime')).toBe('2026-10-18T12:00:00Z')
     expect(wrapper.get('time').text()).toBe(new Date().getUTCFullYear() === 2026 ? '18 Oct' : '18 Oct 2026')
     expect(wrapper.text()).toContain('Paid by Boris')
-    expect(wrapper.text()).toContain('€10.01')
+    expect(wrapper.get('.dashboard-expense-cost strong').text()).toBe('€10.01')
+    expect(wrapper.get('.dashboard-expense-cost small').text()).toMatch(/RSD.*1,200\.50/u)
     expect(wrapper.text()).not.toMatch(/Sign in|Create an account|API connection/)
     expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/transfers/balance-summary')
     expect(auth.protectedRequest).toHaveBeenCalledWith('/v1/debts', { query: { limit: 5, status: 'active' } })

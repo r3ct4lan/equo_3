@@ -6,17 +6,20 @@ import { formatMoney } from '~/utils/money'
 const { locale } = useLocale()
 const { t } = useTranslation()
 
-defineProps<{
+const props = defineProps<{
   to: LinkTo
   title: string
   amount: number
   currency?: string
+  viewerCurrency?: string
+  equivalentAmount?: number | null
   payerName: string
   createdAt: string
   isDeleted?: boolean
   payerInactive?: boolean
   split?: { participantCount: number, shareAmount: number | null }
 }>()
+const showOriginal = computed(() => props.viewerCurrency && props.viewerCurrency !== (props.currency ?? 'EUR'))
 </script>
 
 <template>
@@ -27,7 +30,16 @@ defineProps<{
   >
     <div class="dashboard-expense-head">
       <div class="dashboard-expense-cost">
-        <strong>{{ formatMoney(amount, currency, locale) }}</strong>
+        <strong v-if="showOriginal && equivalentAmount != null">{{ formatMoney(equivalentAmount, viewerCurrency, locale) }}</strong>
+        <strong v-else-if="showOriginal">{{ t('Exchange rate unavailable') }}</strong>
+        <strong v-else>{{ formatMoney(amount, currency, locale) }}</strong>
+        <UiText
+          v-if="showOriginal"
+          as="small"
+          variant="caption"
+        >
+          {{ formatMoney(amount, currency, locale) }}
+        </UiText>
       </div>
       <time
         class="ui-caption"

@@ -89,8 +89,10 @@ const { t } = useTranslation()
             :key="expense.id"
             :to="'/debts/' + expense.id"
             :title="expense.title"
-            :amount="expense.equivalentAmount ?? expense.totalAmount"
-            :currency="expense.equivalentAmount != null ? expense.viewerCurrency : expense.currency"
+            :amount="expense.totalAmount"
+            :currency="expense.currency"
+            :viewer-currency="expense.viewerCurrency"
+            :equivalent-amount="expense.equivalentAmount"
             :payer-name="expense.payer.name"
             :created-at="expense.createdAt"
           />
