@@ -108,5 +108,9 @@ services:
         alias: App\Debts\Application\DeleteDebt
         public: true
 
+    # HTTP integration fixtures roll back their market and ledger data together.
+    equo.currency_cache_connection:
+        alias: doctrine.dbal.default_connection
+
     App\Currency\Application\MarketSource:
         class: App\Tests\Fixture\E2e\FixedMarket

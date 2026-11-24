@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Currency\Application;
 
+use App\Currency\Domain\FeedPolicy;
+use App\Currency\Domain\FeedUpdate;
+use App\Currency\Domain\MarketFeed;
+
 interface MarketSource
 {
-    /** @return array{currencies:array<string,int>,rates:array<string,array{value:string,date:string}>} */
-    public function fetch(): array;
+    public function fetch(MarketFeed $feed, FeedPolicy $previous): FeedUpdate;
 }

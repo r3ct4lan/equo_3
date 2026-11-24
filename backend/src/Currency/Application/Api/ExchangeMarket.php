@@ -4,26 +4,20 @@ declare(strict_types=1);
 
 namespace App\Currency\Application\Api;
 
-use App\Currency\Application\MarketSource;
 use App\Currency\Application\MarketStore;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailureCode;
 
 final readonly class ExchangeMarket
 {
-    public function __construct(private MarketSource $source, private MarketStore $store, private CurrencyArithmetic $arithmetic)
+    public function __construct(private MarketStore $store, private CurrencyArithmetic $arithmetic)
     {
-    }
-
-    public function refresh(): void
-    {
-        $this->store->save($this->source->fetch());
     }
 
     /** @return array<string,int> */
     public function currencies(): array
     {
-        $catalog = $this->snapshot()['currencies'];
+        $catalog = $this->store->currencies();
 
         return $catalog ?: throw new MarketUnavailable();
     }
@@ -68,30 +62,10 @@ final readonly class ExchangeMarket
         if ($from === $to) {
             return '1';
         }
-        $rates = $this->snapshot([$from, $to])['rates'];
+        $rates = $this->store->rates();
         $base = 'EUR' === $from ? '1' : ($rates[$from]['value'] ?? throw new MarketUnavailable());
         $target = 'EUR' === $to ? '1' : ($rates[$to]['value'] ?? throw new MarketUnavailable());
 
         return $this->arithmetic->ratio($target, $base);
-    }
-
-    /** @param list<string> $required
-     * @return array{currencies:array<string,int>,rates:array<string,array{value:string,date:string}>,fresh:bool}
-     */
-    private function snapshot(array $required = []): array
-    {
-        $stored = $this->store->read();
-        $missing = array_diff($required, ['EUR'], array_keys($stored['rates']));
-        if (!$stored['fresh'] || [] !== $missing) {
-            try {
-                $this->refresh();
-
-                return $this->store->read();
-            } catch (MarketUnavailable) {
-                // A failed fetch leaves the last successfully published snapshot intact.
-            }
-        }
-
-        return $stored;
     }
 }
