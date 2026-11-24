@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { displayExchangeRate } from '~/utils/money'
+
 const props = defineProps<{ currency: string, target: string, savedRate?: string | null, inverse?: boolean }>()
 const manual = defineModel<string | null>({ default: null })
 const emit = defineEmits<{ rate: [value: string | null] }>()
 const { $auth } = useNuxtApp()
 const { t } = useTranslation()
+const { locale } = useLocale()
 const automatic = ref<string | null>(null)
 const expanded = ref(false)
 const pending = ref(false)
@@ -39,6 +42,7 @@ watchEffect(() => emit('rate', manual.value ?? automatic.value))
     <UiButton
       v-if="!expanded"
       variant="link"
+      class="justify-self-start"
       @click="expanded = true"
     >
       {{ t('Change exchange rate') }}
@@ -47,7 +51,7 @@ watchEffect(() => emit('rate', manual.value ?? automatic.value))
       <label :for="inputId">{{ t('Exchange rate') }} · 1 {{ inverse ? target : currency }} = … {{ inverse ? currency : target }}</label>
       <UiInput
         :id="inputId"
-        :model-value="manual ?? automatic ?? ''"
+        :model-value="displayExchangeRate(manual ?? automatic, locale)"
         inputmode="decimal"
         maxlength="31"
         :disabled="pending"
@@ -61,6 +65,7 @@ watchEffect(() => emit('rate', manual.value ?? automatic.value))
       </UiText>
       <UiButton
         variant="link"
+        class="justify-self-start"
         @click="manual = null; expanded = false"
       >
         {{ t('Use automatic rate') }}

@@ -88,7 +88,7 @@ describe('financial journey components', () => {
   })
   it.each(['en', 'ru'] as const)('keeps a one-off HUF expense separate from the %s profile', async (locale) => {
     auth.protectedRequest.mockImplementation(async (path, request) => {
-      if (path === '/v1/currencies') return { EUR: 2, HUF: 2 }
+      if (path === '/v1/currencies/options') return ['EUR', 'USD', 'HUF']
       if (path === '/v1/currencies/EUR/HUF') return { rate: '400' }
       if (request?.method === 'POST') return debt
       return options(path)
@@ -102,6 +102,7 @@ describe('financial journey components', () => {
     await field.get('input').trigger('focusin')
     await flushPromises()
     await field.get('input').trigger('focus')
+    expect(field.findAll('[data-value]').map(option => option.attributes('data-value'))).toEqual(['EUR', 'USD', 'HUF'])
     await field.get('[data-value="HUF"]').trigger('click')
     await flushPromises()
     const rate = wrapper.getComponent({ name: 'OperationRateField' })
@@ -287,7 +288,7 @@ describe('financial journey components', () => {
     wrapper.unmount()
   })
   it('loads debt pages and clears old data on an account switch', async () => {
-    auth.protectedRequest.mockResolvedValueOnce(page([debt], 'next')).mockResolvedValueOnce(page([{
+    auth.protectedRequest.mockResolvedValueOnce(page([{ ...debt, totalAmount: 120050, equivalentAmount: 1001, currency: 'RSD', viewerCurrency: 'EUR' }], 'next')).mockResolvedValueOnce(page([{
       ...debt, id: 'second', title: 'Lunch'
     }])).mockResolvedValue(page([]))
     const wrapper = await mountSuspended(DebtsPage)
@@ -295,7 +296,8 @@ describe('financial journey components', () => {
     expect(wrapper.text()).toContain('Dinner')
     expect(wrapper.get('.dashboard-expense a').attributes('href')).toBe('/debts/debt')
     expect(wrapper.get('.dashboard-expense time').attributes('datetime')).toBe(debt.createdAt)
-    expect(wrapper.get('.dashboard-expense').text()).toContain('€10.01')
+    expect(wrapper.get('.dashboard-expense-cost strong').text()).toBe('€10.01')
+    expect(wrapper.get('.dashboard-expense-cost small').text()).toMatch(/RSD.*1,200\.50/u)
     await wrapper.get('button').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Lunch')

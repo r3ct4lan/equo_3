@@ -4,24 +4,33 @@ const id = useId()
 const currency = defineModel<string>({ required: true })
 const { $auth } = useNuxtApp()
 const { t } = useTranslation()
+const { state } = useCurrentUser()
 const codes = ref<string[]>([])
 const pending = ref(false)
 const error = ref(false)
-const options = computed(() => [...new Set([currency.value, ...codes.value])].map(value => ({ label: value, value })))
+const options = computed(() => (codes.value.length ? codes.value : [currency.value]).map(value => ({ label: value, value })))
+let generation = 0
+watch(() => [state.value.user?.id, state.value.user?.currency] as const, () => {
+  ++generation
+  codes.value = []
+  error.value = false
+  pending.value = false
+}, { flush: 'sync' })
 
 async function load(): Promise<void> {
   if (pending.value || codes.value.length) return
+  const requestGeneration = generation
   pending.value = true
   error.value = false
   try {
-    const catalog = await $auth.protectedRequest<Record<string, number>>('/v1/currencies')
-    codes.value = Object.keys(catalog).sort()
+    const ordered = await $auth.protectedRequest<string[]>('/v1/currencies/options')
+    if (requestGeneration === generation) codes.value = ordered
   }
   catch {
-    error.value = true
+    if (requestGeneration === generation) error.value = true
   }
   finally {
-    pending.value = false
+    if (requestGeneration === generation) pending.value = false
   }
 }
 </script>

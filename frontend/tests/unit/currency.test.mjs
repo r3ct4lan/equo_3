@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { formatMoney, parseMinorUnits, moneyInput, settlementPreview } from '../../app/utils/money.ts'
+import { displayExchangeRate, formatMoney, parseMinorUnits, moneyInput, settlementPreview } from '../../app/utils/money.ts'
 
 test('editable money uses the original currency precision', () => {
   assert.equal(parseMinorUnits('1200', 'JPY'), 1200)
@@ -14,4 +14,11 @@ test('editable money uses the original currency precision', () => {
 test('the preview closes exactly at the rounded repayment threshold', () => {
   assert.deepEqual(settlementPreview(961, 120050, 'EUR', 'RSD', '125'), { remaining: 0, excess: 0 })
   assert.deepEqual(settlementPreview(962, 120050, 'EUR', 'RSD', '125'), { remaining: 0, excess: 1 })
+})
+
+test('snapshot rates are displayed as localized decimals without changing settlement precision', () => {
+  assert.equal(displayExchangeRate('2944/25', 'ru'), '117,76')
+  assert.equal(displayExchangeRate('2944/25', 'en'), '117.76')
+  assert.equal(displayExchangeRate('2/3', 'en'), '0.666666666666666667')
+  assert.equal(displayExchangeRate('120.0', 'ru'), '120,0')
 })

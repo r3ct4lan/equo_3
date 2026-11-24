@@ -10,6 +10,7 @@ const russian: Record<string, string> = {
   'Exchange rate': 'Курс',
   'Use automatic rate': 'Использовать автоматический курс',
   'The exchange rate is unavailable. Enter a rate or try again later.': 'Курс недоступен. Введите курс вручную или попробуйте позже.',
+  'Exchange rate unavailable': 'Курс недоступен',
   'Automatic rate unavailable. Enter a rate to continue.': 'Курс недоступен. Введите курс вручную.',
   'Could not load currencies.': 'Не удалось загрузить валюты.',
   'Choose who transferred money and enter a positive amount in the payment currency.': 'Выберите отправителя и введите положительную сумму в валюте платежа.',
