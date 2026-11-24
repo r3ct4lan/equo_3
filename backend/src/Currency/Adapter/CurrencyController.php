@@ -9,6 +9,8 @@ use Brick\Math\BigRational;
 use Brick\Math\RoundingMode;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
 final readonly class CurrencyController
 {
@@ -20,6 +22,12 @@ final readonly class CurrencyController
     public function catalog(): JsonResponse
     {
         return new JsonResponse($this->market->currencies());
+    }
+
+    #[Route('/api/v1/currencies/options', methods: ['GET'])]
+    public function options(#[CurrentUser] UserInterface $user, CurrencyOptions $options): JsonResponse
+    {
+        return new JsonResponse($options->forUser($user->getUserIdentifier()), headers: ['Cache-Control' => 'private, no-store']);
     }
 
     #[Route('/api/v1/currencies/{from}/{to}', requirements: ['from' => '[A-Z]{3}', 'to' => '[A-Z]{3}'], methods: ['GET'])]

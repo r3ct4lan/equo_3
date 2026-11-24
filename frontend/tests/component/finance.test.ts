@@ -88,7 +88,7 @@ describe('financial journey components', () => {
   })
   it.each(['en', 'ru'] as const)('keeps a one-off HUF expense separate from the %s profile', async (locale) => {
     auth.protectedRequest.mockImplementation(async (path, request) => {
-      if (path === '/v1/currencies') return { EUR: 2, HUF: 2 }
+      if (path === '/v1/currencies/options') return ['EUR', 'USD', 'HUF']
       if (path === '/v1/currencies/EUR/HUF') return { rate: '400' }
       if (request?.method === 'POST') return debt
       return options(path)
@@ -102,6 +102,7 @@ describe('financial journey components', () => {
     await field.get('input').trigger('focusin')
     await flushPromises()
     await field.get('input').trigger('focus')
+    expect(field.findAll('[data-value]').map(option => option.attributes('data-value'))).toEqual(['EUR', 'USD', 'HUF'])
     await field.get('[data-value="HUF"]').trigger('click')
     await flushPromises()
     const rate = wrapper.getComponent({ name: 'OperationRateField' })

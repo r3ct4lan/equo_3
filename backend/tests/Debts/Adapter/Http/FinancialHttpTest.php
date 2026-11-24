@@ -117,6 +117,29 @@ final class FinancialHttpTest extends WebTestCase
         return $this->body();
     }
 
+    public function testCurrencyOptionsRankOnlyTheViewersOwnSavedCurrencies(): void
+    {
+        $this->db->update('app_user', ['currency' => 'JPY'], ['id' => $this->users[0]]);
+        $this->request('POST', '/api/v1/debts', 0, $this->command() + ['currency' => 'RSD'], Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body();
+        $this->db->update('debt', ['created_at' => '2026-10-06'], ['id' => $debt['id']]);
+        $pair = new CanonicalPair($this->users[0], $this->users[1]);
+        $connect = $this->db->fetchOne('SELECT id FROM connect WHERE first_user_id = ? AND second_user_id = ?', [$pair->first, $pair->second]);
+        self::assertIsString($connect);
+        foreach (['CAD', 'USD', 'EUR', 'JPY', 'HUF', 'USD'] as $i => $currency) {
+            $id = $this->addManualTransfer($connect, $this->users[0], $this->users[1], 100);
+            $this->db->update('transfer', ['currency' => $currency, 'created_at' => '2026-10-0'.($i + 1)], ['id' => $id]);
+        }
+        $this->request('GET', '/api/v1/currencies/options');
+        self::assertResponseIsSuccessful();
+        self::assertJsonStringEqualsJsonString(json_encode(['JPY', 'RSD', 'USD', 'HUF', 'EUR', 'CAD', 'KWD'], JSON_THROW_ON_ERROR), (string) $this->client->getResponse()->getContent());
+
+        $this->request('GET', '/api/v1/currencies/options', 1);
+        self::assertResponseIsSuccessful();
+        self::assertJsonStringEqualsJsonString(json_encode(['EUR', 'CAD', 'HUF', 'JPY', 'KWD', 'RSD', 'USD'], JSON_THROW_ON_ERROR), (string) $this->client->getResponse()->getContent());
+    }
+
     public function testMergedConnectionsKeepExternalLedgerAndHideInternalOperations(): void
     {
         [$primary, $joined, $friend, $other] = $this->users;
