@@ -31,6 +31,15 @@ services:
             - '../src/*/Adapter/Persistence/Doctrine/Record/'
             - '../src/Infrastructure/*/Persistence/Doctrine/Record/'
 
+    equo.currency_cache_connection:
+        class: Doctrine\DBAL\Connection
+        factory: ['App\Currency\Adapter\DoctrineMarketStore', 'independentConnection']
+        arguments: ['@doctrine.dbal.default_connection']
+
+    App\Currency\Adapter\DoctrineMarketStore:
+        arguments:
+            $db: '@equo.currency_cache_connection'
+
     Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactory:
         arguments:
             $passwordHashers:

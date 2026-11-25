@@ -10,7 +10,7 @@ const pending = ref(false)
 const error = ref(false)
 const options = computed(() => (codes.value.length ? codes.value : [currency.value]).map(value => ({ label: value, value })))
 let generation = 0
-watch(() => [state.value.user?.id, state.value.user?.currency] as const, () => {
+watch([() => state.value.user?.id, () => state.value.user?.currency], () => {
   ++generation
   codes.value = []
   error.value = false
