@@ -7,6 +7,7 @@ import {
 import {
   afterEach, beforeEach, describe, expect, it, vi
 } from 'vitest'
+import CurrencySelect from '../../app/components/CurrencySelect.vue'
 import CreateDebtForm from '../../app/components/CreateDebtForm.vue'
 import NewDebtPage from '../../app/pages/debts/new.vue'
 import ConnectPage from '../../app/pages/connects/[id].vue'
@@ -85,6 +86,18 @@ describe('financial journey components', () => {
     auth.bootstrap.mockReset().mockResolvedValue(undefined)
     navigation.mockReset().mockResolvedValue(undefined)
     signedIn()
+  })
+  it('keeps currency options when the same profile reloads during the request', async () => {
+    const wrapper = await mountSuspended(CurrencySelect, { props: { modelValue: 'EUR', label: 'Profile currency' } })
+    signedIn()
+    const { promise, resolve } = Promise.withResolvers<string[]>()
+    auth.protectedRequest.mockReturnValueOnce(promise)
+    await wrapper.get('input').trigger('focusin')
+    signedIn()
+    resolve(['EUR', 'RSD'])
+    await flushPromises()
+    await wrapper.get('input').trigger('focus')
+    expect(wrapper.find('[data-value="RSD"]').exists()).toBe(true)
   })
   it.each(['en', 'ru'] as const)('keeps a one-off HUF expense separate from the %s profile', async (locale) => {
     auth.protectedRequest.mockImplementation(async (path, request) => {
