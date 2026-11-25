@@ -338,6 +338,13 @@ final class ManualTransferHttpTest extends WebTestCase
         self::assertFalse((bool) $this->db->fetchOne('SELECT is_deleted FROM transfer WHERE id=?', [$manual['id']]));
     }
 
+    private function markRatesUnavailable(): void
+    {
+        $this->db->executeStatement("UPDATE currency_market SET cache_policy = jsonb_set(cache_policy, '{rates}', ?::jsonb)", [
+            json_encode(['expiresAt' => 0, 'retryAt' => time() + 30], JSON_THROW_ON_ERROR),
+        ]);
+    }
+
     public function testMissingQuoteFailsSummaryAndRollsBackLinkedPayment(): void
     {
         $key = static fn (): string => Uuid::v4()->toRfc4122();
@@ -347,6 +354,7 @@ final class ManualTransferHttpTest extends WebTestCase
         $this->request('POST', '/api/v1/debts', 0, $expense + ['currency' => 'CAD'], $key());
         self::assertResponseStatusCodeSame(201);
         $share = $this->body()['participants'][0]['transferId'];
+        $this->markRatesUnavailable();
         $this->request('GET', '/api/v1/transfers/balance-summary', 1);
         $this->failure(503, 'EXCHANGE_RATE_UNAVAILABLE');
         self::assertArrayNotHasKey('totalOwedAmount', $this->body());
@@ -367,6 +375,7 @@ final class ManualTransferHttpTest extends WebTestCase
         $this->request('GET', $balance, 1);
         self::assertSame(-960, $this->body()['balanceAmount']);
         $this->db->executeStatement("UPDATE currency_market SET rates = jsonb_set(rates, '{RSD,value}', to_jsonb('120'::text))");
+        $this->markRatesUnavailable();
         $this->request('GET', $balance, 1);
         self::assertSame(-1000, $this->body()['balanceAmount']);
         $this->request('POST', $balance.'/transfers', 1, [...$this->command(), 'amount' => 1040, 'relatedTransferId' => $share], $key());
