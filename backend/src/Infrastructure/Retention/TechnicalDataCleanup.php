@@ -84,6 +84,7 @@ final readonly class TechnicalDataCleanup
                 WHERE expires_at <= CURRENT_TIMESTAMP
                 ORDER BY expires_at, id
                 SQL, $batchSize);
+            $counts['receipt_uploads'] = $this->deleteBatch($connection, 'receipt_upload', "SELECT id FROM receipt_upload WHERE debt_id IS NULL AND created_at < now() - interval '1 day' ORDER BY created_at, id", $batchSize);
             $counts['sessions'] = $this->deleteBatch($connection, 'user_session', <<<'SQL'
                 SELECT id FROM user_session
                 WHERE COALESCE(revoked_at, expires_at) <= CURRENT_TIMESTAMP - INTERVAL '30 days'
@@ -134,6 +135,7 @@ final readonly class TechnicalDataCleanup
                   AND COALESCE(sent_at, failed_at) <= CURRENT_TIMESTAMP - INTERVAL '30 days'
                 SQL),
             'idempotency' => (int) $connection->fetchOne('SELECT COUNT(*) FROM idempotency_record WHERE expires_at <= CURRENT_TIMESTAMP'),
+            'receipt_uploads' => (int) $connection->fetchOne("SELECT COUNT(*) FROM receipt_upload WHERE debt_id IS NULL AND created_at < now() - interval '1 day'"),
             'sessions' => (int) $connection->fetchOne(<<<'SQL'
                 SELECT COUNT(*) FROM user_session
                 WHERE COALESCE(revoked_at, expires_at) <= CURRENT_TIMESTAMP - INTERVAL '30 days'

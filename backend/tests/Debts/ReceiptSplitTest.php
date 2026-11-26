@@ -29,7 +29,7 @@ final class ReceiptSplitTest extends TestCase
 
     /** @param list<array<string,mixed>> $rows
      * @param array<string,mixed> $remainder
-     * @param array<string,int> $expected
+     * @param array<string,int>   $expected
      */
     #[DataProvider('cases')]
     public function testExactShares(int $total, array $rows, int $discount, array $remainder, array $expected): void
