@@ -87,6 +87,16 @@ describe('financial journey components', () => {
     navigation.mockReset().mockResolvedValue(undefined)
     signedIn()
   })
+  it('opens receipt capture with an empty currency and rejects four photos before calling the API', async () => {
+    const wrapper = await mountSuspended(CreateDebtForm)
+    await wrapper.get('[data-testid="scan-receipt"]').trigger('click')
+    const input = wrapper.get('input[type=file]')
+    Object.defineProperty(input.element, 'files', { value: Array.from({ length: 4 }, () => new File(['image'], 'receipt.png', { type: 'image/png' })) })
+    await input.trigger('change')
+    expect(wrapper.text()).toContain('Choose one to three receipt photos.')
+    expect(auth.protectedRequest.mock.calls.some(([path]) => path.includes('receipt-uploads'))).toBe(false)
+    expect(wrapper.get('button[type=submit]').attributes('disabled')).toBeDefined()
+  })
   it('keeps currency options when the same profile reloads during the request', async () => {
     const wrapper = await mountSuspended(CurrencySelect, { props: { modelValue: 'EUR', label: 'Profile currency' } })
     signedIn()

@@ -12,6 +12,23 @@ import {
   toApiClientError, type ApiClientError
 } from '~/utils/api-error'
 
+import type { ReceiptDraft, ReceiptJob } from '~/types/receipt'
+import { editableLine } from '~/utils/receipt'
+
+const scanning = ref(false)
+const receipt = ref<ReceiptDraft | null>(null)
+function scan(enabled: boolean) {
+  scanning.value = enabled
+  receipt.value = null
+  currency.value = enabled ? '' : profileCurrency.value
+  values.amount = ''
+}
+function recognized(job: ReceiptJob, code: string) {
+  receipt.value = { uploadId: job.id, lines: job.draft?.lines.map(editableLine) ?? [editableLine()], discount: 0, remainder: {} }
+  currency.value = code
+  values.amount = job.draft?.total ?? ''
+}
+
 const props = defineProps<{ initialPerson?: BriefUser }>()
 const { locale } = useLocale()
 
@@ -59,6 +76,7 @@ const errorMessage = computed(() => {
 async function submit(): Promise<void> {
   const viewer = state.value.user?.id
   if (!viewer || state.value.status !== 'authenticated' || pending.value) return
+  if (scanning.value) return
   if (!attempt) {
     const body = payerOptions.value.some(person => person.id === values.payerId)
       ? debtCommand({ ...values, currency: currency.value, participantIds: selectedPeople.value.map(person => person.id).filter(id => id !== values.payerId), includePayerInSplit: selectedPeople.value.some(person => person.id === values.payerId) }, viewer)
@@ -114,6 +132,8 @@ watch(() => [state.value.status, state.value.user?.id], () => {
   uncertain.value = false
   pending.value = false
   error.value = null
+  scanning.value = false
+  receipt.value = null
   currency.value = profileCurrency.value
   manualRate.value = null
   values.title = ''
@@ -151,6 +171,26 @@ const { t } = useTranslation()
         <legend class="visually-hidden">
           {{ t('Expense details') }}
         </legend>
+        <UiButton
+          v-if="!scanning"
+          data-testid="scan-receipt"
+          variant="secondary"
+          @click="scan(true)"
+        >
+          {{ t('Scan receipt') }}
+        </UiButton>
+        <template v-else>
+          <ReceiptScan
+            @ready="recognized"
+            @reset="scan(true)"
+          />
+          <UiButton
+            variant="secondary"
+            @click="scan(false)"
+          >
+            {{ t('Enter an ordinary expense') }}
+          </UiButton>
+        </template>
         <UiField>
           <label for="debt-title">{{ t('Title') }}</label>
           <UiInput
@@ -178,17 +218,18 @@ const { t } = useTranslation()
           :label="t('Expense currency')"
         />
         <OperationRateField
+          v-if="currency"
           v-model="manualRate"
           inverse
           :currency="currency"
           :target="profileCurrency"
         />
         <UiField>
-          <label for="debt-amount">{{ currency === 'EUR' ? t('Amount in EUR') : t('Amount in') + ' ' + currency }}</label>
+          <label for="debt-amount">{{ scanning ? t('Printed total') : currency === 'EUR' ? t('Amount in EUR') : t('Amount in') + ' ' + currency }}</label>
           <UiInput
             id="debt-amount"
             v-model="values.amount"
-            money
+            :money="!scanning"
             :digits="currencyDigits(currency)"
             type="text"
             inputmode="decimal"
@@ -198,6 +239,7 @@ const { t } = useTranslation()
             aria-describedby="amount-help amount-errors"
           />
           <UiText
+            v-if="currency"
             id="amount-help"
             variant="help"
           >
@@ -208,8 +250,15 @@ const { t } = useTranslation()
             :messages="error?.fieldErrors.totalAmount"
           />
         </UiField>
+        <ReceiptEditor
+          v-if="receipt"
+          v-model="receipt"
+          :currency="currency"
+          :total="values.amount"
+        />
         <DebtPeoplePicker
           v-model="selectedPeople"
+          data-testid="expense-people"
           :label="t('Share with')"
           :disabled="pending || uncertain"
         />
@@ -223,13 +272,13 @@ const { t } = useTranslation()
         <UiText variant="help">
           {{ t('Choose yourself or a selected participant as the payer. You must be the payer or a participant.') }}
         </UiText>
-        <UiText v-if="share">
+        <UiText v-if="!scanning && share">
           {{ t('Each share:') }} {{ formatMoney(share, currency, locale) }}. {{ t('Shares round up to the smallest currency unit.') }}
         </UiText>
       </fieldset>
       <UiButton
         type="submit"
-        :disabled="pending"
+        :disabled="pending || scanning"
         :pending="pending"
       >
         {{ pending ? t('Saving expense…') : uncertain ? t('Retry same expense') : t('Create expense') }}
