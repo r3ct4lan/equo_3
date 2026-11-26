@@ -136,6 +136,71 @@ final class FinancialHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function testChangingOnlyReceiptAssignmentsReconcilesOneHistoricalPayment(): void
+    {
+        [$payer, $boris, $vera] = $this->users;
+        $key = static fn (): string => Uuid::v4()->toRfc4122();
+        $this->request('POST', '/api/v1/debts/receipt-uploads', 0, ['photos' => ['data:image/png;base64,'.base64_encode((string) file_get_contents(__DIR__.'/../../receipts/coffee-1.png'))]], $key());
+        $upload = $this->body()['id'];
+        $line = static fn (int $amount, string $user): array => ['amount' => $amount, 'name' => 'Kafa', 'quantity' => '1', 'unitPrice' => $amount, 'assignments' => [$user => null]];
+        $lines = [$line(30000, $boris), $line(42000, $boris), $line(48000, $boris), $line(100, $vera)];
+        $cmd = array_replace($this->command(), ['currency' => 'RSD', 'manualRate' => '120', 'totalAmount' => 120100, 'receipt' => ['uploadId' => $upload, 'lines' => $lines, 'discount' => 0, 'remainder' => []]]);
+        $this->request('POST', '/api/v1/debts', 0, $cmd, $key());
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body();
+        $part = array_values(array_filter($debt['participants'], static fn (array $p): bool => $p['user']['id'] === $boris))[0];
+        self::assertSame(1000, $part['equivalentAmount']);
+        $share = $part['transferId'];
+        $path = '/api/v1/debts/'.$debt['id'];
+        $this->request('POST', '/api/v1/connects/'.$part['connectId'].'/transfers', 1, ['senderId' => $boris, 'receiverId' => $payer, 'amount' => 500, 'currency' => 'EUR', 'manualRate' => '120', 'relatedTransferId' => $share], $key());
+        self::assertResponseStatusCodeSame(201);
+        $payment = $this->body()['id'];
+        unset($cmd['payerId']);
+        foreach ([[30000, 0], [0, 100], [null, null]] as $i => [$remaining, $excess]) {
+            $cmd['receipt']['lines'][$i]['assignments'] = [$payer => null];
+            $this->request('PUT', $path, 0, $cmd, etag: '"'.($i + 1).'"');
+            self::assertResponseIsSuccessful();
+            $this->request('GET', '/api/v1/transfers/'.$payment, 1);
+            self::assertSame($share, $this->body()['relatedTransferId']);
+            self::assertSame(500, $this->body()['amount']);
+            self::assertSame($excess, $this->body()['excessAmount']);
+            if (null !== $remaining) {
+                $this->request('GET', '/api/v1/transfers/'.$share, 1);
+                self::assertSame($remaining, $this->body()['remainingAmount']);
+            }
+        }
+        $this->request('GET', '/api/v1/connects/'.$part['connectId'], 1);
+        self::assertSame(500, $this->body()['balanceAmount']);
+        $this->request('GET', $path.'/photos/1', 1);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testReceiptRollbackAndZeroShareAuthor(): void
+    {
+        [$author, $payer, $person] = $this->users;
+        $photo = 'data:image/png;base64,'.base64_encode((string) file_get_contents(__DIR__.'/../../receipts/coffee-1.png'));
+        $this->request('POST', '/api/v1/debts/receipt-uploads', 1, ['photos' => [$photo]], Uuid::v4()->toRfc4122());
+        $receipt = ['uploadId' => $this->body()['id'], 'lines' => [['name' => 'Kafa', 'quantity' => '1', 'amount' => 60000, 'assignments' => [$person => null]]], 'discount' => 0, 'remainder' => []];
+        $cmd = array_replace($this->command(), ['payerId' => $payer, 'participantIds' => [$author, $person], 'currency' => 'RSD', 'totalAmount' => 60000, 'receipt' => $receipt]);
+        $previous = (int) $this->db->fetchOne('SELECT count(*) FROM debt');
+        $this->request('POST', '/api/v1/debts', 0, $cmd, Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame($previous, (int) $this->db->fetchOne('SELECT count(*) FROM debt'));
+        $this->request('POST', '/api/v1/debts/receipt-uploads', 0, ['photos' => [$photo]], Uuid::v4()->toRfc4122());
+        $cmd['receipt']['uploadId'] = $this->body()['id'];
+        $this->request('POST', '/api/v1/debts', 0, array_replace($cmd, ['currency' => 'ZZZ']), Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame($previous, (int) $this->db->fetchOne('SELECT count(*) FROM debt'));
+        $this->request('POST', '/api/v1/debts', 0, $cmd, Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body();
+        $member = array_values(array_filter($debt['participants'], static fn (array $p): bool => $p['isAuthor']))[0];
+        self::assertSame(0, $member['shareAmount']);
+        self::assertNull($member['transferId']);
+        $this->request('GET', '/api/v1/debts/'.$debt['id'].'/photos/1', 1);
+        self::assertResponseIsSuccessful();
+    }
+
     /** @return array<string,mixed> */
     private function command(): array
     {

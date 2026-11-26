@@ -127,7 +127,7 @@ onMounted(() => {
   selectedPeople.value = props.initialPerson ? [props.initialPerson] : self ? [{ id: self.id, name: self.name, isActive: self.isActive }] : []
   payer.value = self ? [{ id: self.id, name: self.name, isActive: self.isActive }] : []
 })
-watch(() => [state.value.status, state.value.user?.id], () => {
+watch([() => state.value.status, () => state.value.user?.id], () => {
   ++generation
   attempt = null
   uncertain.value = false

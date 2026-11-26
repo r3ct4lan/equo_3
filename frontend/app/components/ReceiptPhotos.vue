@@ -47,7 +47,7 @@ async function remove(number: number) {
     if (current === generation) pending.value = null
   }
 }
-watch(() => [props.debt.id, props.debt.version, state.value.user?.id], () => {
+watch([() => props.debt.id, () => props.debt.version, () => state.value.user?.id], () => {
   ++generation
   images.value = {}
   pending.value = null

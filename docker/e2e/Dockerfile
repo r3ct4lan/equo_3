@@ -10,6 +10,7 @@ RUN npm ci
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
     && npx playwright install --with-deps chromium
 
+COPY backend/tests/Debts/receipts /workspace/receipts
 COPY frontend ./
 
 CMD ["npm", "run", "test:e2e"]

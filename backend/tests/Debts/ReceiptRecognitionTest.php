@@ -12,6 +12,20 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class ReceiptRecognitionTest extends TestCase
 {
+    public function testFixtureReaderIsRegisteredOnlyInTheIsolatedBrowserEnvironment(): void
+    {
+        $directory = dirname(__DIR__, 2).'/config/';
+        $fixture = \App\Tests\Fixture\E2e\FixedReceiptReader::class;
+        $config = \Symfony\Component\Yaml\Yaml::parseFile($directory.'services_e2e.yaml');
+        self::assertSame($fixture, $config['services'][\App\Debts\Application\Port\ReceiptReader::class]['class']);
+
+        foreach (glob($directory.'services*.yaml') ?: [] as $file) {
+            if ('services_e2e.yaml' !== basename($file)) {
+                self::assertStringNotContainsString($fixture, (string) file_get_contents($file));
+            }
+        }
+    }
+
     /** @return iterable<string,array{string}> */
     public static function receipts(): iterable
     {

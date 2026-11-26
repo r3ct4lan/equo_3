@@ -76,10 +76,15 @@ async function recognize() {
       const code = result.draft?.currency
       let currency = ''
       if (code) {
-        const catalog = await $auth.protectedRequest<string[]>('/v1/currencies/options', { signal })
+        try {
+          const catalog = await $auth.protectedRequest<string[]>('/v1/currencies/options', { signal })
+          if (catalog.includes(code)) currency = code
+          else message.value = 'Choose a supported receipt currency.'
+        }
+        catch {
+          message.value = 'Could not load currencies.'
+        }
         if (current !== generation) return
-        if (catalog.includes(code)) currency = code
-        else message.value = 'Choose a supported receipt currency.'
       }
       emit('ready', result, currency)
     }

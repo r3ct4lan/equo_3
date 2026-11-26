@@ -41,6 +41,14 @@ const splitChanged = computed(() => {
 const share = computed(() => splitChanged.value
   ? splitShare(parseMinorUnits(values.amount, currency.value) ?? 0, values.participantIds.length + (values.includePayerInSplit ? 1 : 0))
   : props.debt.shareAmount)
+const savedShares = computed(() => {
+  if (!props.debt.receipt || !allocation.value || splitChanged.value) return undefined
+  const original = editReceipt(props.debt.receipt, currency.value)
+  const before = prepareReceipt(original, moneyInput(props.debt.totalAmount, currency.value), currency.value, receiptPeople.value.map(p => p.id))
+  if (!before || Object.entries(before.shares).some(([id, value]) => allocation.value?.shares[id] !== value)
+    || Object.keys(before.shares).length !== Object.keys(allocation.value.shares).length) return undefined
+  return Object.fromEntries(props.debt.participants.map(p => [p.user.id, p.shareAmount]))
+})
 const message = computed(() => {
   if (error.value?.code === 'EXCHANGE_RATE_UNAVAILABLE') return 'The exchange rate is unavailable. Enter a rate or try again later.'
   if (error.value?.code === 'VERSION_CONFLICT') return 'Someone changed this expense. Reload it and review the current values before saving again. Your draft has not been applied.'
@@ -103,7 +111,7 @@ function reset(): void {
   invalid.value = false
   people.value = props.debt.participants.filter(p => !p.isPayer).map(p => p.user)
 }
-watch(() => [state.value.status, state.value.user?.id, props.debt.id, props.debt.version, props.etag], reset)
+watch([() => state.value.status, () => state.value.user?.id, () => props.debt.id, () => props.debt.version, () => props.etag], reset)
 onMounted(reset)
 onBeforeUnmount(clear)
 
@@ -201,6 +209,7 @@ const { t } = useTranslation()
         :total="values.amount"
         :currency="currency"
         :people="receiptPeople"
+        :saved-shares="savedShares"
       />
       <UiText v-else-if="share">
         {{ t('Each share:') }} {{ formatMoney(share, currency, locale) }}.

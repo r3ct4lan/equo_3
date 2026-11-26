@@ -68,7 +68,16 @@ final readonly class UpdateDebt
                 $amounts = $this->allocation->shares($receipt, $money->minorUnits, $includePayer ? [...$participants, $debt->payerId] : $participants, $saved);
                 $participants = array_values(array_filter($participants, static fn (string $id): bool => $id === $actorId || isset($amounts[$id])));
                 $includePayer = $includePayer && ($debt->payerId === $actorId || isset($amounts[$debt->payerId]));
-                $receiptChanged = serialize(self::ordered($receipt)) !== serialize(self::ordered($saved ?? []));
+                $receiptChanged = self::ordered($receipt) !== self::ordered($saved ?? []);
+                if ($receiptChanged && null !== $saved && $old->minorUnits === $money->minorUnits) {
+                    $previousAmounts = $this->allocation->shares($saved, $old->minorUnits, $current, $saved);
+                    if (self::ordered($previousAmounts) === self::ordered($amounts)) {
+                        $amounts = [];
+                        foreach ($debt->currentParticipants() as $previous) {
+                            $amounts[$previous->userId] = $debt->shareFor($previous);
+                        }
+                    }
+                }
             }
             $changes = new DebtUpdate($change->title, $change->description, $money, $participants, $includePayer, $amounts, $receiptChanged);
             try {

@@ -71,6 +71,28 @@ final class MergeExpensesIntegrationTest extends KernelTestCase
         self::assertSame(4500, $transfers->find($primaryShare)->amount);
     }
 
+    public function testMergedReceiptKeepsTwoRoundedSharesAndTransfersTheirAssignments(): void
+    {
+        [$primary, $joined, $payer] = $this->people(3);
+        $storage = new \App\Debts\Adapter\Persistence\Doctrine\DoctrineReceiptStorage($this->db);
+        $key = Uuid::v4()->toRfc4122();
+        $upload = $storage->prepare($payer, $key, ['data:image/png;base64,'.base64_encode((string) file_get_contents(__DIR__.'/../../Debts/receipts/water-1.png'))]);
+        $receipt = ['uploadId' => $upload, 'discount' => 0, 'remainder' => [], 'lines' => [['name' => 'Water', 'quantity' => '1', 'unitPrice' => 100, 'amount' => 100, 'assignments' => [$primary => null, $joined => null, $payer => null]]]];
+        $created = self::getContainer()->get('test.create_debt')->handle(new CreateDebtCommand('Lunch', null, 100, $payer, [$primary, $joined], true, $key, 'EUR', receipt: $receipt), $payer)['body'];
+        $repo = new DoctrineDebtRepository($this->db);
+        $merge = new MergeExpenses($repo, new DoctrineMergeExpenseRepository($this->db, self::getContainer()->get(\App\Transfers\Application\Api\ReconcileShare::class)));
+        $merge->apply($primary, $joined);
+        $saved = $storage->saved($created['id']);
+        self::assertIsArray($saved);
+        self::assertArrayNotHasKey($joined, $saved['lines'][0]['assignments']);
+        self::assertSame(2, $saved['lines'][0]['mergedSeats'][$primary]);
+        $saved['lines'][0]['name'] = 'Mineralwasser';
+        $next = self::getContainer()->get('test.update_debt')->handle(new UpdateDebtCommand($created['id'], 'Lunch', null, 100, [$primary], true, 2, receipt: $saved), $payer);
+        $member = array_values(array_filter($next['participants'], static fn (array $p): bool => $p['user']['id'] === $primary))[0];
+        self::assertSame(68, $member['shareAmount']);
+        self::assertSame(68, $member['remainingAmount']);
+    }
+
     /** @return list<string> */
     private function people(int $count): array
     {
