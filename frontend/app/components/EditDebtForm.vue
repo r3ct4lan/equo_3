@@ -4,6 +4,9 @@ import { updateDebtCommand, validDebtEtag } from '~/utils/debt-update'
 import { formatMoney, moneyInput, currencyDigits, parseMinorUnits, splitShare } from '~/utils/money'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 
+import type { ReceiptDraft } from '~/types/receipt'
+import { editReceipt, prepareReceipt } from '~/utils/receipt'
+
 const { locale } = useLocale()
 
 const props = defineProps<{ debt: DebtView, etag: string }>()
@@ -17,6 +20,9 @@ const values = reactive({
 const currency = computed(() => props.debt.currency ?? 'EUR')
 const manualRate = ref(props.debt.manualRate ?? null)
 const people = ref<BriefUser[]>([])
+const receipt = ref<ReceiptDraft | null>(null)
+const receiptPeople = computed(() => values.includePayerInSplit ? [...people.value, props.debt.payer] : people.value)
+const allocation = computed(() => receipt.value ? prepareReceipt(receipt.value, values.amount, currency.value, receiptPeople.value.map(p => p.id)) : null)
 const pending = ref(false)
 const blocked = ref(false)
 const invalid = ref(false)
@@ -35,6 +41,14 @@ const splitChanged = computed(() => {
 const share = computed(() => splitChanged.value
   ? splitShare(parseMinorUnits(values.amount, currency.value) ?? 0, values.participantIds.length + (values.includePayerInSplit ? 1 : 0))
   : props.debt.shareAmount)
+const savedShares = computed(() => {
+  if (!props.debt.receipt || !allocation.value || splitChanged.value) return undefined
+  const original = editReceipt(props.debt.receipt, currency.value)
+  const before = prepareReceipt(original, moneyInput(props.debt.totalAmount, currency.value), currency.value, receiptPeople.value.map(p => p.id))
+  if (!before || Object.entries(before.shares).some(([id, value]) => allocation.value?.shares[id] !== value)
+    || Object.keys(before.shares).length !== Object.keys(allocation.value.shares).length) return undefined
+  return Object.fromEntries(props.debt.participants.map(p => [p.user.id, p.shareAmount]))
+})
 const message = computed(() => {
   if (error.value?.code === 'EXCHANGE_RATE_UNAVAILABLE') return 'The exchange rate is unavailable. Enter a rate or try again later.'
   if (error.value?.code === 'VERSION_CONFLICT') return 'Someone changed this expense. Reload it and review the current values before saving again. Your draft has not been applied.'
@@ -49,7 +63,8 @@ async function submit(): Promise<void> {
   if (!viewer || state.value.status !== 'authenticated' || pending.value || blocked.value || !validDebtEtag(props.etag)) return
   const command = updateDebtCommand(props.debt, values, viewer)
   invalid.value = !command
-  if (!command) return
+  if (!command || (receipt.value && !allocation.value)) return
+  if (allocation.value) command.receipt = allocation.value.receipt
   if (manualRate.value !== (props.debt.manualRate ?? null)) command.manualRate = manualRate.value
   const requestGeneration = generation
   pending.value = true
@@ -71,6 +86,7 @@ async function submit(): Promise<void> {
 }
 function clear(): void {
   ++generation
+  receipt.value = null
   people.value = []
   values.title = ''
   values.description = ''
@@ -90,11 +106,12 @@ function reset(): void {
   values.amount = moneyInput(props.debt.totalAmount, props.debt.currency)
   values.participantIds = props.debt.participants.filter(p => !p.isPayer).map(p => p.user.id)
   values.includePayerInSplit = props.debt.includePayerInSplit
+  receipt.value = props.debt.receipt ? editReceipt(props.debt.receipt, currency.value) : null
   blocked.value = false
   invalid.value = false
   people.value = props.debt.participants.filter(p => !p.isPayer).map(p => p.user)
 }
-watch(() => [state.value.status, state.value.user?.id, props.debt.id, props.debt.version, props.etag], reset)
+watch([() => state.value.status, () => state.value.user?.id, () => props.debt.id, () => props.debt.version, () => props.etag], reset)
 onMounted(reset)
 onBeforeUnmount(clear)
 
@@ -140,6 +157,10 @@ const { t } = useTranslation()
           rows="3"
         />
       </UiField>
+      <template v-if="receipt">
+        <UiText>{{ t('Expense currency') }} · {{ currency }}</UiText>
+        <ReceiptPhotos :debt="debt" />
+      </template>
       <OperationRateField
         v-model="manualRate"
         inverse
@@ -165,6 +186,12 @@ const { t } = useTranslation()
           {{ t('Maximum amount') }} · {{ formatMoney(2147483647, currency, locale) }}
         </UiText>
       </UiField>
+      <ReceiptEditor
+        v-if="receipt"
+        v-model="receipt"
+        :total="values.amount"
+        :currency="currency"
+      />
       <DebtPeoplePicker
         v-model="people"
         :label="t('Share with')"
@@ -176,7 +203,15 @@ const { t } = useTranslation()
       <label class="checkbox-label"><UiCheckbox
         v-model="values.includePayerInSplit"
       /> {{ t('Include the payer in the split') }}</label>
-      <UiText v-if="share">
+      <ReceiptDistribution
+        v-if="receipt"
+        v-model="receipt"
+        :total="values.amount"
+        :currency="currency"
+        :people="receiptPeople"
+        :saved-shares="savedShares"
+      />
+      <UiText v-else-if="share">
         {{ t('Each share:') }} {{ formatMoney(share, currency, locale) }}.
         {{ splitChanged ? t('Every current share will be recalculated.') : '' }}
       </UiText>
@@ -186,7 +221,7 @@ const { t } = useTranslation()
     </fieldset>
     <UiButton
       type="submit"
-      :disabled="pending || blocked || !validDebtEtag(etag)"
+      :disabled="pending || blocked || !validDebtEtag(etag) || (!!receipt && !allocation)"
       :pending="pending"
     >
       {{ pending ? t('Saving changes…') : t('Save changes') }}

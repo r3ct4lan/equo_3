@@ -20,6 +20,8 @@ final class InitialSchemaForeignKeyListener
             ['connect', 'second_user_id', 'fk_connect_second_user', 'app_user'],
             ['connect_invitation', 'created_by_id', 'fk_connect_invitation_author', 'app_user'],
             ['connect_invitation', 'accepted_by_id', 'fk_connect_invitation_acceptor', 'app_user'],
+            ['receipt_upload', 'owner_id', 'fk_receipt_owner', 'app_user'],
+            ['receipt_upload', 'debt_id', 'fk_receipt_debt', 'debt'],
             ['debt', 'payer_id', 'fk_debt_payer', 'app_user'],
             ['debt', 'created_by_id', 'fk_debt_author', 'app_user'],
             ['debt_participant', 'debt_id', 'fk_debt_participant_debt', 'debt'],

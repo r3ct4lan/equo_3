@@ -53,6 +53,37 @@ const { t } = useTranslation()
         <div><dt>{{ t('Recorded by') }}</dt><dd>{{ debt.createdBy.name }}{{ debt.createdBy.isActive ? '' : t(' (inactive)') }}</dd></div>
         <div><dt>{{ t('Split') }}</dt><dd>{{ formatPeople(debt.participantCount, locale) }} · {{ debt.shareAmount === null ? t('Different share amounts') : formatMoney(debt.shareAmount, debt.currency, locale) + ' ' + t('each') }}</dd></div>
       </UiDescriptionList>
+      <template v-if="debt.receipt">
+        <UiText variant="heading2">
+          {{ t('Receipt items') }}
+        </UiText>
+        <ul class="stack">
+          <li
+            v-for="(line, index) in debt.receipt.lines"
+            :key="index"
+          >
+            {{ line.name || t('Unnamed item') }} · {{ line.quantity }} · {{ formatMoney(line.amount, debt.currency, locale) }}
+            <span
+              v-for="participant in debt.participants.filter(p => Object.hasOwn(line.assignments, p.user.id))"
+              :key="participant.user.id"
+            >
+              · {{ participant.user.name }} {{ line.assignments[participant.user.id] ?? '' }}
+            </span>
+          </li>
+          <li v-if="debt.totalAmount > debt.receipt.lines.reduce((sum, line) => sum + line.amount, 0)">
+            {{ t('Unnamed item') }} · {{ formatMoney(debt.totalAmount - debt.receipt.lines.reduce((sum, line) => sum + line.amount, 0), debt.currency, locale) }}
+          </li>
+        </ul>
+        <UiText v-if="debt.receipt.discount">
+          {{ t('Discount') }} · {{ formatMoney(debt.receipt.discount, debt.currency, locale) }}
+        </UiText>
+        <ReceiptPhotos
+          :debt="debt"
+          :etag="etag"
+          removable
+          @reload="load"
+        />
+      </template>
       <UiButton
         v-if="debt.canEdit && !debt.isDeleted && debt.createdBy.id === state.user?.id"
         :to="'/debts/' + debt.id + '/edit'"

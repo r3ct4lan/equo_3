@@ -10,6 +10,7 @@ use App\Debts\Application\CreateDebt;
 use App\Debts\Application\CreateDebtCommand;
 use App\Debts\Application\DebtQueries;
 use App\Debts\Application\DeleteDebt;
+use App\Debts\Application\ReceiptPhotos;
 use App\Debts\Application\UpdateDebt;
 use App\Debts\Application\UpdateDebtCommand;
 use App\IdentityAccess\Application\Api\Error\ApplicationFailure;
@@ -23,7 +24,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class DebtController
 {
-    public function __construct(private CreateDebt $createDebt, private DebtQueries $queries, private Security $security, private UpdateDebt $updateDebt, private DeleteDebt $deleteDebt)
+    public function __construct(private CreateDebt $createDebt, private DebtQueries $queries, private Security $security, private UpdateDebt $updateDebt, private DeleteDebt $deleteDebt, private ReceiptPhotos $photos)
     {
     }
 
@@ -37,26 +38,34 @@ final readonly class DebtController
         if (!CreateDebtCommand::isUuid($key)) {
             throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
         }
-        $result = $this->createDebt->handle(new CreateDebtCommand($payload->title ?? '', $payload->description, is_int($payload->totalAmount) ? $payload->totalAmount : 0, $payload->payerId ?? '', $payload->participantIds ?? [], is_bool($payload->includePayerInSplit) ? $payload->includePayerInSplit : false, $key, $payload->currency, $payload->manualRate), $this->userId());
+        $result = $this->createDebt->handle(new CreateDebtCommand($payload->title ?? '', $payload->description, is_int($payload->totalAmount) ? $payload->totalAmount : 0, $payload->payerId ?? '', $payload->participantIds ?? [], is_bool($payload->includePayerInSplit) ? $payload->includePayerInSplit : false, $key, $payload->currency, $payload->manualRate, $payload->receipt), $this->userId());
         $body = $result['body'];
 
         return new JsonResponse($body, $result['status'], ['Cache-Control' => 'no-store', 'Location' => '/api/v1/debts/'.$body['id'], 'ETag' => '"'.$body['version'].'"']);
     }
 
+    #[Route('/api/v1/debts/{debtId}/photos/{number}', requirements: ['number' => '[1-3]'], methods: ['GET'])]
+    public function photo(string $debtId, int $number): JsonResponse
+    {
+        return new JsonResponse(['image' => $this->photos->read($debtId, $number, $this->userId())], headers: ['Cache-Control' => 'no-store']);
+    }
+
+    #[Route('/api/v1/debts/{debtId}/photos/{number}', requirements: ['number' => '[1-3]'], methods: ['DELETE'])]
+    public function removePhoto(string $debtId, int $number, Request $request): JsonResponse
+    {
+        $this->photos->remove($debtId, $number, $this->userId(), $this->version($request));
+
+        return new JsonResponse(null, 204, ['Cache-Control' => 'no-store']);
+    }
+
     #[Route('/api/v1/debts/{debtId}', name: 'api_v1_debt_update', methods: ['PUT'])]
     public function update(string $debtId, Request $request, #[MapRequestPayload(acceptFormat: 'json')] UpdateDebtRequest $payload): JsonResponse
     {
-        $etag = $request->headers->get('If-Match');
-        if (null === $etag || '' === trim($etag)) {
-            throw new ApplicationFailure(ApplicationFailureCode::PreconditionRequired);
-        }
-        if (1 !== preg_match('/^"([1-9][0-9]{0,9})"$/D', $etag, $match) || (int) $match[1] > 2147483647) {
-            throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
-        }
+        $version = $this->version($request);
         if (!CreateDebtCommand::isUuid($debtId)) {
             throw new ApplicationFailure(ApplicationFailureCode::DebtNotAvailable);
         }
-        $body = $this->updateDebt->handle(new UpdateDebtCommand($debtId, $payload->title ?? '', $payload->description, is_int($payload->totalAmount) ? $payload->totalAmount : 0, $payload->participantIds ?? [], is_bool($payload->includePayerInSplit) ? $payload->includePayerInSplit : false, (int) $match[1], $payload->currency, $payload->manualRate, array_key_exists('manualRate', $request->toArray())), $this->userId());
+        $body = $this->updateDebt->handle(new UpdateDebtCommand($debtId, $payload->title ?? '', $payload->description, is_int($payload->totalAmount) ? $payload->totalAmount : 0, $payload->participantIds ?? [], is_bool($payload->includePayerInSplit) ? $payload->includePayerInSplit : false, $version, $payload->currency, $payload->manualRate, array_key_exists('manualRate', $request->toArray()), $payload->receipt), $this->userId());
 
         return new JsonResponse($body, 200, ['Cache-Control' => 'no-store', 'ETag' => '"'.$body['version'].'"']);
     }
@@ -64,17 +73,11 @@ final readonly class DebtController
     #[Route('/api/v1/debts/{debtId}', name: 'api_v1_debt_delete', methods: ['DELETE'])]
     public function delete(string $debtId, Request $request): JsonResponse
     {
-        $etag = $request->headers->get('If-Match');
-        if (null === $etag || '' === trim($etag)) {
-            throw new ApplicationFailure(ApplicationFailureCode::PreconditionRequired);
-        }
-        if (1 !== preg_match('/^"([1-9][0-9]{0,9})"$/D', $etag, $match) || (int) $match[1] > 2147483647) {
-            throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
-        }
+        $version = $this->version($request);
         if (!CreateDebtCommand::isUuid($debtId)) {
             throw new ApplicationFailure(ApplicationFailureCode::DebtNotAvailable);
         }
-        $this->deleteDebt->handle($debtId, (int) $match[1], $this->userId());
+        $this->deleteDebt->handle($debtId, $version, $this->userId());
 
         return new JsonResponse(null, 204, ['Cache-Control' => 'no-store']);
     }
@@ -99,6 +102,19 @@ final readonly class DebtController
         $body = $this->queries->detail($debtId, $this->userId());
 
         return new JsonResponse($body, 200, ['Cache-Control' => 'no-store', 'ETag' => '"'.$body['version'].'"']);
+    }
+
+    private function version(Request $request): int
+    {
+        $etag = $request->headers->get('If-Match');
+        if (null === $etag || '' === trim($etag)) {
+            throw new ApplicationFailure(ApplicationFailureCode::PreconditionRequired);
+        }
+        if (1 !== preg_match('/^"([1-9][0-9]{0,9})"$/D', $etag, $match) || (int) $match[1] > 2147483647) {
+            throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
+        }
+
+        return (int) $match[1];
     }
 
     private function userId(): string

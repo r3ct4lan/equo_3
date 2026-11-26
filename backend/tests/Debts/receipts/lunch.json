@@ -1,0 +1,39 @@
+{
+  "lines": [
+    {
+      "name": "Суп",
+      "quantity": "1",
+      "unitPrice": "8.00",
+      "amount": "8.00",
+      "photo": 1,
+      "context": "Суп 8,00 €"
+    },
+    {
+      "name": "Паста",
+      "quantity": "1",
+      "unitPrice": "12.00",
+      "amount": "12.00",
+      "photo": 1,
+      "context": "Паста 12,00 €"
+    },
+    {
+      "name": "Хлеб",
+      "quantity": "1",
+      "unitPrice": "2.00",
+      "amount": "2.00",
+      "photo": 2,
+      "context": "Хлеб 2,00 €"
+    },
+    {
+      "name": "Хлеб",
+      "quantity": "1",
+      "unitPrice": "2.00",
+      "amount": "2.00",
+      "photo": 2,
+      "context": "Хлеб 2,00 €"
+    }
+  ],
+  "currency": "EUR",
+  "total": "24.00",
+  "discount": null
+}

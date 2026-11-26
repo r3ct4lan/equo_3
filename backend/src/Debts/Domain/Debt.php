@@ -70,7 +70,7 @@ final readonly class Debt
             }
         }
         sort($oldCurrent, SORT_STRING);
-        $splitChanged = $this->totalAmount->minorUnits !== $update->totalAmount->minorUnits || $oldCurrent !== $ids;
+        $splitChanged = $update->receiptChanged || $this->totalAmount->minorUnits !== $update->totalAmount->minorUnits || $oldCurrent !== $ids;
         if (!$splitChanged) {
             if ($this->title === $update->title && $this->description === $update->description && $this->totalAmount == $update->totalAmount) {
                 return $this;
@@ -82,11 +82,11 @@ final readonly class Debt
         $known = [];
         foreach ($this->participants as $p) {
             $known[$p->userId] = true;
-            $participants[] = new DebtParticipant($p->id, $p->debtId, $p->userId, $p->createdAt, !in_array($p->userId, $ids, true));
+            $participants[] = new DebtParticipant($p->id, $p->debtId, $p->userId, $p->createdAt, !in_array($p->userId, $ids, true), null === $update->amounts ? null : ($update->amounts[$p->userId] ?? 0));
         }
         foreach ($ids as $id) {
             if (!isset($known[$id])) {
-                $participants[] = new DebtParticipant($newId(), $this->id, $id, $now);
+                $participants[] = new DebtParticipant($newId(), $this->id, $id, $now, actualShareAmount: null === $update->amounts ? null : ($update->amounts[$id] ?? 0));
             }
         }
 
@@ -148,12 +148,22 @@ final readonly class Debt
 
     public function hasSameSplitAs(self $other): bool
     {
-        $before = array_column($this->currentParticipants(), 'userId');
-        $after = array_column($other->currentParticipants(), 'userId');
-        sort($before, SORT_STRING);
-        sort($after, SORT_STRING);
+        $before = $this->sharesByUser();
+        $after = $other->sharesByUser();
 
         return $this->totalAmount->minorUnits === $other->totalAmount->minorUnits && $before === $after;
+    }
+
+    /** @return array<string,int> */
+    private function sharesByUser(): array
+    {
+        $shares = [];
+        foreach ($this->currentParticipants() as $participant) {
+            $shares[$participant->userId] = $this->shareFor($participant);
+        }
+        ksort($shares, SORT_STRING);
+
+        return $shares;
     }
 
     public function mergeAccounts(string $primary, string $joined): ?self

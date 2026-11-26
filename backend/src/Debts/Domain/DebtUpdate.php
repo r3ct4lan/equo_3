@@ -10,8 +10,10 @@ final readonly class DebtUpdate
 {
     public string $title;
 
-    /** @param list<string> $participantIds */
-    public function __construct(string $title, public ?string $description, public Money $totalAmount, public array $participantIds, public bool $includePayerInSplit)
+    /** @param list<string> $participantIds
+     * @param array<string,int>|null $amounts
+     */
+    public function __construct(string $title, public ?string $description, public Money $totalAmount, public array $participantIds, public bool $includePayerInSplit, public ?array $amounts = null, public bool $receiptChanged = false)
     {
         if ('' === trim($title)) {
             throw new InvalidArgumentException('Debt title is required.');

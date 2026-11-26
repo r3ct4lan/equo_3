@@ -8,6 +8,7 @@ use App\Connects\Application\Api\ConnectAccess;
 use App\Currency\Application\Api\ExchangeMarket;
 use App\Debts\Application\Port\DebtRepositoryPort;
 use App\Debts\Application\Port\DebtRuntimePort;
+use App\Debts\Application\Port\ReceiptStorage;
 use App\Debts\Domain\DebtParticipant;
 use App\Debts\Domain\DebtUpdate;
 use App\Debts\Domain\DebtUpdateFailure;
@@ -20,7 +21,7 @@ use App\Transfers\Application\Api\AutomaticShares;
 
 final readonly class UpdateDebt
 {
-    public function __construct(private DebtRepositoryPort $repository, private DebtRuntimePort $runtime, private AccountAccess $accounts, private ConnectAccess $connects, private AutomaticShares $shares, private DebtViews $views, private ExchangeMarket $market)
+    public function __construct(private DebtRepositoryPort $repository, private DebtRuntimePort $runtime, private AccountAccess $accounts, private ConnectAccess $connects, private AutomaticShares $shares, private DebtViews $views, private ExchangeMarket $market, private ReceiptAllocation $allocation, private ReceiptStorage $receipts)
     {
     }
 
@@ -54,7 +55,31 @@ final readonly class UpdateDebt
             $this->market->validateManualRate($old->currency, $target, $manual);
             $change = $command->changes;
             $money = new Money($change->totalAmount->minorUnits, $old->currency, $manual, null === $manual ? null : $target);
-            $changes = new DebtUpdate($change->title, $change->description, $money, $change->participantIds, $change->includePayerInSplit);
+            $saved = $this->receipts->saved($debt->id);
+            $receipt = $command->receipt;
+            if ((null === $saved) !== (null === $receipt) || ($saved['uploadId'] ?? null) !== ($receipt['uploadId'] ?? null)) {
+                throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
+            }
+            $participants = $change->participantIds;
+            $includePayer = $change->includePayerInSplit;
+            $amounts = null;
+            $receiptChanged = false;
+            if (null !== $receipt) {
+                $amounts = $this->allocation->shares($receipt, $money->minorUnits, $includePayer ? [...$participants, $debt->payerId] : $participants, $saved);
+                $participants = array_values(array_filter($participants, static fn (string $id): bool => $id === $actorId || isset($amounts[$id])));
+                $includePayer = $includePayer && ($debt->payerId === $actorId || isset($amounts[$debt->payerId]));
+                $receiptChanged = self::ordered($receipt) !== self::ordered($saved ?? []);
+                if ($receiptChanged && null !== $saved && $old->minorUnits === $money->minorUnits) {
+                    $previousAmounts = $this->allocation->shares($saved, $old->minorUnits, $current, $saved);
+                    if (self::ordered($previousAmounts) === self::ordered($amounts)) {
+                        $amounts = [];
+                        foreach ($debt->currentParticipants() as $previous) {
+                            $amounts[$previous->userId] = $debt->shareFor($previous);
+                        }
+                    }
+                }
+            }
+            $changes = new DebtUpdate($change->title, $change->description, $money, $participants, $includePayer, $amounts, $receiptChanged);
             try {
                 $next = $debt->revise($changes, $actorId, $command->expectedVersion, $active, $eligible, $this->runtime->newId(...), $this->runtime->now());
             } catch (DebtUpdateRejected $e) {
@@ -70,6 +95,9 @@ final readonly class UpdateDebt
             }
             if ($next !== $debt) {
                 $this->repository->update($next);
+                if ($receiptChanged && null !== $receipt) {
+                    $this->receipts->revise($next->id, $receipt);
+                }
             }
             if (!$next->hasSameSplitAs($debt)) {
                 $nextIds = array_map(static fn (DebtParticipant $p): string => $p->userId, $next->currentParticipants());
@@ -82,10 +110,22 @@ final readonly class UpdateDebt
                         }
                     }
                 }
-                $this->shares->recalculate($next->id, $next->payerId, array_map(static fn (DebtParticipant $p): array => ['participantId' => $p->id, 'userId' => $p->userId, 'isDeleted' => $p->isDeleted], $next->participants), $next->shareAmount(), $this->runtime->now(), $next->totalAmount->currency);
+                $this->shares->recalculate($next->id, $next->payerId, array_map(static fn (DebtParticipant $p): array => ['participantId' => $p->id, 'userId' => $p->userId, 'isDeleted' => $p->isDeleted, 'amount' => $next->shareFor($p)], $next->participants), $next->shareAmount(), $this->runtime->now(), $next->totalAmount->currency);
             }
 
             return $this->views->detail($next, $actorId);
         });
+    }
+
+    /** @param array<mixed> $value
+     * @return array<mixed>
+     */
+    private static function ordered(array $value): array
+    {
+        if (!array_is_list($value)) {
+            ksort($value);
+        }
+
+        return array_map(static fn (mixed $v): mixed => is_array($v) ? self::ordered($v) : $v, $value);
     }
 }

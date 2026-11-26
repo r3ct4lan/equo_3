@@ -62,6 +62,145 @@ final class FinancialHttpTest extends WebTestCase
         } parent::tearDown();
     }
 
+    public function testReceiptUploadsRejectInvalidPhotosAndReplayOneDraft(): void
+    {
+        $path = '/api/v1/debts/receipt-uploads';
+        $image = 'data:image/png;base64,'.base64_encode((string) file_get_contents(__DIR__.'/../../receipts/coffee-1.png'));
+        foreach ([[], array_fill(0, 4, $image), ['data:image/png;base64,YQ==']] as $photos) {
+            $this->request('POST', $path, 0, ['photos' => $photos], Uuid::v4()->toRfc4122());
+            self::assertResponseStatusCodeSame(422);
+        }
+        $before = array_map(fn (string $table): int => (int) $this->db->fetchOne('SELECT count(*) FROM '.$table), ['debt', 'connect', 'transfer']);
+        foreach ([1, 3] as $count) {
+            $key = Uuid::v4()->toRfc4122();
+            $body = ['photos' => array_fill(0, $count, $image)];
+            $this->request('POST', $path, 0, $body, $key);
+            self::assertResponseStatusCodeSame(202);
+            $first = $this->body();
+            $this->request('POST', $path, 0, $body, $key);
+            self::assertSame($first, $this->body());
+            $this->request('GET', $path.'/'.$first['id'], 1);
+            self::assertResponseStatusCodeSame(404);
+        }
+        self::assertSame($before, array_map(fn (string $table): int => (int) $this->db->fetchOne('SELECT count(*) FROM '.$table), ['debt', 'connect', 'transfer']));
+    }
+
+    public function testCreateAndReadReceiptWithIndividualShares(): void
+    {
+        $image = 'data:image/png;base64,'.base64_encode((string) file_get_contents(__DIR__.'/../../receipts/coffee-1.png'));
+        $this->request('POST', '/api/v1/debts/receipt-uploads', 0, ['photos' => [$image]], Uuid::v4()->toRfc4122());
+        $upload = $this->body()['id'];
+        [$anna, $boris] = $this->users;
+        $line = static fn (string $name, int $amount, array $assignments): array => ['name' => $name, 'quantity' => '1', 'unitPrice' => $amount, 'amount' => $amount, 'assignments' => $assignments];
+        $lines = [$line('Soup', 800, [$anna => null]), $line('Pasta', 1200, [$boris => null]), $line('Bread', 400, [$anna => null, $boris => null])];
+        $receipt = ['uploadId' => $upload, 'lines' => $lines, 'discount' => 0, 'remainder' => []];
+        $command = array_replace($this->command(), ['totalAmount' => 2400, 'receipt' => $receipt]);
+        $key = Uuid::v4()->toRfc4122();
+        $this->request('POST', '/api/v1/debts', 0, $command, $key);
+        self::assertResponseStatusCodeSame(422);
+        $command['currency'] = 'EUR';
+        $this->request('POST', '/api/v1/debts', 0, $command, $key);
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body();
+        self::assertSame(2, $debt['participantCount']);
+        self::assertSame(1400, (int) $this->db->fetchOne('SELECT amount FROM transfer WHERE debt_id=? AND receiver_id=?', [$debt['id'], $boris]));
+        $this->request('POST', '/api/v1/debts', 0, $command, $key);
+        self::assertSame($debt['id'], $this->body()['id']);
+        $this->request('GET', '/api/v1/debts/'.$debt['id'], 1);
+        self::assertEquals($lines, $this->body()['receipt']['lines']);
+        self::assertSame([1], $this->body()['receipt']['photos']);
+        $this->request('GET', '/api/v1/debts/'.$debt['id'], 2);
+        self::assertResponseStatusCodeSame(404);
+        $path = '/api/v1/debts/'.$debt['id'];
+        $this->request('GET', $path.'/photos/1', 1);
+        self::assertResponseIsSuccessful();
+        self::assertSame($image, $this->body()['image']);
+        $this->request('GET', $path.'/photos/1', 2);
+        self::assertResponseStatusCodeSame(404);
+        $this->request('DELETE', $path.'/photos/1', 1, etag: '"1"');
+        self::assertResponseStatusCodeSame(403);
+
+        unset($command['payerId']);
+        $command['receipt']['lines'][1]['assignments'] = [$anna => null, $boris => null];
+        $this->request('PUT', $path, 0, $command, etag: '"1"');
+        self::assertResponseIsSuccessful();
+        self::assertSame(2, $this->body()['version']);
+        self::assertSame(800, (int) $this->db->fetchOne('SELECT amount FROM transfer WHERE debt_id=? AND receiver_id=?', [$debt['id'], $boris]));
+        $this->request('PUT', $path, 0, $command, etag: '"2"');
+        self::assertSame(2, $this->body()['version']);
+        $this->request('DELETE', $path.'/photos/1', 0, etag: '"1"');
+        self::assertResponseStatusCodeSame(409);
+        $this->request('DELETE', $path.'/photos/1', 0, etag: '"2"');
+        self::assertResponseIsSuccessful();
+        $this->request('GET', $path.'/photos/1', 1);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testChangingOnlyReceiptAssignmentsReconcilesOneHistoricalPayment(): void
+    {
+        [$payer, $boris, $vera] = $this->users;
+        $key = static fn (): string => Uuid::v4()->toRfc4122();
+        $this->request('POST', '/api/v1/debts/receipt-uploads', 0, ['photos' => ['data:image/png;base64,'.base64_encode((string) file_get_contents(__DIR__.'/../../receipts/coffee-1.png'))]], $key());
+        $upload = $this->body()['id'];
+        $line = static fn (int $amount, string $user): array => ['amount' => $amount, 'name' => 'Kafa', 'quantity' => '1', 'unitPrice' => $amount, 'assignments' => [$user => null]];
+        $lines = [$line(30000, $boris), $line(42000, $boris), $line(48000, $boris), $line(100, $vera)];
+        $cmd = array_replace($this->command(), ['currency' => 'RSD', 'manualRate' => '120', 'totalAmount' => 120100, 'receipt' => ['uploadId' => $upload, 'lines' => $lines, 'discount' => 0, 'remainder' => []]]);
+        $this->request('POST', '/api/v1/debts', 0, $cmd, $key());
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body();
+        $part = array_values(array_filter($debt['participants'], static fn (array $p): bool => $p['user']['id'] === $boris))[0];
+        self::assertSame(1000, $part['equivalentAmount']);
+        $share = $part['transferId'];
+        $path = '/api/v1/debts/'.$debt['id'];
+        $this->request('POST', '/api/v1/connects/'.$part['connectId'].'/transfers', 1, ['senderId' => $boris, 'receiverId' => $payer, 'amount' => 500, 'currency' => 'EUR', 'manualRate' => '120', 'relatedTransferId' => $share], $key());
+        self::assertResponseStatusCodeSame(201);
+        $payment = $this->body()['id'];
+        unset($cmd['payerId']);
+        foreach ([[30000, 0], [0, 100], [null, null]] as $i => [$remaining, $excess]) {
+            $cmd['receipt']['lines'][$i]['assignments'] = [$payer => null];
+            $this->request('PUT', $path, 0, $cmd, etag: '"'.($i + 1).'"');
+            self::assertResponseIsSuccessful();
+            $this->request('GET', '/api/v1/transfers/'.$payment, 1);
+            self::assertSame($share, $this->body()['relatedTransferId']);
+            self::assertSame(500, $this->body()['amount']);
+            self::assertSame($excess, $this->body()['excessAmount']);
+            if (null !== $remaining) {
+                $this->request('GET', '/api/v1/transfers/'.$share, 1);
+                self::assertSame($remaining, $this->body()['remainingAmount']);
+            }
+        }
+        $this->request('GET', '/api/v1/connects/'.$part['connectId'], 1);
+        self::assertSame(500, $this->body()['balanceAmount']);
+        $this->request('GET', $path.'/photos/1', 1);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testReceiptRollbackAndZeroShareAuthor(): void
+    {
+        [$author, $payer, $person] = $this->users;
+        $photo = 'data:image/png;base64,'.base64_encode((string) file_get_contents(__DIR__.'/../../receipts/coffee-1.png'));
+        $this->request('POST', '/api/v1/debts/receipt-uploads', 1, ['photos' => [$photo]], Uuid::v4()->toRfc4122());
+        $receipt = ['uploadId' => $this->body()['id'], 'lines' => [['name' => 'Kafa', 'quantity' => '1', 'amount' => 60000, 'assignments' => [$person => null]]], 'discount' => 0, 'remainder' => []];
+        $cmd = array_replace($this->command(), ['payerId' => $payer, 'participantIds' => [$author, $person], 'currency' => 'RSD', 'totalAmount' => 60000, 'receipt' => $receipt]);
+        $previous = (int) $this->db->fetchOne('SELECT count(*) FROM debt');
+        $this->request('POST', '/api/v1/debts', 0, $cmd, Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame($previous, (int) $this->db->fetchOne('SELECT count(*) FROM debt'));
+        $this->request('POST', '/api/v1/debts/receipt-uploads', 0, ['photos' => [$photo]], Uuid::v4()->toRfc4122());
+        $cmd['receipt']['uploadId'] = $this->body()['id'];
+        $this->request('POST', '/api/v1/debts', 0, array_replace($cmd, ['currency' => 'ZZZ']), Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame($previous, (int) $this->db->fetchOne('SELECT count(*) FROM debt'));
+        $this->request('POST', '/api/v1/debts', 0, $cmd, Uuid::v4()->toRfc4122());
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body();
+        $member = array_values(array_filter($debt['participants'], static fn (array $p): bool => $p['isAuthor']))[0];
+        self::assertSame(0, $member['shareAmount']);
+        self::assertNull($member['transferId']);
+        $this->request('GET', '/api/v1/debts/'.$debt['id'].'/photos/1', 1);
+        self::assertResponseIsSuccessful();
+    }
+
     /** @return array<string,mixed> */
     private function command(): array
     {

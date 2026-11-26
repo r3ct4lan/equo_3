@@ -1,0 +1,23 @@
+{
+  "lines": [
+    {
+      "name": "Tea",
+      "quantity": "1",
+      "unitPrice": "10.00",
+      "amount": "10.00",
+      "photo": 1,
+      "context": "Tea 10.00 EUR"
+    },
+    {
+      "name": "Bread",
+      "quantity": "1",
+      "unitPrice": "10.00",
+      "amount": "10.00",
+      "photo": 1,
+      "context": "Bread 10.00 EUR"
+    }
+  ],
+  "currency": "EUR",
+  "total": "18.00",
+  "discount": "2.00"
+}

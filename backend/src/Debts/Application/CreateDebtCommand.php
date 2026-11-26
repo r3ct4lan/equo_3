@@ -15,10 +15,12 @@ final readonly class CreateDebtCommand
     /** @var list<string> */ public array $participantIds;
     public string $idempotencyKey;
 
-    /** @param list<string> $participantIds */
-    public function __construct(string $title, public ?string $description, public int $totalAmount, string $payerId, array $participantIds, public bool $includePayerInSplit, string $idempotencyKey, public ?string $currency = null, public ?string $manualRate = null)
+    /** @param list<string> $participantIds
+     * @param array<string,mixed>|null $receipt
+     */
+    public function __construct(string $title, public ?string $description, public int $totalAmount, string $payerId, array $participantIds, public bool $includePayerInSplit, string $idempotencyKey, public ?string $currency = null, public ?string $manualRate = null, public ?array $receipt = null)
     {
-        if ('' === trim($title) || $totalAmount < 1 || $totalAmount > Money::MAX_MINOR_UNITS || !self::isUuid($payerId) || !self::isUuid($idempotencyKey) || [] === $participantIds) {
+        if ((null !== $receipt && null === $currency) || '' === trim($title) || $totalAmount < 1 || $totalAmount > Money::MAX_MINOR_UNITS || !self::isUuid($payerId) || !self::isUuid($idempotencyKey) || [] === $participantIds) {
             throw new ApplicationFailure(ApplicationFailureCode::ValidationError);
         }
         foreach ($participantIds as $id) {
@@ -52,6 +54,10 @@ final readonly class CreateDebtCommand
         }
         if (null !== $this->manualRate) {
             $data['manualRate'] = $this->manualRate;
+        }
+
+        if (null !== $this->receipt) {
+            $data['receipt'] = $this->receipt;
         }
 
         return json_encode($data, JSON_THROW_ON_ERROR);

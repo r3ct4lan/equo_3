@@ -3,10 +3,11 @@ import type { InputType } from '~/types/ui'
 import { Input as RegistryInput } from '~/components/ui/input'
 import { limitFractionDigits } from '~/utils/money'
 
-const props = withDefaults(defineProps<{ type?: InputType, money?: boolean, digits?: number }>(), { type: 'text', money: false, digits: 2 })
+const props = withDefaults(defineProps<{ type?: InputType | 'file', money?: boolean, digits?: number }>(), { type: 'text', money: false, digits: 2 })
 const model = defineModel<string>({ default: '' })
 const input = useTemplateRef<{ $el: HTMLInputElement }>('input')
-defineExpose({ focus: () => input.value?.$el.focus() })
+const file = useTemplateRef<HTMLInputElement>('file')
+defineExpose({ chooseFile: () => file.value?.click(), focus: () => input.value?.$el.focus() })
 
 function limitMoneyInput(event: Event): void {
   if (!props.money || (event instanceof InputEvent && event.isComposing)) return
@@ -31,7 +32,14 @@ function preserveMoneyOnInsert(event: InputEvent): void {
 </script>
 
 <template>
+  <input
+    v-if="type === 'file'"
+    ref="file"
+    type="file"
+    class="ui-control"
+  >
   <RegistryInput
+    v-else
     ref="input"
     :model-value="model"
     class="ui-control"

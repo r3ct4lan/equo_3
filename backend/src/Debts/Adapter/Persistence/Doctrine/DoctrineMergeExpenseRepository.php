@@ -7,6 +7,7 @@ namespace App\Debts\Adapter\Persistence\Doctrine;
 use App\Debts\Application\Port\MergeExpenseRepositoryPort;
 use App\Debts\Domain\Debt;
 use App\Transfers\Application\Api\ReconcileShare;
+use Brick\Math\BigDecimal;
 use Doctrine\DBAL\Connection;
 
 final readonly class DoctrineMergeExpenseRepository implements MergeExpenseRepositoryPort
@@ -42,6 +43,22 @@ final readonly class DoctrineMergeExpenseRepository implements MergeExpenseRepos
 
     public function replace(Debt $previous, Debt $merged, string $primary, string $joined): void
     {
+        $value = $this->connection->fetchOne('SELECT allocation FROM receipt_upload WHERE debt_id=?', [$merged->id]);
+        if (is_string($value)) {
+            $receipt = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
+            foreach ($receipt['lines'] as &$line) {
+                [$line['assignments'], $seats] = self::mergeAssignments($line['assignments'], $line['mergedSeats'] ?? [], $primary, $joined);
+                if ([] !== $seats) {
+                    $line['mergedSeats'] = $seats;
+                }
+            }
+            unset($line);
+            [$receipt['remainder'], $seats] = self::mergeAssignments($receipt['remainder'], $receipt['remainderSeats'] ?? [], $primary, $joined);
+            if ([] !== $seats) {
+                $receipt['remainderSeats'] = $seats;
+            }
+            $this->connection->update('receipt_upload', ['allocation' => json_encode($receipt, JSON_THROW_ON_ERROR)], ['debt_id' => $merged->id]);
+        }
         $this->connection->update('debt', ['payer_id' => $merged->payerId, 'created_by_id' => $merged->createdById, 'version' => $merged->version], ['id' => $merged->id]);
         $joinedParticipantId = array_column($previous->participants, 'id', 'userId')[$joined] ?? null;
         $shares = array_column($this->connection->fetchAllAssociative(
@@ -77,7 +94,10 @@ final readonly class DoctrineMergeExpenseRepository implements MergeExpenseRepos
                 continue;
             }
             $amount = $participant->actualShareAmount ?? (int) $kept['amount'];
-            $deleted = $merged->isDeleted || $participant->isDeleted;
+            $deleted = $merged->isDeleted || $participant->isDeleted || 0 === $amount;
+            if (0 === $amount) {
+                $amount = (int) $kept['amount'];
+            }
             if ((int) $kept['amount'] !== $amount || (bool) $kept['is_deleted'] !== $deleted || $kept['debt_participant_id'] !== $participant->id) {
                 $this->connection->executeStatement(
                     'UPDATE transfer SET amount = ?, is_deleted = ?, debt_participant_id = ?, version = version + 1 WHERE id = ?',
@@ -94,6 +114,27 @@ final readonly class DoctrineMergeExpenseRepository implements MergeExpenseRepos
             }
             $this->settlements->reconcile((string) $kept['id']);
         }
+    }
+
+    /**
+     * @param array<string,?string> $assigned
+     * @param array<string,int>     $seats
+     *
+     * @return array{array<string,?string>,array<string,int>}
+     */
+    private static function mergeAssignments(array $assigned, array $seats, string $primary, string $joined): array
+    {
+        if (!array_key_exists($joined, $assigned)) {
+            return [$assigned, $seats];
+        }
+        $quantity = $assigned[$joined];
+        if (null === $quantity && (array_key_exists($primary, $assigned) || [] !== $seats)) {
+            $seats[$primary] = ($seats[$primary] ?? (array_key_exists($primary, $assigned) ? 1 : 0)) + ($seats[$joined] ?? 1);
+        }
+        $assigned[$primary] = null === $quantity ? null : BigDecimal::of($assigned[$primary] ?? 0)->plus($quantity)->toString();
+        unset($assigned[$joined], $seats[$joined]);
+
+        return [$assigned, $seats];
     }
 
     private function hideShare(string $id): void

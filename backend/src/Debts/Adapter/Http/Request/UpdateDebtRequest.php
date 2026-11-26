@@ -9,7 +9,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 final readonly class UpdateDebtRequest
 {
-    /** @param list<string>|null $participantIds */
+    /** @param list<string>|null $participantIds
+     * @param array<string,mixed>|null $receipt
+     */
     public function __construct(
         #[Assert\NotBlank(normalizer: 'trim')]
         public ?string $title = null,
@@ -29,6 +31,7 @@ final readonly class UpdateDebtRequest
         public ?string $currency = null,
         #[Assert\Regex('/^\d{1,12}(?:\.\d{1,18})?$/D')]
         public ?string $manualRate = null,
+        public ?array $receipt = null,
     ) {
     }
 }

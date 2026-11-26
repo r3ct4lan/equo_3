@@ -42,7 +42,7 @@ final readonly class DoctrineDebtRepository implements DebtRepositoryPort
     {
         $this->db->insert('debt', ['id' => $debt->id, 'title' => $debt->title, 'description' => $debt->description, 'currency' => $debt->totalAmount->currency, 'manual_rate' => $debt->totalAmount->manualRate, 'rate_currency' => $debt->totalAmount->rateCurrency, 'total_amount' => $debt->totalAmount->minorUnits, 'payer_id' => $debt->payerId, 'created_by_id' => $debt->createdById, 'created_at' => $debt->createdAt->format('Y-m-d H:i:sP'), 'is_deleted' => $debt->isDeleted, 'version' => $debt->version], ['is_deleted' => 'boolean']);
         foreach ($debt->participants as $p) {
-            $this->db->insert('debt_participant', ['id' => $p->id, 'debt_id' => $debt->id, 'user_id' => $p->userId, 'created_at' => $p->createdAt->format('Y-m-d H:i:sP'), 'is_deleted' => $p->isDeleted], ['is_deleted' => 'boolean']);
+            $this->db->insert('debt_participant', ['id' => $p->id, 'debt_id' => $debt->id, 'user_id' => $p->userId, 'created_at' => $p->createdAt->format('Y-m-d H:i:sP'), 'is_deleted' => $p->isDeleted, 'actual_share_amount' => $p->actualShareAmount], ['is_deleted' => 'boolean']);
         }
     }
 
@@ -71,7 +71,7 @@ final readonly class DoctrineDebtRepository implements DebtRepositoryPort
                     $this->db->update('debt_participant', ['is_deleted' => $p->isDeleted, 'actual_share_amount' => $p->actualShareAmount], ['id' => $p->id], ['is_deleted' => 'boolean']);
                 }
             } else {
-                $this->db->insert('debt_participant', ['id' => $p->id, 'debt_id' => $p->debtId, 'user_id' => $p->userId, 'created_at' => $p->createdAt->format('Y-m-d H:i:sP'), 'is_deleted' => $p->isDeleted], ['is_deleted' => 'boolean']);
+                $this->db->insert('debt_participant', ['id' => $p->id, 'debt_id' => $p->debtId, 'user_id' => $p->userId, 'created_at' => $p->createdAt->format('Y-m-d H:i:sP'), 'is_deleted' => $p->isDeleted, 'actual_share_amount' => $p->actualShareAmount], ['is_deleted' => 'boolean']);
             }
         }
     }

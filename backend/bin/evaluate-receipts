@@ -1,0 +1,65 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Debts\Adapter\OpenAiReceiptReader;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\HttpClient\TraceableHttpClient;
+
+require dirname(__DIR__).'/vendor/autoload.php';
+$key = getenv('OPENAI_API_KEY');
+if (!$key) {
+    fwrite(STDERR, "Set the server-side project key before running the live evaluation.\n");
+    exit(1);
+}
+$directory = dirname(__DIR__).'/tests/Debts/receipts/';
+foreach (glob($directory.'*.json') as $fixture) {
+    $photos = [];
+    foreach (glob(substr($fixture, 0, -5).'-*.png') as $path) {
+        $photos[] = 'data:image/png;base64,'.base64_encode(file_get_contents($path));
+    }
+    $expected = json_decode(file_get_contents($fixture), true, flags: JSON_THROW_ON_ERROR);
+    $client = new TraceableHttpClient(HttpClient::create());
+    $start = hrtime(true);
+    $actual = (new OpenAiReceiptReader($client, $key))->read($photos);
+    $elapsed = (hrtime(true) - $start) / 1e9;
+    $trace = $client->getTracedRequests()[0];
+    $result = ['fixture' => basename($fixture, '.json'), 'photos' => count($photos), 'seconds' => round($elapsed, 2), 'http' => $trace['info']['http_code'] ?? 0];
+    if (null === $actual) {
+        echo json_encode($result, JSON_THROW_ON_ERROR)."\n";
+        exit(1);
+    }
+    $response = $trace['content'];
+    $usage = $response['usage'];
+    $result['model'] = $response['model'];
+    $result['input'] = $usage['input_tokens'];
+    $result['output'] = $usage['output_tokens'];
+    $cached = $usage['input_tokens_details']['cached_tokens'] ?? 0;
+    $result['usdStandard'] = round((($result['input'] - $cached) * 0.10 + $cached * 0.01 + $result['output'] * 0.50) / 1000000, 8);
+    $mismatches = [];
+    $unmatched = $actual['lines'];
+    foreach ($expected['lines'] as $line) {
+        $index = array_search($line['name'], array_column(array_values($unmatched), 'name'), true);
+        if (false === $index) {
+            $mismatches[] = 'missing line';
+            continue;
+        }
+        $row = array_splice($unmatched, $index, 1)[0];
+        foreach (['quantity', 'unitPrice', 'amount'] as $field) {
+            if ($line[$field] != $row[$field] || (null === $line[$field]) !== (null === $row[$field])) {
+                $mismatches[] = $field;
+            }
+        }
+    }
+    foreach ($unmatched as $row) {
+        $mismatches[] = 'extra line';
+    }
+    foreach (['total', 'discount', 'currency'] as $field) {
+        if ($expected[$field] != $actual[$field] || (null === $expected[$field]) !== (null === $actual[$field])) {
+            $mismatches[] = $field;
+        }
+    }
+    $result['differences'] = array_count_values($mismatches);
+    echo json_encode($result, JSON_THROW_ON_ERROR)."\n";
+}

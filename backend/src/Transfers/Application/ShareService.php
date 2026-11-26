@@ -38,19 +38,21 @@ final readonly class ShareService implements AutomaticShares
             if ($p['userId'] === $payerId) {
                 continue;
             }
+            $shareAmount = $p['amount'] ?? $amount;
+            $removed = $p['isDeleted'] || 0 === $shareAmount;
             $id = $existing[$p['participantId']] ?? null;
             if (null !== $id) {
                 $old = $this->repository->find($id);
                 if (null === $old) {
                     throw new RuntimeException('Automatic share is missing.');
                 }
-                $next = $old->recalculateShare($p['isDeleted'] ? $old->amount : $amount, $p['isDeleted']);
+                $next = $old->recalculateShare($removed ? $old->amount : $shareAmount, $removed);
                 if ($next !== $old) {
                     $this->repository->updateShare($next);
                 }
-            } elseif (!$p['isDeleted']) {
+            } elseif (!$removed) {
                 $connect = $this->connects->ensurePair($payerId, $p['userId']);
-                $this->create($connect, $payerId, $p['userId'], $amount, $debtId, $p['participantId'], $now, $currency);
+                $this->create($connect, $payerId, $p['userId'], $shareAmount, $debtId, $p['participantId'], $now, $currency);
             }
         }
     }

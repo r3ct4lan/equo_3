@@ -17,3 +17,6 @@ services:
 
     App\Currency\Application\MarketSource:
         class: App\Tests\Fixture\E2e\FixedMarket
+
+    App\Debts\Application\Port\ReceiptReader:
+        class: App\Tests\Fixture\E2e\FixedReceiptReader
