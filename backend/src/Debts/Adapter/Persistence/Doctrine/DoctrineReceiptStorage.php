@@ -57,4 +57,36 @@ final readonly class DoctrineReceiptStorage implements ReceiptStorage
     {
         return array_map(intval(...), $this->db->fetchFirstColumn('SELECT jsonb_object_keys(photos) AS number FROM receipt_upload WHERE debt_id=? ORDER BY number', [$debt]));
     }
+
+    public function status(string $id, string $owner): array
+    {
+        $row = $this->db->fetchAssociative("SELECT state, draft, COALESCE(started_at, created_at) < now() - interval '2 minutes' AS expired, (SELECT json_agg(k ORDER BY k) FROM jsonb_object_keys(photos) k) AS numbers FROM receipt_upload WHERE id=? AND owner_id=? AND debt_id IS NULL", [$id, $owner]);
+        if (!$row) {
+            throw new ApplicationFailure(ApplicationFailureCode::ResourceNotFound);
+        }
+        $state = $row['state'];
+        if ($row['expired'] && in_array($state, ['pending', 'reading'], true)) {
+            $state = 'failed';
+        }
+
+        return ['id' => $id, 'state' => $state, 'draft' => null === $row['draft'] ? null : json_decode($row['draft'], true, flags: JSON_THROW_ON_ERROR), 'photos' => array_values(array_map(intval(...), json_decode($row['numbers'], true, flags: JSON_THROW_ON_ERROR)))];
+    }
+
+    public function retry(string $id, string $owner, string $attempt): void
+    {
+        $this->db->executeStatement("UPDATE receipt_upload SET state='pending', attempt=?, started_at=now() WHERE id=? AND owner_id=? AND debt_id IS NULL AND COALESCE(attempt,request_key)<>? AND (state='failed' OR (state IN ('pending','reading') AND COALESCE(started_at,created_at)<now()-interval '2 minutes'))", [$attempt, $id, $owner, $attempt]);
+    }
+
+    public function claim(string $id, string $owner, string $attempt): ?array
+    {
+        $photos = $this->db->fetchOne("UPDATE receipt_upload SET state='reading',started_at=now() WHERE id=? AND owner_id=? AND COALESCE(attempt, request_key)=? AND debt_id IS NULL AND state='pending' RETURNING photos", [$id, $owner, $attempt]);
+
+        return false === $photos ? null : array_values(json_decode($photos, true, flags: JSON_THROW_ON_ERROR));
+    }
+
+    public function finish(string $id, string $attempt, ?array $draft): void
+    {
+        $state = null === $draft || [] === ($draft['lines'] ?? []) ? 'failed' : 'ready';
+        $this->db->executeStatement("UPDATE receipt_upload SET state=?, draft=? WHERE id=? AND COALESCE(attempt,request_key)=? AND state='reading' AND debt_id IS NULL", [$state, null === $draft ? null : json_encode($draft, JSON_THROW_ON_ERROR), $id, $attempt]);
+    }
 }

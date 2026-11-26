@@ -16,4 +16,15 @@ interface ReceiptStorage
 
     /** @return list<int> */
     public function photoNumbers(string $debt): array;
+
+    /** @return array{id:string,state:string,draft:?array<string,mixed>,photos:list<int>} */
+    public function status(string $id, string $owner): array;
+
+    public function retry(string $id, string $owner, string $attempt): void;
+
+    /** @return list<string>|null */
+    public function claim(string $id, string $owner, string $attempt): ?array;
+
+    /** @param array<string,mixed>|null $draft */
+    public function finish(string $id, string $attempt, ?array $draft): void;
 }

@@ -39,6 +39,18 @@ final class ReceiptStorageTest extends KernelTestCase
             } catch (ApplicationFailure) {
                 self::addToAssertionCount(1);
             }
+            self::assertNull($store->claim($upload, $other, $key));
+            self::assertSame($images, $store->claim($upload, $owner, $key));
+            self::assertNull($store->claim($upload, $owner, $key));
+            $store->finish($upload, $key, null);
+            self::assertSame('failed', $store->status($upload, $owner)['state']);
+            $retry = Uuid::v4()->toRfc4122();
+            $store->retry($upload, $owner, $retry);
+            self::assertSame($images, $store->claim($upload, $owner, $retry));
+            $store->finish($upload, $key, null);
+            $store->finish($upload, $retry, ['lines' => [['name' => 'Kafa']], 'currency' => null]);
+            self::assertSame('ready', $store->status($upload, $owner)['state']);
+            self::assertNull($store->status($upload, $owner)['draft']['currency']);
             $debt = Uuid::v4()->toRfc4122();
             $db->insert('debt', ['id' => $debt, 'title' => 'Lunch', 'payer_id' => $owner, 'created_by_id' => $owner, 'total_amount' => 2400, 'created_at' => 'now']);
             try {

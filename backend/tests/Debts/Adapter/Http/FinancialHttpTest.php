@@ -62,6 +62,29 @@ final class FinancialHttpTest extends WebTestCase
         } parent::tearDown();
     }
 
+    public function testReceiptUploadsRejectInvalidPhotosAndReplayOneDraft(): void
+    {
+        $path = '/api/v1/debts/receipt-uploads';
+        $image = 'data:image/png;base64,'.base64_encode((string) file_get_contents(__DIR__.'/../../receipts/coffee-1.png'));
+        foreach ([[], array_fill(0, 4, $image), ['data:image/png;base64,YQ==']] as $photos) {
+            $this->request('POST', $path, 0, ['photos' => $photos], Uuid::v4()->toRfc4122());
+            self::assertResponseStatusCodeSame(422);
+        }
+        $before = array_map(fn (string $table): int => (int) $this->db->fetchOne('SELECT count(*) FROM '.$table), ['debt', 'connect', 'transfer']);
+        foreach ([1, 3] as $count) {
+            $key = Uuid::v4()->toRfc4122();
+            $body = ['photos' => array_fill(0, $count, $image)];
+            $this->request('POST', $path, 0, $body, $key);
+            self::assertResponseStatusCodeSame(202);
+            $first = $this->body();
+            $this->request('POST', $path, 0, $body, $key);
+            self::assertSame($first, $this->body());
+            $this->request('GET', $path.'/'.$first['id'], 1);
+            self::assertResponseStatusCodeSame(404);
+        }
+        self::assertSame($before, array_map(fn (string $table): int => (int) $this->db->fetchOne('SELECT count(*) FROM '.$table), ['debt', 'connect', 'transfer']));
+    }
+
     /** @return array<string,mixed> */
     private function command(): array
     {
