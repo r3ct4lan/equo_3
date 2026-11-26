@@ -60,6 +60,26 @@ final readonly class DoctrineReceiptStorage implements ReceiptStorage
         return is_string($value) ? json_decode($value, true, flags: JSON_THROW_ON_ERROR) : null;
     }
 
+    public function revise(string $debt, array $allocation): void
+    {
+        $this->db->update('receipt_upload', ['allocation' => json_encode($allocation, JSON_THROW_ON_ERROR)], ['debt_id' => $debt]);
+    }
+
+    public function photo(string $debt, int $number): ?string
+    {
+        $photo = $this->db->fetchOne('SELECT photos ->> CAST(? AS text) FROM receipt_upload WHERE debt_id=?', [(string) $number, $debt]);
+
+        return is_string($photo) ? $photo : null;
+    }
+
+    public function removePhoto(string $debt, int $number): void
+    {
+        if (1 !== $this->db->executeStatement('UPDATE receipt_upload SET photos=photos - CAST(? AS text) WHERE debt_id=? AND jsonb_exists(photos,?)', [(string) $number, $debt, (string) $number])) {
+            throw new ApplicationFailure(ApplicationFailureCode::ResourceNotFound);
+        }
+        $this->db->executeStatement('UPDATE debt SET version=version+1 WHERE id=?', [$debt]);
+    }
+
     public function photoNumbers(string $debt): array
     {
         return array_map(intval(...), $this->db->fetchFirstColumn('SELECT jsonb_object_keys(photos) AS number FROM receipt_upload WHERE debt_id=? ORDER BY number', [$debt]));

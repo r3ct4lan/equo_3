@@ -18,6 +18,13 @@ interface ReceiptStorage
     /** @return array<string,mixed>|null */
     public function saved(string $debt): ?array;
 
+    /** @param array<string,mixed> $allocation */
+    public function revise(string $debt, array $allocation): void;
+
+    public function photo(string $debt, int $number): ?string;
+
+    public function removePhoto(string $debt, int $number): void;
+
     /** @return list<int> */
     public function photoNumbers(string $debt): array;
 

@@ -111,6 +111,29 @@ final class FinancialHttpTest extends WebTestCase
         self::assertSame([1], $this->body()['receipt']['photos']);
         $this->request('GET', '/api/v1/debts/'.$debt['id'], 2);
         self::assertResponseStatusCodeSame(404);
+        $path = '/api/v1/debts/'.$debt['id'];
+        $this->request('GET', $path.'/photos/1', 1);
+        self::assertResponseIsSuccessful();
+        self::assertSame($image, $this->body()['image']);
+        $this->request('GET', $path.'/photos/1', 2);
+        self::assertResponseStatusCodeSame(404);
+        $this->request('DELETE', $path.'/photos/1', 1, etag: '"1"');
+        self::assertResponseStatusCodeSame(403);
+
+        unset($command['payerId']);
+        $command['receipt']['lines'][1]['assignments'] = [$anna => null, $boris => null];
+        $this->request('PUT', $path, 0, $command, etag: '"1"');
+        self::assertResponseIsSuccessful();
+        self::assertSame(2, $this->body()['version']);
+        self::assertSame(800, (int) $this->db->fetchOne('SELECT amount FROM transfer WHERE debt_id=? AND receiver_id=?', [$debt['id'], $boris]));
+        $this->request('PUT', $path, 0, $command, etag: '"2"');
+        self::assertSame(2, $this->body()['version']);
+        $this->request('DELETE', $path.'/photos/1', 0, etag: '"1"');
+        self::assertResponseStatusCodeSame(409);
+        $this->request('DELETE', $path.'/photos/1', 0, etag: '"2"');
+        self::assertResponseIsSuccessful();
+        $this->request('GET', $path.'/photos/1', 1);
+        self::assertResponseStatusCodeSame(404);
     }
 
     /** @return array<string,mixed> */

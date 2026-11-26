@@ -50,7 +50,10 @@ final class ReceiptStorageTest extends KernelTestCase
             $store->finish($upload, $key, null);
             $store->finish($upload, $retry, ['lines' => [['name' => 'Kafa']], 'currency' => null]);
             self::assertSame('ready', $store->status($upload, $owner)['state']);
-            self::assertNull($store->status($upload, $owner)['draft']['currency']);
+            $draft = $store->status($upload, $owner)['draft'];
+            self::assertIsArray($draft);
+            self::assertArrayHasKey('currency', $draft);
+            self::assertNull($draft['currency']);
             $debt = Uuid::v4()->toRfc4122();
             $db->insert('debt', ['id' => $debt, 'title' => 'Lunch', 'payer_id' => $owner, 'created_by_id' => $owner, 'total_amount' => 2400, 'created_at' => 'now']);
             try {
