@@ -32,6 +32,9 @@ services:
             - '../src/*/Adapter/Persistence/Doctrine/Record/'
             - '../src/Infrastructure/*/Persistence/Doctrine/Record/'
 
+    App\Debts\Domain\ReceiptSplit: ~
+    App\Debts\Domain\ReceiptArithmetic: '@App\Debts\Adapter\ExactReceiptArithmetic'
+
     equo.receipt_http_client:
         class: Symfony\Contracts\HttpClient\HttpClientInterface
         factory: ['Symfony\Component\HttpClient\HttpClient', 'create']
