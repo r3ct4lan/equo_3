@@ -1,0 +1,15 @@
+{
+  "lines": [
+    {
+      "name": "Kafa",
+      "quantity": "1",
+      "unitPrice": "600",
+      "amount": "600",
+      "photo": 1,
+      "context": "Kafa 600"
+    }
+  ],
+  "currency": null,
+  "total": "600",
+  "discount": null
+}
