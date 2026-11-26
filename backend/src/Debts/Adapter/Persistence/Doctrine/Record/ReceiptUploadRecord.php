@@ -17,6 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
 class ReceiptUploadRecord
 {
     /** @param array<int,string> $photos
+     * @param array<string,mixed>|null $allocation
      * @param array<string,mixed>|null $draft
      */
     public function __construct(
@@ -31,6 +32,7 @@ class ReceiptUploadRecord
         #[ORM\Column(length: 12, options: ['default' => 'pending'])] private string $state = 'pending',
         #[ORM\Column(type: Types::DATETIMETZ_IMMUTABLE, nullable: true)] private ?DateTimeImmutable $startedAt = null,
         #[ORM\Column(type: Types::JSONB, nullable: true)] private ?array $draft = null,
+        #[ORM\Column(type: Types::JSONB, nullable: true)] private ?array $allocation = null,
     ) {
     }
 }

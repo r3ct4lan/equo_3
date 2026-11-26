@@ -9,6 +9,7 @@ use App\Currency\Application\Api\ExchangeMarket;
 use App\Debts\Application\Port\DebtIdempotencyPort;
 use App\Debts\Application\Port\DebtRepositoryPort;
 use App\Debts\Application\Port\DebtRuntimePort;
+use App\Debts\Application\Port\ReceiptStorage;
 use App\Debts\Domain\Debt;
 use App\Debts\Domain\DebtParticipant;
 use App\Debts\Domain\Money;
@@ -19,7 +20,7 @@ use App\Transfers\Application\Api\AutomaticShares;
 
 final readonly class CreateDebt
 {
-    public function __construct(private DebtRepositoryPort $repository, private DebtRuntimePort $runtime, private DebtIdempotencyPort $idempotency, private AccountAccess $accounts, private ConnectAccess $connects, private AutomaticShares $shares, private DebtViews $views, private ExchangeMarket $market)
+    public function __construct(private DebtRepositoryPort $repository, private DebtRuntimePort $runtime, private DebtIdempotencyPort $idempotency, private AccountAccess $accounts, private ConnectAccess $connects, private AutomaticShares $shares, private DebtViews $views, private ExchangeMarket $market, private ReceiptAllocation $allocation, private ReceiptStorage $receipts)
     {
     }
 
@@ -42,7 +43,19 @@ final readonly class CreateDebt
 
                 return $stored;
             }
-            $ids = array_values(array_unique([$authorId, $command->payerId, ...$command->participantIds]));
+            $users = $command->participantIds;
+            if ($command->includePayerInSplit) {
+                $users[] = $command->payerId;
+            }
+            $amounts = null;
+            if (null !== $command->receipt) {
+                $amounts = $this->allocation->shares($command->receipt, $command->totalAmount, $users);
+                $users = array_values(array_filter($users, static fn (string $id): bool => $id === $authorId || isset($amounts[$id])));
+                if ([] === array_diff($users, [$command->payerId])) {
+                    throw new ApplicationFailure(ApplicationFailureCode::InvalidParticipant);
+                }
+            }
+            $ids = array_values(array_unique([$authorId, $command->payerId, ...$users]));
             sort($ids, SORT_STRING);
             $profileCurrency = 'EUR';
             foreach ($ids as $id) {
@@ -61,12 +74,8 @@ final readonly class CreateDebt
             $now = $this->runtime->now();
             $debtId = $this->runtime->newId();
             $participants = [];
-            $users = $command->participantIds;
-            if ($command->includePayerInSplit) {
-                $users[] = $command->payerId;
-            }
             foreach ($users as $id) {
-                $participants[] = new DebtParticipant($this->runtime->newId(), $debtId, $id, $now);
+                $participants[] = new DebtParticipant($this->runtime->newId(), $debtId, $id, $now, actualShareAmount: null === $amounts ? null : ($amounts[$id] ?? 0));
             }
             $currency = $command->currency ?? $profileCurrency;
             $this->market->requireCurrency($currency);
@@ -75,6 +84,9 @@ final readonly class CreateDebt
             $rateCurrency = null === $command->manualRate ? null : $targetCurrency;
             $debt = new Debt($debtId, $command->title, $command->description, new Money($command->totalAmount, $currency, $command->manualRate, $rateCurrency), $command->payerId, $authorId, $now, $participants);
             $this->repository->save($debt);
+            if (null !== $command->receipt) {
+                $this->receipts->attach($command->receipt['uploadId'], $authorId, $debtId, $command->receipt);
+            }
             $participantIds = array_map(static fn (DebtParticipant $p): string => $p->userId, $participants);
             sort($participantIds, SORT_STRING);
             foreach ($participantIds as $i => $first) {
@@ -83,11 +95,11 @@ final readonly class CreateDebt
                 }
             }
             foreach ($participants as $p) {
-                if ($p->userId === $debt->payerId) {
+                if ($p->userId === $debt->payerId || 0 === $debt->shareFor($p)) {
                     continue;
                 }
                 $connectId = $this->connects->ensurePair($debt->payerId, $p->userId);
-                $this->shares->create($connectId, $debt->payerId, $p->userId, $debt->shareAmount(), $debtId, $p->id, $now, $currency);
+                $this->shares->create($connectId, $debt->payerId, $p->userId, $debt->shareFor($p), $debtId, $p->id, $now, $currency);
             }
             $body = $this->views->detail($debt, $authorId);
             $this->idempotency->complete($scope, $operation, $command->idempotencyKey, 201, $body, $authorId);

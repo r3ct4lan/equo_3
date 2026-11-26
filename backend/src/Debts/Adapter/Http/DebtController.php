@@ -37,7 +37,7 @@ final readonly class DebtController
         if (!CreateDebtCommand::isUuid($key)) {
             throw new ApplicationFailure(ApplicationFailureCode::InvalidRequest);
         }
-        $result = $this->createDebt->handle(new CreateDebtCommand($payload->title ?? '', $payload->description, is_int($payload->totalAmount) ? $payload->totalAmount : 0, $payload->payerId ?? '', $payload->participantIds ?? [], is_bool($payload->includePayerInSplit) ? $payload->includePayerInSplit : false, $key, $payload->currency, $payload->manualRate), $this->userId());
+        $result = $this->createDebt->handle(new CreateDebtCommand($payload->title ?? '', $payload->description, is_int($payload->totalAmount) ? $payload->totalAmount : 0, $payload->payerId ?? '', $payload->participantIds ?? [], is_bool($payload->includePayerInSplit) ? $payload->includePayerInSplit : false, $key, $payload->currency, $payload->manualRate, $payload->receipt), $this->userId());
         $body = $result['body'];
 
         return new JsonResponse($body, $result['status'], ['Cache-Control' => 'no-store', 'Location' => '/api/v1/debts/'.$body['id'], 'ETag' => '"'.$body['version'].'"']);

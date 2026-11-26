@@ -85,6 +85,34 @@ final class FinancialHttpTest extends WebTestCase
         self::assertSame($before, array_map(fn (string $table): int => (int) $this->db->fetchOne('SELECT count(*) FROM '.$table), ['debt', 'connect', 'transfer']));
     }
 
+    public function testCreateAndReadReceiptWithIndividualShares(): void
+    {
+        $image = 'data:image/png;base64,'.base64_encode((string) file_get_contents(__DIR__.'/../../receipts/coffee-1.png'));
+        $this->request('POST', '/api/v1/debts/receipt-uploads', 0, ['photos' => [$image]], Uuid::v4()->toRfc4122());
+        $upload = $this->body()['id'];
+        [$anna, $boris] = $this->users;
+        $line = static fn (string $name, int $amount, array $assignments): array => ['name' => $name, 'quantity' => '1', 'unitPrice' => $amount, 'amount' => $amount, 'assignments' => $assignments];
+        $lines = [$line('Soup', 800, [$anna => null]), $line('Pasta', 1200, [$boris => null]), $line('Bread', 400, [$anna => null, $boris => null])];
+        $receipt = ['uploadId' => $upload, 'lines' => $lines, 'discount' => 0, 'remainder' => []];
+        $command = array_replace($this->command(), ['totalAmount' => 2400, 'receipt' => $receipt]);
+        $key = Uuid::v4()->toRfc4122();
+        $this->request('POST', '/api/v1/debts', 0, $command, $key);
+        self::assertResponseStatusCodeSame(422);
+        $command['currency'] = 'EUR';
+        $this->request('POST', '/api/v1/debts', 0, $command, $key);
+        self::assertResponseStatusCodeSame(201);
+        $debt = $this->body();
+        self::assertSame(2, $debt['participantCount']);
+        self::assertSame(1400, (int) $this->db->fetchOne('SELECT amount FROM transfer WHERE debt_id=? AND receiver_id=?', [$debt['id'], $boris]));
+        $this->request('POST', '/api/v1/debts', 0, $command, $key);
+        self::assertSame($debt['id'], $this->body()['id']);
+        $this->request('GET', '/api/v1/debts/'.$debt['id'], 1);
+        self::assertEquals($lines, $this->body()['receipt']['lines']);
+        self::assertSame([1], $this->body()['receipt']['photos']);
+        $this->request('GET', '/api/v1/debts/'.$debt['id'], 2);
+        self::assertResponseStatusCodeSame(404);
+    }
+
     /** @return array<string,mixed> */
     private function command(): array
     {

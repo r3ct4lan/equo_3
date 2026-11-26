@@ -12,7 +12,11 @@ interface ReceiptStorage
     /** @return list<string> */
     public function draftPhotos(string $id, string $owner): array;
 
-    public function attach(string $id, string $owner, string $debt): void;
+    /** @param array<string,mixed> $allocation */
+    public function attach(string $id, string $owner, string $debt, array $allocation = []): void;
+
+    /** @return array<string,mixed>|null */
+    public function saved(string $debt): ?array;
 
     /** @return list<int> */
     public function photoNumbers(string $debt): array;

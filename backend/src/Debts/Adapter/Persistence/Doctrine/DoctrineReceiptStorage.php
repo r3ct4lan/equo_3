@@ -46,11 +46,18 @@ final readonly class DoctrineReceiptStorage implements ReceiptStorage
         return array_values(json_decode($photos, true, flags: JSON_THROW_ON_ERROR));
     }
 
-    public function attach(string $id, string $owner, string $debt): void
+    public function attach(string $id, string $owner, string $debt, array $allocation = []): void
     {
-        if (1 !== $this->db->executeStatement('UPDATE receipt_upload SET debt_id=? WHERE id=? AND owner_id=? AND debt_id IS NULL', [$debt, $id, $owner])) {
+        if (1 !== $this->db->executeStatement('UPDATE receipt_upload SET debt_id=?, allocation=?, draft=NULL WHERE id=? AND owner_id=? AND debt_id IS NULL', [$debt, json_encode($allocation, JSON_THROW_ON_ERROR), $id, $owner])) {
             throw new ApplicationFailure(ApplicationFailureCode::ResourceNotFound);
         }
+    }
+
+    public function saved(string $debt): ?array
+    {
+        $value = $this->db->fetchOne('SELECT allocation FROM receipt_upload WHERE debt_id=?', [$debt]);
+
+        return is_string($value) ? json_decode($value, true, flags: JSON_THROW_ON_ERROR) : null;
     }
 
     public function photoNumbers(string $debt): array
