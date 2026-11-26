@@ -15,7 +15,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class ExchangeMarketTest extends KernelTestCase
 {
-    public function testExpiredRatesAreValidatedOnceAndNeverUsedDuringAnOutage(): void
+    public function testFailedRevalidationUsesStoredRatesUntilTheNextRetry(): void
     {
         self::bootKernel();
         $db = self::getContainer()->get(Connection::class);
@@ -50,16 +50,35 @@ final class ExchangeMarketTest extends KernelTestCase
             self::assertSame($a, $store->rates());
             self::assertSame($a, $store->rates());
             $expire();
+            self::assertSame($a, $store->rates());
+            self::assertSame($a, $store->rates());
+            self::assertSame(3, $next);
+
+            $db->executeStatement("UPDATE currency_market SET cache_policy = jsonb_set(cache_policy, '{rates,retryAt}', '0')");
+            self::assertSame($b, $store->rates());
+        } finally {
+            $db->rollBack();
+        }
+    }
+
+    public function testColdCacheKeepsTheRetryDelayWhenTheProviderIsUnavailable(): void
+    {
+        self::bootKernel();
+        $db = self::getContainer()->get(Connection::class);
+        $db->beginTransaction();
+        try {
+            $db->executeStatement('DELETE FROM currency_market');
+            $source = $this->createMock(MarketSource::class);
+            $source->expects(self::once())->method('fetch')->willThrowException(new MarketUnavailable());
+            $store = new DoctrineMarketStore($db, $source);
             for ($attempt = 0; $attempt < 2; ++$attempt) {
                 try {
                     $store->rates();
-                    self::fail('Expired automatic quotes must be unavailable.');
+                    self::fail('A cold cache cannot supply a quote.');
                 } catch (MarketUnavailable) {
-                    self::assertSame(3, $next);
+                    // The second request must reuse the failed attempt.
                 }
             }
-            $db->executeStatement("UPDATE currency_market SET cache_policy = jsonb_set(cache_policy, '{rates,retryAt}', '0')");
-            self::assertSame($b, $store->rates());
         } finally {
             $db->rollBack();
         }

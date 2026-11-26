@@ -44,10 +44,10 @@ final readonly class DoctrineMarketStore implements MarketStore
             return $data;
         }
         if ($policy->retryAt > time()) {
-            return $this->fallback($feed, $data) ?? throw new MarketUnavailable();
+            return $data ?: throw new MarketUnavailable();
         }
 
-        $result = $this->db->transactional(function () use ($feed): ?array {
+        $result = $this->db->transactional(function () use ($feed): array {
             $this->db->executeStatement("INSERT INTO currency_market (id, currencies, rates, refreshed_at) VALUES (1, '{}', '{}', CURRENT_TIMESTAMP) ON CONFLICT DO NOTHING");
             [$data, $policy] = $this->read($feed, true);
             if ($policy->expiresAt > time()) {
@@ -65,18 +65,10 @@ final readonly class DoctrineMarketStore implements MarketStore
                 }
             }
 
-            return $this->fallback($feed, $data);
+            return $data;
         });
 
-        return $result ?? throw new MarketUnavailable();
-    }
-
-    /** @param array<string,mixed> $data
-     * @return array<string,mixed>|null
-     */
-    private function fallback(MarketFeed $feed, array $data): ?array
-    {
-        return MarketFeed::Catalog === $feed && [] !== $data ? $data : null;
+        return $result ?: throw new MarketUnavailable();
     }
 
     /** @return array{array<string,mixed>,FeedPolicy} */
