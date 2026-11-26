@@ -6,14 +6,14 @@ import {
   debtCommand, uncertainDebtResult
 } from '~/utils/debts'
 import {
-  formatMoney, currencyDigits, parseMinorUnits, splitShare
+  formatMoney, moneyInput, currencyDigits, parseMinorUnits, splitShare
 } from '~/utils/money'
 import {
   toApiClientError, type ApiClientError
 } from '~/utils/api-error'
 
 import type { ReceiptDraft, ReceiptJob } from '~/types/receipt'
-import { editableLine } from '~/utils/receipt'
+import { editableLine, prepareReceipt, receiptAmount } from '~/utils/receipt'
 
 const scanning = ref(false)
 const receipt = ref<ReceiptDraft | null>(null)
@@ -48,6 +48,7 @@ const values = reactive({
   title: '', description: '', amount: '', payerId: '', participantIds: [] as string[], includePayerInSplit: true
 })
 const selectedPeople = ref<BriefUser[]>([])
+const allocation = computed(() => receipt.value ? prepareReceipt(receipt.value, values.amount, currency.value, selectedPeople.value.map(p => p.id)) : null)
 const payer = ref<BriefUser[]>([])
 const pending = ref(false)
 const error = ref<ApiClientError | null>(null)
@@ -76,15 +77,15 @@ const errorMessage = computed(() => {
 async function submit(): Promise<void> {
   const viewer = state.value.user?.id
   if (!viewer || state.value.status !== 'authenticated' || pending.value) return
-  if (scanning.value) return
+  if (scanning.value && !attempt && !allocation.value) return
   if (!attempt) {
     const body = payerOptions.value.some(person => person.id === values.payerId)
-      ? debtCommand({ ...values, currency: currency.value, participantIds: selectedPeople.value.map(person => person.id).filter(id => id !== values.payerId), includePayerInSplit: selectedPeople.value.some(person => person.id === values.payerId) }, viewer)
+      ? debtCommand({ ...values, amount: scanning.value ? moneyInput(receiptAmount(values.amount, currency.value) ?? 0, currency.value) : values.amount, currency: currency.value, participantIds: selectedPeople.value.map(person => person.id).filter(id => id !== values.payerId), includePayerInSplit: selectedPeople.value.some(person => person.id === values.payerId) }, viewer)
       : null
     invalid.value = body === null
     if (!body) return
     attempt = {
-      body: { ...body, currency: currency.value, ...(manualRate.value ? { manualRate: manualRate.value } : {}) }, key: crypto.randomUUID()
+      body: { ...body, ...(allocation.value ? { receipt: allocation.value.receipt } : {}), currency: currency.value, ...(manualRate.value ? { manualRate: manualRate.value } : {}) }, key: crypto.randomUUID()
     }
   }
   const requestGeneration = generation
@@ -272,13 +273,20 @@ const { t } = useTranslation()
         <UiText variant="help">
           {{ t('Choose yourself or a selected participant as the payer. You must be the payer or a participant.') }}
         </UiText>
+        <ReceiptDistribution
+          v-if="receipt"
+          v-model="receipt"
+          :total="values.amount"
+          :currency="currency"
+          :people="selectedPeople"
+        />
         <UiText v-if="!scanning && share">
           {{ t('Each share:') }} {{ formatMoney(share, currency, locale) }}. {{ t('Shares round up to the smallest currency unit.') }}
         </UiText>
       </fieldset>
       <UiButton
         type="submit"
-        :disabled="pending || scanning"
+        :disabled="pending || (scanning && !allocation && !uncertain)"
         :pending="pending"
       >
         {{ pending ? t('Saving expense…') : uncertain ? t('Retry same expense') : t('Create expense') }}

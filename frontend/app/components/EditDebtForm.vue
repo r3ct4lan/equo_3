@@ -4,6 +4,9 @@ import { updateDebtCommand, validDebtEtag } from '~/utils/debt-update'
 import { formatMoney, moneyInput, currencyDigits, parseMinorUnits, splitShare } from '~/utils/money'
 import { toApiClientError, type ApiClientError } from '~/utils/api-error'
 
+import type { ReceiptDraft } from '~/types/receipt'
+import { editReceipt, prepareReceipt } from '~/utils/receipt'
+
 const { locale } = useLocale()
 
 const props = defineProps<{ debt: DebtView, etag: string }>()
@@ -17,6 +20,9 @@ const values = reactive({
 const currency = computed(() => props.debt.currency ?? 'EUR')
 const manualRate = ref(props.debt.manualRate ?? null)
 const people = ref<BriefUser[]>([])
+const receipt = ref<ReceiptDraft | null>(null)
+const receiptPeople = computed(() => values.includePayerInSplit ? [...people.value, props.debt.payer] : people.value)
+const allocation = computed(() => receipt.value ? prepareReceipt(receipt.value, values.amount, currency.value, receiptPeople.value.map(p => p.id)) : null)
 const pending = ref(false)
 const blocked = ref(false)
 const invalid = ref(false)
@@ -49,7 +55,8 @@ async function submit(): Promise<void> {
   if (!viewer || state.value.status !== 'authenticated' || pending.value || blocked.value || !validDebtEtag(props.etag)) return
   const command = updateDebtCommand(props.debt, values, viewer)
   invalid.value = !command
-  if (!command) return
+  if (!command || (receipt.value && !allocation.value)) return
+  if (allocation.value) command.receipt = allocation.value.receipt
   if (manualRate.value !== (props.debt.manualRate ?? null)) command.manualRate = manualRate.value
   const requestGeneration = generation
   pending.value = true
@@ -71,6 +78,7 @@ async function submit(): Promise<void> {
 }
 function clear(): void {
   ++generation
+  receipt.value = null
   people.value = []
   values.title = ''
   values.description = ''
@@ -90,6 +98,7 @@ function reset(): void {
   values.amount = moneyInput(props.debt.totalAmount, props.debt.currency)
   values.participantIds = props.debt.participants.filter(p => !p.isPayer).map(p => p.user.id)
   values.includePayerInSplit = props.debt.includePayerInSplit
+  receipt.value = props.debt.receipt ? editReceipt(props.debt.receipt, currency.value) : null
   blocked.value = false
   invalid.value = false
   people.value = props.debt.participants.filter(p => !p.isPayer).map(p => p.user)
@@ -140,6 +149,10 @@ const { t } = useTranslation()
           rows="3"
         />
       </UiField>
+      <template v-if="receipt">
+        <UiText>{{ t('Expense currency') }} · {{ currency }}</UiText>
+        <ReceiptPhotos :debt="debt" />
+      </template>
       <OperationRateField
         v-model="manualRate"
         inverse
@@ -165,6 +178,12 @@ const { t } = useTranslation()
           {{ t('Maximum amount') }} · {{ formatMoney(2147483647, currency, locale) }}
         </UiText>
       </UiField>
+      <ReceiptEditor
+        v-if="receipt"
+        v-model="receipt"
+        :total="values.amount"
+        :currency="currency"
+      />
       <DebtPeoplePicker
         v-model="people"
         :label="t('Share with')"
@@ -176,7 +195,14 @@ const { t } = useTranslation()
       <label class="checkbox-label"><UiCheckbox
         v-model="values.includePayerInSplit"
       /> {{ t('Include the payer in the split') }}</label>
-      <UiText v-if="share">
+      <ReceiptDistribution
+        v-if="receipt"
+        v-model="receipt"
+        :total="values.amount"
+        :currency="currency"
+        :people="receiptPeople"
+      />
+      <UiText v-else-if="share">
         {{ t('Each share:') }} {{ formatMoney(share, currency, locale) }}.
         {{ splitChanged ? t('Every current share will be recalculated.') : '' }}
       </UiText>
@@ -186,7 +212,7 @@ const { t } = useTranslation()
     </fieldset>
     <UiButton
       type="submit"
-      :disabled="pending || blocked || !validDebtEtag(etag)"
+      :disabled="pending || blocked || !validDebtEtag(etag) || (!!receipt && !allocation)"
       :pending="pending"
     >
       {{ pending ? t('Saving changes…') : t('Save changes') }}

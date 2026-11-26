@@ -32,7 +32,14 @@ function preserveMoneyOnInsert(event: InputEvent): void {
 </script>
 
 <template>
+  <input
+    v-if="type === 'file'"
+    ref="file"
+    type="file"
+    class="ui-control"
+  >
   <RegistryInput
+    v-else
     ref="input"
     :model-value="model"
     class="ui-control"

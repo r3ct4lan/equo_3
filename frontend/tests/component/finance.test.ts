@@ -7,6 +7,10 @@ import {
 import {
   afterEach, beforeEach, describe, expect, it, vi
 } from 'vitest'
+import ReceiptDistribution from '../../app/components/ReceiptDistribution.vue'
+import ReceiptEditor from '../../app/components/ReceiptEditor.vue'
+import ReceiptScan from '../../app/components/ReceiptScan.vue'
+import { editableLine } from '../../app/utils/receipt'
 import CurrencySelect from '../../app/components/CurrencySelect.vue'
 import CreateDebtForm from '../../app/components/CreateDebtForm.vue'
 import NewDebtPage from '../../app/pages/debts/new.vue'
@@ -96,6 +100,31 @@ describe('financial journey components', () => {
     expect(wrapper.text()).toContain('Choose one to three receipt photos.')
     expect(auth.protectedRequest.mock.calls.some(([path]) => path.includes('receipt-uploads'))).toBe(false)
     expect(wrapper.get('button[type=submit]').attributes('disabled')).toBeDefined()
+  })
+  it('assigns eighteen initially empty rows to everyone and keeps the other rows when one changes', async () => {
+    const draft = reactive({ uploadId: 'upload', discount: 0, remainder: {}, lines: Array.from({ length: 18 }, () => ({ ...editableLine(), amount: '1' })) })
+    const wrapper = await mountSuspended(ReceiptDistribution, { props: { modelValue: draft, people: [self, other], currency: 'EUR', total: '18' } })
+    expect(wrapper.findAll('[data-testid="receipt-assignment"]')).toHaveLength(18)
+    expect(draft.lines.every(row => !Object.keys(row.assignments).length)).toBe(true)
+    await wrapper.get('button').trigger('click')
+    expect(draft.lines.every(row => Object.keys(row.assignments).length === 2)).toBe(true)
+    const first = wrapper.getComponent({ name: 'ReceiptAssignees' })
+    first.vm.$emit('update:modelValue', { other: null })
+    await flushPromises()
+    expect(draft.lines[0]!.assignments).toEqual({ other: null })
+    expect(draft.lines[1]!.assignments).toEqual({ self: null, other: null })
+  })
+  it('preserves raw prices and an unknown currency through recognition, editing and catalog loading', async () => {
+    const wrapper = await mountSuspended(CreateDebtForm)
+    await wrapper.get('[data-testid="scan-receipt"]').trigger('click')
+    wrapper.getComponent(ReceiptScan).vm.$emit('ready', { id: 'u', state: 'ready', photos: [1], draft: { total: '600', currency: null, lines: [{ name: 'Kafa', quantity: '1', amount: '600', unitPrice: '600' }] } }, '')
+    await flushPromises()
+    expect(wrapper.getComponent(CurrencySelect).props('modelValue')).toBe('')
+    expect(wrapper.getComponent(ReceiptEditor).props('modelValue').lines[0]?.amount).toBe('600')
+    wrapper.getComponent(CurrencySelect).vm.$emit('update:modelValue', 'RSD')
+    await flushPromises()
+    expect(wrapper.get('#debt-amount').element.value).toBe('600')
+    expect(wrapper.getComponent(ReceiptEditor).props('modelValue').lines[0]?.name).toBe('Kafa')
   })
   it('keeps currency options when the same profile reloads during the request', async () => {
     const wrapper = await mountSuspended(CurrencySelect, { props: { modelValue: 'EUR', label: 'Profile currency' } })

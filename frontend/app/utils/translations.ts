@@ -1,6 +1,16 @@
 import type { AppLocale } from './locale'
 
 const russian: Record<string, string> = {
+  'Assign purchases': 'Распределить покупки',
+  'Assign by quantity': 'Распределить по количеству',
+  'Confirm remaining recipients': 'Подтвердить оставшихся получателей',
+  'Split equally': 'Разделить поровну',
+  'Receipt items': 'Позиции чека',
+  'Discount': 'Скидка',
+  'Remove photo': 'Удалить фото',
+  'Could not open photo.': 'Не удалось открыть фото.',
+  'Could not remove photo. Reload the expense.': 'Не удалось удалить фото. Обновите расход.',
+  'Check the currency, total and assignments for every item.': 'Проверьте валюту, итог и распределение каждой позиции.',
   'Scan receipt': 'Сканировать чек',
   'Receipt photos': 'Снимки чека',
   'Receipt photo': 'Снимок чека',

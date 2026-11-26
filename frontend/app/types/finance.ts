@@ -1,3 +1,5 @@
+import type { Receipt } from './receipt'
+
 export interface BriefUser { id: string, name: string, isActive: boolean }
 export interface Pagination { nextCursor: string | null, hasMore: boolean }
 export interface Page<T> { items: T[], pagination: Pagination }
@@ -21,6 +23,7 @@ export interface DebtSummary extends CurrencyView {
   createdAt: string
 }
 export interface DebtView extends DebtSummary {
+  receipt?: Receipt & { photos: number[] }
   description: string | null
   createdBy: BriefUser
   includePayerInSplit: boolean
