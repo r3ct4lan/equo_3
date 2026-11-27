@@ -1,12 +1,42 @@
-import type { Assignments, EditableLine, Receipt, ReceiptDraft, ReceiptLine, RecognizedLine } from '../types/receipt'
+import type { Assignments, EditableLine, Receipt, ReceiptDraft, ReceiptLine, RecognizedLine, PriceField } from '../types/receipt'
+import { generateIdempotencyKey } from './auth-flow.ts'
 import { currencyDigits, MAX_AMOUNT_CENTS, moneyInput, parseMinorUnits } from './money.ts'
 
-export function editableLine(row?: RecognizedLine): EditableLine {
-  return {
-    key: crypto.randomUUID(), name: row?.name ?? '', quantity: row?.quantity ?? '1',
+const priceFields = ['quantity', 'unitPrice', 'amount'] as const
+
+export function editableLine(row?: RecognizedLine, currency = ''): EditableLine {
+  const line: EditableLine = {
+    key: generateIdempotencyKey(), name: row?.name ?? '', quantity: row ? row.quantity ?? '' : '1',
     unitPrice: row?.unitPrice ?? '', amount: row?.amount ?? '', assignments: {}
   }
+  const missing = priceFields.filter(field => !line[field])
+  if (missing.length === 1) calculateField(line, missing[0]!, currency)
+  return line
 }
+
+export function calculateField(row: EditableLine, field: PriceField, currency: string) {
+  row.calculated = field
+  if (field === 'amount') {
+    row.amount = extendedPrice(row, currency) ?? ''
+    return
+  }
+  const numerator = scaledDecimal(row.amount)
+  const divisor = scaledDecimal(field === 'quantity' ? row.unitPrice : row.quantity)
+  if (numerator === null || !divisor) {
+    row[field] = ''
+    return
+  }
+  const digits = field === 'unitPrice' && currency ? currencyDigits(currency) : 6
+  const result = (numerator * 10n ** BigInt(digits) + divisor / 2n) / divisor
+  const raw = result.toString().padStart(digits + 1, '0')
+  row[field] = digits ? (raw.slice(0, -digits) + '.' + raw.slice(-digits)).replace(/0+$/u, '').replace(/\.$/u, '') : raw
+}
+
+function scaledDecimal(text: string): bigint | null {
+  const match = /^(\d{1,10})(?:[.,](\d{1,6}))?$/u.exec(text)
+  return match ? BigInt(match[1]! + (match[2] ?? '').padEnd(6, '0')) : null
+}
+
 export function receiptAmount(text: string, currency: string): number | null {
   if (!currency) return null
   const normalized = text.trim().replace(',', '.').replace(/(\.\d*?)0+$/u, '$1').replace(/\.$/u, '')

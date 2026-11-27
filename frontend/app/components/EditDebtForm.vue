@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createReusableTemplate } from '@vueuse/core'
 import type { BriefUser, DebtView } from '~/types/finance'
 import { updateDebtCommand, validDebtEtag } from '~/utils/debt-update'
 import { formatMoney, moneyInput, currencyDigits, parseMinorUnits, splitShare } from '~/utils/money'
@@ -9,6 +10,7 @@ import { editReceipt, prepareReceipt } from '~/utils/receipt'
 
 const { locale } = useLocale()
 
+const [DefineAmount, AmountField] = createReusableTemplate()
 const props = defineProps<{ debt: DebtView, etag: string }>()
 const emit = defineEmits<{ saved: [debt: DebtView], reload: [], cancel: [] }>()
 const { $auth } = useNuxtApp()
@@ -140,6 +142,27 @@ const { t } = useTranslation()
       class="stack edit-fields"
       :disabled="pending || blocked"
     >
+      <DefineAmount>
+        <UiField>
+          <label for="edit-amount">{{ currency === 'EUR' ? t('Amount in EUR') : t('Amount in') + ' ' + currency }}</label>
+          <UiInput
+            id="edit-amount"
+            v-model="values.amount"
+            money
+            :digits="currencyDigits(currency)"
+            type="text"
+            inputmode="decimal"
+            required
+            aria-describedby="edit-amount-help"
+          />
+          <UiText
+            id="edit-amount-help"
+            variant="help"
+          >
+            {{ t('Maximum amount') }} · {{ formatMoney(2147483647, currency, locale) }}
+          </UiText>
+        </UiField>
+      </DefineAmount>
       <legend class="visually-hidden">
         {{ t('Expense details') }}
       </legend>
@@ -157,41 +180,6 @@ const { t } = useTranslation()
           rows="3"
         />
       </UiField>
-      <template v-if="receipt">
-        <UiText>{{ t('Expense currency') }} · {{ currency }}</UiText>
-        <ReceiptPhotos :debt="debt" />
-      </template>
-      <OperationRateField
-        v-model="manualRate"
-        inverse
-        :currency="currency"
-        :target="debt.rateCurrency ?? state.user?.currency ?? 'EUR'"
-      />
-      <UiField>
-        <label for="edit-amount">{{ currency === 'EUR' ? t('Amount in EUR') : t('Amount in') + ' ' + currency }}</label>
-        <UiInput
-          id="edit-amount"
-          v-model="values.amount"
-          money
-          :digits="currencyDigits(currency)"
-          type="text"
-          inputmode="decimal"
-          required
-          aria-describedby="edit-amount-help"
-        />
-        <UiText
-          id="edit-amount-help"
-          variant="help"
-        >
-          {{ t('Maximum amount') }} · {{ formatMoney(2147483647, currency, locale) }}
-        </UiText>
-      </UiField>
-      <ReceiptEditor
-        v-if="receipt"
-        v-model="receipt"
-        :total="values.amount"
-        :currency="currency"
-      />
       <DebtPeoplePicker
         v-model="people"
         :label="t('Share with')"
@@ -203,6 +191,16 @@ const { t } = useTranslation()
       <label class="checkbox-label"><UiCheckbox
         v-model="values.includePayerInSplit"
       /> {{ t('Include the payer in the split') }}</label>
+      <template v-if="receipt">
+        <UiText>{{ t('Expense currency') }} · {{ currency }}</UiText>
+        <ReceiptPhotos :debt="debt" />
+      </template>
+      <OperationRateField
+        v-model="manualRate"
+        inverse
+        :currency="currency"
+        :target="debt.rateCurrency ?? state.user?.currency ?? 'EUR'"
+      />
       <ReceiptDistribution
         v-if="receipt"
         v-model="receipt"
@@ -210,12 +208,17 @@ const { t } = useTranslation()
         :currency="currency"
         :people="receiptPeople"
         :saved-shares="savedShares"
-      />
-      <UiText v-else-if="share">
+      >
+        <template #total>
+          <AmountField />
+        </template>
+      </ReceiptDistribution>
+      <AmountField v-else />
+      <UiText v-if="!receipt && share">
         {{ t('Each share:') }} {{ formatMoney(share, currency, locale) }}.
         {{ splitChanged ? t('Every current share will be recalculated.') : '' }}
       </UiText>
-      <UiText v-else-if="!splitChanged">
+      <UiText v-else-if="!receipt && !splitChanged">
         {{ t('Current shares will stay the same.') }}
       </UiText>
     </fieldset>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createReusableTemplate } from '@vueuse/core'
 import type {
   BriefUser, CreateDebtBody, DebtView
 } from '~/types/finance'
@@ -12,9 +13,11 @@ import {
   toApiClientError, type ApiClientError
 } from '~/utils/api-error'
 
+import { generateIdempotencyKey } from '~/utils/auth-flow'
 import type { ReceiptDraft, ReceiptJob } from '~/types/receipt'
 import { editableLine, prepareReceipt, receiptAmount } from '~/utils/receipt'
 
+const [DefineAmount, AmountField] = createReusableTemplate()
 const scanning = ref(false)
 const receipt = ref<ReceiptDraft | null>(null)
 function scan(enabled: boolean) {
@@ -24,7 +27,7 @@ function scan(enabled: boolean) {
   values.amount = ''
 }
 function recognized(job: ReceiptJob, code: string) {
-  receipt.value = { uploadId: job.id, lines: job.draft?.lines.map(editableLine) ?? [editableLine()], discount: 0, remainder: {} }
+  receipt.value = { uploadId: job.id, lines: job.draft?.lines.map(row => editableLine(row, code)) ?? [editableLine()], discount: 0, remainder: {} }
   currency.value = code
   values.amount = job.draft?.total ?? ''
 }
@@ -85,7 +88,7 @@ async function submit(): Promise<void> {
     invalid.value = body === null
     if (!body) return
     attempt = {
-      body: { ...body, ...(allocation.value ? { receipt: allocation.value.receipt } : {}), currency: currency.value, ...(manualRate.value ? { manualRate: manualRate.value } : {}) }, key: crypto.randomUUID()
+      body: { ...body, ...(allocation.value ? { receipt: allocation.value.receipt } : {}), currency: currency.value, ...(manualRate.value ? { manualRate: manualRate.value } : {}) }, key: generateIdempotencyKey()
     }
   }
   const requestGeneration = generation
@@ -156,6 +159,34 @@ const { t } = useTranslation()
 
 <template>
   <div class="stack">
+    <DefineAmount>
+      <UiField>
+        <label for="debt-amount">{{ scanning ? t('Printed total') : currency === 'EUR' ? t('Amount in EUR') : t('Amount in') + ' ' + currency }}</label>
+        <UiInput
+          id="debt-amount"
+          v-model="values.amount"
+          :money="!scanning"
+          :digits="currencyDigits(currency)"
+          type="text"
+          inputmode="decimal"
+          placeholder="10.01"
+          required
+          :aria-invalid="invalid && parseMinorUnits(values.amount, currency) === null"
+          aria-describedby="amount-help amount-errors"
+        />
+        <UiText
+          v-if="currency"
+          id="amount-help"
+          variant="help"
+        >
+          {{ t('Maximum amount') }} · {{ formatMoney(2147483647, currency, locale) }}
+        </UiText>
+        <FormFieldError
+          id="amount-errors"
+          :messages="error?.fieldErrors.totalAmount"
+        />
+      </UiField>
+    </DefineAmount>
     <UiCard
       as="form"
       class="stack"
@@ -172,26 +203,6 @@ const { t } = useTranslation()
         <legend class="visually-hidden">
           {{ t('Expense details') }}
         </legend>
-        <UiButton
-          v-if="!scanning"
-          data-testid="scan-receipt"
-          variant="secondary"
-          @click="scan(true)"
-        >
-          {{ t('Scan receipt') }}
-        </UiButton>
-        <template v-else>
-          <ReceiptScan
-            @ready="recognized"
-            @reset="scan(true)"
-          />
-          <UiButton
-            variant="secondary"
-            @click="scan(false)"
-          >
-            {{ t('Enter an ordinary expense') }}
-          </UiButton>
-        </template>
         <UiField>
           <label for="debt-title">{{ t('Title') }}</label>
           <UiInput
@@ -214,49 +225,6 @@ const { t } = useTranslation()
             rows="3"
           />
         </UiField>
-        <CurrencySelect
-          v-model="currency"
-          :label="t('Expense currency')"
-        />
-        <OperationRateField
-          v-if="currency"
-          v-model="manualRate"
-          inverse
-          :currency="currency"
-          :target="profileCurrency"
-        />
-        <UiField>
-          <label for="debt-amount">{{ scanning ? t('Printed total') : currency === 'EUR' ? t('Amount in EUR') : t('Amount in') + ' ' + currency }}</label>
-          <UiInput
-            id="debt-amount"
-            v-model="values.amount"
-            :money="!scanning"
-            :digits="currencyDigits(currency)"
-            type="text"
-            inputmode="decimal"
-            placeholder="10.01"
-            required
-            :aria-invalid="invalid && parseMinorUnits(values.amount, currency) === null"
-            aria-describedby="amount-help amount-errors"
-          />
-          <UiText
-            v-if="currency"
-            id="amount-help"
-            variant="help"
-          >
-            {{ t('Maximum amount') }} · {{ formatMoney(2147483647, currency, locale) }}
-          </UiText>
-          <FormFieldError
-            id="amount-errors"
-            :messages="error?.fieldErrors.totalAmount"
-          />
-        </UiField>
-        <ReceiptEditor
-          v-if="receipt"
-          v-model="receipt"
-          :currency="currency"
-          :total="values.amount"
-        />
         <DebtPeoplePicker
           v-model="selectedPeople"
           data-testid="expense-people"
@@ -273,13 +241,49 @@ const { t } = useTranslation()
         <UiText variant="help">
           {{ t('Choose yourself or a selected participant as the payer. You must be the payer or a participant.') }}
         </UiText>
+        <UiButton
+          v-if="!scanning"
+          data-testid="scan-receipt"
+          variant="secondary"
+          @click="scan(true)"
+        >
+          {{ t('Scan receipt') }}
+        </UiButton>
+        <template v-else>
+          <ReceiptScan
+            @ready="recognized"
+            @reset="scan(true)"
+          />
+          <UiButton
+            variant="secondary"
+            @click="scan(false)"
+          >
+            {{ t('Enter an ordinary expense') }}
+          </UiButton>
+        </template>
+        <CurrencySelect
+          v-model="currency"
+          :label="t('Expense currency')"
+        />
+        <OperationRateField
+          v-if="currency"
+          v-model="manualRate"
+          inverse
+          :currency="currency"
+          :target="profileCurrency"
+        />
         <ReceiptDistribution
           v-if="receipt"
           v-model="receipt"
           :total="values.amount"
           :currency="currency"
           :people="selectedPeople"
-        />
+        >
+          <template #total>
+            <AmountField />
+          </template>
+        </ReceiptDistribution>
+        <AmountField v-else />
         <UiText v-if="!scanning && share">
           {{ t('Each share:') }} {{ formatMoney(share, currency, locale) }}. {{ t('Shares round up to the smallest currency unit.') }}
         </UiText>
