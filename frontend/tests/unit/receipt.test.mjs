@@ -16,3 +16,13 @@ test('previews final individual shares and requires every unit and the printed d
   assert.deepEqual(preview([row('1', all), row('2', all)], '3'), { anna: 100, boris: 100, vera: 100 })
   assert.deepEqual(preview([row('20', { anna: null }), row('10', { boris: null })], '24', 600), { anna: 1600, boris: 800 })
 })
+
+test('fills any one missing receipt value and leaves ambiguous or zero-divisor inputs editable', () => {
+  const fill = (quantity, unitPrice, amount, currency = 'EUR') => editableLine({ quantity, unitPrice, amount }, currency)
+  assert.equal(fill('2,5', '4.20', null).amount, '10.50')
+  assert.equal(fill(null, '4.20', '10.50').quantity, '2.5')
+  assert.equal(fill('2.5', null, '10.50').unitPrice, '4.2')
+  assert.equal(fill(null, '0', '10.50').quantity, '')
+  assert.equal(fill(null, null, '10.50').quantity, '')
+  assert.equal(fill('3', null, '10', 'JPY').unitPrice, '3')
+})

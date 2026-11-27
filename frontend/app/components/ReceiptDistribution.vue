@@ -44,7 +44,7 @@ watch(ids, (allowed) => {
 <template>
   <div class="stack">
     <UiText variant="heading2">
-      {{ t('Assign purchases') }}
+      {{ t('Check receipt items') }}
     </UiText>
     <UiButton
       variant="secondary"
@@ -53,16 +53,25 @@ watch(ids, (allowed) => {
     >
       {{ t('Split equally') }}
     </UiButton>
-    <ReceiptAssignees
-      v-for="(row, index) in draft.lines"
-      :key="row.key"
-      v-model="row.assignments"
-      :label="(row.name || t('Item') + ' ' + (index + 1)) + ' · ' + (currency && receiptAmount(row.amount, currency) !== null ? formatMoney(receiptAmount(row.amount, currency)!, currency, locale) : row.amount)"
-      :people="people"
-      :quantity="row.quantity"
-      :review="row.review"
-      @confirm="row.review = false; delete row.mergedSeats"
-    />
+    <ReceiptEditor
+      v-model="draft"
+      :total="total"
+      :currency="currency"
+    >
+      <template #assignment="{ row, index }">
+        <ReceiptAssignees
+          v-model="row.assignments"
+          :label="(row.name || t('Item') + ' ' + (index + 1)) + ' · ' + (currency && receiptAmount(row.amount, currency) !== null ? formatMoney(receiptAmount(row.amount, currency)!, currency, locale) : row.amount)"
+          :people="people"
+          :quantity="row.quantity"
+          :review="row.review"
+          @confirm="row.review = false; delete row.mergedSeats"
+        />
+      </template>
+      <template #total>
+        <slot name="total" />
+      </template>
+    </ReceiptEditor>
     <ReceiptAssignees
       v-if="gap !== null && gap > 0"
       v-model="draft.remainder"

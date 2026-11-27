@@ -19,7 +19,9 @@ export interface ReceiptJob {
   photos: number[]
 }
 export type Assignments = Record<string, string | null>
+export type PriceField = 'quantity' | 'unitPrice' | 'amount'
 export interface EditableLine {
+  calculated?: PriceField
   key: string
   name: string
   quantity: string

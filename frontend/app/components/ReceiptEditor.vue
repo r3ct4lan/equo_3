@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { ReceiptDraft, EditableLine } from '~/types/receipt'
-import { editableLine, extendedPrice, receiptDifference } from '~/utils/receipt'
+import type { ReceiptDraft, EditableLine, PriceField } from '~/types/receipt'
+import { editableLine, calculateField, receiptDifference } from '~/utils/receipt'
 import { formatMoney } from '~/utils/money'
 
 const props = defineProps<{ currency: string, total: string }>()
@@ -12,17 +12,28 @@ watch(difference, (amount) => {
   if (amount !== -draft.value.discount) draft.value.discount = 0
   if (amount !== null && amount <= 0) draft.value.remainder = {}
 })
-function updatePrice(row: EditableLine) {
-  const price = extendedPrice(row, props.currency)
-  if (price !== null) row.amount = price
+watch(() => props.currency, (currency) => {
+  for (const row of draft.value.lines) {
+    if (row.calculated) calculateField(row, row.calculated, currency)
+  }
+})
+const edits = new WeakMap<EditableLine, PriceField[]>()
+function updatePrice(row: EditableLine, field: PriceField, value: string) {
+  delete row.calculated
+  row[field] = value
+  const recent = [field, ...(edits.get(row) ?? []).filter(key => key !== field)].slice(0, 2)
+  edits.set(row, recent)
+  if (!value) return
+  const others: PriceField[] = field === 'amount'
+    ? ['unitPrice', 'quantity']
+    : field === 'quantity' ? ['amount', 'unitPrice'] : ['amount', 'quantity']
+  const target = others.find(key => !row[key]) ?? others.find(key => !recent.includes(key))!
+  calculateField(row, target, props.currency)
 }
 </script>
 
 <template>
   <div class="stack">
-    <UiText variant="heading2">
-      {{ t('Check receipt items') }}
-    </UiText>
     <fieldset
       v-for="(row, index) in draft.lines"
       :key="row.key"
@@ -39,26 +50,35 @@ function updatePrice(row: EditableLine) {
       <UiField>
         <label :for="'qty-' + row.key">{{ t('Quantity') }}</label><UiInput
           :id="'qty-' + row.key"
-          v-model="row.quantity"
+          :model-value="row.quantity"
           inputmode="decimal"
-          @update:model-value="updatePrice(row)"
+          @update:model-value="updatePrice(row, 'quantity', $event)"
+          @blur="!row.quantity && calculateField(row, 'quantity', currency)"
         />
       </UiField>
       <UiField>
         <label :for="'price-' + row.key">{{ t('Unit price') }}</label><UiInput
           :id="'price-' + row.key"
-          v-model="row.unitPrice"
+          :model-value="row.unitPrice"
           inputmode="decimal"
-          @update:model-value="updatePrice(row)"
+          @update:model-value="updatePrice(row, 'unitPrice', $event)"
+          @blur="!row.unitPrice && calculateField(row, 'unitPrice', currency)"
         />
       </UiField>
       <UiField>
         <label :for="'amount-' + row.key">{{ t('Line total') }}</label><UiInput
           :id="'amount-' + row.key"
-          v-model="row.amount"
+          :model-value="row.amount"
           inputmode="decimal"
+          @update:model-value="updatePrice(row, 'amount', $event)"
+          @blur="!row.amount && calculateField(row, 'amount', currency)"
         />
       </UiField>
+      <slot
+        name="assignment"
+        :row="row"
+        :index="index"
+      />
       <UiButton
         variant="secondary"
         @click="draft.lines.splice(index, 1)"
@@ -72,6 +92,7 @@ function updatePrice(row: EditableLine) {
     >
       {{ t('Add item') }}
     </UiButton>
+    <slot name="total" />
     <UiText v-if="difference !== null && difference > 0">
       {{ t('Unnamed item') }} · {{ formatMoney(difference, currency, locale) }}
     </UiText>

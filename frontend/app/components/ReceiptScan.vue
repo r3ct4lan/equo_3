@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { generateIdempotencyKey } from '~/utils/auth-flow'
 import type { ReceiptJob } from '~/types/receipt'
 
 const emit = defineEmits<{ ready: [job: ReceiptJob, currency: string], reset: [] }>()
@@ -17,13 +18,22 @@ const endpoint = '/v1/debts/receipt-uploads'
 function imageUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
+    reader.onload = () => {
+      const data = String(reader.result)
+      const bytes = data.slice(data.indexOf(',') + 1)
+      const header = atob(bytes.slice(0, 16))
+      const mime = header.startsWith('\xff\xd8\xff')
+        ? 'image/jpeg'
+        : header.startsWith('\x89PNG\r\n\x1a\n')
+          ? 'image/png'
+          : header.startsWith('RIFF') && header.slice(8, 12) === 'WEBP' ? 'image/webp' : ''
+      resolve('data:' + mime + ';base64,' + bytes)
+    }
     reader.onerror = () => reject(new Error('Read failed'))
     reader.readAsDataURL(file)
   })
 }
-async function choose(event: Event) {
-  const files = Array.from((event.target as HTMLInputElement).files ?? [])
+async function choose(files: File[]) {
   if (!files.length) return
   const current = ++generation
   controller?.abort()
@@ -36,19 +46,28 @@ async function choose(event: Event) {
     message.value = 'Choose one to three receipt photos.'
     return
   }
-  if (files.some(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 4194304)) {
-    message.value = 'Use JPEG, PNG or WebP images up to 4 MiB each.'
+  if (files.some(file => file.size > 4194304)) {
+    message.value = 'Each receipt photo must be 4 MiB or smaller.'
     return
   }
+  busy.value = true
   try {
     const images = await Promise.all(files.map(imageUrl))
     if (generation !== current) return
+    if (images.some(image => !/^data:image\/(jpeg|png|webp);base64,/u.test(image))) {
+      message.value = 'Use JPEG, PNG or WebP images up to 4 MiB each.'
+      busy.value = false
+      return
+    }
     photos.value = images
-    key = crypto.randomUUID()
+    key = generateIdempotencyKey()
     await recognize()
   }
   catch {
-    if (generation === current) message.value = 'The photos could not be read.'
+    if (generation === current) {
+      busy.value = false
+      message.value = 'The photos could not be read.'
+    }
   }
 }
 async function recognize() {
@@ -60,7 +79,7 @@ async function recognize() {
   message.value = ''
   try {
     const retry = job.value?.state === 'failed'
-    if (retry) key = crypto.randomUUID()
+    if (retry) key = generateIdempotencyKey()
     let result = await $auth.protectedRequest<ReceiptJob>(retry ? endpoint + '/' + job.value!.id + '/retry' : endpoint, {
       method: 'POST', headers: { 'Idempotency-Key': key }, body: retry ? {} : { photos: photos.value }, signal
     })
@@ -111,17 +130,32 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="stack">
-    <UiField>
-      <label for="receipt-files">{{ t('Receipt photos') }}</label>
-      <UiInput
-        id="receipt-files"
-        ref="input"
-        type="file"
-        multiple
-        accept="image/jpeg,image/png,image/webp"
-        @change="choose"
-      />
-    </UiField>
+    <UiFileDrop
+      ref="input"
+      :label="t('Receipt photos')"
+      :hint="t('Choose or drop up to 3 photos · JPEG, PNG, WebP · 4 MiB each')"
+      :invalid="Boolean(message)"
+      accept="image/jpeg,image/png,image/webp"
+      @select="choose"
+    />
+    <UiNotice
+      v-if="message"
+      tone="error"
+    >
+      {{ t(message) }}
+    </UiNotice>
+    <UiNotice
+      v-if="busy"
+      busy
+    >
+      {{ t('Reading receipt…') }}
+    </UiNotice>
+    <UiNotice
+      v-else-if="job?.state === 'ready'"
+      tone="success"
+    >
+      {{ t('Receipt ready. Review the items below.') }}
+    </UiNotice>
     <div
       v-if="photos.length"
       class="flex flex-wrap gap-2"
@@ -138,18 +172,6 @@ onBeforeUnmount(() => {
         >
       </details>
     </div>
-    <UiText
-      v-if="message"
-      role="alert"
-    >
-      {{ t(message) }}
-    </UiText>
-    <UiText
-      v-if="busy"
-      role="status"
-    >
-      {{ t('Reading receipt…') }}
-    </UiText>
     <UiButton
       v-if="!busy && photos.length && (message || job?.state === 'failed')"
       variant="secondary"

@@ -42,6 +42,7 @@ const exampleShares: TransferView[] = [{
 watch(selectedPeople, (people) => {
   selectedPayer.value = selectedPayer.value.filter(payer => people.some(person => person.id === payer.id))
 })
+const chosenFiles = ref<string[]>([])
 const formDisabled = ref(false)
 const submitted = ref(false)
 const noticeTones: NoticeTone[] = ['info', 'success', 'error', 'neutral', 'warning']
@@ -406,6 +407,16 @@ async function closeDialog(): Promise<void> {
               :disabled="formDisabled"
             >
               <legend>Example form</legend>
+              <UiFileDrop
+                label="Receipt photos"
+                hint="Choose or drop JPEG, PNG or WebP images"
+                accept="image/jpeg,image/png,image/webp"
+                :invalid="false"
+                @select="files => chosenFiles = files.map(file => file.name)"
+              />
+              <UiText v-if="chosenFiles.length">
+                {{ chosenFiles.join(', ') }}
+              </UiText>
               <UiField>
                 <label for="kit-name">Name</label>
                 <UiInput
